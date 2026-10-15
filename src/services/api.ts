@@ -1,9 +1,8 @@
 import { telegramService } from './telegram';
-import { UserProfile, ActivityGoal } from '../types';
+import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender } from '../types';
 
 /**
- * Нормализация базового URL бэкенда.
- * Корректно работает как с https://site.onrender.com, так и с https://site.onrender.com/api
+ * Нормализация базового URL бэкенда
  */
 const getApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
@@ -17,9 +16,6 @@ const getApiBaseUrl = (): string => {
 const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
-  /**
-   * Универсальный метод отправки запросов с передачей Telegram initData в заголовках
-   */
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const initData = telegramService.getInitData();
 
@@ -49,26 +45,20 @@ class ApiService {
     }
   }
 
-  /**
-   * 1. Получить профиль текущего пользователя
-   */
+  // ==========================================
+  // ПОЛЬЗОВАТЕЛИ
+  // ==========================================
+
   async getMe(): Promise<any> {
     return this.request<any>('/users/me');
   }
 
-  /**
-   * 2. Подтверждение правил сервиса (онбординг "без дейтинга")
-   */
   async agreeToRules(): Promise<{ success: boolean; user?: any }> {
     return this.request<{ success: boolean; user?: any }>('/users/agree-rules', {
       method: 'POST'
     });
   }
 
-  /**
-   * 3. Получить список пользователей рядом (/api/users/nearby)
-   * Поддерживает автоматический фолбэк на /api/users/map для полной совместимости
-   */
   async getNearbyUsers(params?: {
     goal?: ActivityGoal | 'all';
     lat?: number;
@@ -86,14 +76,10 @@ class ApiService {
     try {
       return await this.request<UserProfile[]>(`/users/nearby${queryString}`);
     } catch (err: any) {
-      // Фолбэк на эндпоинт /users/map
       return await this.request<UserProfile[]>(`/users/map${queryString}`);
     }
   }
 
-  /**
-   * Алиас для совместимости с хуком useUsers
-   */
   async getMapUsers(params?: {
     goal?: ActivityGoal | 'all';
     lat?: number;
@@ -103,18 +89,19 @@ class ApiService {
     return this.getNearbyUsers(params);
   }
 
-  /**
-   * 4. Создать / Обновить профиль пользователя (POST-запрос на /api/users/profile)
-   */
   async updateProfile(data: {
     name?: string;
     firstName?: string;
     age?: number | string;
+    gender?: Gender;
+    preferredGender?: PreferredGender;
+    preferredAgeRange?: { min: number; max: number };
     bio?: string;
     goal?: ActivityGoal;
     goals?: ActivityGoal[];
     avatarUrl?: string;
     areaName?: string;
+    isTourist?: boolean;
     coordinates?: [number, number];
     isProfileActive?: boolean;
   }): Promise<any> {
@@ -131,6 +118,81 @@ class ApiService {
         });
       }
       throw err;
+    }
+  }
+
+  /**
+   * Заблокировать пользователя (черный список)
+   */
+  async blockUser(targetTelegramId: number): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>('/users/block', {
+      method: 'POST',
+      body: JSON.stringify({ targetTelegramId })
+    });
+  }
+
+  /**
+   * Разблокировать пользователя
+   */
+  async unblockUser(targetTelegramId: number): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>('/users/unblock', {
+      method: 'POST',
+      body: JSON.stringify({ targetTelegramId })
+    });
+  }
+
+  // ==========================================
+  // СОБЫТИЯ / СХОДКИ (EVENTS)
+  // ==========================================
+
+  async getEvents(params?: {
+    category?: string;
+    lat?: number;
+    lng?: number;
+    radiusKm?: number;
+  }): Promise<AppEvent[]> {
+    const query = new URLSearchParams();
+    if (params?.category && params.category !== 'all') query.set('category', params.category);
+    if (params?.lat) query.set('lat', params.lat.toString());
+    if (params?.lng) query.set('lng', params.lng.toString());
+    if (params?.radiusKm) query.set('radiusKm', params.radiusKm.toString());
+
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return this.request<AppEvent[]>(`/events${queryString}`);
+  }
+
+  async createEvent(data: {
+    title: string;
+    description: string;
+    category: string;
+    locationName: string;
+    coordinates: [number, number];
+    dateTime: string;
+    maxParticipants?: number;
+  }): Promise<AppEvent> {
+    return this.request<AppEvent>('/events', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async joinEvent(eventId: string): Promise<{ success: boolean; event: AppEvent }> {
+    return this.request<{ success: boolean; event: AppEvent }>(`/events/${eventId}/join`, {
+      method: 'POST'
+    });
+  }
+
+  async leaveEvent(eventId: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(`/events/${eventId}/leave`, {
+      method: 'POST'
+    });
+  }
+
+  async toggleJoinEvent(eventId: string, isCurrentlyJoined: boolean): Promise<any> {
+    if (isCurrentlyJoined) {
+      return this.leaveEvent(eventId);
+    } else {
+      return this.joinEvent(eventId);
     }
   }
 }
