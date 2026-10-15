@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Compass, Users, User, Calendar, MapPin, Plus, Clock, Send, Check, X, Loader2, Sparkles } from 'lucide-react';
+import { Compass, Users, User, Calendar, MapPin, Plus, Clock, Send, Check, X, Loader2, Sparkles, Edit2, Trash2 } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
@@ -33,11 +33,16 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   onOpenProfile,
   currentArea = 'Минск'
 }) => {
+  const currentTgUser = telegramService.getUser();
+  const currentUserId = currentTgUser?.id;
+
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | 'all'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Поля формы нового события
+  // Поля формы события
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<EventCategory>('walk');
@@ -50,6 +55,67 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const filteredEvents = selectedCategory === 'all'
     ? events
     : events.filter((e) => e.category === selectedCategory);
+
+  // Открыть модалку для создания нового события
+  const handleOpenCreateModal = () => {
+    telegramService.haptic('light');
+    setEditingEventId(null);
+    setTitle('');
+    setDescription('');
+    setCategory('walk');
+    setLocationName('Октябрьская улица');
+    setDateTime('');
+    setMaxParticipants('8');
+    setFormError(null);
+    setIsModalOpen(true);
+  };
+
+  // Открыть модалку для редактирования существующего события
+  const handleOpenEditModal = (ev: AppEvent) => {
+    telegramService.haptic('light');
+    setEditingEventId(ev.id);
+    setTitle(ev.title || '');
+    setDescription(ev.description || '');
+    setCategory(ev.category || 'walk');
+    setLocationName(ev.locationName || '');
+
+    // Преобразуем дату в формат datetime-local YYYY-MM-DDTHH:mm
+    try {
+      const d = new Date(ev.dateTime);
+      const localIso = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+      setDateTime(localIso);
+    } catch {
+      setDateTime('');
+    }
+
+    setMaxParticipants(ev.maxParticipants ? String(ev.maxParticipants) : '0');
+    setFormError(null);
+    setIsModalOpen(true);
+  };
+
+  // Удаление события создателем
+  const handleDeleteEvent = async (ev: AppEvent) => {
+    telegramService.haptic('warning');
+    const confirmed = window.confirm(`Удалить сходку "${ev.title}"?`);
+    if (!confirmed) return;
+
+    setDeletingId(ev.id);
+    try {
+      if ((api as any).deleteEvent) {
+        await (api as any).deleteEvent(ev.id);
+      } else {
+        await (api as any).request(`/events/${ev.id}`, { method: 'DELETE' });
+      }
+      telegramService.haptic('success');
+      onRefreshEvents?.();
+    } catch (err: any) {
+      alert(err.message || 'Ошибка удаления события');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   // Переключение участия в событии
   const handleToggleJoin = async (event: AppEvent) => {
@@ -70,8 +136,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
   };
 
-  // Создание события
-  const handleCreateEvent = async (e: React.FormEvent) => {
+  // Отправка формы (Создание или Редактирование)
+  const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -96,19 +162,33 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         maxParticipants: Number(maxParticipants) || 0
       };
 
-      if (onCreateEvent) {
-        await onCreateEvent(payload);
+      if (editingEventId) {
+        // PUT-запрос на обновление
+        if ((api as any).updateEvent) {
+          await (api as any).updateEvent(editingEventId, payload);
+        } else {
+          await (api as any).request(`/events/${editingEventId}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+          });
+        }
       } else {
-        await api.createEvent(payload);
+        // Создание нового события
+        if (onCreateEvent) {
+          await onCreateEvent(payload);
+        } else {
+          await api.createEvent(payload);
+        }
       }
 
       telegramService.haptic('success');
       setIsModalOpen(false);
+      setEditingEventId(null);
       setTitle('');
       setDescription('');
       onRefreshEvents?.();
     } catch (err: any) {
-      setFormError(err.message || 'Ошибка создания события');
+      setFormError(err.message || 'Ошибка сохранения события');
     } finally {
       setIsSubmitting(false);
     }
@@ -149,10 +229,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </div>
 
         <button
-          onClick={() => {
-            telegramService.haptic('light');
-            setIsModalOpen(true);
-          }}
+          onClick={handleOpenCreateModal}
           className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-xs font-semibold shadow-sm active:scale-95 transition-all cursor-pointer"
         >
           <Plus size={14} strokeWidth={2.5} />
@@ -214,7 +291,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             <p className="font-serif text-sm font-bold text-zine-ink">В этой категории пока нет сходок</p>
             <p className="text-xs mt-1 mb-4">Будь первым, кто соберет компанию для прогулки или чашки кофе!</p>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleOpenCreateModal}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zine-terracotta text-white font-medium text-xs shadow-zine cursor-pointer"
             >
               <Plus size={14} />
@@ -230,15 +307,27 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               badgeText: 'text-stone-800'
             };
             const isJoining = joiningId === ev.id;
+            const isDeleting = deletingId === ev.id;
+
+            // Проверка, является ли текущий пользователь автором события
+            const isCreator = Boolean(
+              currentUserId && (
+                ev.creator?.telegramId === currentUserId ||
+                (ev as any).creatorId === currentUserId ||
+                (ev as any).creatorId === String(currentUserId)
+              )
+            );
 
             return (
               <div
                 key={ev.id}
                 className="p-4 rounded-2xl bg-zine-card border border-zine-border shadow-zine hover:shadow-zine-lg transition-all relative overflow-hidden"
               >
+                {/* Фоновый легкий блик */}
                 <div className={`absolute top-0 right-0 w-32 h-32 rounded-full ${catConfig.badgeBg} opacity-50 blur-2xl pointer-events-none`} />
 
                 <div className="relative z-10">
+                  {/* Верхняя строка афиши: категория и дата */}
                   <div className="flex items-center justify-between mb-2">
                     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-bold border border-black/5 ${catConfig.badgeBg} ${catConfig.badgeText}`}>
                       <span>{catConfig.emoji}</span>
@@ -251,19 +340,23 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                     </span>
                   </div>
 
+                  {/* Заголовок */}
                   <h3 className="font-serif font-bold text-[16px] text-zine-ink leading-snug mb-1.5">
                     {ev.title}
                   </h3>
 
+                  {/* Местоположение */}
                   <div className="flex items-center gap-1.5 text-xs text-zine-inkMuted mb-2.5">
                     <MapPin size={13} className="text-zinc-500 shrink-0" />
                     <span className="truncate">{ev.locationName}</span>
                   </div>
 
+                  {/* Описание */}
                   <p className="text-xs text-zine-ink/90 leading-relaxed mb-3 whitespace-pre-wrap">
                     {ev.description}
                   </p>
 
+                  {/* Организатор и участники */}
                   <div className="flex items-center justify-between pt-2.5 border-t border-zine-border/60">
                     <div className="flex items-center gap-2">
                       <img
@@ -274,6 +367,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                       <div className="flex flex-col">
                         <span className="text-[10.5px] font-medium text-zine-ink leading-tight">
                           {ev.creator?.name || 'Создатель'}
+                          {isCreator && <span className="ml-1 text-[9px] font-bold text-zine-terracotta">(ты)</span>}
                         </span>
                         <span className="text-[9px] text-zine-inkMuted leading-tight">
                           {ev.creator?.username ? `@${ev.creator.username}` : 'организатор'}
@@ -287,6 +381,29 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                     </span>
                   </div>
 
+                  {/* Кнопки управления (только для автора) */}
+                  {isCreator && (
+                    <div className="flex items-center justify-end gap-1.5 mt-2.5 pt-2 border-t border-dashed border-zine-border/80">
+                      <span className="text-[10px] text-zinc-400 mr-auto font-medium">Твоя сходка:</span>
+                      <button
+                        onClick={() => handleOpenEditModal(ev)}
+                        className="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-semibold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Edit2 size={11} />
+                        <span>Редактировать</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEvent(ev)}
+                        disabled={isDeleting}
+                        className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Trash2 size={11} />
+                        <span>{isDeleting ? '...' : 'Удалить'}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Кнопка записи / отмены */}
                   <div className="flex items-center gap-2 mt-3 pt-2">
                     <button
                       onClick={() => handleToggleJoin(ev)}
@@ -335,17 +452,22 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         )}
       </main>
 
-      {/* Модальное окно создания сходки */}
+      {/* Модальное окно создания / редактирования сходки */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-md bg-zine-paper rounded-t-[28px] sm:rounded-3xl border border-zine-border p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-zine-border mb-4">
               <div className="flex items-center gap-2">
-                <span className="text-xl">⭐️</span>
-                <h3 className="font-serif font-bold text-base text-zine-ink">Новая сходка в Минске</h3>
+                <span className="text-xl">{editingEventId ? '✏️' : '⭐️'}</span>
+                <h3 className="font-serif font-bold text-base text-zine-ink">
+                  {editingEventId ? 'Редактировать сходку' : 'Новая сходка в Минске'}
+                </h3>
               </div>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingEventId(null);
+                }}
                 className="w-7 h-7 rounded-full bg-zine-card border border-zine-border flex items-center justify-center text-zinc-600 hover:text-zinc-900 cursor-pointer"
               >
                 <X size={14} />
@@ -358,7 +480,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               </div>
             )}
 
-            <form onSubmit={handleCreateEvent} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSubmitForm} className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-semibold text-zine-ink mb-1">
                   Название сходки *
@@ -466,10 +588,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   {isSubmitting ? (
                     <>
                       <Loader2 size={13} className="animate-spin" />
-                      <span>Публикуем сходку...</span>
+                      <span>Сохраняем сходку...</span>
                     </>
                   ) : (
-                    <span>Опубликовать сходку в YesMinsk →</span>
+                    <span>{editingEventId ? 'Сохранить изменения →' : 'Опубликовать сходку в YesMinsk →'}</span>
                   )}
                 </button>
               </div>
