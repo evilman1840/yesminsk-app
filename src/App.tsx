@@ -7,7 +7,7 @@ import { EventsScreen } from './screens/EventsScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
-import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender } from './types';
+import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, AgeRange } from './types';
 
 // Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
@@ -39,7 +39,7 @@ export const App: React.FC = () => {
     bio: '',
     gender: 'not_specified' as Gender,
     preferredGender: 'all' as PreferredGender,
-    preferredAgeRange: [18, 45] as [number, number],
+    preferredAgeRange: { min: 18, max: 45 } as AgeRange,
     goals: ['walk'] as ActivityGoal[],
     goal: 'walk' as ActivityGoal,
     avatarUrl: tgUser?.photo_url || '',
@@ -99,7 +99,7 @@ export const App: React.FC = () => {
             bio: me.bio || '',
             gender: me.gender || 'not_specified',
             preferredGender: me.preferredGender || 'all',
-            preferredAgeRange: me.preferredAgeRange || [18, 45],
+            preferredAgeRange: me.preferredAgeRange || { min: 18, max: 45 },
             goals: me.goals || (me.goal ? [me.goal] : ['walk']),
             goal: me.goal || 'walk',
             avatarUrl: me.avatarUrl || tgUser?.photo_url || '',
@@ -129,7 +129,7 @@ export const App: React.FC = () => {
     bio: string;
     gender?: Gender;
     preferredGender?: PreferredGender;
-    preferredAgeRange?: [number, number];
+    preferredAgeRange?: AgeRange;
     goals: ActivityGoal[];
     goal: ActivityGoal;
     avatarUrl: string;
@@ -139,7 +139,7 @@ export const App: React.FC = () => {
   }) => {
     const coords = formData.customCoordinates || AREA_COORDINATES[formData.area] || [53.9045, 27.5615];
 
-    // Отправляем реальный запрос на бэкенд
+    // Отправляем запрос на бэкенд
     await api.updateProfile({
       name: formData.name,
       firstName: formData.name,
@@ -147,7 +147,7 @@ export const App: React.FC = () => {
       bio: formData.bio,
       gender: formData.gender || 'not_specified',
       preferredGender: formData.preferredGender || 'all',
-      preferredAgeRange: formData.preferredAgeRange || [18, 45],
+      preferredAgeRange: formData.preferredAgeRange || { min: 18, max: 45 },
       goal: formData.goal,
       goals: formData.goals,
       avatarUrl: formData.avatarUrl,
@@ -183,7 +183,7 @@ export const App: React.FC = () => {
   // 6. Создание нового события
   const handleCreateEvent = async (eventData: Partial<AppEvent>) => {
     try {
-      const created = await api.createEvent(eventData);
+      const created = await api.createEvent(eventData as any);
       if (created) {
         setEvents(prev => [created, ...prev]);
         return created;
@@ -194,14 +194,21 @@ export const App: React.FC = () => {
     }
   };
 
-  // 7. Присоединение / выход из сходки
+  // 7. Присоединение / выход из сходки (передаем 2 аргумента: event.id и isJoined)
   const handleToggleJoinEvent = async (event: AppEvent) => {
     try {
-      const res = await api.toggleJoinEvent(event.id);
+      const isJoined = Boolean(event.isJoined);
+      await api.toggleJoinEvent(event.id, isJoined);
       setEvents(prev =>
         prev.map(e =>
           e.id === event.id
-            ? { ...e, isJoined: res.isJoined, participantsCount: res.participantsCount }
+            ? {
+                ...e,
+                isJoined: !isJoined,
+                participantsCount: !isJoined
+                  ? (e.participantsCount || 0) + 1
+                  : Math.max(0, (e.participantsCount || 1) - 1)
+              }
             : e
         )
       );
@@ -318,6 +325,8 @@ export const App: React.FC = () => {
             events={events}
             onCreateEvent={handleCreateEvent}
             onToggleJoin={handleToggleJoinEvent}
+            onRefreshEvents={fetchEvents}
+            currentArea={currentUser.area}
             onOpenMap={() => {
               telegramService.haptic('selection');
               setCurrentScreen('main');
