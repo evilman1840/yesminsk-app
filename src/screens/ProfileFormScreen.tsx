@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Check, Sparkles, MapPin, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Compass } from 'lucide-react';
+import { Camera, Check, Sparkles, MapPin, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation } from 'lucide-react';
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender } from '../types';
 import { telegramService } from '../services/telegram';
 
@@ -50,12 +50,7 @@ const MINSK_AREAS = [
   'Парк Победы / Победителей'
 ];
 
-const PRESET_AVATARS = [
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80'
-];
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
 
 export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   initialData,
@@ -95,7 +90,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       : ['walk']
   );
   const [avatarUrl, setAvatarUrl] = useState<string>(
-    initialData?.avatarUrl || tgUser?.photo_url || PRESET_AVATARS[0]
+    initialData?.avatarUrl || tgUser?.photo_url || DEFAULT_AVATAR
   );
   const [area, setArea] = useState<string>(
     initialData?.area || 'Немига / Центр'
@@ -156,37 +151,43 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Пожалуйста, выберите файл изображения (JPG, PNG)');
+      setErrorText('Пожалуйста, выбери файл изображения (JPG, PNG)');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Размер фото не должен превышать 5 МБ');
+      setErrorText('Размер изображения не должен превышать 5 МБ');
       return;
     }
 
     setIsUploading(true);
+    setErrorText(null);
+
     const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setAvatarUrl(reader.result);
-        telegramService.haptic('success');
-      }
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setAvatarUrl(base64);
       setIsUploading(false);
+      telegramService.haptic('success');
     };
     reader.onerror = () => {
       setIsUploading(false);
-      alert('Не удалось прочитать файл');
+      setErrorText('Ошибка при чтении файла');
     };
     reader.readAsDataURL(file);
   };
 
   const handleApplyCustomUrl = () => {
     if (!customUrl.trim()) return;
-    setAvatarUrl(customUrl.trim());
-    setShowUrlInput(false);
-    setCustomUrl('');
-    telegramService.haptic('success');
+    try {
+      new URL(customUrl.trim());
+      setAvatarUrl(customUrl.trim());
+      setShowUrlInput(false);
+      setCustomUrl('');
+      telegramService.haptic('success');
+    } catch {
+      setErrorText('Укажи корректную ссылку на изображение (с http:// или https://)');
+    }
   };
 
   const handleSave = async () => {
@@ -239,30 +240,27 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   return (
     <div className="flex flex-col h-full w-full zine-paper-texture overflow-y-auto px-5 py-5 select-none bg-zine-paper">
       
-      {/* Шапка формы */}
-      <div className="flex items-center justify-between pb-3 border-b border-zine-border/70 shrink-0">
+      {/* Шапка экрана */}
+      <div className="flex items-center justify-between pb-3 border-b border-zine-border shrink-0">
         <div className="flex items-center gap-2">
-          {onBack && (
+          {!isFirstTime && onBack && (
             <button
-              onClick={onBack}
-              disabled={isSaving}
-              className="w-7 h-7 rounded-lg bg-zine-card border border-zine-border flex items-center justify-center text-zine-ink hover:bg-white active:scale-95 transition-all cursor-pointer"
+              onClick={() => {
+                telegramService.haptic('light');
+                onBack();
+              }}
+              className="p-1.5 -ml-1.5 rounded-full hover:bg-zinc-200/60 active:scale-95 transition-all text-zine-ink cursor-pointer"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={18} />
             </button>
           )}
-          <div>
-            <h2 className="font-serif font-bold text-base text-zine-ink">
-              {isFirstTime ? 'Твоя карточка в Минске' : 'Редактировать анкету'}
-            </h2>
-            <p className="text-[10px] text-zine-inkMuted uppercase tracking-wider font-semibold">
-              {tgUser?.username ? `@${tgUser.username}` : 'Только дружеский досуг'}
-            </p>
-          </div>
+          <h2 className="font-serif font-bold text-lg text-zine-ink tracking-tight">
+            {isFirstTime ? 'Создание анкеты' : 'Мой профиль'}
+          </h2>
         </div>
 
-        <span className="text-[11px] font-semibold text-zine-terracotta bg-zine-terracotta/10 px-2 py-0.5 rounded-full border border-zine-terracotta/20">
-          без дейтинга
+        <span className="text-[10px] font-semibold tracking-wider text-zine-terracotta bg-zine-terracotta/10 px-2.5 py-1 rounded-full uppercase">
+          {isFirstTime ? 'Шаг 1 из 1' : 'Редактирование'}
         </span>
       </div>
 
@@ -274,7 +272,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
       <div className="space-y-4 py-4 flex-1">
         
-        {/* Аватарка */}
+        {/* Аватарка (без пресетов — только загрузка и ссылка) */}
         <div className="p-3.5 rounded-2xl bg-zine-card border border-zine-border shadow-zine-sm">
           <div className="flex items-center gap-3.5">
             <div
@@ -299,7 +297,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             <div className="flex-1 min-w-0">
               <h4 className="font-serif font-bold text-xs text-zine-ink">Фото профиля</h4>
               <p className="text-[10px] text-zine-inkMuted leading-tight mt-0.5">
-                Загрузи своё фото или выбери атмосферный пресет.
+                Загрузи своё фото или укажи прямую ссылку на изображение.
               </p>
 
               <div className="flex items-center gap-2 mt-2">
@@ -313,19 +311,19 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-2.5 py-1 rounded-lg bg-zine-cardElevated border border-zine-border text-[10.5px] font-semibold text-zine-ink hover:text-zine-terracotta flex items-center gap-1 shadow-zine-sm cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-zine-cardElevated border border-zine-border text-[10.5px] font-semibold text-zine-ink hover:text-zine-terracotta flex items-center gap-1 shadow-zine-sm cursor-pointer active:scale-95 transition-transform"
                 >
                   <Upload size={11} />
-                  <span>Загрузить</span>
+                  <span>Загрузить фото</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setShowUrlInput(!showUrlInput)}
-                  className="px-2.5 py-1 rounded-lg bg-zine-cardElevated border border-zine-border text-[10.5px] font-semibold text-zine-ink hover:text-zine-terracotta flex items-center gap-1 shadow-zine-sm cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-zine-cardElevated border border-zine-border text-[10.5px] font-semibold text-zine-ink hover:text-zine-terracotta flex items-center gap-1 shadow-zine-sm cursor-pointer active:scale-95 transition-transform"
                 >
                   <LinkIcon size={11} />
-                  <span>Ссылка</span>
+                  <span>По ссылке</span>
                 </button>
               </div>
             </div>
@@ -337,38 +335,18 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 type="url"
                 value={customUrl}
                 onChange={(e) => setCustomUrl(e.target.value)}
-                placeholder="Вставь ссылку на картинку..."
+                placeholder="Вставь прямую ссылку https://... на фото"
                 className="flex-1 px-3 py-1.5 rounded-xl bg-zine-cardElevated border border-zine-border text-xs text-zine-ink focus:outline-none focus:border-zine-terracotta"
               />
               <button
                 type="button"
                 onClick={handleApplyCustomUrl}
-                className="px-3 py-1.5 rounded-xl bg-zine-terracotta text-white text-xs font-semibold cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-zine-terracotta text-white text-xs font-semibold cursor-pointer active:scale-95 transition-transform"
               >
                 ОК
               </button>
             </div>
           )}
-
-          <div className="mt-2.5 pt-2 border-t border-zine-border/40 flex items-center gap-2">
-            <span className="text-[9.5px] text-zine-inkMuted font-medium">Пресеты:</span>
-            <div className="flex gap-1.5">
-              {PRESET_AVATARS.map((url, i) => (
-                <img
-                  key={i}
-                  src={url}
-                  alt={`preset-${i}`}
-                  onClick={() => {
-                    setAvatarUrl(url);
-                    telegramService.haptic('selection');
-                  }}
-                  className={`w-6 h-6 rounded-full object-cover cursor-pointer border transition-transform ${
-                    avatarUrl === url ? 'ring-2 ring-zine-terracotta scale-110 border-white' : 'border-zine-border opacity-70 hover:opacity-100'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Имя и Возраст */}
@@ -381,14 +359,14 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Твое имя"
-              className="w-full px-3 py-2 rounded-xl bg-zine-cardElevated border border-zine-border text-xs text-zine-ink focus:outline-none focus:border-zine-terracotta shadow-zine-sm"
+              placeholder="Как тебя зовут?"
+              className="w-full px-3.5 py-2.5 rounded-2xl bg-zine-cardElevated border border-zine-border text-xs text-zine-ink focus:outline-none focus:border-zine-terracotta shadow-zine-sm"
             />
           </div>
 
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider px-1">
-              Возраст *
+              Возраст
             </label>
             <input
               type="number"
@@ -397,16 +375,16 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               value={age}
               onChange={(e) => setAge(e.target.value)}
               placeholder="25"
-              className="w-full px-3 py-2 rounded-xl bg-zine-cardElevated border border-zine-border text-xs text-zine-ink text-center focus:outline-none focus:border-zine-terracotta shadow-zine-sm"
+              className="w-full px-3.5 py-2.5 rounded-2xl bg-zine-cardElevated border border-zine-border text-xs text-center text-zine-ink focus:outline-none focus:border-zine-terracotta shadow-zine-sm"
             />
           </div>
         </div>
 
-        {/* Свой пол и предпочтения общения */}
-        <div className="p-3 rounded-2xl bg-zine-card border border-zine-border space-y-3">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider px-0.5">
-              Твой пол:
+        {/* Пол и Предпочтения для общения */}
+        <div className="p-3.5 rounded-2xl bg-zine-card border border-zine-border shadow-zine-sm space-y-3">
+          <div>
+            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider block mb-1.5">
+              Мой пол
             </label>
             <div className="grid grid-cols-3 gap-1.5">
               {[
@@ -415,16 +393,16 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 { id: 'not_specified', label: 'Не важно' }
               ].map((g) => (
                 <button
-                  key={g.id}
                   type="button"
+                  key={g.id}
                   onClick={() => {
                     telegramService.haptic('selection');
                     setGender(g.id as Gender);
                   }}
-                  className={`py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer text-center ${
                     gender === g.id
                       ? 'bg-zine-terracotta text-white border-zine-terracotta shadow-sm'
-                      : 'bg-zine-cardElevated text-zine-ink border-zine-border hover:bg-white'
+                      : 'bg-zine-cardElevated text-zinc-700 border-zine-border hover:bg-white'
                   }`}
                 >
                   {g.label}
@@ -433,27 +411,27 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             </div>
           </div>
 
-          <div className="space-y-1.5 pt-2 border-t border-zine-border/50">
-            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider px-0.5">
-              С кем комфортно гулять / общаться:
+          <div className="pt-2 border-t border-zine-border/50">
+            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider block mb-1.5">
+              С кем комфортно гулять
             </label>
             <div className="grid grid-cols-3 gap-1.5">
               {[
-                { id: 'all', label: 'Все равно' },
-                { id: 'male', label: 'С парнями' },
-                { id: 'female', label: 'С девушками' }
+                { id: 'all', label: 'Со всеми' },
+                { id: 'female', label: 'С девушками' },
+                { id: 'male', label: 'С парнями' }
               ].map((pg) => (
                 <button
-                  key={pg.id}
                   type="button"
+                  key={pg.id}
                   onClick={() => {
                     telegramService.haptic('selection');
                     setPreferredGender(pg.id as PreferredGender);
                   }}
-                  className={`py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer text-center ${
                     preferredGender === pg.id
-                      ? 'bg-zine-terracotta text-white border-zine-terracotta shadow-sm'
-                      : 'bg-zine-cardElevated text-zine-ink border-zine-border hover:bg-white'
+                      ? 'bg-zinc-800 text-white border-zinc-800 shadow-sm'
+                      : 'bg-zine-cardElevated text-zinc-700 border-zine-border hover:bg-white'
                   }`}
                 >
                   {pg.label}
@@ -462,90 +440,86 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             </div>
           </div>
 
-          {/* Фильтр диапазона возраста */}
-          <div className="space-y-1.5 pt-2 border-t border-zine-border/50">
-            <div className="flex justify-between items-center px-0.5">
+          <div className="pt-2 border-t border-zine-border/50">
+            <div className="flex items-center justify-between mb-1.5">
               <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider">
-                Возрастной диапазон компании:
+                Возраст компании
               </label>
-              <span className="text-[11px] font-bold text-zine-terracotta">
-                {minAge} — {maxAge} лет
+              <span className="text-[10px] text-zine-terracotta font-bold">
+                от {minAge} до {maxAge} лет
               </span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 min="16"
                 max={maxAge}
                 value={minAge}
-                onChange={(e) => setMinAge(Number(e.target.value))}
-                className="w-16 px-2 py-1 rounded-lg bg-zine-cardElevated border border-zine-border text-xs text-center font-bold"
+                onChange={(e) => setMinAge(Number(e.target.value) || 16)}
+                className="w-1/2 px-2.5 py-1.5 rounded-xl bg-zine-cardElevated border border-zine-border text-xs text-center text-zine-ink focus:outline-none focus:border-zine-terracotta"
+                placeholder="18"
               />
-              <span className="text-xs text-zine-inkMuted">—</span>
+              <span className="text-zinc-400 text-xs">—</span>
               <input
                 type="number"
                 min={minAge}
                 max="99"
                 value={maxAge}
-                onChange={(e) => setMaxAge(Number(e.target.value))}
-                className="w-16 px-2 py-1 rounded-lg bg-zine-cardElevated border border-zine-border text-xs text-center font-bold"
+                onChange={(e) => setMaxAge(Number(e.target.value) || 99)}
+                className="w-1/2 px-2.5 py-1.5 rounded-xl bg-zine-cardElevated border border-zine-border text-xs text-center text-zine-ink focus:outline-none focus:border-zine-terracotta"
+                placeholder="45"
               />
-              <span className="text-[10px] text-zine-inkMuted leading-tight">
-                Минск покажет людей, подходящих под критерии.
-              </span>
             </div>
           </div>
         </div>
 
-        {/* Район Минска / Режим Туриста + Кнопка GPS */}
-        <div className="space-y-1.5">
+        {/* Район города + GPS */}
+        <div className="space-y-1">
           <div className="flex items-center justify-between px-1">
             <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider flex items-center gap-1">
               <MapPin size={12} className="text-zine-terracotta" />
-              <span>Район или локация в Минске</span>
+              <span>Твой район в Минске</span>
             </label>
+            {coordinates && (
+              <span className="text-[9.5px] text-zinc-500 font-medium">
+                GPS зафиксирован ✓
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <select
+              value={area}
+              onChange={(e) => {
+                setArea(e.target.value);
+                telegramService.haptic('selection');
+              }}
+              className="w-full px-3.5 py-2.5 rounded-2xl bg-zine-cardElevated border border-zine-border text-xs text-zine-ink focus:outline-none focus:border-zine-terracotta shadow-zine-sm"
+            >
+              {MINSK_AREAS.map((a, idx) => (
+                <option key={a} value={a}>
+                  {idx === 0 ? `🧳 ${a}` : a}
+                </option>
+              ))}
+            </select>
+
             <button
               type="button"
               onClick={handleGetGPS}
               disabled={isLocating}
-              className="text-[10.5px] font-semibold text-zine-terracotta hover:underline flex items-center gap-1 cursor-pointer"
+              className="w-full py-2 px-3 rounded-xl bg-zine-cardElevated border border-zine-border hover:bg-white text-zine-ink font-semibold text-[11px] flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
             >
-              <Navigation size={11} className={isLocating ? 'animate-spin' : ''} />
-              <span>{isLocating ? 'Ищем...' : 'Определить по GPS'}</span>
+              <Navigation size={12} className={isLocating ? 'animate-spin text-zine-terracotta' : 'text-zine-terracotta'} />
+              <span>{isLocating ? 'Определяем координаты...' : 'Определить точнее по GPS'}</span>
             </button>
           </div>
-
-          <select
-            value={area}
-            onChange={(e) => setArea(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-xl bg-zine-cardElevated border border-zine-border text-xs text-zine-ink font-medium focus:outline-none focus:border-zine-terracotta shadow-zine-sm cursor-pointer"
-          >
-            {MINSK_AREAS.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-
-          {area.includes('турист') && (
-            <p className="text-[10px] text-zine-inkMuted leading-tight px-1 flex items-center gap-1">
-              <Compass size={11} className="text-zine-terracotta shrink-0" />
-              <span>Отлично! Тебя увидят в центре Минска (Немига) или по координатам GPS.</span>
-            </p>
-          )}
-
-          {coordinates && (
-            <span className="text-[9.5px] text-zinc-500 font-medium px-1 block">
-              📍 Точка GPS сохранена: {coordinates[0]}, {coordinates[1]}
-            </span>
-          )}
         </div>
 
         {/* Цели встреч */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between px-1">
             <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider">
-              Что интересно? (мультивыбор) *
+              Что тебе интересно? (Цели) *
             </label>
             <span className="text-[10px] text-zine-inkMuted font-medium">
               выбрано {selectedGoals.length}
@@ -640,3 +614,5 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     </div>
   );
 };
+
+export default ProfileFormScreen;
