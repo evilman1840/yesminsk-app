@@ -3,15 +3,15 @@ import { Compass, Users, User, Calendar, Send } from 'lucide-react';
 import { UserProfile, GOALS_CONFIG, ActivityGoal } from '../types';
 import { telegramService } from '../services/telegram';
 
-interface FeedScreenProps {
+export interface FeedScreenProps {
   users: UserProfile[];
   eventsCount?: number;
   onSelectUser: (user: UserProfile) => void;
   onOpenMap: () => void;
   onOpenFeed?: () => void;
-  onOpenEvents: () => void;
+  onOpenEvents?: () => void;
   onOpenProfile: () => void;
-  currentArea: string;
+  currentArea?: string;
 }
 
 export const FeedScreen: React.FC<FeedScreenProps> = ({
@@ -21,7 +21,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   onOpenMap,
   onOpenEvents,
   onOpenProfile,
-  currentArea
+  currentArea = 'Минск'
 }) => {
   const [selectedGoal, setSelectedGoal] = useState<ActivityGoal | 'all'>('all');
 
@@ -108,7 +108,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
         })}
       </div>
 
-      {/* Лента карточек (Журнальный стиль) */}
+      {/* Лента карточек */}
       <main className="flex-1 overflow-y-auto p-3.5 space-y-3 pb-20">
         {filteredUsers.length === 0 ? (
           <div className="p-8 text-center text-zine-inkMuted">
@@ -117,7 +117,13 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           </div>
         ) : (
           filteredUsers.map((user) => {
-            const goalConfig = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг', badgeBg: 'bg-stone-100', badgeBorder: 'border-stone-300', badgeText: 'text-stone-800' };
+            const goalConfig = GOALS_CONFIG[user.goal] || {
+              emoji: '☕️',
+              label: 'Досуг',
+              badgeBg: 'bg-stone-100',
+              badgeBorder: 'border-stone-300',
+              badgeText: 'text-stone-800'
+            };
 
             return (
               <div
@@ -207,7 +213,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
         >
           <Calendar size={18} strokeWidth={1.8} />
-          <span className="text-[9px] font-medium">События ({eventsCount})</span>
+          <span className="text-[9px] font-medium">События {eventsCount > 0 ? `(${eventsCount})` : ''}</span>
         </button>
 
         <button
