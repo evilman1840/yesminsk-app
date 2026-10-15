@@ -202,7 +202,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   selectedUser,
   onSelectUser,
   userLocation,
-  apiKey = import.meta.env.VITE_YANDEX_MAPS_KEY || 'YOUR_YANDEX_MAPS_API_KEY',
+  apiKey = import.meta.env.VITE_YANDEX_MAPS_KEY || '3c4909ba-bf12-452a-8dfa-af770c3f7160',
   applyFuzzyOffset = false
 }) => {
   const mapRef = useRef<any>(null);
