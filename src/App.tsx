@@ -9,7 +9,6 @@ import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
-// Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
   'Немига / Центр': [53.9045, 27.5520],
   'Осмоловка': [53.9115, 27.5612],
@@ -24,12 +23,10 @@ const AREA_COORDINATES: Record<string, [number, number]> = {
 };
 
 export const App: React.FC = () => {
-  // Экраны приложения
   const [currentScreen, setCurrentScreen] = useState<
     'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'profile_edit'
   >('main');
 
-  // Данные текущего пользователя
   const tgUser = telegramService.getUser();
   const [currentUser, setCurrentUser] = useState({
     telegramId: tgUser?.id || 0,
@@ -47,14 +44,13 @@ export const App: React.FC = () => {
     isTourist: false
   });
 
-  // Пользователи и события с сервера
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<ActivityGoal | 'all'>('all');
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // 1. Загрузка реальных пользователей с бэкенда (/api/users/nearby)
+  // 1. Загрузка реальных пользователей с бэкенда (с защитой от стирания данных)
   const fetchNearbyUsers = useCallback(async () => {
     try {
       setApiError(null);
@@ -66,14 +62,19 @@ export const App: React.FC = () => {
         radiusKm: 25
       });
 
-      setUsers(data || []);
+      if (Array.isArray(data) && data.length > 0) {
+        setUsers(data);
+      } else if (Array.isArray(data) && selectedGoal !== 'all') {
+        setUsers([]);
+      }
     } catch (err: any) {
       console.warn('Ошибка загрузки пользователей рядом:', err);
-      setApiError('Сервер просыпается или временно недоступен. Проверь логи Render.');
+      setApiError('Сервер временно недоступен или обновляется. Проверь логи Render.');
+      // Не затираем уже загруженных пользователей при ошибках сети
     }
   }, [currentUser.area, selectedGoal]);
 
-  // 2. Загрузка событий со сходками с бэкенда (/api/events)
+  // 2. Загрузка событий
   const fetchEvents = useCallback(async () => {
     try {
       const data = await api.getEvents();
@@ -83,7 +84,7 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // 3. Инициализация Telegram WebApp, профиля пользователя и сходок
+  // 3. Инициализация Telegram WebApp
   useEffect(() => {
     telegramService.init();
 
@@ -107,13 +108,12 @@ export const App: React.FC = () => {
             isTourist: Boolean(me.isTourist)
           });
 
-          // Если пользователь новый и еще не соглашался с правилами
           if (me.hasAgreedToRules === false) {
             setCurrentScreen('onboarding');
           }
         }
       } catch (err) {
-        console.warn('Не удалось получить me профиль (новый пользователь или оффлайн):', err);
+        console.warn('Не удалось получить me профиль:', err);
       }
 
       await Promise.all([fetchNearbyUsers(), fetchEvents()]);
@@ -122,7 +122,7 @@ export const App: React.FC = () => {
     initUserData();
   }, [fetchNearbyUsers, fetchEvents]);
 
-  // 4. Сохранение профиля (отправка POST на /api/users/profile)
+  // 4. Сохранение профиля
   const handleSaveProfile = async (formData: {
     name: string;
     age: string;
@@ -139,7 +139,6 @@ export const App: React.FC = () => {
   }) => {
     const coords = formData.customCoordinates || AREA_COORDINATES[formData.area] || [53.9045, 27.5615];
 
-    // Отправляем запрос на бэкенд
     await api.updateProfile({
       name: formData.name,
       firstName: formData.name,
@@ -157,7 +156,6 @@ export const App: React.FC = () => {
       isProfileActive: true
     });
 
-    // Обновляем локальный стейт
     setCurrentUser(prev => ({
       ...prev,
       ...formData,
@@ -167,20 +165,15 @@ export const App: React.FC = () => {
       isTourist: Boolean(formData.isTourist)
     }));
 
-    // Обновляем список пользователей рядом на карте
     await fetchNearbyUsers();
-
-    // Переходим на главный экран карты
     setCurrentScreen('main');
   };
 
-  // 5. Обработка блокировки пользователя
   const handleUserBlocked = (blockedUserId: string | number) => {
     setUsers(prev => prev.filter(u => u.id !== blockedUserId && u.telegramId !== blockedUserId));
     setSelectedUser(null);
   };
 
-  // 6. Создание нового события
   const handleCreateEvent = async (eventData: any): Promise<any> => {
     try {
       const created = await api.createEvent({
@@ -197,7 +190,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // 7. Присоединение / выход из сходки (передаем 2 аргумента: event.id и isJoined)
   const handleToggleJoinEvent = async (event: AppEvent) => {
     try {
       const isJoined = Boolean(event.isJoined);
@@ -220,7 +212,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // 8. Подтверждение онбординга
   const handleAgreeRules = async () => {
     try {
       await api.agreeToRules();
@@ -234,7 +225,6 @@ export const App: React.FC = () => {
     <div className="flex justify-center items-center min-h-screen bg-[#E5DED5] p-0 sm:p-4 font-sans text-zine-ink">
       <div className="w-full max-w-[420px] h-screen sm:h-[840px] bg-zine-paper sm:rounded-[36px] overflow-hidden shadow-2xl border-0 sm:border-[6px] sm:border-zine-ink flex flex-col relative">
         
-        {/* Баннер оповещения, если сервер Render еще "холодно" стартует */}
         {apiError && (
           <div className="absolute top-2 inset-x-2 z-50 p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-[11px] flex items-center justify-between shadow-lg">
             <span>⏳ {apiError}</span>
@@ -250,12 +240,10 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Экран Онбординга */}
         {currentScreen === 'onboarding' && (
           <OnboardingScreen onAgree={handleAgreeRules} />
         )}
 
-        {/* Экран Создания профиля при первом входе */}
         {currentScreen === 'profile_create' && (
           <ProfileFormScreen
             isFirstTime={true}
@@ -264,7 +252,6 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Экран Редактирования профиля из меню */}
         {currentScreen === 'profile_edit' && (
           <ProfileFormScreen
             isFirstTime={false}
@@ -274,7 +261,6 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Главный экран: Карта */}
         {currentScreen === 'main' && (
           <MapScreen
             users={users}
@@ -300,7 +286,6 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Экран: Список / Лента людей */}
         {currentScreen === 'feed' && (
           <FeedScreen
             users={users}
@@ -322,7 +307,6 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Экран: Лента событий (Сходки) */}
         {currentScreen === 'events' && (
           <EventsScreen
             events={events}
@@ -345,7 +329,6 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* BottomSheet детального просмотра профиля из вкладки "Люди" */}
         {currentScreen === 'feed' && selectedUser && (
           <UserBottomSheet
             user={selectedUser}
