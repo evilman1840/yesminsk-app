@@ -47,7 +47,7 @@ const MinskMapContent: React.FC<{
   onSelectUser: (user: UserProfile) => void;
   mapInstance: any;
 }> = ({ users, selectedUser, onSelectUser, mapInstance }) => {
-  const ymaps = useYMaps(['templateLayoutFactory']);
+  const ymaps = useYMaps(['templateLayoutFactory', 'shape.Circle', 'geometry.pixel.Circle']);
 
   // 1. Кастомный макет маркера-аватарки в стиле «Теплый зин»
   const avatarLayout = useMemo(() => {
@@ -130,6 +130,40 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
+  // 3. Активная область (hotspot) аватарки — совместимо с типами ymaps.IShape
+  const avatarShape = useMemo(() => {
+    if (!ymaps) return null;
+
+    if (ymaps.shape?.Circle && ymaps.geometry?.pixel?.Circle) {
+      return new ymaps.shape.Circle(
+        new ymaps.geometry.pixel.Circle([0, -25], 23)
+      );
+    }
+
+    return {
+      type: 'Circle',
+      coordinates: [0, -25],
+      radius: 23
+    } as any;
+  }, [ymaps]);
+
+  // 4. Активная область (hotspot) кластера — совместимо с типами ymaps.IShape
+  const clusterShape = useMemo(() => {
+    if (!ymaps) return null;
+
+    if (ymaps.shape?.Circle && ymaps.geometry?.pixel?.Circle) {
+      return new ymaps.shape.Circle(
+        new ymaps.geometry.pixel.Circle([0, 0], 22)
+      );
+    }
+
+    return {
+      type: 'Circle',
+      coordinates: [0, 0],
+      radius: 22
+    } as any;
+  }, [ymaps]);
+
   if (!ymaps || !avatarLayout || !clusterLayout) {
     return (
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zine-paper/70 backdrop-blur-xs">
@@ -143,11 +177,7 @@ const MinskMapContent: React.FC<{
     <Clusterer
       options={{
         clusterIconLayout: clusterLayout,
-        clusterIconShape: {
-          type: 'Circle',
-          coordinates: [0, 0],
-          radius: 22
-        },
+        clusterIconShape: clusterShape as any,
         gridSize: 64,
         groupByCoordinates: false,
         clusterDisableClickZoom: false,
@@ -171,11 +201,7 @@ const MinskMapContent: React.FC<{
             }}
             options={{
               iconLayout: avatarLayout,
-              iconShape: {
-                type: 'Circle',
-                coordinates: [0, -25],
-                radius: 23
-              },
+              iconShape: avatarShape as any,
               iconOffset: [0, 0],
               cursor: 'pointer'
             }}
@@ -257,7 +283,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
           defaultState={{
             center: MINSK_CENTER,
             zoom: 13,
-            controls: [] // Отключаем стандартные перегруженные кнопки для чистоты интерфейса TMA
+            controls: [] // Отключаем лишние элементы управления
           }}
           options={{
             suppressMapOpenBlock: true // Скрываем плашку «Открыть в Яндекс.Картах»
