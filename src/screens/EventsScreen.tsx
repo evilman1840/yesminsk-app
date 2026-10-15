@@ -56,7 +56,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     ? events
     : events.filter((e) => e.category === selectedCategory);
 
-  // Открыть модалку для создания нового события
   const handleOpenCreateModal = () => {
     telegramService.haptic('light');
     setEditingEventId(null);
@@ -70,7 +69,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setIsModalOpen(true);
   };
 
-  // Открыть модалку для редактирования существующего события
   const handleOpenEditModal = (ev: AppEvent) => {
     telegramService.haptic('light');
     setEditingEventId(ev.id);
@@ -79,7 +77,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setCategory(ev.category || 'walk');
     setLocationName(ev.locationName || '');
 
-    // Преобразуем дату в формат datetime-local YYYY-MM-DDTHH:mm
     try {
       const d = new Date(ev.dateTime);
       const localIso = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
@@ -95,7 +92,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setIsModalOpen(true);
   };
 
-  // Удаление события создателем
   const handleDeleteEvent = async (ev: AppEvent) => {
     telegramService.haptic('warning');
     const confirmed = window.confirm(`Удалить сходку "${ev.title}"?`);
@@ -103,11 +99,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
     setDeletingId(ev.id);
     try {
-      if ((api as any).deleteEvent) {
-        await (api as any).deleteEvent(ev.id);
-      } else {
-        await (api as any).request(`/events/${ev.id}`, { method: 'DELETE' });
-      }
+      await api.deleteEvent(ev.id);
       telegramService.haptic('success');
       onRefreshEvents?.();
     } catch (err: any) {
@@ -117,7 +109,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
   };
 
-  // Переключение участия в событии
   const handleToggleJoin = async (event: AppEvent) => {
     telegramService.haptic('selection');
     setJoiningId(event.id);
@@ -136,7 +127,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
   };
 
-  // Отправка формы (Создание или Редактирование)
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -163,17 +153,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       };
 
       if (editingEventId) {
-        // PUT-запрос на обновление
-        if ((api as any).updateEvent) {
-          await (api as any).updateEvent(editingEventId, payload);
-        } else {
-          await (api as any).request(`/events/${editingEventId}`, {
-            method: 'PUT',
-            body: JSON.stringify(payload)
-          });
-        }
+        await api.updateEvent(editingEventId, payload);
       } else {
-        // Создание нового события
         if (onCreateEvent) {
           await onCreateEvent(payload);
         } else {
@@ -188,7 +169,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setDescription('');
       onRefreshEvents?.();
     } catch (err: any) {
-      setFormError(err.message || 'Ошибка сохранения события');
+      console.error('Ошибка сохранения события:', err);
+      setFormError(err.message || 'Ошибка сохранения события на сервере');
+      telegramService.haptic('error');
     } finally {
       setIsSubmitting(false);
     }
@@ -237,7 +220,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </button>
       </header>
 
-      {/* Фильтр категорий сходок */}
+      {/* Фильтр категорий */}
       <div className="px-3 py-2 bg-zine-paper/90 border-b border-zine-border flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <button
           onClick={() => {
@@ -281,7 +264,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         })}
       </div>
 
-      {/* Лента событий в стиле Афиши */}
+      {/* Лента событий */}
       <main className="flex-1 overflow-y-auto p-3.5 space-y-3 pb-20">
         {filteredEvents.length === 0 ? (
           <div className="p-8 text-center text-zine-inkMuted">
@@ -309,7 +292,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             const isJoining = joiningId === ev.id;
             const isDeleting = deletingId === ev.id;
 
-            // Проверка, является ли текущий пользователь автором события
             const isCreator = Boolean(
               currentUserId && (
                 ev.creator?.telegramId === currentUserId ||
@@ -323,11 +305,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 key={ev.id}
                 className="p-4 rounded-2xl bg-zine-card border border-zine-border shadow-zine hover:shadow-zine-lg transition-all relative overflow-hidden"
               >
-                {/* Фоновый легкий блик */}
                 <div className={`absolute top-0 right-0 w-32 h-32 rounded-full ${catConfig.badgeBg} opacity-50 blur-2xl pointer-events-none`} />
 
                 <div className="relative z-10">
-                  {/* Верхняя строка афиши: категория и дата */}
                   <div className="flex items-center justify-between mb-2">
                     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-bold border border-black/5 ${catConfig.badgeBg} ${catConfig.badgeText}`}>
                       <span>{catConfig.emoji}</span>
@@ -340,23 +320,19 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                     </span>
                   </div>
 
-                  {/* Заголовок */}
                   <h3 className="font-serif font-bold text-[16px] text-zine-ink leading-snug mb-1.5">
                     {ev.title}
                   </h3>
 
-                  {/* Местоположение */}
                   <div className="flex items-center gap-1.5 text-xs text-zine-inkMuted mb-2.5">
                     <MapPin size={13} className="text-zinc-500 shrink-0" />
                     <span className="truncate">{ev.locationName}</span>
                   </div>
 
-                  {/* Описание */}
                   <p className="text-xs text-zine-ink/90 leading-relaxed mb-3 whitespace-pre-wrap">
                     {ev.description}
                   </p>
 
-                  {/* Организатор и участники */}
                   <div className="flex items-center justify-between pt-2.5 border-t border-zine-border/60">
                     <div className="flex items-center gap-2">
                       <img
@@ -381,7 +357,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                     </span>
                   </div>
 
-                  {/* Кнопки управления (только для автора) */}
+                  {/* Кнопки автора: Редактировать и Удалить */}
                   {isCreator && (
                     <div className="flex items-center justify-end gap-1.5 mt-2.5 pt-2 border-t border-dashed border-zine-border/80">
                       <span className="text-[10px] text-zinc-400 mr-auto font-medium">Твоя сходка:</span>
@@ -403,7 +379,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                     </div>
                   )}
 
-                  {/* Кнопка записи / отмены */}
+                  {/* Кнопка участия */}
                   <div className="flex items-center gap-2 mt-3 pt-2">
                     <button
                       onClick={() => handleToggleJoin(ev)}
@@ -452,7 +428,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         )}
       </main>
 
-      {/* Модальное окно создания / редактирования сходки */}
+      {/* Модальное окно */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-md bg-zine-paper rounded-t-[28px] sm:rounded-3xl border border-zine-border p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -600,7 +576,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </div>
       )}
 
-      {/* Нижний 4-кнопочный TabBar */}
+      {/* 4-кнопочный TabBar */}
       <nav className="h-14 bg-zine-paper/95 backdrop-blur-md border-t border-zine-border flex items-center justify-around px-2 z-20 shrink-0">
         <button
           onClick={onOpenMap}
