@@ -7,7 +7,7 @@ import { EventsScreen } from './screens/EventsScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
-import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, AgeRange } from './types';
+import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
 // Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
@@ -181,9 +181,12 @@ export const App: React.FC = () => {
   };
 
   // 6. Создание нового события
-  const handleCreateEvent = async (eventData: Partial<AppEvent>) => {
+  const handleCreateEvent = async (eventData: any): Promise<any> => {
     try {
-      const created = await api.createEvent(eventData as any);
+      const created = await api.createEvent({
+        ...eventData,
+        category: (eventData.category || 'walk') as EventCategory
+      });
       if (created) {
         setEvents(prev => [created, ...prev]);
         return created;
