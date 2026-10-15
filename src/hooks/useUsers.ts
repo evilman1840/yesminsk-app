@@ -11,13 +11,13 @@ export const useUsers = (selectedGoal: ActivityGoal | 'all') => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getMapUsers({
+      const data = await api.getNearbyUsers({
         goal: selectedGoal,
         lat: 53.9045,
         lng: 27.5615,
-        radiusKm: 20
+        radiusKm: 25
       });
-      setUsers(data);
+      setUsers(data || []);
     } catch (err: any) {
       setError(err.message || 'Ошибка загрузки пользователей');
     } finally {
@@ -31,3 +31,5 @@ export const useUsers = (selectedGoal: ActivityGoal | 'all') => {
 
   return { users, loading, error, refreshUsers: fetchUsers };
 };
+
+export default useUsers;
