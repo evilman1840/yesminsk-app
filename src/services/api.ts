@@ -67,7 +67,7 @@ class ApiService {
 
   /**
    * 3. Получить список пользователей рядом (/api/users/nearby)
-   * С автоматическим фолбэком на /api/users/map для надежности
+   * Поддерживает автоматический фолбэк на /api/users/map для полной совместимости
    */
   async getNearbyUsers(params?: {
     goal?: ActivityGoal | 'all';
@@ -86,8 +86,21 @@ class ApiService {
     try {
       return await this.request<UserProfile[]>(`/users/nearby${queryString}`);
     } catch (err: any) {
+      // Фолбэк на эндпоинт /users/map
       return await this.request<UserProfile[]>(`/users/map${queryString}`);
     }
+  }
+
+  /**
+   * Алиас для совместимости с хуком useUsers
+   */
+  async getMapUsers(params?: {
+    goal?: ActivityGoal | 'all';
+    lat?: number;
+    lng?: number;
+    radiusKm?: number;
+  }): Promise<UserProfile[]> {
+    return this.getNearbyUsers(params);
   }
 
   /**
@@ -111,7 +124,6 @@ class ApiService {
         body: JSON.stringify(data)
       });
     } catch (err: any) {
-      // Фолбэк на PUT, если бэкенд настроен через PUT
       if (err.message?.includes('404')) {
         return await this.request<any>('/users/profile', {
           method: 'PUT',
