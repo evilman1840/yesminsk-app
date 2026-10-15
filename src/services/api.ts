@@ -2,7 +2,8 @@ import { telegramService } from './telegram';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender } from '../types';
 
 /**
- * Нормализация базового URL бэкенда
+ * Нормализация базового URL бэкенда.
+ * Корректно работает как с https://site.onrender.com, так и с https://site.onrender.com/api
  */
 const getApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
@@ -16,6 +17,9 @@ const getApiBaseUrl = (): string => {
 const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
+  /**
+   * Универсальный метод отправки запросов с передачей Telegram initData в заголовках
+   */
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const initData = telegramService.getInitData();
 
@@ -60,7 +64,7 @@ class ApiService {
   }
 
   async getNearbyUsers(params?: {
-    goal?: ActivityGoal | 'all';
+    goal?: string;
     lat?: number;
     lng?: number;
     radiusKm?: number;
@@ -76,16 +80,14 @@ class ApiService {
     try {
       return await this.request<UserProfile[]>(`/users/nearby${queryString}`);
     } catch (err: any) {
-      return await this.request<UserProfile[]>(`/users/map${queryString}`);
+      if (err.message?.includes('404')) {
+        return await this.request<UserProfile[]>(`/users/map${queryString}`);
+      }
+      throw err;
     }
   }
 
-  async getMapUsers(params?: {
-    goal?: ActivityGoal | 'all';
-    lat?: number;
-    lng?: number;
-    radiusKm?: number;
-  }): Promise<UserProfile[]> {
+  async getMapUsers(params?: { goal?: string; lat?: number; lng?: number; radiusKm?: number }): Promise<UserProfile[]> {
     return this.getNearbyUsers(params);
   }
 
@@ -121,9 +123,6 @@ class ApiService {
     }
   }
 
-  /**
-   * Заблокировать пользователя (черный список)
-   */
   async blockUser(targetTelegramId: number): Promise<{ success: boolean; message: string }> {
     return this.request<{ success: boolean; message: string }>('/users/block', {
       method: 'POST',
@@ -131,9 +130,6 @@ class ApiService {
     });
   }
 
-  /**
-   * Разблокировать пользователя
-   */
   async unblockUser(targetTelegramId: number): Promise<{ success: boolean; message: string }> {
     return this.request<{ success: boolean; message: string }>('/users/unblock', {
       method: 'POST',
@@ -176,6 +172,53 @@ class ApiService {
     });
   }
 
+  /**
+   * Обновить существующее событие (редактирование автором)
+   */
+  async updateEvent(eventId: string, data: {
+    title?: string;
+    description?: string;
+    category?: string;
+    locationName?: string;
+    coordinates?: [number, number];
+    dateTime?: string;
+    maxParticipants?: number;
+  }): Promise<AppEvent> {
+    try {
+      return await this.request<AppEvent>(`/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+    } catch (err: any) {
+      // Резервный POST на случай блокировки PUT хостингом
+      if (err.message?.includes('404')) {
+        return await this.request<AppEvent>(`/events/${eventId}`, {
+          method: 'POST',
+          body: JSON.stringify(data)
+        });
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Удалить событие (только автор)
+   */
+  async deleteEvent(eventId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      return await this.request<{ success: boolean; message: string }>(`/events/${eventId}`, {
+        method: 'DELETE'
+      });
+    } catch (err: any) {
+      if (err.message?.includes('404')) {
+        return await this.request<{ success: boolean; message: string }>(`/events/${eventId}/delete`, {
+          method: 'POST'
+        });
+      }
+      throw err;
+    }
+  }
+
   async joinEvent(eventId: string): Promise<{ success: boolean; event: AppEvent }> {
     return this.request<{ success: boolean; event: AppEvent }>(`/events/${eventId}/join`, {
       method: 'POST'
@@ -188,7 +231,7 @@ class ApiService {
     });
   }
 
-  async toggleJoinEvent(eventId: string, isCurrentlyJoined: boolean): Promise<any> {
+  async toggleJoinEvent(eventId: string, isCurrentlyJoined?: boolean): Promise<any> {
     if (isCurrentlyJoined) {
       return this.leaveEvent(eventId);
     } else {
