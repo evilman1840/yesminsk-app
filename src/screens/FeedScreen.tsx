@@ -1,20 +1,25 @@
 import React, { useState } from 'react';
-import { Compass, Users, User, Send } from 'lucide-react';
+import { Compass, Users, User, Calendar, Send } from 'lucide-react';
 import { UserProfile, GOALS_CONFIG, ActivityGoal } from '../types';
 import { telegramService } from '../services/telegram';
 
 interface FeedScreenProps {
   users: UserProfile[];
+  eventsCount?: number;
   onSelectUser: (user: UserProfile) => void;
   onOpenMap: () => void;
+  onOpenFeed?: () => void;
+  onOpenEvents: () => void;
   onOpenProfile: () => void;
   currentArea: string;
 }
 
 export const FeedScreen: React.FC<FeedScreenProps> = ({
   users,
+  eventsCount = 0,
   onSelectUser,
   onOpenMap,
+  onOpenEvents,
   onOpenProfile,
   currentArea
 }) => {
@@ -41,7 +46,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full w-full zine-paper-texture overflow-hidden select-none">
+    <div className="flex flex-col h-full w-full zine-paper-texture overflow-hidden select-none bg-zine-paper">
       
       {/* Компактная шапка */}
       <header className="px-4 py-2.5 bg-zine-paper/95 backdrop-blur-md border-b border-zine-border/80 flex items-center justify-between z-20 shrink-0">
@@ -61,11 +66,11 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
 
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zine-card border border-zine-border text-xs text-zine-ink shadow-zine-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-zine-terracotta" />
-          <span className="font-medium text-[11px] text-zine-ink">{currentArea}</span>
+          <span className="font-medium text-[11px] text-zine-ink truncate max-w-[140px]">{currentArea}</span>
         </div>
       </header>
 
-      {/* Тонкий фильтр целей */}
+      {/* Фильтр целей */}
       <div className="px-3 py-2 bg-zine-paper/90 border-b border-zine-border flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <button
           onClick={() => handleGoalFilter('all')}
@@ -103,7 +108,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
         })}
       </div>
 
-      {/* Лента карточек (Журнальный зин-стиль) */}
+      {/* Лента карточек (Журнальный стиль) */}
       <main className="flex-1 overflow-y-auto p-3.5 space-y-3 pb-20">
         {filteredUsers.length === 0 ? (
           <div className="p-8 text-center text-zine-inkMuted">
@@ -112,7 +117,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           </div>
         ) : (
           filteredUsers.map((user) => {
-            const goalConfig = GOALS_CONFIG[user.goal];
+            const goalConfig = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг', badgeBg: 'bg-stone-100', badgeBorder: 'border-stone-300', badgeText: 'text-stone-800' };
 
             return (
               <div
@@ -136,12 +141,12 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between mb-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-serif font-bold text-[15px] text-zine-ink">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <h3 className="font-serif font-bold text-[15px] text-zine-ink truncate">
                           {user.firstName}
                         </h3>
-                        <span className="text-[11px] text-zine-inkMuted">
-                          • {user.areaName}
+                        <span className="text-[11px] text-zine-inkMuted truncate">
+                          • {user.isTourist ? 'Турист(ка)' : user.areaName}
                         </span>
                       </div>
                       <span className="text-[10px] font-semibold text-zine-terracotta bg-zine-terracotta/10 px-2 py-0.5 rounded-full shrink-0">
@@ -157,20 +162,22 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                     </div>
 
                     <p className="text-xs text-zine-ink/90 leading-relaxed line-clamp-2 mb-2.5">
-                      {user.bio}
+                      {user.bio || 'Ищу дружескую компанию для прогулок по городу.'}
                     </p>
 
                     <div className="flex items-center justify-between pt-1 border-t border-zine-border/50">
                       <span className="text-[10px] text-zine-inkMuted">
-                        Нажми для анкеты
+                        Нажми, чтобы открыть анкету
                       </span>
-                      <button
-                        onClick={(e) => handleQuickTelegram(e, user.username)}
-                        className="py-1 px-2.5 rounded-lg bg-zine-terracotta/10 hover:bg-zine-terracotta text-zine-terracotta hover:text-white font-semibold text-[10.5px] flex items-center gap-1 transition-colors"
-                      >
-                        <Send size={11} />
-                        <span>@{user.username}</span>
-                      </button>
+                      {user.username && (
+                        <button
+                          onClick={(e) => handleQuickTelegram(e, user.username)}
+                          className="py-1 px-2.5 rounded-lg bg-zine-terracotta/10 hover:bg-zine-terracotta text-zine-terracotta hover:text-white font-semibold text-[10.5px] flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <Send size={11} />
+                          <span>@{user.username}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -180,32 +187,40 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
         )}
       </main>
 
-      {/* Нижний TabBar */}
-      <nav className="h-14 bg-zine-paper/95 backdrop-blur-md border-t border-zine-border flex items-center justify-around px-4 z-20 shrink-0">
+      {/* 4-кнопочный TabBar */}
+      <nav className="h-14 bg-zine-paper/95 backdrop-blur-md border-t border-zine-border flex items-center justify-around px-2 z-20 shrink-0">
         <button
           onClick={onOpenMap}
-          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink"
+          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
         >
-          <Compass size={19} strokeWidth={1.8} />
-          <span className="text-[9.5px] font-medium">Карта</span>
+          <Compass size={18} strokeWidth={1.8} />
+          <span className="text-[9px] font-medium">Карта</span>
+        </button>
+
+        <button className="flex flex-col items-center gap-0.5 text-zine-terracotta cursor-pointer">
+          <Users size={18} strokeWidth={2.4} />
+          <span className="text-[9px] font-bold">Люди ({users.length})</span>
         </button>
 
         <button
-          className="flex flex-col items-center gap-0.5 text-zine-terracotta"
+          onClick={onOpenEvents}
+          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
         >
-          <Users size={19} strokeWidth={2.4} />
-          <span className="text-[9.5px] font-bold">Люди ({users.length})</span>
+          <Calendar size={18} strokeWidth={1.8} />
+          <span className="text-[9px] font-medium">События ({eventsCount})</span>
         </button>
 
         <button
           onClick={onOpenProfile}
-          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink"
+          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
         >
-          <User size={19} strokeWidth={1.8} />
-          <span className="text-[9.5px] font-medium">Профиль</span>
+          <User size={18} strokeWidth={1.8} />
+          <span className="text-[9px] font-medium">Профиль</span>
         </button>
       </nav>
 
     </div>
   );
 };
+
+export default FeedScreen;
