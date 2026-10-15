@@ -1,24 +1,21 @@
 import React, { useRef, useMemo, useState } from 'react';
 import { YMaps, Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
-import { UserProfile, GOALS_CONFIG } from '../../types';
+import { UserProfile, AppEvent, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG } from '../../types';
 import { telegramService } from '../../services/telegram';
 
 interface MinskMapProps {
   users: UserProfile[];
+  events?: AppEvent[];
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile) => void;
+  onSelectEvent?: (event: AppEvent) => void;
   userLocation?: [number, number];
   apiKey?: string;
   applyFuzzyOffset?: boolean;
 }
 
-// Центр Минска (Октябрьская / Немига)
 const MINSK_CENTER: [number, number] = [53.9045, 27.5615];
 
-/**
- * Безопасное смещение координат (рандомизация в радиусе 300-500м)
- * для защиты конфиденциальности пользователей.
- */
 export function obfuscateCoordinates(
   lat: number,
   lng: number,
@@ -38,18 +35,17 @@ export function obfuscateCoordinates(
   return [fuzzyLat, fuzzyLng];
 }
 
-/**
- * Внутренний компонент с доступом к ymaps API для создания HTML-макетов
- */
 const MinskMapContent: React.FC<{
   users: (UserProfile & { displayCoords: [number, number] })[];
+  events: AppEvent[];
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile) => void;
+  onSelectEvent?: (event: AppEvent) => void;
   mapInstance: any;
-}> = ({ users, selectedUser, onSelectUser, mapInstance }) => {
-  const ymaps = useYMaps(['templateLayoutFactory', 'shape.Circle', 'geometry.pixel.Circle']);
+}> = ({ users, events, selectedUser, onSelectUser, onSelectEvent, mapInstance }) => {
+  const ymaps = useYMaps(['templateLayoutFactory', 'shape.Circle', 'geometry.pixel.Circle', 'shape.Rectangle', 'geometry.pixel.Rectangle']);
 
-  // 1. Кастомный макет маркера-аватарки в стиле «Теплый зин»
+  // 1. Макет круглой аватарки пользователя
   const avatarLayout = useMemo(() => {
     if (!ymaps) return null;
 
@@ -102,7 +98,59 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
-  // 2. Кастомный макет терракотового кластера
+  // 2. Макет квадратного маркера сходки (со звездочкой/эмодзи и числом участников)
+  const eventLayout = useMemo(() => {
+    if (!ymaps) return null;
+
+    return ymaps.templateLayoutFactory.createClass(
+      `<div style="cursor: pointer; transform: translate(-50%, -100%);">
+        <div style="
+          min-width: 46px;
+          height: 46px;
+          border-radius: 14px;
+          padding: 3px 6px;
+          background-color: #E2A03F;
+          border: 2.5px solid #FAF7F2;
+          box-shadow: 0 4px 16px rgba(226, 160, 63, 0.45);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          position: relative;
+          box-sizing: border-box;
+          transition: transform 0.15s ease;
+        ">
+          <span style="font-size: 14px; line-height: 1;">$[properties.eventEmoji]</span>
+          <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 1px; font-family: sans-serif;">сходка</span>
+          <span style="
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #D95C3C;
+            color: #FFFFFF;
+            font-size: 9px;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 1px 4px;
+            border: 1.5px solid #FAF7F2;
+          ">
+            $[properties.participantsCount]
+          </span>
+        </div>
+        <div style="
+          width: 0;
+          height: 0;
+          border-left: 5px solid transparent;
+          border-right: 5px solid transparent;
+          border-top: 6px solid #E2A03F;
+          margin: -1px auto 0 auto;
+        "></div>
+      </div>`
+    );
+  }, [ymaps]);
+
+  // 3. Макет кластера людей
   const clusterLayout = useMemo(() => {
     if (!ymaps) return null;
 
@@ -130,41 +178,27 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
-  // 3. Активная область (hotspot) аватарки — совместимо с типами ymaps.IShape
   const avatarShape = useMemo(() => {
     if (!ymaps) return null;
-
     if (ymaps.shape?.Circle && ymaps.geometry?.pixel?.Circle) {
       return new ymaps.shape.Circle(
         new ymaps.geometry.pixel.Circle([0, -25], 23)
       );
     }
-
-    return {
-      type: 'Circle',
-      coordinates: [0, -25],
-      radius: 23
-    } as any;
+    return { type: 'Circle', coordinates: [0, -25], radius: 23 } as any;
   }, [ymaps]);
 
-  // 4. Активная область (hotspot) кластера — совместимо с типами ymaps.IShape
   const clusterShape = useMemo(() => {
     if (!ymaps) return null;
-
     if (ymaps.shape?.Circle && ymaps.geometry?.pixel?.Circle) {
       return new ymaps.shape.Circle(
         new ymaps.geometry.pixel.Circle([0, 0], 22)
       );
     }
-
-    return {
-      type: 'Circle',
-      coordinates: [0, 0],
-      radius: 22
-    } as any;
+    return { type: 'Circle', coordinates: [0, 0], radius: 22 } as any;
   }, [ymaps]);
 
-  if (!ymaps || !avatarLayout || !clusterLayout) {
+  if (!ymaps || !avatarLayout || !clusterLayout || !eventLayout) {
     return (
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zine-paper/70 backdrop-blur-xs">
         <div className="w-8 h-8 rounded-full border-2 border-zine-terracotta border-t-transparent animate-spin mb-2" />
@@ -174,43 +208,81 @@ const MinskMapContent: React.FC<{
   }
 
   return (
-    <Clusterer
-      options={{
-        clusterIconLayout: clusterLayout,
-        clusterIconShape: clusterShape as any,
-        gridSize: 64,
-        groupByCoordinates: false,
-        clusterDisableClickZoom: false,
-        clusterHideIconOnBalloonOpen: false,
-        geoObjectHideIconOnBalloonOpen: false
-      }}
-    >
-      {users.map((user) => {
-        const isSelected = selectedUser?.id === user.id;
-        const goalInfo = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг' };
+    <>
+      {/* Кластеризация аватарок пользователей */}
+      <Clusterer
+        options={{
+          clusterIconLayout: clusterLayout,
+          clusterIconShape: clusterShape as any,
+          gridSize: 64,
+          groupByCoordinates: false,
+          clusterDisableClickZoom: false,
+          clusterHideIconOnBalloonOpen: false,
+          geoObjectHideIconOnBalloonOpen: false
+        }}
+      >
+        {users.map((user) => {
+          const isSelected = selectedUser?.id === user.id;
+          const goalInfo = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг' };
+
+          return (
+            <Placemark
+              key={user.id}
+              geometry={user.displayCoords}
+              properties={{
+                avatarUrl: user.avatarUrl,
+                name: user.firstName,
+                goalEmoji: goalInfo.emoji,
+                borderColor: isSelected ? '#D95C3C' : '#FAF7F2'
+              }}
+              options={{
+                iconLayout: avatarLayout,
+                iconShape: avatarShape as any,
+                iconOffset: [0, 0],
+                cursor: 'pointer'
+              }}
+              onClick={() => {
+                telegramService.haptic('selection');
+                onSelectUser(user);
+
+                if (mapInstance) {
+                  mapInstance.panTo(user.displayCoords, {
+                    flying: true,
+                    duration: 400
+                  });
+                }
+              }}
+            />
+          );
+        })}
+      </Clusterer>
+
+      {/* Маркеры событий (Сходок) — квадратные, со звездочкой/эмодзи и числом участников */}
+      {events.map((ev) => {
+        const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️' };
 
         return (
           <Placemark
-            key={user.id}
-            geometry={user.displayCoords}
+            key={`event-${ev.id}`}
+            geometry={ev.coordinates}
             properties={{
-              avatarUrl: user.avatarUrl,
-              name: user.firstName,
-              goalEmoji: goalInfo.emoji,
-              borderColor: isSelected ? '#D95C3C' : '#FAF7F2'
+              eventEmoji: catConfig.emoji || '⭐️',
+              title: ev.title,
+              participantsCount: ev.participantsCount || 1
             }}
             options={{
-              iconLayout: avatarLayout,
-              iconShape: avatarShape as any,
+              iconLayout: eventLayout,
               iconOffset: [0, 0],
-              cursor: 'pointer'
+              cursor: 'pointer',
+              zIndex: 200
             }}
             onClick={() => {
-              telegramService.haptic('selection');
-              onSelectUser(user);
-
+              telegramService.haptic('medium');
+              if (onSelectEvent) {
+                onSelectEvent(ev);
+              }
               if (mapInstance) {
-                mapInstance.panTo(user.displayCoords, {
+                mapInstance.panTo(ev.coordinates, {
                   flying: true,
                   duration: 400
                 });
@@ -219,22 +291,24 @@ const MinskMapContent: React.FC<{
           />
         );
       })}
-    </Clusterer>
+    </>
   );
 };
 
 export const MinskMap: React.FC<MinskMapProps> = ({
   users,
+  events = [],
   selectedUser,
   onSelectUser,
+  onSelectEvent,
   userLocation,
-  apiKey = import.meta.env.VITE_YANDEX_MAPS_KEY || '3c4909ba-bf12-452a-8dfa-af770c3f7160',
+  apiKey = import.meta.env.VITE_YANDEX_MAPS_KEY || '',
   applyFuzzyOffset = false
 }) => {
   const mapRef = useRef<any>(null);
   const [, setMapReady] = useState(false);
+  const [isGpsLoading, setIsGpsLoading] = useState(false);
 
-  // Подготовка координат с защитным смещением (при необходимости)
   const usersWithSafeCoords = useMemo(() => {
     return users.map((user) => {
       const displayCoords: [number, number] = applyFuzzyOffset
@@ -248,20 +322,41 @@ export const MinskMap: React.FC<MinskMapProps> = ({
     });
   }, [users, applyFuzzyOffset]);
 
-  // Центрирование карты кнопкой «Я здесь»
-  const handleLocateMe = () => {
+  // Кнопка "Где я?" через реальный GPS браузера/телеграма
+  const handleLocateGPS = () => {
     telegramService.haptic('light');
-    if (!mapRef.current) return;
 
-    const targetCoords = userLocation || MINSK_CENTER;
-    mapRef.current.setCenter(targetCoords, userLocation ? 14 : 13, {
-      duration: 500
-    });
+    if (!navigator.geolocation) {
+      if (mapRef.current) {
+        mapRef.current.setCenter(userLocation || MINSK_CENTER, 14, { duration: 500 });
+      }
+      return;
+    }
+
+    setIsGpsLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsGpsLoading(false);
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        telegramService.haptic('success');
+        if (mapRef.current) {
+          mapRef.current.setCenter([lat, lng], 15, { duration: 600 });
+        }
+      },
+      () => {
+        setIsGpsLoading(false);
+        if (mapRef.current) {
+          mapRef.current.setCenter(userLocation || MINSK_CENTER, 14, { duration: 500 });
+        }
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
   };
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-zine-paper">
-      {/* Мягкий CSS-фильтр для придания Яндекс.Картам стилистики теплого зина */}
       <style>{`
         .ymaps-2-1-79-map,
         .ymaps-2-1-79-islets_map {
@@ -283,10 +378,10 @@ export const MinskMap: React.FC<MinskMapProps> = ({
           defaultState={{
             center: MINSK_CENTER,
             zoom: 13,
-            controls: [] // Отключаем лишние элементы управления
+            controls: []
           }}
           options={{
-            suppressMapOpenBlock: true // Скрываем плашку «Открыть в Яндекс.Картах»
+            suppressMapOpenBlock: true
           }}
           className="w-full h-full"
           instanceRef={(ref) => {
@@ -298,20 +393,23 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         >
           <MinskMapContent
             users={usersWithSafeCoords}
+            events={events}
             selectedUser={selectedUser}
             onSelectUser={onSelectUser}
+            onSelectEvent={onSelectEvent}
             mapInstance={mapRef.current}
           />
         </Map>
       </YMaps>
 
-      {/* Кнопка центрирования «Я здесь» */}
+      {/* Кнопка "Где я?" (GPS) в правом нижнем углу карты */}
       <button
-        onClick={handleLocateMe}
-        className="absolute right-3 bottom-24 w-10 h-10 rounded-full bg-zine-cardElevated/95 backdrop-blur-sm border border-zine-border shadow-zine flex items-center justify-center text-sm z-20 active:scale-90 transition-transform"
-        title="Моё местоположение"
+        onClick={handleLocateGPS}
+        disabled={isGpsLoading}
+        className="absolute right-3.5 bottom-28 w-11 h-11 rounded-2xl bg-zine-cardElevated/95 backdrop-blur-md border border-zine-border shadow-zine flex items-center justify-center text-sm z-20 active:scale-90 transition-transform cursor-pointer"
+        title="Определить мое местоположение (GPS)"
       >
-        🎯
+        <span className={isGpsLoading ? 'animate-spin' : ''}>📍</span>
       </button>
     </div>
   );
