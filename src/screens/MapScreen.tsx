@@ -1,38 +1,66 @@
-import React from 'react';
-import { Compass, Users, User, ChevronDown } from 'lucide-react';
-import { GOALS_CONFIG, ActivityGoal, UserProfile } from '../types';
+import React, { useState } from 'react';
+import { Compass, Users, User, Calendar, Send, ShieldCheck, Clock, MapPin, X, Check } from 'lucide-react';
+import { GOALS_CONFIG, ActivityGoal, UserProfile, AppEvent, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
 
 interface MapScreenProps {
   users: UserProfile[];
+  events: AppEvent[];
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile | null) => void;
   selectedGoal: ActivityGoal | 'all';
   onSelectGoal: (goal: ActivityGoal | 'all') => void;
   onOpenProfile: () => void;
   onOpenFeed: () => void;
+  onOpenEvents: () => void;
+  onToggleJoinEvent: (event: AppEvent) => void;
   currentArea: string;
 }
 
 export const MapScreen: React.FC<MapScreenProps> = ({
   users,
+  events,
   selectedUser,
   onSelectUser,
   selectedGoal,
   onSelectGoal,
   onOpenProfile,
   onOpenFeed,
+  onOpenEvents,
+  onToggleJoinEvent,
   currentArea
 }) => {
-  const filteredUsers = selectedGoal === 'all' 
-    ? users 
-    : users.filter(u => u.goal === selectedGoal);
+  const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
+
+  const filteredUsers = selectedGoal === 'all'
+    ? users
+    : users.filter((u) => u.goal === selectedGoal);
+
+  const handleOpenTelegram = (username?: string) => {
+    telegramService.haptic('medium');
+    telegramService.openChat(username);
+  };
+
+  const formatEventDate = (isoString: string) => {
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleDateString('ru-RU', {
+        month: 'short',
+        day: 'numeric',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return isoString;
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full w-full zine-paper-texture overflow-hidden relative">
+    <div className="flex flex-col h-full w-full zine-paper-texture overflow-hidden relative select-none bg-zine-paper">
       
-      {/* 1. Ультра-компактная шапка в одну строку */}
+      {/* 1. Компактная шапка */}
       <header className="px-4 py-2.5 bg-zine-paper/95 backdrop-blur-md border-b border-zine-border/80 flex items-center justify-between z-30 shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-zine-terracotta text-white flex items-center justify-center font-serif font-bold text-xs shadow-zine-sm">
@@ -42,33 +70,29 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             <span className="font-serif font-bold text-[16px] tracking-tight text-zine-ink">
               YesMinsk
             </span>
-            <span className="text-[9px] uppercase tracking-wider font-semibold text-zine-inkMuted">
+            <span className="text-[9px] uppercase tracking-wider font-semibold text-zine-inkMuted hidden sm:inline">
               без дейтинга
             </span>
           </div>
         </div>
 
-        {/* Селектор района */}
-        <button 
-          onClick={() => telegramService.haptic('selection')}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zine-card border border-zine-border text-xs text-zine-ink shadow-zine-sm hover:border-zine-terracotta/40 transition-colors"
-        >
+        {/* Район / индикатор */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zine-card border border-zine-border text-xs text-zine-ink shadow-zine-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-zine-terracotta" />
-          <span className="font-medium text-[11px] text-zine-ink">{currentArea}</span>
-          <ChevronDown size={11} className="text-zine-inkMuted" />
-        </button>
+          <span className="font-medium text-[11px] text-zine-ink truncate max-w-[140px]">{currentArea}</span>
+        </div>
       </header>
 
-      {/* Тонкая строка слогана */}
-      <div className="px-4 py-0.5 bg-zine-card/70 border-b border-zine-border/60 flex items-center justify-between text-[9px] text-zine-inkMuted tracking-wide font-medium">
-        <span>Минск для людей • прогулки, кофе и досуг</span>
+      {/* Слоган */}
+      <div className="px-4 py-0.5 bg-zine-card/70 border-b border-zine-border/60 flex items-center justify-between text-[9px] text-zine-inkMuted tracking-wide font-medium shrink-0">
+        <span>Минск для людей • прогулки, сходки и досуг</span>
         <span className="text-zine-terracotta font-semibold">только платоника</span>
       </div>
 
       {/* 2. Карта с фильтрами */}
       <div className="flex-1 relative bg-[#F4EFE7] overflow-hidden">
         
-        {/* Изящные фильтры целей */}
+        {/* Фильтры целей поверх карты */}
         <div className="absolute top-2.5 inset-x-3 flex gap-1.5 overflow-x-auto no-scrollbar z-20 py-0.5">
           <button
             onClick={() => {
@@ -81,7 +105,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 : 'bg-zine-cardElevated/95 backdrop-blur-sm text-zine-ink border-zine-border hover:bg-white'
             }`}
           >
-            Все ({users.length})
+            Все люди ({users.length})
           </button>
           
           {(Object.keys(GOALS_CONFIG) as ActivityGoal[]).map((key) => {
@@ -107,40 +131,196 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           })}
         </div>
 
-        {/* Интерактивная карта Leaflet */}
+        {/* Интерактивная карта Яндекс */}
         <MinskMap
           users={filteredUsers}
+          events={events}
           selectedUser={selectedUser}
-          onSelectUser={onSelectUser}
+          onSelectUser={(u) => {
+            setSelectedEvent(null);
+            onSelectUser(u);
+          }}
+          onSelectEvent={(ev) => {
+            onSelectUser(null);
+            setSelectedEvent(ev);
+          }}
         />
+
+        {/* Шторка выбранного пользователя */}
+        {selectedUser && (
+          <div className="absolute bottom-2 inset-x-2.5 bg-zine-cardElevated rounded-zine border border-zine-border p-3.5 shadow-zine-float z-30 animate-in fade-in slide-in-from-bottom-3 duration-200">
+            <div className="w-8 h-1 rounded-full bg-zine-border mx-auto mb-2.5" />
+            
+            <div className="flex gap-3 items-start">
+              <div className="relative shrink-0">
+                <img
+                  src={selectedUser.avatarUrl}
+                  alt={selectedUser.firstName}
+                  className="w-14 h-14 rounded-2xl object-cover border border-zine-border/80"
+                />
+                <span className="absolute -bottom-1 -right-1 text-xs bg-white rounded-full p-0.5 border border-zine-border shadow-sm">
+                  {GOALS_CONFIG[selectedUser.goal]?.emoji || '☕️'}
+                </span>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-baseline gap-1.5 truncate">
+                    <h3 className="font-serif font-bold text-[15px] text-zine-ink leading-tight truncate">
+                      {selectedUser.firstName}
+                    </h3>
+                    <span className="text-[11px] text-zine-inkMuted font-medium truncate">
+                      {selectedUser.isTourist ? 'Турист(ка)' : selectedUser.areaName}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-zine-terracotta bg-zine-terracotta/10 px-2 py-0.5 rounded-full shrink-0">
+                    ~{selectedUser.distanceMeters || 300} м
+                  </span>
+                </div>
+
+                <div className="mb-2">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${GOALS_CONFIG[selectedUser.goal]?.badgeBg} ${GOALS_CONFIG[selectedUser.goal]?.badgeBorder} ${GOALS_CONFIG[selectedUser.goal]?.badgeText}`}>
+                    <span>{GOALS_CONFIG[selectedUser.goal]?.emoji}</span>
+                    <span>{GOALS_CONFIG[selectedUser.goal]?.label}</span>
+                  </span>
+                </div>
+
+                <p className="text-[11.5px] text-zine-ink/90 leading-snug mb-3">
+                  {selectedUser.bio || 'Привет! Ищу дружескую компанию.'}
+                </p>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleOpenTelegram(selectedUser.username)}
+                    className="flex-1 py-2 px-3 rounded-xl bg-zine-terracotta hover:bg-zine-terracottaHover text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    <Send size={13} />
+                    <span>Написать (@{selectedUser.username || 'user'})</span>
+                  </button>
+                  <button
+                    onClick={() => onSelectUser(null)}
+                    className="p-2 rounded-xl bg-zine-card border border-zine-border text-zine-inkMuted hover:text-zine-ink cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center gap-1 text-[9px] text-zine-inkMuted mt-1.5">
+                  <ShieldCheck size={11} className="text-zine-sage" />
+                  <span>Координаты смещены на 300м ради приватности</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Шторка выбранного события (Сходки) */}
+        {selectedEvent && (
+          <div className="absolute bottom-2 inset-x-2.5 bg-zine-cardElevated rounded-zine border border-zine-border p-3.5 shadow-zine-float z-30 animate-in fade-in slide-in-from-bottom-3 duration-200">
+            <div className="w-8 h-1 rounded-full bg-zine-border mx-auto mb-2" />
+            
+            <div className="flex items-start justify-between mb-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#FAF4E6] text-[#B87C24] border border-[#F3E2B8]">
+                <span>{EVENT_CATEGORIES_CONFIG[selectedEvent.category]?.emoji || '⭐️'}</span>
+                <span>Сходка в Минске</span>
+              </span>
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="w-6 h-6 rounded-full bg-zine-card border border-zine-border flex items-center justify-center text-zine-inkMuted cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+            </div>
+
+            <h3 className="font-serif font-bold text-[15px] text-zine-ink leading-tight mb-1">
+              {selectedEvent.title}
+            </h3>
+
+            <div className="flex items-center gap-3 text-[11px] text-zine-inkMuted mb-2">
+              <span className="flex items-center gap-1 text-zine-terracotta font-semibold">
+                <Clock size={11} />
+                <span>{formatEventDate(selectedEvent.dateTime)}</span>
+              </span>
+              <span className="flex items-center gap-1 truncate">
+                <MapPin size={11} />
+                <span className="truncate">{selectedEvent.locationName}</span>
+              </span>
+            </div>
+
+            <p className="text-[11.5px] text-zinc-700 leading-snug mb-3">
+              {selectedEvent.description}
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  onToggleJoinEvent(selectedEvent);
+                  setSelectedEvent({ ...selectedEvent, isJoined: !selectedEvent.isJoined });
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all cursor-pointer ${
+                  selectedEvent.isJoined
+                    ? 'bg-zine-sage text-white'
+                    : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
+                }`}
+              >
+                {selectedEvent.isJoined ? (
+                  <>
+                    <Check size={13} strokeWidth={3} />
+                    <span>Ты идёшь (Отменить)</span>
+                  </>
+                ) : (
+                  <span>Присоединиться к сходке →</span>
+                )}
+              </button>
+
+              {selectedEvent.creator?.username && (
+                <button
+                  onClick={() => handleOpenTelegram(selectedEvent.creator.username)}
+                  className="py-2 px-3 rounded-xl bg-zine-card border border-zine-border text-xs text-zine-ink font-medium flex items-center gap-1 cursor-pointer"
+                >
+                  <Send size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
 
-      {/* 3. Компактный нижний TabBar */}
-      <nav className="h-14 bg-zine-paper/95 backdrop-blur-md border-t border-zine-border flex items-center justify-around px-4 z-30 shrink-0">
-        <button
-          className="flex flex-col items-center gap-0.5 text-zine-terracotta"
-        >
-          <Compass size={19} strokeWidth={2.4} />
-          <span className="text-[9.5px] font-bold">Карта</span>
+      {/* 3. Нижний 4-кнопочный TabBar */}
+      <nav className="h-14 bg-zine-paper/95 backdrop-blur-md border-t border-zine-border flex items-center justify-around px-2 z-30 shrink-0">
+        <button className="flex flex-col items-center gap-0.5 text-zine-terracotta cursor-pointer">
+          <Compass size={18} strokeWidth={2.4} />
+          <span className="text-[9px] font-bold">Карта</span>
         </button>
 
         <button
           onClick={onOpenFeed}
-          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink"
+          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
         >
-          <Users size={19} strokeWidth={1.8} />
-          <span className="text-[9.5px] font-medium">Люди ({users.length})</span>
+          <Users size={18} strokeWidth={1.8} />
+          <span className="text-[9px] font-medium">Люди ({users.length})</span>
+        </button>
+
+        <button
+          onClick={onOpenEvents}
+          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
+        >
+          <Calendar size={18} strokeWidth={1.8} />
+          <span className="text-[9px] font-medium">События ({events.length})</span>
         </button>
 
         <button
           onClick={onOpenProfile}
-          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink"
+          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
         >
-          <User size={19} strokeWidth={1.8} />
-          <span className="text-[9.5px] font-medium">Профиль</span>
+          <User size={18} strokeWidth={1.8} />
+          <span className="text-[9px] font-medium">Профиль</span>
         </button>
       </nav>
 
     </div>
   );
 };
+
+export default MapScreen;
