@@ -3,6 +3,11 @@ export type Gender = 'male' | 'female' | 'not_specified';
 export type PreferredGender = 'all' | 'male' | 'female';
 export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport';
 
+export interface AgeRange {
+  min: number;
+  max: number;
+}
+
 export interface GoalConfig {
   id: ActivityGoal;
   label: string;
@@ -65,13 +70,11 @@ export interface UserProfile {
   avatarUrl: string;
   bio: string;
   goal: ActivityGoal;
+  goals?: ActivityGoal[];
   age: number;
   gender: Gender;
   preferredGender: PreferredGender;
-  preferredAgeRange: {
-    min: number;
-    max: number;
-  };
+  preferredAgeRange: AgeRange;
   coordinates: [number, number]; // [lat, lng]
   areaName?: string;
   isTourist?: boolean;
