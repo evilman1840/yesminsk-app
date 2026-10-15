@@ -1,5 +1,6 @@
 import React, { useRef, useMemo, useState } from 'react';
 import { YMaps, Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
+import { Clock, MapPin, X, Send, Check, Sparkles } from 'lucide-react';
 import { UserProfile, AppEvent, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG } from '../../types';
 import { telegramService } from '../../services/telegram';
 
@@ -9,6 +10,7 @@ interface MinskMapProps {
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile) => void;
   onSelectEvent?: (event: AppEvent) => void;
+  onToggleJoinEvent?: (event: AppEvent) => void;
   userLocation?: [number, number];
   apiKey?: string;
   applyFuzzyOffset?: boolean;
@@ -98,20 +100,20 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
-  // 2. Макет квадратного маркера сходки (со звездочкой/эмодзи и числом участников)
+  // 2. Макет квадратного маркера события (сходки) с календарем/звездочкой
   const eventLayout = useMemo(() => {
     if (!ymaps) return null;
 
     return ymaps.templateLayoutFactory.createClass(
       `<div style="cursor: pointer; transform: translate(-50%, -100%);">
         <div style="
-          min-width: 46px;
-          height: 46px;
-          border-radius: 14px;
+          min-width: 48px;
+          height: 48px;
+          border-radius: 15px;
           padding: 3px 6px;
           background-color: #E2A03F;
           border: 2.5px solid #FAF7F2;
-          box-shadow: 0 4px 16px rgba(226, 160, 63, 0.45);
+          box-shadow: 0 4px 16px rgba(226, 160, 63, 0.5);
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -121,7 +123,7 @@ const MinskMapContent: React.FC<{
           box-sizing: border-box;
           transition: transform 0.15s ease;
         ">
-          <span style="font-size: 14px; line-height: 1;">$[properties.eventEmoji]</span>
+          <span style="font-size: 15px; line-height: 1;">$[properties.eventEmoji]</span>
           <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 1px; font-family: sans-serif;">сходка</span>
           <span style="
             position: absolute;
@@ -257,7 +259,7 @@ const MinskMapContent: React.FC<{
         })}
       </Clusterer>
 
-      {/* Маркеры событий (Сходок) — квадратные, со звездочкой/эмодзи и числом участников */}
+      {/* Маркеры событий (Сходок) — золотистый маркер с эмодзи/календарем */}
       {events.map((ev) => {
         const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️' };
 
@@ -266,7 +268,7 @@ const MinskMapContent: React.FC<{
             key={`event-${ev.id}`}
             geometry={ev.coordinates}
             properties={{
-              eventEmoji: catConfig.emoji || '⭐️',
+              eventEmoji: catConfig.emoji || '🗓️',
               title: ev.title,
               participantsCount: ev.participantsCount || 1
             }}
@@ -274,7 +276,7 @@ const MinskMapContent: React.FC<{
               iconLayout: eventLayout,
               iconOffset: [0, 0],
               cursor: 'pointer',
-              zIndex: 200
+              zIndex: 250
             }}
             onClick={() => {
               telegramService.haptic('medium');
@@ -301,6 +303,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   selectedUser,
   onSelectUser,
   onSelectEvent,
+  onToggleJoinEvent,
   userLocation,
   apiKey = import.meta.env.VITE_YANDEX_MAPS_KEY || '',
   applyFuzzyOffset = false
@@ -308,6 +311,9 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   const mapRef = useRef<any>(null);
   const [, setMapReady] = useState(false);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
+
+  // Локальное состояние для всплывающей карточки события прямо на карте
+  const [cardEvent, setCardEvent] = useState<AppEvent | null>(null);
 
   const usersWithSafeCoords = useMemo(() => {
     return users.map((user) => {
@@ -322,7 +328,15 @@ export const MinskMap: React.FC<MinskMapProps> = ({
     });
   }, [users, applyFuzzyOffset]);
 
-  // Кнопка "Где я?" через реальный GPS браузера/телеграма
+  // Обработка клика по сходке
+  const handleEventClick = (ev: AppEvent) => {
+    setCardEvent(ev);
+    if (onSelectEvent) {
+      onSelectEvent(ev);
+    }
+  };
+
+  // Кнопка "Где я?" через GPS
   const handleLocateGPS = () => {
     telegramService.haptic('light');
 
@@ -353,6 +367,21 @@ export const MinskMap: React.FC<MinskMapProps> = ({
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
+  };
+
+  const formatEventDate = (isoString: string) => {
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleDateString('ru-RU', {
+        month: 'short',
+        day: 'numeric',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return isoString;
+    }
   };
 
   return (
@@ -395,12 +424,97 @@ export const MinskMap: React.FC<MinskMapProps> = ({
             users={usersWithSafeCoords}
             events={events}
             selectedUser={selectedUser}
-            onSelectUser={onSelectUser}
-            onSelectEvent={onSelectEvent}
+            onSelectUser={(u) => {
+              setCardEvent(null);
+              onSelectUser(u);
+            }}
+            onSelectEvent={handleEventClick}
             mapInstance={mapRef.current}
           />
         </Map>
       </YMaps>
+
+      {/* Всплывающая карточка сходки при клике на маркер события на карте */}
+      {cardEvent && (
+        <div className="absolute bottom-20 inset-x-3 bg-zine-cardElevated rounded-2xl border border-zine-border p-3.5 shadow-2xl z-30 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div className="flex items-start justify-between mb-1.5">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#FAF4E6] text-[#B87C24] border border-[#F3E2B8]">
+              <span>{EVENT_CATEGORIES_CONFIG[cardEvent.category]?.emoji || '⭐️'}</span>
+              <span>Сходка в Минске</span>
+            </span>
+            <button
+              onClick={() => setCardEvent(null)}
+              className="w-6 h-6 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-500 cursor-pointer"
+            >
+              <X size={13} />
+            </button>
+          </div>
+
+          <h3 className="font-serif font-bold text-sm text-zinc-900 leading-snug mb-1">
+            {cardEvent.title}
+          </h3>
+
+          <div className="flex items-center gap-3 text-[11px] text-zinc-600 mb-2">
+            <span className="flex items-center gap-1 text-zine-terracotta font-semibold">
+              <Clock size={11} strokeWidth={2.4} />
+              <span>{formatEventDate(cardEvent.dateTime)}</span>
+            </span>
+            <span className="flex items-center gap-1 truncate">
+              <MapPin size={11} className="shrink-0" />
+              <span className="truncate">{cardEvent.locationName}</span>
+            </span>
+          </div>
+
+          <p className="text-xs text-zinc-700 leading-snug line-clamp-2 mb-3">
+            {cardEvent.description}
+          </p>
+
+          <div className="flex items-center gap-2">
+            {onToggleJoinEvent ? (
+              <button
+                onClick={() => {
+                  onToggleJoinEvent(cardEvent);
+                  setCardEvent({ ...cardEvent, isJoined: !cardEvent.isJoined });
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer ${
+                  cardEvent.isJoined
+                    ? 'bg-zine-sage text-white'
+                    : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
+                }`}
+              >
+                {cardEvent.isJoined ? (
+                  <>
+                    <Check size={13} strokeWidth={3} />
+                    <span>Ты идёшь (Отменить)</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={12} />
+                    <span>Присоединиться к сходке</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <div className="text-[11px] font-semibold text-zinc-700">
+                👥 {cardEvent.participantsCount || 1} участников
+              </div>
+            )}
+
+            {cardEvent.creator?.username && (
+              <button
+                onClick={() => {
+                  telegramService.haptic('medium');
+                  telegramService.openChat(cardEvent.creator.username);
+                }}
+                className="p-2 rounded-xl bg-white border border-zinc-200 text-zinc-700 hover:text-zinc-900 active:scale-95 transition-all cursor-pointer"
+                title="Написать организатору"
+              >
+                <Send size={13} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Кнопка "Где я?" (GPS) в правом нижнем углу карты */}
       <button
