@@ -1,53 +1,55 @@
 import React, { useRef, useMemo, useState } from 'react';
 import { YMaps, Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
-import { Clock, MapPin, X, Send, Check, Sparkles } from 'lucide-react';
-import { UserProfile, AppEvent, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG } from '../../types';
+import { Clock, MapPin, X, Sparkles, Check, Send } from 'lucide-react';
+import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG } from '../../types';
 import { telegramService } from '../../services/telegram';
 
 interface MinskMapProps {
   users: UserProfile[];
   events?: AppEvent[];
+  currentUser?: {
+    telegramId?: number;
+    name?: string;
+    firstName?: string;
+    avatarUrl?: string;
+    goal?: ActivityGoal;
+    area?: string;
+    coordinates?: [number, number];
+    bio?: string;
+  } | null;
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile) => void;
+  onSelectCurrentUser?: () => void;
   onSelectEvent?: (event: AppEvent) => void;
   onToggleJoinEvent?: (event: AppEvent) => void;
   userLocation?: [number, number];
   apiKey?: string;
-  applyFuzzyOffset?: boolean;
 }
 
 const MINSK_CENTER: [number, number] = [53.9045, 27.5615];
 
-export function obfuscateCoordinates(
-  lat: number,
-  lng: number,
-  minMeters: number = 300,
-  maxMeters: number = 500
-): [number, number] {
-  const EARTH_RADIUS = 6378137;
-  const radius = minMeters + Math.random() * (maxMeters - minMeters);
-  const angle = Math.random() * 2 * Math.PI;
-
-  const deltaLat = (radius * Math.cos(angle)) / EARTH_RADIUS;
-  const deltaLng = (radius * Math.sin(angle)) / (EARTH_RADIUS * Math.cos((lat * Math.PI) / 180));
-
-  const fuzzyLat = Number((lat + (deltaLat * 180) / Math.PI).toFixed(6));
-  const fuzzyLng = Number((lng + (deltaLng * 180) / Math.PI).toFixed(6));
-
-  return [fuzzyLat, fuzzyLng];
-}
-
 const MinskMapContent: React.FC<{
-  users: (UserProfile & { displayCoords: [number, number] })[];
+  users: UserProfile[];
   events: AppEvent[];
+  currentUser?: MinskMapProps['currentUser'];
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile) => void;
+  onSelectCurrentUser?: () => void;
   onSelectEvent?: (event: AppEvent) => void;
   mapInstance: any;
-}> = ({ users, events, selectedUser, onSelectUser, onSelectEvent, mapInstance }) => {
-  const ymaps = useYMaps(['templateLayoutFactory', 'shape.Circle', 'geometry.pixel.Circle', 'shape.Rectangle', 'geometry.pixel.Rectangle']);
+}> = ({
+  users,
+  events,
+  currentUser,
+  selectedUser,
+  onSelectUser,
+  onSelectCurrentUser,
+  onSelectEvent,
+  mapInstance
+}) => {
+  const ymaps = useYMaps(['templateLayoutFactory']);
 
-  // 1. Макет круглой аватарки пользователя
+  // 1. Макет обычной круглой аватарки других пользователей
   const avatarLayout = useMemo(() => {
     if (!ymaps) return null;
 
@@ -63,12 +65,12 @@ const MinskMapContent: React.FC<{
           box-shadow: 0 4px 14px rgba(43, 38, 35, 0.2);
           position: relative;
           box-sizing: border-box;
-          transition: transform 0.15s ease;
         ">
           <img 
             src="$[properties.avatarUrl]" 
             alt="$[properties.name]" 
             style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;" 
+            onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'"
           />
           <span style="
             position: absolute;
@@ -100,46 +102,149 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
-  // 2. Макет квадратного маркера события (сходки) с календарем/звездочкой
-  const eventLayout = useMemo(() => {
+  // 2. Макет аватарки ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ ("⭐️ ТЫ")
+  const currentUserLayout = useMemo(() => {
     if (!ymaps) return null;
 
     return ymaps.templateLayoutFactory.createClass(
       `<div style="cursor: pointer; transform: translate(-50%, -100%);">
         <div style="
-          min-width: 48px;
-          height: 48px;
-          border-radius: 15px;
-          padding: 3px 6px;
-          background-color: #E2A03F;
-          border: 2.5px solid #FAF7F2;
-          box-shadow: 0 4px 16px rgba(226, 160, 63, 0.5);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          color: white;
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          padding: 2.5px;
+          background-color: #FAF7F2;
+          border: 3.5px solid #D95C3C;
+          box-shadow: 0 0 0 4px rgba(217, 92, 60, 0.4), 0 8px 22px rgba(43, 38, 35, 0.35);
           position: relative;
           box-sizing: border-box;
-          transition: transform 0.15s ease;
         ">
-          <span style="font-size: 15px; line-height: 1;">$[properties.eventEmoji]</span>
-          <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 1px; font-family: sans-serif;">сходка</span>
+          <!-- Бейдж '⭐️ ТЫ' над аватаркой -->
           <span style="
             position: absolute;
-            top: -4px;
-            right: -4px;
+            top: -11px;
+            left: 50%;
+            transform: translateX(-50%);
             background: #D95C3C;
-            color: #FFFFFF;
-            font-size: 9px;
-            font-weight: 700;
+            color: #FAF7F2;
+            font-size: 8.5px;
+            font-weight: 800;
+            padding: 1.5px 6px;
             border-radius: 8px;
-            padding: 1px 4px;
             border: 1.5px solid #FAF7F2;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+            white-space: nowrap;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          ">
+            ⭐️ ТЫ
+          </span>
+
+          <img 
+            src="$[properties.avatarUrl]" 
+            alt="$[properties.name]" 
+            style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;" 
+            onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'"
+          />
+          <span style="
+            position: absolute;
+            bottom: -3px;
+            right: -3px;
+            background: #FAF7F2;
+            font-size: 12px;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1.5px solid #D95C3C;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+          ">
+            $[properties.goalEmoji]
+          </span>
+        </div>
+        <div style="
+          width: 0;
+          height: 0;
+          border-left: 6px solid transparent;
+          border-right: 6px solid transparent;
+          border-top: 7px solid #D95C3C;
+          margin: -1px auto 0 auto;
+        "></div>
+      </div>`
+    );
+  }, [ymaps]);
+
+  // 3. Макет маркера СХОДКИ: интерактивная плашка с эмодзи категории, названием и числом участников
+  const eventLayout = useMemo(() => {
+    if (!ymaps) return null;
+
+    return ymaps.templateLayoutFactory.createClass(
+      `<div style="cursor: pointer; transform: translate(-50%, -100%); pointer-events: auto;">
+        <div style="
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          height: 38px;
+          padding: 3px 10px 3px 5px;
+          border-radius: 19px;
+          background: #FAF7F2;
+          border: 2px solid #E2A03F;
+          box-shadow: 0 4px 14px rgba(43, 38, 35, 0.28);
+          position: relative;
+          box-sizing: border-box;
+          white-space: nowrap;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        ">
+          <!-- Круглая плашка с эмодзи категории сходки -->
+          <div style="
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #E2A03F;
+            color: #FAF7F2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            line-height: 1;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+          ">
+            $[properties.eventEmoji]
+          </div>
+
+          <!-- Начало названия сходки (ограничено по символам) -->
+          <span style="
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #2B2623;
+            max-width: 110px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            letter-spacing: -0.2px;
+          ">
+            $[properties.displayTitle]
+          </span>
+
+          <!-- Число участников -->
+          <span style="
+            background: #D95C3C;
+            color: #FAF7F2;
+            font-size: 9.5px;
+            font-weight: 700;
+            border-radius: 10px;
+            padding: 1.5px 5px;
+            margin-left: -1px;
           ">
             $[properties.participantsCount]
           </span>
         </div>
+
+        <!-- Указатель стрелочки вниз к точке -->
         <div style="
           width: 0;
           height: 0;
@@ -152,7 +257,7 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
-  // 3. Макет кластера людей
+  // 4. Макет кластера людей
   const clusterLayout = useMemo(() => {
     if (!ymaps) return null;
 
@@ -180,27 +285,23 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
-  const avatarShape = useMemo(() => {
-    if (!ymaps) return null;
-    if (ymaps.shape?.Circle && ymaps.geometry?.pixel?.Circle) {
-      return new ymaps.shape.Circle(
-        new ymaps.geometry.pixel.Circle([0, -25], 23)
-      );
-    }
-    return { type: 'Circle', coordinates: [0, -25], radius: 23 } as any;
-  }, [ymaps]);
+  // Хитбокс для кликабельности плашки сходки
+  const eventShape = useMemo(() => ({
+    type: 'Rectangle',
+    coordinates: [[-100, -50], [100, 10]]
+  }), []);
 
-  const clusterShape = useMemo(() => {
-    if (!ymaps) return null;
-    if (ymaps.shape?.Circle && ymaps.geometry?.pixel?.Circle) {
-      return new ymaps.shape.Circle(
-        new ymaps.geometry.pixel.Circle([0, 0], 22)
-      );
-    }
-    return { type: 'Circle', coordinates: [0, 0], radius: 22 } as any;
-  }, [ymaps]);
+  // Исключаем текущего пользователя из общего кластера
+  const otherUsers = useMemo(() => {
+    if (!currentUser?.telegramId) return users;
+    return users.filter(
+      (u) =>
+        String(u.id) !== String(currentUser.telegramId) &&
+        (u as any).telegramId !== currentUser.telegramId
+    );
+  }, [users, currentUser]);
 
-  if (!ymaps || !avatarLayout || !clusterLayout || !eventLayout) {
+  if (!ymaps || !avatarLayout || !clusterLayout || !eventLayout || !currentUserLayout) {
     return (
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zine-paper/70 backdrop-blur-xs">
         <div className="w-8 h-8 rounded-full border-2 border-zine-terracotta border-t-transparent animate-spin mb-2" />
@@ -211,11 +312,41 @@ const MinskMapContent: React.FC<{
 
   return (
     <>
-      {/* Кластеризация аватарок пользователей */}
+      {/* 1. Маркер запускающего приложение ("⭐️ ТЫ") */}
+      {currentUser && currentUser.coordinates && (
+        <Placemark
+          key={`current-user-${currentUser.coordinates[0]}-${currentUser.coordinates[1]}`}
+          geometry={currentUser.coordinates}
+          properties={{
+            avatarUrl:
+              currentUser.avatarUrl ||
+              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            name: currentUser.name || currentUser.firstName || 'Ты',
+            goalEmoji: (GOALS_CONFIG[currentUser.goal || 'walk'] || { emoji: '☕️' }).emoji
+          }}
+          options={{
+            iconLayout: currentUserLayout,
+            cursor: 'pointer',
+            zIndex: 950,
+            interactivityModel: 'default#opaque',
+            hasBalloon: false
+          }}
+          onClick={() => {
+            telegramService.haptic('selection');
+            if (onSelectCurrentUser) {
+              onSelectCurrentUser();
+            }
+            if (mapInstance && currentUser.coordinates) {
+              mapInstance.panTo(currentUser.coordinates, { flying: true, duration: 400 });
+            }
+          }}
+        />
+      )}
+
+      {/* 2. Кластеризация аватарок остальных пользователей */}
       <Clusterer
         options={{
           clusterIconLayout: clusterLayout,
-          clusterIconShape: clusterShape as any,
           gridSize: 64,
           groupByCoordinates: false,
           clusterDisableClickZoom: false,
@@ -223,14 +354,14 @@ const MinskMapContent: React.FC<{
           geoObjectHideIconOnBalloonOpen: false
         }}
       >
-        {users.map((user) => {
+        {otherUsers.map((user) => {
           const isSelected = selectedUser?.id === user.id;
           const goalInfo = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг' };
 
           return (
             <Placemark
-              key={user.id}
-              geometry={user.displayCoords}
+              key={`user-${user.id}`}
+              geometry={user.coordinates}
               properties={{
                 avatarUrl: user.avatarUrl,
                 name: user.firstName,
@@ -239,19 +370,15 @@ const MinskMapContent: React.FC<{
               }}
               options={{
                 iconLayout: avatarLayout,
-                iconShape: avatarShape as any,
-                iconOffset: [0, 0],
-                cursor: 'pointer'
+                cursor: 'pointer',
+                interactivityModel: 'default#opaque',
+                hasBalloon: false
               }}
               onClick={() => {
                 telegramService.haptic('selection');
                 onSelectUser(user);
-
                 if (mapInstance) {
-                  mapInstance.panTo(user.displayCoords, {
-                    flying: true,
-                    duration: 400
-                  });
+                  mapInstance.panTo(user.coordinates, { flying: true, duration: 400 });
                 }
               }}
             />
@@ -259,24 +386,30 @@ const MinskMapContent: React.FC<{
         })}
       </Clusterer>
 
-      {/* Маркеры событий (Сходок) — золотистый маркер с эмодзи/календарем */}
+      {/* 3. Маркеры событий (Сходок) — 100% кликабельные */}
       {events.map((ev) => {
-        const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️' };
+        const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️', label: 'Сходка' };
+        const rawTitle = ev.title || 'Сходка';
+        const displayTitle = rawTitle.length > 13 ? rawTitle.slice(0, 12).trim() + '…' : rawTitle;
+        const coords = ev.coordinates || [53.9045, 27.5615];
 
         return (
           <Placemark
-            key={`event-${ev.id}`}
-            geometry={ev.coordinates}
+            key={`event-${ev.id || (ev as any)._id}-${coords[0]}-${coords[1]}`}
+            geometry={coords}
             properties={{
-              eventEmoji: catConfig.emoji || '🗓️',
-              title: ev.title,
+              eventEmoji: catConfig.emoji || '⭐️',
+              displayTitle,
+              fullTitle: rawTitle,
               participantsCount: ev.participantsCount || 1
             }}
             options={{
               iconLayout: eventLayout,
-              iconOffset: [0, 0],
+              iconShape: eventShape as any,
               cursor: 'pointer',
-              zIndex: 250
+              zIndex: 1000,
+              interactivityModel: 'default#opaque',
+              hasBalloon: false
             }}
             onClick={() => {
               telegramService.haptic('medium');
@@ -284,10 +417,7 @@ const MinskMapContent: React.FC<{
                 onSelectEvent(ev);
               }
               if (mapInstance) {
-                mapInstance.panTo(ev.coordinates, {
-                  flying: true,
-                  duration: 400
-                });
+                mapInstance.panTo(coords, { flying: true, duration: 400 });
               }
             }}
           />
@@ -300,49 +430,33 @@ const MinskMapContent: React.FC<{
 export const MinskMap: React.FC<MinskMapProps> = ({
   users,
   events = [],
+  currentUser,
   selectedUser,
   onSelectUser,
+  onSelectCurrentUser,
   onSelectEvent,
   onToggleJoinEvent,
   userLocation,
-  apiKey = import.meta.env.VITE_YANDEX_MAPS_KEY || '',
-  applyFuzzyOffset = false
+  apiKey = import.meta.env.VITE_YANDEX_MAPS_KEY || ''
 }) => {
   const mapRef = useRef<any>(null);
-  const [, setMapReady] = useState(false);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
-
-  // Локальное состояние для всплывающей карточки события прямо на карте
   const [cardEvent, setCardEvent] = useState<AppEvent | null>(null);
 
-  const usersWithSafeCoords = useMemo(() => {
-    return users.map((user) => {
-      const displayCoords: [number, number] = applyFuzzyOffset
-        ? obfuscateCoordinates(user.coordinates[0], user.coordinates[1])
-        : user.coordinates;
-
-      return {
-        ...user,
-        displayCoords
-      };
-    });
-  }, [users, applyFuzzyOffset]);
-
-  // Обработка клика по сходке
   const handleEventClick = (ev: AppEvent) => {
-    setCardEvent(ev);
     if (onSelectEvent) {
       onSelectEvent(ev);
+    } else {
+      setCardEvent(ev);
     }
   };
 
-  // Кнопка "Где я?" через GPS
   const handleLocateGPS = () => {
     telegramService.haptic('light');
 
     if (!navigator.geolocation) {
       if (mapRef.current) {
-        mapRef.current.setCenter(userLocation || MINSK_CENTER, 14, { duration: 500 });
+        mapRef.current.setCenter(currentUser?.coordinates || userLocation || MINSK_CENTER, 14, { duration: 500 });
       }
       return;
     }
@@ -362,7 +476,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
       () => {
         setIsGpsLoading(false);
         if (mapRef.current) {
-          mapRef.current.setCenter(userLocation || MINSK_CENTER, 14, { duration: 500 });
+          mapRef.current.setCenter(currentUser?.coordinates || userLocation || MINSK_CENTER, 14, { duration: 500 });
         }
       },
       { enableHighAccuracy: true, timeout: 8000 }
@@ -389,53 +503,44 @@ export const MinskMap: React.FC<MinskMapProps> = ({
       <style>{`
         .ymaps-2-1-79-map,
         .ymaps-2-1-79-islets_map {
-          filter: sepia(20%) brightness(99%) contrast(94%) hue-rotate(-8deg) !important;
+          filter: sepia(18%) brightness(99%) contrast(95%) hue-rotate(-6deg) !important;
         }
         .ymaps-2-1-79-inner-panes {
           background-color: #F4EFE7 !important;
         }
       `}</style>
 
-      <YMaps
-        query={{
-          apikey: apiKey,
-          lang: 'ru_RU',
-          load: 'package.full'
-        }}
-      >
+      <YMaps query={{ apikey: apiKey, lang: 'ru_RU', load: 'package.full' }}>
         <Map
           defaultState={{
-            center: MINSK_CENTER,
+            center: currentUser?.coordinates || MINSK_CENTER,
             zoom: 13,
             controls: []
           }}
-          options={{
-            suppressMapOpenBlock: true
-          }}
+          options={{ suppressMapOpenBlock: true }}
           className="w-full h-full"
           instanceRef={(ref) => {
-            if (ref) {
-              mapRef.current = ref;
-              setMapReady(true);
-            }
+            if (ref) mapRef.current = ref;
           }}
         >
           <MinskMapContent
-            users={usersWithSafeCoords}
+            users={users}
             events={events}
+            currentUser={currentUser}
             selectedUser={selectedUser}
             onSelectUser={(u) => {
               setCardEvent(null);
               onSelectUser(u);
             }}
+            onSelectCurrentUser={onSelectCurrentUser}
             onSelectEvent={handleEventClick}
             mapInstance={mapRef.current}
           />
         </Map>
       </YMaps>
 
-      {/* Всплывающая карточка сходки при клике на маркер события на карте */}
-      {cardEvent && (
+      {/* Автономная карточка сходки */}
+      {!onSelectEvent && cardEvent && (
         <div className="absolute bottom-20 inset-x-3 bg-zine-cardElevated rounded-2xl border border-zine-border p-3.5 shadow-2xl z-30 animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="flex items-start justify-between mb-1.5">
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#FAF4E6] text-[#B87C24] border border-[#F3E2B8]">
@@ -470,7 +575,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
           </p>
 
           <div className="flex items-center gap-2">
-            {onToggleJoinEvent ? (
+            {onToggleJoinEvent && (
               <button
                 onClick={() => {
                   onToggleJoinEvent(cardEvent);
@@ -494,10 +599,6 @@ export const MinskMap: React.FC<MinskMapProps> = ({
                   </>
                 )}
               </button>
-            ) : (
-              <div className="text-[11px] font-semibold text-zinc-700">
-                👥 {cardEvent.participantsCount || 1} участников
-              </div>
             )}
 
             {cardEvent.creator?.username && (
@@ -516,7 +617,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         </div>
       )}
 
-      {/* Кнопка "Где я?" (GPS) в правом нижнем углу карты */}
+      {/* Кнопка "Где я?" (GPS) */}
       <button
         onClick={handleLocateGPS}
         disabled={isGpsLoading}
