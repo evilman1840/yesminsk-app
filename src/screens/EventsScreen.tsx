@@ -4,56 +4,70 @@ import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 
-// Пресеты популярных мест Минска
 export const MINSK_SPOTS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
-  { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5'], coords: [53.8993, 27.5574] },
+  { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'леніна 5'], coords: [53.8993, 27.5574] },
   { name: 'ул. Ленина', aliases: ['ленина', 'lenina'], coords: [53.8998, 27.5595] },
   { name: 'пл. Ленина', aliases: ['пл. ленина', 'площадь ленина', 'ст.м. ленина'], coords: [53.8960, 27.5480] },
-  { name: 'Октябрьская 19', aliases: ['октябрьская 19', 'октябрьская'], coords: [53.8905, 27.5740] },
+  { name: 'Октябрьская 19', aliases: ['октябрьская 19', 'кастрычніцкая 19'], coords: [53.8905, 27.5740] },
+  { name: 'Октябрьская', aliases: ['октябрьская', 'oktyabr'], coords: [53.8912, 27.5710] },
   { name: 'Немига / Верхний город', aliases: ['немиг', 'верхний город', 'ратуш'], coords: [53.9045, 27.5520] },
   { name: 'Зыбицкая', aliases: ['зыбицк'], coords: [53.9056, 27.5585] },
-  { name: 'Осмоловка / Коммунистическая', aliases: ['осмоловк', 'зерно'], coords: [53.9115, 27.5612] },
+  { name: 'Осмоловка / Коммунистическая', aliases: ['осмоловк', 'зерно', 'коммунистическ'], coords: [53.9115, 27.5612] },
   { name: 'Карла Маркса', aliases: ['маркса'], coords: [53.8975, 27.5570] },
-  { name: 'пр-т Независимости 4', aliases: ['независимости', 'незалежнасц'], coords: [53.8965, 27.5505] },
+  { name: 'пр-т Независимости 4', aliases: ['независимости 4', 'незалежнасці 4'], coords: [53.8965, 27.5505] },
   { name: 'Парк Челюскинцев', aliases: ['челюскин', 'ботаническ'], coords: [53.9240, 27.6150] },
   { name: 'Новая Боровая', aliases: ['боров'], coords: [53.9550, 27.6750] },
   { name: 'Комаровка', aliases: ['комаровк', 'куйбышев'], coords: [53.9190, 27.5800] }
 ];
 
 /**
- * Точное определение координат по адресу в Минске
+ * Точное определение координат по адресу в Минске:
+ * 1. Через window.ymaps.geocode (встроенный геокодер Яндекс.Карт без лишних API-ключей)
+ * 2. Через Photon OSM (знает все дома Минска)
+ * 3. Локальная база улиц
  */
-export const resolveExactAddressCoordinates = async (
-  address: string,
-  apiKey: string = import.meta.env.VITE_YANDEX_MAPS_KEY || ''
-): Promise<[number, number]> => {
+export const resolveExactAddressCoordinates = async (address: string): Promise<[number, number]> => {
   const trimmed = address.trim();
   if (!trimmed) return [53.9045, 27.5615];
 
   const lower = trimmed.toLowerCase();
 
-  // 1. Прямой запрос к Яндекс.Геокодеру
-  if (apiKey) {
-    try {
+  // 1. Поиск через JS API Яндекс.Карт (самый точный для Минска)
+  try {
+    const ymaps = (window as any).ymaps;
+    if (ymaps && typeof ymaps.geocode === 'function') {
       const query = lower.includes('минск') ? trimmed : `Минск, ${trimmed}`;
-      const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&geocode=${encodeURIComponent(query)}&format=json&results=1`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        const pos = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject?.Point?.pos;
-        if (pos) {
-          const [lon, lat] = pos.split(' ').map(Number);
-          if (!isNaN(lat) && !isNaN(lon)) {
-            return [lat, lon];
-          }
+      const res = await ymaps.geocode(query, { results: 1 });
+      const firstGeoObject = res.geoObjects?.get?.(0);
+      if (firstGeoObject) {
+        const coords = firstGeoObject.geometry.getCoordinates();
+        if (Array.isArray(coords) && coords.length === 2) {
+          return [Number(coords[0]), Number(coords[1])];
         }
       }
-    } catch (e) {
-      console.warn('Yandex geocode error:', e);
     }
+  } catch (err) {
+    console.warn('Yandex JS geocode fallback:', err);
   }
 
-  // 2. Поиск по пресетам улиц и номеров домов
+  // 2. Поиск через Photon OpenStreetMap (с привязкой к Минску)
+  try {
+    const query = encodeURIComponent(`Minsk ${trimmed}`);
+    const res = await fetch(`https://photon.komoot.io/api/?q=${query}&lat=53.9045&lon=27.5615&limit=1`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.features?.[0]?.geometry?.coordinates) {
+        const [lon, lat] = data.features[0].geometry.coordinates;
+        if (!isNaN(lat) && !isNaN(lon)) {
+          return [lat, lon];
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Photon geocode fallback:', err);
+  }
+
+  // 3. Сопоставление с базой ориентиров
   for (const spot of MINSK_SPOTS) {
     if (spot.aliases.some((alias) => lower.includes(alias))) {
       return spot.coords;
@@ -97,7 +111,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
-  // Поля формы
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<EventCategory>('walk');
@@ -138,10 +151,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setIsModalOpen(true);
   };
 
-  // Геокодирование введенного адреса
   const handleAddressChange = async (newAddress: string) => {
     setLocationName(newAddress);
-    if (newAddress.trim().length >= 4) {
+    if (newAddress.trim().length >= 3) {
       setIsGeocoding(true);
       const coords = await resolveExactAddressCoordinates(newAddress);
       setCoordinates(coords);
@@ -149,14 +161,13 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
   };
 
-  // GPS определение
   const handleGpsCurrent = () => {
     if (!navigator.geolocation) return;
     setIsGeocoding(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setCoordinates([pos.coords.latitude, pos.coords.longitude]);
-        setLocationName('Моя GPS точка в Минске');
+        setLocationName('Моя текущая точка GPS');
         setIsGeocoding(false);
         telegramService.haptic('success');
       },
@@ -164,7 +175,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     );
   };
 
-  // Отправка формы (создание или редактирование)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim() || !locationName.trim() || !dateTime) {
@@ -176,13 +186,15 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setFormError(null);
 
     try {
+      const finalCoords = coordinates && coordinates[0] ? coordinates : await resolveExactAddressCoordinates(locationName);
+
       if (editingEventId && onUpdateEvent) {
         await onUpdateEvent(editingEventId, {
           title: title.trim(),
           description: description.trim(),
           category,
           locationName: locationName.trim(),
-          coordinates,
+          coordinates: finalCoords,
           dateTime: new Date(dateTime).toISOString(),
           maxParticipants: Number(maxParticipants) || 0
         });
@@ -192,7 +204,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           description: description.trim(),
           category,
           locationName: locationName.trim(),
-          coordinates,
+          coordinates: finalCoords,
           dateTime: new Date(dateTime).toISOString(),
           maxParticipants: Number(maxParticipants) || 0
         });
@@ -206,7 +218,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
   };
 
-  // Удаление сходки
   const handleDelete = async (eventId: string) => {
     if (!window.confirm('Точно удалить эту сходку?')) return;
     try {
@@ -238,7 +249,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
   return (
     <div className="flex flex-col h-full w-full bg-zine-paper select-none overflow-hidden relative">
-      {/* Шапка */}
       <header className="px-4 py-3 bg-zine-paper border-b border-zine-border flex items-center justify-between shrink-0">
         <div>
           <h1 className="font-serif font-bold text-lg text-zinc-900 leading-tight">Сходки в Минске</h1>
@@ -254,7 +264,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </button>
       </header>
 
-      {/* Лента сходок */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 pb-24">
         {events.length === 0 ? (
           <div className="text-center py-12 px-4">
@@ -278,7 +287,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 key={ev.id}
                 className="p-4 rounded-2xl bg-white border border-zine-border shadow-sm flex flex-col gap-2.5 relative"
               >
-                {/* Верхняя строка: категория и действия создателя */}
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FAF4E6] text-[#B87C24] border border-[#F3E2B8]">
                     <span>{catConfig.emoji}</span>
@@ -309,7 +317,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
                 <p className="text-xs text-zinc-600 leading-relaxed whitespace-pre-wrap">{ev.description}</p>
 
-                {/* Время и локация */}
                 <div className="flex flex-wrap items-center gap-3 text-[11.5px] text-zinc-600 pt-1 border-t border-zinc-100">
                   <span className="flex items-center gap-1 text-zine-terracotta font-semibold">
                     <Clock size={12} strokeWidth={2.4} />
@@ -321,7 +328,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   </span>
                 </div>
 
-                {/* Подвал карточки: кнопка участия и организатор */}
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-[11px] font-semibold text-zinc-500">
                     👥 {ev.participantsCount || 1}
@@ -369,7 +375,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         )}
       </div>
 
-      {/* Модальное окно создания / редактирования */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-[420px] max-h-[90vh] bg-white rounded-t-3xl sm:rounded-3xl p-5 overflow-y-auto shadow-2xl flex flex-col">
@@ -420,7 +425,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 </select>
               </div>
 
-              {/* Адрес с точным геокодингом */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[11px] font-bold text-zinc-700">Точный адрес встречи</label>
@@ -443,7 +447,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   required
                 />
 
-                {/* Пресеты адресов */}
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1 mt-1">
                   {MINSK_SPOTS.slice(0, 5).map((sp) => (
                     <button
@@ -460,12 +463,11 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   ))}
                 </div>
 
-                {/* Индикатор координат */}
-                <div className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1">
+                <div className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1 font-medium">
                   {isGeocoding ? (
                     <>
                       <Loader2 size={10} className="animate-spin text-zine-terracotta" />
-                      <span>Ищем координаты дома...</span>
+                      <span>Ищем точный дом на карте...</span>
                     </>
                   ) : (
                     <span>📍 Координаты точки: [{coordinates[0].toFixed(4)}, {coordinates[1].toFixed(4)}]</span>
@@ -514,7 +516,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </div>
       )}
 
-      {/* Нижний TabBar */}
       <nav className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-zinc-200 px-6 py-2 flex items-center justify-around z-30">
         <button onClick={onOpenMap} className="flex flex-col items-center gap-0.5 text-zinc-400 hover:text-zinc-700">
           <Compass size={18} />
