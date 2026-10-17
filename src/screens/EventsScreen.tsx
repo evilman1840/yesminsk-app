@@ -1,12 +1,80 @@
 import React, { useState } from 'react';
-import { Compass, Users, User, Calendar, MapPin, Plus, Clock, Send, Check, X, Loader2, Sparkles, Edit2, Trash2 } from 'lucide-react';
+import { Compass, Users, User, Calendar, MapPin, Plus, Clock, Send, Check, X, Loader2, Sparkles, Edit2, Trash2, Navigation } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 
+// Словарь культовых мест Минска с их реальными координатами [lat, lng]
+export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
+  { name: 'Октябрьская', aliases: ['октябрьск', 'oktyabr', 'кастрычн'], coords: [53.8905, 27.5740] },
+  { name: 'Осмоловка', aliases: ['осмоловк', 'коммунистическ', 'зерно'], coords: [53.9115, 27.5612] },
+  { name: 'Немига / Верхний город', aliases: ['немиг', 'верхний город', 'зыбицк', 'свободы', 'ратуш'], coords: [53.9045, 27.5520] },
+  { name: 'Парк Челюскинцев', aliases: ['челюскин', 'ботаническ'], coords: [53.9240, 27.6150] },
+  { name: 'Комаровка', aliases: ['комаровк', 'куйбышев'], coords: [53.9190, 27.5800] },
+  { name: 'Песочница', aliases: ['песочниц', 'куйбышева 45'], coords: [53.9155, 27.5690] },
+  { name: 'Парк Горького', aliases: ['горьког'], coords: [53.9030, 27.5760] },
+  { name: 'Парк Победы / Свислочь', aliases: ['парк побед', 'победител', 'комсомольск'], coords: [53.9240, 27.5450] },
+  { name: 'Площадь Победы', aliases: ['площадь побед', 'пл. побед'], coords: [53.9085, 27.5750] },
+  { name: 'Новая Боровая', aliases: ['боров'], coords: [53.9550, 27.6750] },
+  { name: 'Восток / Dana Mall', aliases: ['восток', 'библиотек', 'dana mall', 'дана молл'], coords: [53.9335, 27.6530] },
+  { name: 'Уручье / Музей валунов', aliases: ['уручь', 'музей валунов', 'валун'], coords: [53.9450, 27.6880] },
+  { name: 'Минское море / Цнянка', aliases: ['минское мор', 'цнянк', 'заславск'], coords: [53.9720, 27.3850] }
+];
+
+/**
+ * Определение точных координат по введённому адресу или названию заведения
+ */
+export const resolveEventCoordinates = async (
+  address: string,
+  existingCoords?: [number, number]
+): Promise<[number, number]> => {
+  const trimmed = address.trim();
+  if (!trimmed) {
+    return existingCoords || [53.9045, 27.5615];
+  }
+
+  // 1. Попытка автоматического геокодирования через Яндекс.Карты (window.ymaps)
+  try {
+    const ymaps = (window as any).ymaps;
+    if (ymaps && typeof ymaps.geocode === 'function') {
+      const query = trimmed.toLowerCase().includes('минск') ? trimmed : `Минск, ${trimmed}`;
+      const res = await ymaps.geocode(query, { results: 1 });
+      const firstGeoObject = res.geoObjects?.get?.(0);
+      if (firstGeoObject) {
+        const coords = firstGeoObject.geometry.getCoordinates();
+        if (Array.isArray(coords) && coords.length === 2) {
+          return [Number(coords[0]), Number(coords[1])];
+        }
+      }
+    }
+  } catch (geoErr) {
+    console.warn('[Geocode] Ошибка геокодирования Яндекс.Карт:', geoErr);
+  }
+
+  // 2. Умное сопоставление по ключевым словам и популярным местам Минска
+  const lower = trimmed.toLowerCase();
+  for (const spot of MINSK_SPOTS_PRESETS) {
+    if (spot.aliases.some((alias) => lower.includes(alias))) {
+      return spot.coords;
+    }
+  }
+
+  // 3. Сохранение существующих координат (при редактировании) либо центр Минска
+  return existingCoords || [53.9045, 27.5615];
+};
+
 export interface EventsScreenProps {
   events: AppEvent[];
   onCreateEvent?: (eventData: {
+    title: string;
+    description: string;
+    category: string;
+    locationName: string;
+    coordinates: [number, number];
+    dateTime: string;
+    maxParticipants?: number;
+  }) => Promise<any>;
+  onUpdateEvent?: (eventId: string, eventData: {
     title: string;
     description: string;
     category: string;
@@ -26,6 +94,7 @@ export interface EventsScreenProps {
 export const EventsScreen: React.FC<EventsScreenProps> = ({
   events,
   onCreateEvent,
+  onUpdateEvent,
   onToggleJoin,
   onRefreshEvents,
   onOpenMap,
@@ -47,6 +116,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<EventCategory>('walk');
   const [locationName, setLocationName] = useState('Октябрьская улица');
+  const [customCoords, setCustomCoords] = useState<[number, number] | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
   const [dateTime, setDateTime] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('8');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,6 +127,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     ? events
     : events.filter((e) => e.category === selectedCategory);
 
+  // Открыть модалку для создания нового события
   const handleOpenCreateModal = () => {
     telegramService.haptic('light');
     setEditingEventId(null);
@@ -63,20 +135,30 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setDescription('');
     setCategory('walk');
     setLocationName('Октябрьская улица');
+    setCustomCoords(null);
     setDateTime('');
     setMaxParticipants('8');
     setFormError(null);
     setIsModalOpen(true);
   };
 
+  // Открыть модалку для редактирования существующего события
   const handleOpenEditModal = (ev: AppEvent) => {
     telegramService.haptic('light');
-    setEditingEventId(ev.id);
+    const targetId = ev.id || (ev as any)._id;
+    if (!targetId) {
+      alert('Ошибка: не удалось определить ID сходки для редактирования');
+      return;
+    }
+
+    setEditingEventId(String(targetId));
     setTitle(ev.title || '');
     setDescription(ev.description || '');
     setCategory(ev.category || 'walk');
     setLocationName(ev.locationName || '');
+    setCustomCoords(ev.coordinates || null);
 
+    // Преобразуем дату в формат datetime-local YYYY-MM-DDTHH:mm
     try {
       const d = new Date(ev.dateTime);
       const localIso = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
@@ -92,14 +174,61 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setIsModalOpen(true);
   };
 
+  // Определение точки по GPS
+  const handleGetGPS = () => {
+    if (!navigator.geolocation) {
+      alert('Геолокация не поддерживается вашим устройством');
+      return;
+    }
+    telegramService.haptic('selection');
+    setIsLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(5));
+        const lng = Number(pos.coords.longitude.toFixed(5));
+        setCustomCoords([lat, lng]);
+        setIsLocating(false);
+        telegramService.haptic('success');
+
+        // Обратное геокодирование адреса по координатам через Яндекс
+        try {
+          const ymaps = (window as any).ymaps;
+          if (ymaps && typeof ymaps.geocode === 'function') {
+            const res = await ymaps.geocode([lat, lng], { results: 1 });
+            const obj = res.geoObjects?.get?.(0);
+            if (obj) {
+              const text = obj.getAddressLine?.() || obj.properties?.get('text');
+              if (text) {
+                setLocationName(text.replace(/^Беларусь,\s*Минск,\s*/i, ''));
+              }
+            }
+          }
+        } catch {
+          // Игнорируем
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        telegramService.haptic('warning');
+        alert('Не удалось определить GPS: ' + (err.message || 'разрешите доступ к геолокации'));
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  // Удаление события создателем
   const handleDeleteEvent = async (ev: AppEvent) => {
     telegramService.haptic('warning');
+    const targetId = ev.id || (ev as any)._id;
+    if (!targetId) return;
+
     const confirmed = window.confirm(`Удалить сходку "${ev.title}"?`);
     if (!confirmed) return;
 
-    setDeletingId(ev.id);
+    setDeletingId(String(targetId));
     try {
-      await api.deleteEvent(ev.id);
+      await api.deleteEvent(String(targetId));
       telegramService.haptic('success');
       onRefreshEvents?.();
     } catch (err: any) {
@@ -109,14 +238,16 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
   };
 
+  // Переключение участия в событии
   const handleToggleJoin = async (event: AppEvent) => {
     telegramService.haptic('selection');
-    setJoiningId(event.id);
+    const targetId = event.id || (event as any)._id;
+    setJoiningId(String(targetId));
     try {
       if (onToggleJoin) {
         await onToggleJoin(event);
       } else {
-        await api.toggleJoinEvent(event.id, Boolean(event.isJoined));
+        await api.toggleJoinEvent(String(targetId), Boolean(event.isJoined));
       }
       telegramService.haptic('success');
       onRefreshEvents?.();
@@ -127,8 +258,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
   };
 
+  // Отправка формы (Создание или Редактирование)
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setFormError(null);
 
     if (!title.trim() || !description.trim() || !locationName.trim() || !dateTime) {
@@ -141,20 +274,31 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setIsSubmitting(true);
 
     try {
-      const defaultCoords: [number, number] = [53.9045, 27.5615];
+      // Автоматическое определение координат по введенному адресу
+      const resolvedCoords = customCoords || await resolveEventCoordinates(
+        locationName,
+        editingEventId ? (customCoords || undefined) : undefined
+      );
+
       const payload = {
         title: title.trim(),
         description: description.trim(),
         category,
         locationName: locationName.trim(),
-        coordinates: defaultCoords,
+        coordinates: resolvedCoords,
         dateTime: new Date(dateTime).toISOString(),
         maxParticipants: Number(maxParticipants) || 0
       };
 
       if (editingEventId) {
-        await api.updateEvent(editingEventId, payload);
+        // Редактирование существующего события
+        if (onUpdateEvent) {
+          await onUpdateEvent(editingEventId, payload);
+        } else {
+          await api.updateEvent(editingEventId, payload);
+        }
       } else {
+        // Создание нового события
         if (onCreateEvent) {
           await onCreateEvent(payload);
         } else {
@@ -167,10 +311,11 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setEditingEventId(null);
       setTitle('');
       setDescription('');
+      setCustomCoords(null);
       onRefreshEvents?.();
     } catch (err: any) {
       console.error('Ошибка сохранения события:', err);
-      setFormError(err.message || 'Ошибка сохранения события на сервере');
+      setFormError(err.message || 'Ошибка сохранения события на сервере (404)');
       telegramService.haptic('error');
     } finally {
       setIsSubmitting(false);
@@ -220,7 +365,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </button>
       </header>
 
-      {/* Фильтр категорий */}
+      {/* Фильтр категорий сходок */}
       <div className="px-3 py-2 bg-zine-paper/90 border-b border-zine-border flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <button
           onClick={() => {
@@ -264,7 +409,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         })}
       </div>
 
-      {/* Лента событий */}
+      {/* Лента событий в стиле Афиши */}
       <main className="flex-1 overflow-y-auto p-3.5 space-y-3 pb-20">
         {filteredEvents.length === 0 ? (
           <div className="p-8 text-center text-zine-inkMuted">
@@ -292,6 +437,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             const isJoining = joiningId === ev.id;
             const isDeleting = deletingId === ev.id;
 
+            // Проверка, является ли текущий пользователь автором события
             const isCreator = Boolean(
               currentUserId && (
                 ev.creator?.telegramId === currentUserId ||
@@ -305,9 +451,11 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 key={ev.id}
                 className="p-4 rounded-2xl bg-zine-card border border-zine-border shadow-zine hover:shadow-zine-lg transition-all relative overflow-hidden"
               >
+                {/* Фоновый легкий блик */}
                 <div className={`absolute top-0 right-0 w-32 h-32 rounded-full ${catConfig.badgeBg} opacity-50 blur-2xl pointer-events-none`} />
 
                 <div className="relative z-10">
+                  {/* Верхняя строка афиши: категория и дата */}
                   <div className="flex items-center justify-between mb-2">
                     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-bold border border-black/5 ${catConfig.badgeBg} ${catConfig.badgeText}`}>
                       <span>{catConfig.emoji}</span>
@@ -320,19 +468,23 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                     </span>
                   </div>
 
+                  {/* Заголовок */}
                   <h3 className="font-serif font-bold text-[16px] text-zine-ink leading-snug mb-1.5">
                     {ev.title}
                   </h3>
 
+                  {/* Местоположение */}
                   <div className="flex items-center gap-1.5 text-xs text-zine-inkMuted mb-2.5">
                     <MapPin size={13} className="text-zinc-500 shrink-0" />
                     <span className="truncate">{ev.locationName}</span>
                   </div>
 
+                  {/* Описание */}
                   <p className="text-xs text-zine-ink/90 leading-relaxed mb-3 whitespace-pre-wrap">
                     {ev.description}
                   </p>
 
+                  {/* Организатор и участники */}
                   <div className="flex items-center justify-between pt-2.5 border-t border-zine-border/60">
                     <div className="flex items-center gap-2">
                       <img
@@ -357,7 +509,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                     </span>
                   </div>
 
-                  {/* Кнопки автора: Редактировать и Удалить */}
+                  {/* Кнопки управления (только для автора) */}
                   {isCreator && (
                     <div className="flex items-center justify-end gap-1.5 mt-2.5 pt-2 border-t border-dashed border-zine-border/80">
                       <span className="text-[10px] text-zinc-400 mr-auto font-medium">Твоя сходка:</span>
@@ -379,7 +531,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                     </div>
                   )}
 
-                  {/* Кнопка участия */}
+                  {/* Кнопка записи / отмены */}
                   <div className="flex items-center gap-2 mt-3 pt-2">
                     <button
                       onClick={() => handleToggleJoin(ev)}
@@ -428,7 +580,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         )}
       </main>
 
-      {/* Модальное окно */}
+      {/* Модальное окно создания / редактирования сходки */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-md bg-zine-paper rounded-t-[28px] sm:rounded-3xl border border-zine-border p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -499,17 +651,62 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-zine-ink mb-1">
-                  Где встречаемся (Адрес / Ориентир) *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-zine-ink">
+                    Где встречаемся (Адрес / Ориентир) *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGetGPS}
+                    disabled={isLocating}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold text-zine-terracotta bg-zine-terracotta/10 hover:bg-zine-terracotta/20 px-2 py-0.5 rounded-full transition-all active:scale-95 cursor-pointer"
+                  >
+                    {isLocating ? (
+                      <Loader2 size={10} className="animate-spin" />
+                    ) : (
+                      <Navigation size={10} />
+                    )}
+                    <span>{isLocating ? 'Ищем...' : 'Мой GPS'}</span>
+                  </button>
+                </div>
+
                 <input
                   type="text"
                   value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
+                  onChange={(e) => {
+                    setLocationName(e.target.value);
+                    setCustomCoords(null);
+                  }}
                   placeholder="Например: ул. Коммунистическая 14, у кофейни"
                   className="w-full px-3 py-2 rounded-xl bg-white border border-zine-border text-zine-ink focus:outline-none focus:border-zine-terracotta"
                   required
                 />
+
+                {/* Быстрые пресеты культовых мест Минска */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mt-1">
+                  <span className="text-[9.5px] text-zinc-400 shrink-0 font-medium">Быстро:</span>
+                  {MINSK_SPOTS_PRESETS.slice(0, 6).map((spot) => (
+                    <button
+                      type="button"
+                      key={spot.name}
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        setLocationName(spot.name);
+                        setCustomCoords(spot.coords);
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[10px] whitespace-nowrap transition-colors cursor-pointer"
+                    >
+                      {spot.name}
+                    </button>
+                  ))}
+                </div>
+
+                {customCoords && (
+                  <p className="text-[10px] text-emerald-700 mt-0.5 flex items-center gap-1">
+                    <Check size={10} strokeWidth={3} />
+                    <span>Точка на карте зафиксирована ({customCoords[0]}, {customCoords[1]})</span>
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -576,7 +773,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </div>
       )}
 
-      {/* 4-кнопочный TabBar */}
+      {/* Нижний 4-кнопочный TabBar */}
       <nav className="h-14 bg-zine-paper/95 backdrop-blur-md border-t border-zine-border flex items-center justify-around px-2 z-20 shrink-0">
         <button
           onClick={onOpenMap}
