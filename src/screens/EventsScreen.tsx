@@ -86,9 +86,9 @@ export interface EventsScreenProps {
   onDeleteEvent?: (eventId: string) => Promise<any> | void;
   onToggleJoin?: (event: AppEvent) => void;
   onRefreshEvents?: () => void;
-  onOpenMap: () => void;
+  onOpenMap?: () => void;
   onOpenFeed?: () => void;
-  onOpenProfile: () => void;
+  onOpenProfile?: () => void;
   currentArea?: string;
 }
 
@@ -238,7 +238,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   };
 
   const handleToggleJoin = async (event: AppEvent) => {
-    // Исправлено: (event as any)._id
+    // Безопасное определение ID
     const targetId = event.id || (event as any)._id;
     setJoiningId(String(targetId));
     try {
