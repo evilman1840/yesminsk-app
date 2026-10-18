@@ -33,12 +33,7 @@ export const resolveEventCoordinates = async (
 
   const lower = trimmed.toLowerCase();
 
-  for (const spot of MINSK_SPOTS_PRESETS) {
-    if (spot.aliases.some((alias) => lower.includes(alias))) {
-      return spot.coords;
-    }
-  }
-
+  // 1. Полноценное геокодирование через скрипт Яндекс.Карт
   try {
     const ymaps = (window as any).ymaps;
     if (ymaps && typeof ymaps.geocode === 'function') {
@@ -56,7 +51,35 @@ export const resolveEventCoordinates = async (
       }
     }
   } catch (geoErr) {
-    console.warn('Geocode error:', geoErr);
+    console.warn('Yandex Geocode error:', geoErr);
+  }
+
+  // 2. Поиск по популярным местам
+  for (const spot of MINSK_SPOTS_PRESETS) {
+    if (spot.aliases.some((alias) => lower.includes(alias))) {
+      return spot.coords;
+    }
+  }
+
+  // 3. OpenStreetMap
+  try {
+    const nomQuery = lower.includes('минск') ? trimmed : `Беларусь, Минск, ${trimmed}`;
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(nomQuery)}&limit=1`,
+      { headers: { 'Accept-Language': 'ru' } }
+    );
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0 && data[0].lat && data[0].lon) {
+        const lat = parseFloat(data[0].lat);
+        const lon = parseFloat(data[0].lon);
+        if (!isNaN(lat) && !isNaN(lon) && lat >= 53.7 && lat <= 54.1) {
+          return [lat, lon];
+        }
+      }
+    }
+  } catch (nomErr) {
+    console.warn('Nominatim error:', nomErr);
   }
 
   return existingCoords || [53.9045, 27.5615];
@@ -118,7 +141,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<EventCategory>('walk');
   const [locationName, setLocationName] = useState('ул. Ленина 5');
-  const [customCoords, setCustomCoords] = useState<[number, number] | null>([53.8998, 27.5585]);
+  const [customCoords, setCustomCoords] = useState<[number, number] | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [dateTime, setDateTime] = useState('');
@@ -238,7 +261,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   };
 
   const handleToggleJoin = async (event: AppEvent) => {
-    // Безопасное определение ID
     const targetId = event.id || (event as any)._id;
     setJoiningId(String(targetId));
     try {
@@ -265,6 +287,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
     setIsSubmitting(true);
     try {
+      // Всегда определяем точные координаты по введенному адресу
       let resolvedCoords = customCoords;
       if (!resolvedCoords || resolvedCoords.length !== 2) {
         resolvedCoords = await resolveEventCoordinates(locationName.trim());
@@ -544,7 +567,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="font-semibold text-zinc-800">Где встречаемся (Адрес) *</label>
+                  <label className="font-semibold text-zinc-800">Где встречаемся (Адрес или заведение) *</label>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
@@ -570,12 +593,28 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 <input
                   type="text"
                   value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
-                  onBlur={() => handleGeocodeAddress(locationName)}
+                  onChange={(e) => {
+                    setLocationName(e.target.value);
+                    // Сбрасываем старые координаты, чтобы адрес определился заново
+                    setCustomCoords(null);
+                  }}
+                  onBlur={() => {
+                    if (locationName.trim()) {
+                      handleGeocodeAddress(locationName.trim());
+                    }
+                  }}
                   placeholder="Например: ул. Ленина 5 или Октябрьская 19"
                   className="w-full px-3 py-2 rounded-xl border border-zinc-300 focus:outline-none focus:border-zine-terracotta"
                   required
                 />
+
+                {/* Индикатор найденных координат */}
+                {customCoords && (
+                  <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    <Check size={11} strokeWidth={2.5} />
+                    <span>Точка найдена: [{customCoords[0].toFixed(4)}, {customCoords[1].toFixed(4)}]</span>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mt-1">
                   <span className="text-[9.5px] text-zinc-400 shrink-0 font-medium">Быстро:</span>
@@ -587,7 +626,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                         setLocationName(spot.name);
                         setCustomCoords(spot.coords);
                       }}
-                      className="px-2 py-0.5 rounded-lg bg-zinc-100 text-zinc-700 text-[10px] whitespace-nowrap cursor-pointer"
+                      className="px-2 py-0.5 rounded-lg bg-zinc-100 text-zinc-700 text-[10px] whitespace-nowrap cursor-pointer hover:bg-zinc-200"
                     >
                       {spot.name}
                     </button>
