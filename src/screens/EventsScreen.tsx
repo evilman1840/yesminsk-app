@@ -4,7 +4,6 @@ import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 
-// Справочник ключевых улиц и ориентиров Минска с координатами [lat, lng]
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
   { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'ул. ленина 5', 'ленина'], coords: [53.8998, 27.5585] },
   { name: 'Октябрьская 19', aliases: ['октябрьская 19', 'октябрьская', 'oktyabr'], coords: [53.8905, 27.5740] },
@@ -34,14 +33,12 @@ export const resolveEventCoordinates = async (
 
   const lower = trimmed.toLowerCase();
 
-  // 1. Поиск по словарю
   for (const spot of MINSK_SPOTS_PRESETS) {
     if (spot.aliases.some((alias) => lower.includes(alias))) {
       return spot.coords;
     }
   }
 
-  // 2. Яндекс геокодер
   try {
     const ymaps = (window as any).ymaps;
     if (ymaps && typeof ymaps.geocode === 'function') {
@@ -86,6 +83,7 @@ export interface EventsScreenProps {
     dateTime: string;
     maxParticipants?: number;
   }) => Promise<any>;
+  onDeleteEvent?: (eventId: string) => Promise<any> | void;
   onToggleJoin?: (event: AppEvent) => void;
   onRefreshEvents?: () => void;
   onOpenMap: () => void;
@@ -99,6 +97,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   currentUserId: propUserId,
   onCreateEvent,
   onUpdateEvent,
+  onDeleteEvent,
   onToggleJoin,
   onRefreshEvents,
   onOpenMap,
@@ -224,7 +223,11 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
     setDeletingId(String(targetId));
     try {
-      await api.deleteEvent(String(targetId));
+      if (onDeleteEvent) {
+        await onDeleteEvent(String(targetId));
+      } else {
+        await api.deleteEvent(String(targetId));
+      }
       telegramService.haptic('success');
       onRefreshEvents?.();
     } catch (err: any) {
@@ -235,7 +238,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   };
 
   const handleToggleJoin = async (event: AppEvent) => {
-    const targetId = event.id || (ev as any)._id;
+    // Исправлено: (event as any)._id
+    const targetId = event.id || (event as any)._id;
     setJoiningId(String(targetId));
     try {
       if (onToggleJoin) {
