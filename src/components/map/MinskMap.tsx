@@ -107,7 +107,7 @@ const MinskMapContent: React.FC<{
 }) => {
   const ymaps = useYMaps(['templateLayoutFactory']);
 
-  // Глобальный мост для 100% кликабельности в Telegram WebApp
+  // Глобальный мост кликов для Telegram WebApp
   useEffect(() => {
     (window as any).__ymSelectUser = (userId: any) => {
       telegramService.haptic('selection');
@@ -424,10 +424,6 @@ const MinskMapContent: React.FC<{
           options={{
             iconLayout: currentUserLayout,
             iconOffset: [-27, -68],
-            iconShape: {
-              type: 'Rectangle',
-              coordinates: [[-27, -68], [27, 0]]
-            },
             cursor: 'pointer',
             zIndex: 1000,
             hasBalloon: false
@@ -487,10 +483,6 @@ const MinskMapContent: React.FC<{
               options={{
                 iconLayout: avatarLayout,
                 iconOffset: [-23, -52],
-                iconShape: {
-                  type: 'Rectangle',
-                  coordinates: [[-23, -52], [23, 0]]
-                },
                 cursor: 'pointer',
                 hasBalloon: false
               }}
@@ -526,10 +518,6 @@ const MinskMapContent: React.FC<{
             options={{
               iconLayout: eventLayout,
               iconOffset: [-40, -42],
-              iconShape: {
-                type: 'Rectangle',
-                coordinates: [[-60, -42], [60, 0]]
-              },
               cursor: 'pointer',
               zIndex: 800,
               hasBalloon: false
@@ -590,7 +578,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
     }));
   }, [users]);
 
-  // Разводим маркеры сходок, если они накладываются на текущего пользователя или другие точки
+  // Разводим маркеры сходок, если они накладываются на пользователя или другие точки
   const eventsWithSeparatedCoords = useMemo(() => {
     const obstacleList: Array<[number, number]> = [];
 
