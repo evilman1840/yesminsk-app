@@ -74,7 +74,6 @@ function separateCoordinates(
     const dist = Math.sqrt(dLat * dLat + dLng * dLng);
 
     if (dist < minDistDeg) {
-      // Сдвигаем сходку вправо-вверх относительно препятствия
       lat = obsLat + minDistDeg * 0.75;
       lng = obsLng + minDistDeg * 1.1;
       break;
@@ -409,7 +408,7 @@ const MinskMapContent: React.FC<{
 
   return (
     <>
-      {/* 1. Маркер "⭐️ ТЫ" */}
+      {/* 1. Маркер "⭐️ ТЫ" (без iconShape, с прямой обработкой клика) */}
       {currentUser && currentUserCoords && (
         <Placemark
           key={`current-user-${currentUserCoords[0]}-${currentUserCoords[1]}`}
