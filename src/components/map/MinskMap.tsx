@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { YMaps, Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 import { Navigation, Loader2 } from 'lucide-react';
 import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG } from '../../types';
@@ -25,9 +25,9 @@ export interface MinskMapProps {
   onSelectEvent?: (event: AppEvent) => void;
   onToggleJoinEvent?: (event: AppEvent) => void;
   onUpdateLocation?: (coords: [number, number]) => void;
+  onUpdateUserCoordinates?: (coords: [number, number]) => void;
   userLocation?: [number, number];
   apiKey?: string;
-  applyFuzzyOffset?: boolean;
 }
 
 const MINSK_CENTER: [number, number] = [53.9045, 27.5615];
@@ -59,10 +59,36 @@ export function ensureLatLng(coords: any): [number, number] {
   return [lat, lng];
 }
 
+// Алгоритм разведения маркеров (анти-коллизия)
+function separateCoordinates(
+  eventCoords: [number, number],
+  obstacles: Array<[number, number]>,
+  minDistDeg: number = 0.00075 // ~60-70 метров
+): [number, number] {
+  let [lat, lng] = eventCoords;
+
+  for (let i = 0; i < obstacles.length; i++) {
+    const [obsLat, obsLng] = obstacles[i];
+    const dLat = lat - obsLat;
+    const dLng = lng - obsLng;
+    const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+
+    if (dist < minDistDeg) {
+      // Сдвигаем сходку вправо-вверх относительно препятствия
+      lat = obsLat + minDistDeg * 0.75;
+      lng = obsLng + minDistDeg * 1.1;
+      break;
+    }
+  }
+
+  return [lat, lng];
+}
+
 const MinskMapContent: React.FC<{
   users: (UserProfile & { displayCoords: [number, number] })[];
-  events: AppEvent[];
+  events: (AppEvent & { displayCoords: [number, number] })[];
   currentUser?: MinskMapProps['currentUser'];
+  currentUserCoords: [number, number] | null;
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile) => void;
   onSelectCurrentUser?: () => void;
@@ -72,6 +98,7 @@ const MinskMapContent: React.FC<{
   users,
   events,
   currentUser,
+  currentUserCoords,
   selectedUser,
   onSelectUser,
   onSelectCurrentUser,
@@ -80,12 +107,49 @@ const MinskMapContent: React.FC<{
 }) => {
   const ymaps = useYMaps(['templateLayoutFactory']);
 
-  // 1. Аватарка других людей
+  // Глобальный мост для 100% кликабельности в Telegram WebApp
+  useEffect(() => {
+    (window as any).__ymSelectUser = (userId: any) => {
+      telegramService.haptic('selection');
+      const target = users.find(
+        (u) => String(u.id) === String(userId) || String(u.telegramId) === String(userId)
+      );
+      if (target) onSelectUser(target);
+    };
+
+    (window as any).__ymSelectCurrentUser = () => {
+      telegramService.haptic('selection');
+      onSelectCurrentUser?.();
+    };
+
+    (window as any).__ymSelectEvent = (eventId: any) => {
+      telegramService.haptic('medium');
+      const target = events.find(
+        (ev) => String(ev.id) === String(eventId) || String((ev as any)._id) === String(eventId)
+      );
+      if (target) onSelectEvent?.(target);
+    };
+
+    return () => {
+      delete (window as any).__ymSelectUser;
+      delete (window as any).__ymSelectCurrentUser;
+      delete (window as any).__ymSelectEvent;
+    };
+  }, [users, events, onSelectUser, onSelectCurrentUser, onSelectEvent]);
+
+  // 1. Аватарка других пользователей
   const avatarLayout = useMemo(() => {
     if (!ymaps) return null;
 
     return (ymaps as any).templateLayoutFactory.createClass(
-      `<div style="position: relative; width: 46px; height: 52px; cursor: pointer; user-select: none;">
+      `<div onclick="window.__ymSelectUser && window.__ymSelectUser('$[properties.userId]')" style="
+        position: relative;
+        width: 46px;
+        height: 52px;
+        cursor: pointer;
+        user-select: none;
+        pointer-events: auto !important;
+      ">
         <div style="
           width: 46px;
           height: 46px;
@@ -138,7 +202,14 @@ const MinskMapContent: React.FC<{
     if (!ymaps) return null;
 
     return (ymaps as any).templateLayoutFactory.createClass(
-      `<div style="position: relative; width: 54px; height: 68px; cursor: pointer; user-select: none;">
+      `<div onclick="window.__ymSelectCurrentUser && window.__ymSelectCurrentUser()" style="
+        position: relative;
+        width: 54px;
+        height: 68px;
+        cursor: pointer;
+        user-select: none;
+        pointer-events: auto !important;
+      ">
         <div style="
           position: absolute;
           top: 0;
@@ -209,12 +280,20 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
-  // 3. Маркер сходки (плашка с эмодзи, названием и участниками)
+  // 3. Маркер сходки
   const eventLayout = useMemo(() => {
     if (!ymaps) return null;
 
     return (ymaps as any).templateLayoutFactory.createClass(
-      `<div style="position: relative; display: inline-flex; flex-direction: column; align-items: center; cursor: pointer; user-select: none;">
+      `<div onclick="window.__ymSelectEvent && window.__ymSelectEvent('$[properties.eventId]')" style="
+        position: relative;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+        pointer-events: auto !important;
+      ">
         <div style="
           display: inline-flex;
           align-items: center;
@@ -249,7 +328,7 @@ const MinskMapContent: React.FC<{
             font-size: 11.5px;
             font-weight: 700;
             color: #2B2623;
-            max-width: 110px;
+            max-width: 115px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -283,7 +362,7 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
-  // 4. Кластер людей ("Х чел.", никаких "мест")
+  // 4. Кластер людей ("Х чел.")
   const clusterLayout = useMemo(() => {
     if (!ymaps) return null;
 
@@ -319,11 +398,6 @@ const MinskMapContent: React.FC<{
     );
   }, [users, currentUser]);
 
-  const currentUserCoords = useMemo(() => {
-    if (!currentUser?.coordinates) return null;
-    return ensureLatLng(currentUser.coordinates);
-  }, [currentUser?.coordinates]);
-
   if (!ymaps || !avatarLayout || !clusterLayout || !eventLayout || !currentUserLayout) {
     return (
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zine-paper/70 backdrop-blur-xs">
@@ -335,7 +409,7 @@ const MinskMapContent: React.FC<{
 
   return (
     <>
-      {/* 1. Маркер текущего пользователя ("⭐️ ТЫ") */}
+      {/* 1. Маркер "⭐️ ТЫ" */}
       {currentUser && currentUserCoords && (
         <Placemark
           key={`current-user-${currentUserCoords[0]}-${currentUserCoords[1]}`}
@@ -350,6 +424,10 @@ const MinskMapContent: React.FC<{
           options={{
             iconLayout: currentUserLayout,
             iconOffset: [-27, -68],
+            iconShape: {
+              type: 'Rectangle',
+              coordinates: [[-27, -68], [27, 0]]
+            },
             cursor: 'pointer',
             zIndex: 1000,
             hasBalloon: false
@@ -364,7 +442,7 @@ const MinskMapContent: React.FC<{
         />
       )}
 
-      {/* 2. Кластер людей */}
+      {/* 2. Кластер участников */}
       <Clusterer
         options={{
           clusterIconLayout: clusterLayout,
@@ -399,6 +477,7 @@ const MinskMapContent: React.FC<{
               key={`user-${user.id}`}
               geometry={coords}
               properties={{
+                userId: user.id || (user as any).telegramId,
                 userObj: user,
                 avatarUrl: user.avatarUrl,
                 name: user.firstName,
@@ -408,6 +487,10 @@ const MinskMapContent: React.FC<{
               options={{
                 iconLayout: avatarLayout,
                 iconOffset: [-23, -52],
+                iconShape: {
+                  type: 'Rectangle',
+                  coordinates: [[-23, -52], [23, 0]]
+                },
                 cursor: 'pointer',
                 hasBalloon: false
               }}
@@ -423,18 +506,19 @@ const MinskMapContent: React.FC<{
         })}
       </Clusterer>
 
-      {/* 3. Маркеры сходок */}
+      {/* 3. Маркеры сходок с защитой от наложения */}
       {events.map((ev) => {
         const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️', label: 'Сходка' };
         const rawTitle = ev.title || 'Сходка';
         const displayTitle = rawTitle.length > 13 ? rawTitle.slice(0, 12).trim() + '…' : rawTitle;
-        const coords = ensureLatLng(ev.coordinates);
+        const coords = ev.displayCoords;
 
         return (
           <Placemark
             key={`event-${ev.id || (ev as any)._id}-${coords[0]}-${coords[1]}`}
             geometry={coords}
             properties={{
+              eventId: ev.id || (ev as any)._id,
               eventEmoji: catConfig.emoji || '⭐️',
               displayTitle,
               participantsCount: ev.participantsCount || 1
@@ -442,6 +526,10 @@ const MinskMapContent: React.FC<{
             options={{
               iconLayout: eventLayout,
               iconOffset: [-40, -42],
+              iconShape: {
+                type: 'Rectangle',
+                coordinates: [[-60, -42], [60, 0]]
+              },
               cursor: 'pointer',
               zIndex: 800,
               hasBalloon: false
@@ -469,11 +557,31 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   onSelectCurrentUser,
   onSelectEvent,
   onUpdateLocation,
+  onUpdateUserCoordinates,
   userLocation,
   apiKey = import.meta.env.VITE_YANDEX_MAPS_KEY || ''
 }) => {
   const mapRef = useRef<any>(null);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
+
+  // Локальные координаты GPS для мгновенного перемещения аватарки
+  const [gpsCoords, setGpsCoords] = useState<[number, number] | null>(null);
+
+  const handleCoordsUpdate = onUpdateUserCoordinates || onUpdateLocation;
+
+  const currentUserCoords = useMemo(() => {
+    if (gpsCoords) return gpsCoords;
+    if (currentUser?.coordinates) {
+      return ensureLatLng(currentUser.coordinates);
+    }
+    return null;
+  }, [gpsCoords, currentUser?.coordinates]);
+
+  const mapCenter = useMemo(() => {
+    if (currentUserCoords) return currentUserCoords;
+    if (userLocation) return ensureLatLng(userLocation);
+    return MINSK_CENTER;
+  }, [currentUserCoords, userLocation]);
 
   const usersWithSafeCoords = useMemo(() => {
     return users.map((user) => ({
@@ -482,15 +590,28 @@ export const MinskMap: React.FC<MinskMapProps> = ({
     }));
   }, [users]);
 
-  const mapCenter = useMemo(() => {
-    if (currentUser?.coordinates) {
-      return ensureLatLng(currentUser.coordinates);
+  // Разводим маркеры сходок, если они накладываются на текущего пользователя или другие точки
+  const eventsWithSeparatedCoords = useMemo(() => {
+    const obstacleList: Array<[number, number]> = [];
+
+    if (currentUserCoords) {
+      obstacleList.push(currentUserCoords);
     }
-    if (userLocation) {
-      return ensureLatLng(userLocation);
-    }
-    return MINSK_CENTER;
-  }, [currentUser?.coordinates, userLocation]);
+
+    usersWithSafeCoords.forEach((u) => {
+      obstacleList.push(u.displayCoords);
+    });
+
+    return events.map((ev) => {
+      const originalCoords = ensureLatLng(ev.coordinates);
+      const separated = separateCoordinates(originalCoords, obstacleList, 0.00075);
+      obstacleList.push(separated);
+      return {
+        ...ev,
+        displayCoords: separated
+      };
+    });
+  }, [events, currentUserCoords, usersWithSafeCoords]);
 
   // Кнопка GPS (📍)
   const handleLocateGPS = () => {
@@ -510,15 +631,21 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         setIsGpsLoading(false);
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lng = Number(pos.coords.longitude.toFixed(6));
+        const newCoords: [number, number] = [lat, lng];
+
+        // 1. Мгновенно обновляем положение аватарки "⭐️ ТЫ"
+        setGpsCoords(newCoords);
 
         telegramService.haptic('success');
 
-        if (onUpdateLocation) {
-          onUpdateLocation([lat, lng]);
+        // 2. Отправляем в родительский компонент и на бэкенд
+        if (handleCoordsUpdate) {
+          handleCoordsUpdate(newCoords);
         }
 
+        // 3. Плавно центрируем карту
         if (mapRef.current) {
-          mapRef.current.setCenter([lat, lng], 15, { duration: 500 });
+          mapRef.current.setCenter(newCoords, 15, { duration: 500 });
         }
       },
       (err) => {
@@ -554,7 +681,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         <Map
           defaultState={{
             center: mapCenter,
-            zoom: 13,
+            zoom: 14,
             controls: []
           }}
           options={{
@@ -569,8 +696,9 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         >
           <MinskMapContent
             users={usersWithSafeCoords}
-            events={events}
+            events={eventsWithSeparatedCoords}
             currentUser={currentUser}
+            currentUserCoords={currentUserCoords}
             selectedUser={selectedUser}
             onSelectUser={onSelectUser}
             onSelectCurrentUser={onSelectCurrentUser}
@@ -580,7 +708,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         </Map>
       </YMaps>
 
-      {/* Кнопка "Где я?" (GPS) в правом нижнем углу */}
+      {/* Кнопка "Где я?" (GPS) */}
       <button
         onClick={handleLocateGPS}
         disabled={isGpsLoading}
