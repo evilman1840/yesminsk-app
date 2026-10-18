@@ -1,34 +1,26 @@
 import React, { useState } from 'react';
-import { Compass, Users, User, Calendar, MapPin, Plus, Clock, Send, Check, X, Loader2, Sparkles, Edit2, Trash2, Navigation, Search } from 'lucide-react';
+import { Compass, Users, User, Calendar, MapPin, Plus, Clock, Check, X, Loader2, Edit2, Trash2, Navigation, Search } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 
-// Словарь культовых мест, улиц и ориентиров Минска с их реальными координатами [lat, lng]
+// Справочник ключевых улиц и ориентиров Минска с координатами [lat, lng]
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
   { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'ул. ленина 5', 'ленина'], coords: [53.8998, 27.5585] },
-  { name: 'пл. Ленина', aliases: ['пл. ленина', 'площадь ленина', 'ст.м. ленина', 'ст. м. ленина'], coords: [53.8960, 27.5480] },
-  { name: 'Октябрьская 19', aliases: ['октябрьская 19', 'октябрьская', 'oktyabr', 'кастрычн'], coords: [53.8905, 27.5740] },
-  { name: 'Зыбицкая 6', aliases: ['зыбицкая 6', 'зыбицкая', 'zybitsk'], coords: [53.9056, 27.5585] },
-  { name: 'Немига 3', aliases: ['немига 3', 'немига', 'верхний город', 'свободы', 'ратуш'], coords: [53.9045, 27.5520] },
-  { name: 'Осмоловка / Киселёва', aliases: ['осмоловк', 'киселёв', 'коммунистическ', 'зерно'], coords: [53.9115, 27.5612] },
-  { name: 'Карла Маркса 20', aliases: ['маркса', 'карла маркса'], coords: [53.8975, 27.5570] },
-  { name: 'пр-т Независимости 4', aliases: ['независимости 4', 'независимост', 'незалежнасц'], coords: [53.8965, 27.5510] },
-  { name: 'пр-т Победителей 9 (Galleria)', aliases: ['победителей 9', 'победител', 'галерея', 'galleria'], coords: [53.9095, 27.5480] },
+  { name: 'Октябрьская 19', aliases: ['октябрьская 19', 'октябрьская', 'oktyabr'], coords: [53.8905, 27.5740] },
+  { name: 'Зыбицкая 6', aliases: ['зыбицкая 6', 'зыбицкая'], coords: [53.9056, 27.5585] },
+  { name: 'Немига 3', aliases: ['немига 3', 'немига', 'верхний город'], coords: [53.9045, 27.5520] },
+  { name: 'Осмоловка / Киселёва', aliases: ['осмоловк', 'киселёв', 'зерно'], coords: [53.9115, 27.5612] },
+  { name: 'пр-т Независимости 4', aliases: ['независимости 4', 'независимост'], coords: [53.8965, 27.5510] },
+  { name: 'Galleria Minsk (Победителей 9)', aliases: ['победителей 9', 'победител', 'галерея', 'galleria'], coords: [53.9095, 27.5480] },
   { name: 'Песочница (Куйбышева 45)', aliases: ['песочниц', 'куйбышева 45', 'куйбышев'], coords: [53.9155, 27.5690] },
   { name: 'Комаровка', aliases: ['комаровк'], coords: [53.9190, 27.5800] },
   { name: 'Парк Челюскинцев', aliases: ['челюскин', 'ботаническ'], coords: [53.9240, 27.6150] },
   { name: 'Парк Горького', aliases: ['горьког'], coords: [53.9030, 27.5760] },
   { name: 'Площадь Победы', aliases: ['площадь побед', 'пл. побед'], coords: [53.9085, 27.5750] },
-  { name: 'Парк Победы / Свислочь', aliases: ['парк побед', 'комсомольск'], coords: [53.9240, 27.5450] },
-  { name: 'Якуба Коласа', aliases: ['коласа', 'якуба коласа'], coords: [53.9260, 27.5870] },
   { name: 'Новая Боровая', aliases: ['боров'], coords: [53.9550, 27.6750] },
   { name: 'Восток / Dana Mall', aliases: ['восток', 'библиотек', 'dana mall', 'дана молл'], coords: [53.9335, 27.6530] },
-  { name: 'Уручье / Музей валунов', aliases: ['уручь', 'музей валунов', 'валун'], coords: [53.9450, 27.6880] },
-  { name: 'Грушевка', aliases: ['грушевк', 'дзержинск'], coords: [53.8860, 27.5270] },
-  { name: 'Малиновка', aliases: ['малиновк'], coords: [53.8540, 27.4740] },
-  { name: 'Каменная Горка', aliases: ['каменная горка', 'притыцк'], coords: [53.9060, 27.4370] },
-  { name: 'Минское море / Цнянка', aliases: ['минское мор', 'цнянк', 'заславск'], coords: [53.9720, 27.3850] }
+  { name: 'Уручье / Музей валунов', aliases: ['уручь', 'музей валунов', 'валун'], coords: [53.9450, 27.6880] }
 ];
 
 export const resolveEventCoordinates = async (
@@ -42,7 +34,14 @@ export const resolveEventCoordinates = async (
 
   const lower = trimmed.toLowerCase();
 
-  // 1. Полноценное геокодирование через Яндекс.Карты (если скрипт карт доступен в window)
+  // 1. Поиск по словарю
+  for (const spot of MINSK_SPOTS_PRESETS) {
+    if (spot.aliases.some((alias) => lower.includes(alias))) {
+      return spot.coords;
+    }
+  }
+
+  // 2. Яндекс геокодер
   try {
     const ymaps = (window as any).ymaps;
     if (ymaps && typeof ymaps.geocode === 'function') {
@@ -60,35 +59,7 @@ export const resolveEventCoordinates = async (
       }
     }
   } catch (geoErr) {
-    console.warn('[Geocode] Ошибка геокодирования Яндекс.Карт:', geoErr);
-  }
-
-  // 2. Умное сопоставление по ключевым улицам, домам и популярным местам Минска
-  for (const spot of MINSK_SPOTS_PRESETS) {
-    if (spot.aliases.some((alias) => lower.includes(alias))) {
-      return spot.coords;
-    }
-  }
-
-  // 3. Геокодирование через OpenStreetMap Nominatim
-  try {
-    const nomQuery = lower.includes('минск') ? trimmed : `Беларусь, Минск, ${trimmed}`;
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(nomQuery)}&limit=1`,
-      { headers: { 'Accept-Language': 'ru' } }
-    );
-    if (response.ok) {
-      const data = await response.json();
-      if (Array.isArray(data) && data.length > 0 && data[0].lat && data[0].lon) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-        if (!isNaN(lat) && !isNaN(lon) && lat >= 53.7 && lat <= 54.1) {
-          return [lat, lon];
-        }
-      }
-    }
-  } catch (nomErr) {
-    console.warn('[Geocode] Ошибка Nominatim:', nomErr);
+    console.warn('Geocode error:', geoErr);
   }
 
   return existingCoords || [53.9045, 27.5615];
@@ -148,11 +119,11 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<EventCategory>('walk');
   const [locationName, setLocationName] = useState('ул. Ленина 5');
-  const [customCoords, setCustomCoords] = useState<[number, number] | null>(null);
+  const [customCoords, setCustomCoords] = useState<[number, number] | null>([53.8998, 27.5585]);
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [dateTime, setDateTime] = useState('');
-  const [maxParticipants, setMaxParticipants] = useState('8');
+  const [maxParticipants, setMaxParticipants] = useState('0');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -160,113 +131,96 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     ? events
     : events.filter((e) => e.category === selectedCategory);
 
+  const formatEventDate = (isoString: string) => {
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleDateString('ru-RU', {
+        month: 'short',
+        day: 'numeric',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return isoString;
+    }
+  };
+
   const handleOpenCreateModal = () => {
-    telegramService.haptic('light');
+    telegramService.haptic('selection');
     setEditingEventId(null);
     setTitle('');
     setDescription('');
     setCategory('walk');
-    setLocationName('');
-    setCustomCoords(null);
-    setDateTime('');
-    setMaxParticipants('8');
+    setLocationName('ул. Ленина 5');
+    setCustomCoords([53.8998, 27.5585]);
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    tomorrow.setMinutes(0, 0, 0);
+    setDateTime(tomorrow.toISOString().slice(0, 16));
+    setMaxParticipants('0');
     setFormError(null);
     setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (ev: AppEvent) => {
-    telegramService.haptic('light');
-    const targetId = ev.id || (ev as any)._id;
-    if (!targetId) {
-      alert('Ошибка: не удалось определить ID сходки для редактирования');
-      return;
-    }
-
-    setEditingEventId(String(targetId));
+    telegramService.haptic('selection');
+    const targetId = String(ev.id || (ev as any)._id);
+    setEditingEventId(targetId);
     setTitle(ev.title || '');
     setDescription(ev.description || '');
     setCategory(ev.category || 'walk');
     setLocationName(ev.locationName || '');
     setCustomCoords(ev.coordinates || null);
-
     try {
       const d = new Date(ev.dateTime);
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-      setDateTime(formatted);
+      setDateTime(d.toISOString().slice(0, 16));
     } catch {
       setDateTime('');
     }
-
-    setMaxParticipants(ev.maxParticipants ? String(ev.maxParticipants) : '8');
+    setMaxParticipants(String(ev.maxParticipants || 0));
     setFormError(null);
     setIsModalOpen(true);
   };
 
-  const handleGeocodeAddress = async (addrToSearch: string) => {
-    if (!addrToSearch.trim()) return;
+  const handleGeocodeAddress = async (addr: string) => {
+    if (!addr.trim()) return;
     setIsGeocoding(true);
     try {
-      const resolved = await resolveEventCoordinates(addrToSearch);
-      setCustomCoords(resolved);
-      telegramService.haptic('light');
-    } catch (e) {
-      console.warn('Geocode error:', e);
+      const coords = await resolveEventCoordinates(addr.trim());
+      setCustomCoords(coords);
+      telegramService.haptic('selection');
     } finally {
       setIsGeocoding(false);
     }
   };
 
   const handleGetGPS = () => {
-    telegramService.haptic('light');
-
     if (!navigator.geolocation) {
-      alert('Геолокация не поддерживается вашим устройством');
+      alert('Геолокация не поддерживается');
       return;
     }
-
     setIsLocating(true);
-
+    telegramService.haptic('selection');
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setCustomCoords([lat, lng]);
+      (pos) => {
         setIsLocating(false);
+        const lat = Number(pos.coords.latitude.toFixed(6));
+        const lng = Number(pos.coords.longitude.toFixed(6));
+        setCustomCoords([lat, lng]);
         telegramService.haptic('success');
-
-        try {
-          const ymaps = (window as any).ymaps;
-          if (ymaps && typeof ymaps.geocode === 'function') {
-            const res = await ymaps.geocode([lat, lng], { results: 1 });
-            const obj = res.geoObjects?.get?.(0);
-            if (obj) {
-              const text = obj.getAddressLine?.() || obj.properties?.get('text');
-              if (text) {
-                setLocationName(text.replace(/^Беларусь,\s*Минск,\s*/i, ''));
-              }
-            }
-          }
-        } catch {
-          // Игнорируем
-        }
       },
       (err) => {
         setIsLocating(false);
-        telegramService.haptic('warning');
-        alert('Не удалось определить GPS: ' + (err.message || 'разрешите доступ к геолокации'));
+        console.warn('GPS error:', err);
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
   };
 
   const handleDeleteEvent = async (ev: AppEvent) => {
-    telegramService.haptic('warning');
     const targetId = ev.id || (ev as any)._id;
     if (!targetId) return;
-
-    const confirmed = window.confirm(`Удалить сходку "${ev.title}"?`);
-    if (!confirmed) return;
+    if (!window.confirm(`Удалить сходку "${ev.title}"?`)) return;
 
     setDeletingId(String(targetId));
     try {
@@ -274,15 +228,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       telegramService.haptic('success');
       onRefreshEvents?.();
     } catch (err: any) {
-      alert(err.message || 'Ошибка удаления события');
+      alert(err.message || 'Ошибка удаления');
     } finally {
       setDeletingId(null);
     }
   };
 
   const handleToggleJoin = async (event: AppEvent) => {
-    telegramService.haptic('selection');
-    const targetId = event.id || (event as any)._id;
+    const targetId = event.id || (ev as any)._id;
     setJoiningId(String(targetId));
     try {
       if (onToggleJoin) {
@@ -301,18 +254,12 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    setFormError(null);
-
     if (!title.trim() || !description.trim() || !locationName.trim() || !dateTime) {
       setFormError('Заполните все обязательные поля');
-      telegramService.haptic('warning');
       return;
     }
 
-    telegramService.haptic('medium');
     setIsSubmitting(true);
-
     try {
       let resolvedCoords = customCoords;
       if (!resolvedCoords || resolvedCoords.length !== 2) {
@@ -343,318 +290,231 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         }
       }
 
-      telegramService.haptic('success');
       setIsModalOpen(false);
-      setEditingEventId(null);
-      setTitle('');
-      setDescription('');
-      setCustomCoords(null);
+      telegramService.haptic('success');
       onRefreshEvents?.();
     } catch (err: any) {
-      console.error('Ошибка сохранения события:', err);
-      setFormError(err.message || 'Ошибка сохранения события на сервере');
-      telegramService.haptic('error');
+      setFormError(err.message || 'Ошибка сохранения сходки');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const formatEventDate = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleDateString('ru-RU', {
-        month: 'short',
-        day: 'numeric',
-        weekday: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return isoString;
-    }
-  };
-
   return (
-    <div className="flex flex-col h-full w-full zine-paper-texture overflow-hidden select-none bg-zine-paper">
+    <div className="flex flex-col h-full w-full zine-paper-texture overflow-hidden relative select-none bg-zine-paper">
       
       {/* Шапка */}
-      <header className="px-4 py-2.5 bg-zine-paper/95 backdrop-blur-md border-b border-zine-border/80 flex items-center justify-between z-20 shrink-0">
+      <header className="px-4 py-2.5 bg-zine-paper/95 backdrop-blur-md border-b border-zine-border/80 flex items-center justify-between z-30 shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-zine-terracotta text-white flex items-center justify-center font-serif font-bold text-xs shadow-zine-sm">
             Y
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-serif font-bold text-[16px] tracking-tight text-zine-ink">
-              YesMinsk
-            </span>
-            <span className="text-[9px] uppercase tracking-wider font-semibold text-zine-inkMuted">
-              Сходки
-            </span>
-          </div>
+          <span className="font-serif font-bold text-[16px] tracking-tight text-zine-ink">
+            Сходки YesMinsk
+          </span>
         </div>
 
         <button
           onClick={handleOpenCreateModal}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-xs font-semibold shadow-sm active:scale-95 transition-all cursor-pointer"
+          className="px-3 py-1 rounded-full bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-xs font-semibold flex items-center gap-1 shadow-zine-sm active:scale-95 transition-all cursor-pointer"
         >
-          <Plus size={14} strokeWidth={2.5} />
-          <span>Сходка</span>
+          <Plus size={13} strokeWidth={2.5} />
+          <span>Создать</span>
         </button>
       </header>
 
-      {/* Фильтр категорий сходок */}
-      <div className="px-3 py-2 bg-zine-paper/90 border-b border-zine-border flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+      {/* Фильтры категорий */}
+      <div className="px-3 py-2 bg-zine-paper/90 border-b border-zine-border/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <button
-          onClick={() => {
-            telegramService.haptic('selection');
-            setSelectedCategory('all');
-          }}
-          className={`px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all shadow-zine-sm border ${
+          onClick={() => setSelectedCategory('all')}
+          className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all border ${
             selectedCategory === 'all'
-              ? 'bg-zine-terracotta text-white border-zine-terracotta'
-              : 'bg-zine-cardElevated text-zine-ink border-zine-border'
+              ? 'bg-zinc-800 text-white border-zinc-800'
+              : 'bg-white text-zinc-700 border-zinc-200'
           }`}
         >
-          Все сходки ({events.length})
+          Все ({events.length})
         </button>
 
-        {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).map((key) => {
-          const item = EVENT_CATEGORIES_CONFIG[key];
-          const isActive = selectedCategory === key;
-          const count = events.filter((e) => e.category === key).length;
-
+        {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).map((cat) => {
+          const cfg = EVENT_CATEGORIES_CONFIG[cat];
+          const isActive = selectedCategory === cat;
           return (
             <button
-              key={key}
-              onClick={() => {
-                telegramService.haptic('selection');
-                setSelectedCategory(key);
-              }}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap flex items-center gap-1 transition-all shadow-zine-sm border ${
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap flex items-center gap-1 transition-all border ${
                 isActive
-                  ? 'bg-zine-terracotta text-white border-zine-terracotta'
-                  : 'bg-zine-cardElevated text-zine-ink border-zine-border'
+                  ? 'bg-zinc-800 text-white border-zinc-800'
+                  : 'bg-white text-zinc-700 border-zinc-200'
               }`}
             >
-              <span>{item.emoji}</span>
-              <span>{item.label}</span>
-              <span className={`text-[9.5px] ml-0.5 opacity-80 ${isActive ? 'text-white' : 'text-zine-inkMuted'}`}>
-                ({count})
-              </span>
+              <span>{cfg.emoji}</span>
+              <span>{cfg.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Лента событий в стиле Афиши */}
-      <main className="flex-1 overflow-y-auto p-3.5 space-y-3 pb-20">
+      {/* Список сходок */}
+      <div className="flex-1 overflow-y-auto px-3.5 py-3 space-y-3 pb-20">
         {filteredEvents.length === 0 ? (
-          <div className="p-8 text-center text-zine-inkMuted">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto mb-3 text-xl">
-              ⭐️
-            </div>
-            <p className="font-serif text-sm font-bold text-zine-ink">В этой категории пока нет сходок</p>
-            <p className="text-xs mt-1 mb-4">Будь первым, кто соберет компанию для прогулки или чашки кофе!</p>
+          <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-zinc-300 mt-4">
+            <span className="text-3xl mb-2 block">⭐️</span>
+            <h4 className="font-serif font-bold text-base text-zinc-800 mb-1">Пока нет сходок в этой категории</h4>
+            <p className="text-xs text-zinc-500 mb-4">Будь первым, кто соберет компанию на прогулку или в музей!</p>
             <button
               onClick={handleOpenCreateModal}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zine-terracotta text-white font-medium text-xs shadow-zine cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-zine-terracotta text-white font-semibold text-xs shadow-sm cursor-pointer"
             >
-              <Plus size={14} />
-              <span>Создать первую сходку</span>
+              + Создать сходку
             </button>
           </div>
         ) : (
           filteredEvents.map((ev) => {
-            const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || {
-              label: 'Сходка',
-              emoji: '⭐️',
-              badgeBg: 'bg-stone-100',
-              badgeText: 'text-stone-800'
-            };
-            const isJoining = joiningId === ev.id;
-            const isDeleting = deletingId === ev.id;
-
+            const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️', label: 'Сходка', badgeBg: 'bg-zinc-100', badgeText: 'text-zinc-800' };
             const isCreator = Boolean(
               currentUserId && (
-                ev.creator?.telegramId === currentUserId ||
-                (ev as any).creatorId === currentUserId ||
+                Number(ev.creator?.telegramId) === Number(currentUserId) ||
                 (ev as any).creatorId === String(currentUserId)
               )
             );
+            const isJoining = joiningId === String(ev.id);
+            const isDeleting = deletingId === String(ev.id);
 
             return (
               <div
                 key={ev.id}
-                className="p-4 rounded-2xl bg-zine-card border border-zine-border shadow-zine hover:shadow-zine-lg transition-all relative overflow-hidden"
+                className="p-4 rounded-2xl bg-white border border-zine-border shadow-sm hover:shadow-md transition-all relative overflow-hidden"
               >
-                <div className={`absolute top-0 right-0 w-32 h-32 rounded-full ${catConfig.badgeBg} opacity-50 blur-2xl pointer-events-none`} />
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-bold ${catConfig.badgeBg} ${catConfig.badgeText}`}>
+                    <span>{catConfig.emoji}</span>
+                    <span>{catConfig.label}</span>
+                  </span>
 
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-bold border border-black/5 ${catConfig.badgeBg} ${catConfig.badgeText}`}>
-                      <span>{catConfig.emoji}</span>
-                      <span>{catConfig.label}</span>
-                    </span>
+                  <span className="flex items-center gap-1 text-[11px] font-semibold text-zine-terracotta bg-zine-terracotta/10 px-2.5 py-0.5 rounded-full">
+                    <Clock size={11} strokeWidth={2.4} />
+                    <span>{formatEventDate(ev.dateTime)}</span>
+                  </span>
+                </div>
 
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-zine-terracotta bg-zine-terracotta/10 px-2.5 py-0.5 rounded-full">
-                      <Clock size={11} strokeWidth={2.4} />
-                      <span>{formatEventDate(ev.dateTime)}</span>
-                    </span>
-                  </div>
+                <h3 className="font-serif font-bold text-[16px] text-zinc-900 leading-snug mb-1">
+                  {ev.title}
+                </h3>
 
-                  <h3 className="font-serif font-bold text-[16px] text-zine-ink leading-snug mb-1.5">
-                    {ev.title}
-                  </h3>
+                <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-2">
+                  <MapPin size={13} className="shrink-0 text-zine-terracotta" />
+                  <span className="truncate">{ev.locationName}</span>
+                </div>
 
-                  <div className="flex items-center gap-1.5 text-xs text-zine-inkMuted mb-2.5">
-                    <MapPin size={13} className="text-zinc-500 shrink-0" />
-                    <span className="truncate">{ev.locationName}</span>
-                  </div>
+                <p className="text-xs text-zinc-700 leading-relaxed mb-3 whitespace-pre-wrap">
+                  {ev.description}
+                </p>
 
-                  <p className="text-xs text-zine-ink/90 leading-relaxed mb-3 whitespace-pre-wrap">
-                    {ev.description}
-                  </p>
-
-                  <div className="flex items-center justify-between pt-2.5 border-t border-zine-border/60">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={ev.creator?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
-                        alt={ev.creator?.name || 'Организатор'}
-                        className="w-6 h-6 rounded-full object-cover border border-zine-border"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-[10.5px] font-medium text-zine-ink leading-tight">
-                          {ev.creator?.name || 'Создатель'}
-                          {isCreator && <span className="ml-1 text-[9px] font-bold text-zine-terracotta">(ты)</span>}
-                        </span>
-                        <span className="text-[9px] text-zine-inkMuted leading-tight">
-                          {ev.creator?.username ? `@${ev.creator.username}` : 'организатор'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <span className="text-[10.5px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-md border border-zinc-200">
-                      👥 {ev.participantsCount || 1}
-                      {ev.maxParticipants > 0 ? ` / ${ev.maxParticipants}` : ''} участников
+                <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={ev.creator?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                      alt={ev.creator?.name || 'Организатор'}
+                      className="w-6 h-6 rounded-full object-cover border border-zinc-200"
+                    />
+                    <span className="text-[10.5px] font-medium text-zinc-700">
+                      {ev.creator?.name || 'Организатор'}
+                      {isCreator && <span className="ml-1 text-[9px] font-bold text-zine-terracotta">(ты)</span>}
                     </span>
                   </div>
 
-                  {isCreator && (
-                    <div className="flex items-center justify-end gap-1.5 mt-2.5 pt-2 border-t border-dashed border-zine-border/80">
-                      <span className="text-[10px] text-zinc-400 mr-auto font-medium">Твоя сходка:</span>
-                      <button
-                        onClick={() => handleOpenEditModal(ev)}
-                        className="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-semibold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                      >
-                        <Edit2 size={11} />
-                        <span>Редактировать</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEvent(ev)}
-                        disabled={isDeleting}
-                        className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                      >
-                        <Trash2 size={11} />
-                        <span>{isDeleting ? '...' : 'Удалить'}</span>
-                      </button>
-                    </div>
-                  )}
+                  <span className="text-[10.5px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-md">
+                    👥 {ev.participantsCount || 1} участников
+                  </span>
+                </div>
 
-                  <div className="flex items-center gap-2 mt-3 pt-2">
+                {isCreator && (
+                  <div className="flex items-center justify-end gap-1.5 mt-2.5 pt-2 border-t border-dashed border-zinc-200">
                     <button
-                      onClick={() => handleToggleJoin(ev)}
-                      disabled={isJoining}
-                      className={`flex-1 py-2 px-3 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all cursor-pointer ${
-                        ev.isJoined
-                          ? 'bg-zine-sage hover:bg-emerald-700 text-white'
-                          : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
-                      }`}
+                      onClick={() => handleOpenEditModal(ev)}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
                     >
-                      {isJoining ? (
-                        <>
-                          <Loader2 size={13} className="animate-spin" />
-                          <span>Обновляем...</span>
-                        </>
-                      ) : ev.isJoined ? (
-                        <>
-                          <Check size={14} strokeWidth={3} />
-                          <span>Ты идёшь (Отменить)</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles size={13} />
-                          <span>Присоединиться к сходке</span>
-                        </>
-                      )}
+                      <Edit2 size={11} />
+                      <span>Редактировать</span>
                     </button>
-
-                    {ev.creator?.username && (
-                      <button
-                        onClick={() => {
-                          telegramService.haptic('medium');
-                          telegramService.openChat(ev.creator.username);
-                        }}
-                        className="p-2 rounded-xl bg-zine-card border border-zine-border text-zinc-700 hover:text-zinc-900 active:scale-95 transition-all cursor-pointer"
-                        title="Написать организатору в Telegram"
-                      >
-                        <Send size={14} />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleDeleteEvent(ev)}
+                      disabled={isDeleting}
+                      className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 size={11} />
+                      <span>{isDeleting ? '...' : 'Удалить'}</span>
+                    </button>
                   </div>
+                )}
+
+                <div className="mt-3">
+                  <button
+                    onClick={() => handleToggleJoin(ev)}
+                    disabled={isJoining}
+                    className={`w-full py-2 px-3 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all cursor-pointer ${
+                      ev.isJoined
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
+                    }`}
+                  >
+                    {isJoining ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : ev.isJoined ? (
+                      <>
+                        <Check size={13} strokeWidth={3} />
+                        <span>Ты идёшь (Отменить участие)</span>
+                      </>
+                    ) : (
+                      <span>Присоединиться к сходке</span>
+                    )}
+                  </button>
                 </div>
               </div>
             );
           })
         )}
-      </main>
+      </div>
 
-      {/* Модальное окно создания / редактирования сходки */}
+      {/* Модальное окно создания / редактирования */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-zine-paper rounded-t-[28px] sm:rounded-3xl border border-zine-border p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-zine-border mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{editingEventId ? '✏️' : '⭐️'}</span>
-                <h3 className="font-serif font-bold text-base text-zine-ink">
-                  {editingEventId ? 'Редактировать сходку' : 'Новая сходка в Минске'}
-                </h3>
-              </div>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="px-4 py-3 border-b border-zinc-100 flex items-center justify-between">
+              <h3 className="font-serif font-bold text-base text-zinc-900">
+                {editingEventId ? 'Редактировать сходку' : 'Новая сходка в Минске'}
+              </h3>
               <button
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setEditingEventId(null);
-                }}
-                className="w-7 h-7 rounded-full bg-zine-card border border-zine-border flex items-center justify-center text-zinc-600 hover:text-zinc-900 cursor-pointer"
+                onClick={() => setIsModalOpen(false)}
+                className="w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-500 cursor-pointer"
               >
                 <X size={14} />
               </button>
             </div>
 
-            {formError && (
-              <div className="p-2.5 mb-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
-                {formError}
-              </div>
-            )}
+            <form onSubmit={handleSubmitForm} className="p-4 overflow-y-auto space-y-3.5 text-xs">
+              {formError && (
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700">
+                  {formError}
+                </div>
+              )}
 
-            <form onSubmit={handleSubmitForm} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold text-zine-ink mb-1">
-                  Название сходки *
-                </label>
+                <label className="block font-semibold text-zinc-800 mb-1">Название сходки *</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Например: Прогулка по Осмоловке с кофе"
-                  className="w-full px-3 py-2 rounded-xl bg-white border border-zine-border text-zine-ink focus:outline-none focus:border-zine-terracotta"
+                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 focus:outline-none focus:border-zine-terracotta"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-zine-ink mb-1">
-                  Категория
-                </label>
+                <label className="block font-semibold text-zinc-800 mb-1">Категория *</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).map((cat) => {
                     const cfg = EVENT_CATEGORIES_CONFIG[cat];
@@ -680,37 +540,25 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="font-semibold text-zine-ink">
-                    Где встречаемся (Адрес или заведение) *
-                  </label>
+                  <label className="font-semibold text-zinc-800">Где встречаемся (Адрес) *</label>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => handleGeocodeAddress(locationName)}
                       disabled={isGeocoding}
-                      className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-full transition-all active:scale-95 cursor-pointer"
-                      title="Найти точку на карте"
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full cursor-pointer"
                     >
-                      {isGeocoding ? (
-                        <Loader2 size={10} className="animate-spin" />
-                      ) : (
-                        <Search size={10} />
-                      )}
+                      {isGeocoding ? <Loader2 size={10} className="animate-spin" /> : <Search size={10} />}
                       <span>Найти точку</span>
                     </button>
-
                     <button
                       type="button"
                       onClick={handleGetGPS}
                       disabled={isLocating}
-                      className="inline-flex items-center gap-1 text-[10px] font-bold text-zine-terracotta bg-zine-terracotta/10 hover:bg-zine-terracotta/20 px-2 py-0.5 rounded-full transition-all active:scale-95 cursor-pointer"
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-zinc-800 bg-zinc-100 px-2 py-0.5 rounded-full cursor-pointer"
                     >
-                      {isLocating ? (
-                        <Loader2 size={10} className="animate-spin" />
-                      ) : (
-                        <Navigation size={10} />
-                      )}
-                      <span>{isLocating ? 'Ищем...' : 'Мой GPS'}</span>
+                      {isLocating ? <Loader2 size={10} className="animate-spin" /> : <Navigation size={10} />}
+                      <span>Мой GPS</span>
                     </button>
                   </div>
                 </div>
@@ -718,143 +566,83 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 <input
                   type="text"
                   value={locationName}
-                  onChange={(e) => {
-                    setLocationName(e.target.value);
-                    setCustomCoords(null);
-                  }}
-                  onBlur={() => {
-                    if (locationName.trim() && !customCoords) {
-                      handleGeocodeAddress(locationName);
-                    }
-                  }}
+                  onChange={(e) => setLocationName(e.target.value)}
+                  onBlur={() => handleGeocodeAddress(locationName)}
                   placeholder="Например: ул. Ленина 5 или Октябрьская 19"
-                  className="w-full px-3 py-2 rounded-xl bg-white border border-zine-border text-zine-ink focus:outline-none focus:border-zine-terracotta"
+                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 focus:outline-none focus:border-zine-terracotta"
                   required
                 />
 
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mt-1">
                   <span className="text-[9.5px] text-zinc-400 shrink-0 font-medium">Быстро:</span>
-                  {MINSK_SPOTS_PRESETS.slice(0, 7).map((spot) => (
+                  {MINSK_SPOTS_PRESETS.slice(0, 6).map((spot) => (
                     <button
                       type="button"
                       key={spot.name}
                       onClick={() => {
-                        telegramService.haptic('selection');
                         setLocationName(spot.name);
                         setCustomCoords(spot.coords);
                       }}
-                      className="px-2 py-0.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[10px] whitespace-nowrap transition-colors cursor-pointer"
+                      className="px-2 py-0.5 rounded-lg bg-zinc-100 text-zinc-700 text-[10px] whitespace-nowrap cursor-pointer"
                     >
                       {spot.name}
                     </button>
                   ))}
                 </div>
-
-                {customCoords ? (
-                  <p className="text-[10px] text-emerald-700 mt-1 flex items-center gap-1 font-medium bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    <Check size={11} strokeWidth={3} />
-                    <span>Точка на карте зафиксирована: [{customCoords[0].toFixed(4)}, {customCoords[1].toFixed(4)}]</span>
-                  </p>
-                ) : (
-                  <p className="text-[9.5px] text-zinc-400 mt-0.5">
-                    💡 При сохранении адрес будет автоматически найден на карте Минска
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block font-semibold text-zine-ink mb-1">
-                    Дата и время *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={dateTime}
-                    onChange={(e) => setDateTime(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-xl bg-white border border-zine-border text-zine-ink focus:outline-none focus:border-zine-terracotta text-[11px]"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-zine-ink mb-1">
-                    Лимит участников
-                  </label>
-                  <input
-                    type="number"
-                    value={maxParticipants}
-                    onChange={(e) => setMaxParticipants(e.target.value)}
-                    min="2"
-                    max="50"
-                    placeholder="8 (0 = без лимита)"
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-zine-border text-zine-ink focus:outline-none focus:border-zine-terracotta"
-                  />
-                </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-zine-ink mb-1">
-                  Подробное описание встречи *
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  placeholder="Расскажи, чем займемся, какой маршрут и кого ждешь..."
-                  className="w-full px-3 py-2 rounded-xl bg-white border border-zine-border text-zine-ink focus:outline-none focus:border-zine-terracotta"
+                <label className="block font-semibold text-zinc-800 mb-1">Дата и время *</label>
+                <input
+                  type="datetime-local"
+                  value={dateTime}
+                  onChange={(e) => setDateTime(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 focus:outline-none focus:border-zine-terracotta"
                   required
                 />
               </div>
 
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setEditingEventId(null);
-                  }}
-                  className="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-semibold text-xs transition-colors cursor-pointer"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-zine-terracotta hover:bg-zine-terracottaHover text-white font-semibold text-xs shadow-md transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 size={13} className="animate-spin" />
-                      <span>Сохранение...</span>
-                    </>
-                  ) : (
-                    <span>{editingEventId ? 'Сохранить изменения' : 'Опубликовать сходку'}</span>
-                  )}
-                </button>
+              <div>
+                <label className="block font-semibold text-zinc-800 mb-1">Описание сходки *</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  placeholder="Опиши план встречи, кого ждешь, как одеться..."
+                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 focus:outline-none focus:border-zine-terracotta resize-none"
+                  required
+                />
               </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-2.5 rounded-xl bg-zine-terracotta hover:bg-zine-terracottaHover text-white font-semibold text-xs shadow-md active:scale-[0.99] transition-all cursor-pointer"
+              >
+                {isSubmitting ? 'Сохранение...' : editingEventId ? 'Сохранить изменения' : 'Опубликовать сходку'}
+              </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Нижний 4-кнопочный TabBar */}
+      {/* TabBar */}
       <nav className="h-14 bg-zine-paper/95 backdrop-blur-md border-t border-zine-border flex items-center justify-around px-2 z-30 shrink-0">
         <button
           onClick={onOpenMap}
-          className="flex flex-col items-center gap-0.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+          className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-900 cursor-pointer"
         >
           <Compass size={18} strokeWidth={1.8} />
           <span className="text-[9px] font-medium">Карта</span>
         </button>
 
-        {onOpenFeed && (
-          <button
-            onClick={onOpenFeed}
-            className="flex flex-col items-center gap-0.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"
-          >
-            <Users size={18} strokeWidth={1.8} />
-            <span className="text-[9px] font-medium">Люди</span>
-          </button>
-        )}
+        <button
+          onClick={onOpenFeed}
+          className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-900 cursor-pointer"
+        >
+          <Users size={18} strokeWidth={1.8} />
+          <span className="text-[9px] font-medium">Люди</span>
+        </button>
 
         <button className="flex flex-col items-center gap-0.5 text-zine-terracotta cursor-pointer">
           <Calendar size={18} strokeWidth={2.4} />
@@ -863,7 +651,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
         <button
           onClick={onOpenProfile}
-          className="flex flex-col items-center gap-0.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+          className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-900 cursor-pointer"
         >
           <User size={18} strokeWidth={1.8} />
           <span className="text-[9px] font-medium">Профиль</span>
