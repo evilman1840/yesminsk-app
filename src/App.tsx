@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { YMaps } from '@pbe/react-yandex-maps';
 import { telegramService } from './services/telegram';
 import { api } from './services/api';
 import { MapScreen } from './screens/MapScreen';
@@ -6,11 +7,13 @@ import { FeedScreen } from './screens/FeedScreen';
 import { EventsScreen } from './screens/EventsScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { ProfileFormScreen } from './screens/ProfileFormScreen';
+import { UserBottomSheet } from './components/common/UserBottomSheet';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
+// Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
+  'Я турист(ка) / не знаю города': [53.9045, 27.5615],
   'Немига / Центр': [53.9045, 27.5520],
-  'Центр / Немига': [53.9045, 27.5520],
   'Осмоловка': [53.9115, 27.5612],
   'Октябрьская': [53.8905, 27.5740],
   'Золотая Горка': [53.9150, 27.5850],
@@ -20,6 +23,19 @@ const AREA_COORDINATES: Record<string, [number, number]> = {
   'Комаровка': [53.9190, 27.5800],
   'Площадь Победы': [53.9085, 27.5750],
   'Парк Победы / Победителей': [53.9240, 27.5450]
+};
+
+const getSavedCoordinates = (): [number, number] => {
+  try {
+    const saved = localStorage.getItem('yesminsk_user_coords');
+    if (saved) {
+      const p = JSON.parse(saved);
+      if (Array.isArray(p) && p.length === 2 && !isNaN(p[0]) && p[0] > 40) {
+        return [Number(p[0]), Number(p[1])];
+      }
+    }
+  } catch (e) {}
+  return AREA_COORDINATES['Немига / Центр'] || [53.9045, 27.5520];
 };
 
 export const App: React.FC = () => {
@@ -40,9 +56,9 @@ export const App: React.FC = () => {
     goals: ['walk'] as ActivityGoal[],
     goal: 'walk' as ActivityGoal,
     avatarUrl: tgUser?.photo_url || '',
-    area: 'Центр / Немига',
+    area: 'Немига / Центр',
     isTourist: false,
-    coordinates: [53.9045, 27.5520] as [number, number]
+    coordinates: getSavedCoordinates()
   });
 
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -51,27 +67,33 @@ export const App: React.FC = () => {
   const [selectedGoal, setSelectedGoal] = useState<ActivityGoal | 'all'>('all');
   const [apiError, setApiError] = useState<string | null>(null);
 
+  const currentUserCoordsRef = useRef(currentUser.coordinates);
+  useEffect(() => {
+    currentUserCoordsRef.current = currentUser.coordinates;
+  }, [currentUser.coordinates]);
+
+  // Загрузка пользователей с бэкенда
   const fetchNearbyUsers = useCallback(async () => {
     try {
       setApiError(null);
-      const coords = currentUser.coordinates || [53.9045, 27.5615];
+      const coords = currentUserCoordsRef.current || getSavedCoordinates();
       const data = await api.getNearbyUsers({
         goal: selectedGoal,
         lat: coords[0],
         lng: coords[1],
-        radiusKm: 30
+        radiusKm: 25
       });
 
-      if (Array.isArray(data) && data.length > 0) {
-        setUsers(data);
-      } else if (Array.isArray(data) && selectedGoal !== 'all') {
+      if (Array.isArray(data)) {
         setUsers(data);
       }
     } catch (err: any) {
       console.warn('Ошибка загрузки пользователей:', err);
+      setApiError('Сервер временно недоступен или обновляется.');
     }
-  }, [currentUser.coordinates, selectedGoal]);
+  }, [selectedGoal]);
 
+  // Загрузка событий
   const fetchEvents = useCallback(async () => {
     try {
       const data = await api.getEvents();
@@ -81,6 +103,7 @@ export const App: React.FC = () => {
     }
   }, []);
 
+  // Инициализация один раз при старте приложения
   useEffect(() => {
     telegramService.init();
 
@@ -88,60 +111,81 @@ export const App: React.FC = () => {
       try {
         const me = await api.getMe();
         if (me) {
-          const userCoords: [number, number] = (me.coordinates && Array.isArray(me.coordinates) && me.coordinates.length === 2)
-            ? [Number(me.coordinates[0]), Number(me.coordinates[1])]
-            : (AREA_COORDINATES[me.areaName] || [53.9045, 27.5520]);
+          let userCoords = getSavedCoordinates();
+          const hasSaved = Boolean(localStorage.getItem('yesminsk_user_coords'));
 
-          setCurrentUser({
-            telegramId: me.telegramId || tgUser?.id || 0,
-            name: me.firstName || tgUser?.first_name || '',
-            username: me.username || tgUser?.username || '',
-            age: me.age ? String(me.age) : '25',
-            bio: me.bio || '',
-            gender: me.gender || 'not_specified',
-            preferredGender: me.preferredGender || 'all',
-            preferredAgeRange: me.preferredAgeRange || { min: 18, max: 45 },
-            goals: me.goals || (me.goal ? [me.goal] : ['walk']),
-            goal: me.goal || 'walk',
-            avatarUrl: me.avatarUrl || tgUser?.photo_url || '',
-            area: me.areaName || 'Центр / Немига',
+          if (!hasSaved) {
+            if (Array.isArray(me.coordinates) && me.coordinates.length === 2) {
+              userCoords = me.coordinates[0] > 40
+                ? [Number(me.coordinates[0]), Number(me.coordinates[1])]
+                : [Number(me.coordinates[1]), Number(me.coordinates[0])];
+            } else if (me.locationExact?.coordinates && Array.isArray(me.locationExact.coordinates)) {
+              userCoords = [Number(me.locationExact.coordinates[1]), Number(me.locationExact.coordinates[0])];
+            } else if (me.areaName && AREA_COORDINATES[me.areaName]) {
+              userCoords = AREA_COORDINATES[me.areaName];
+            }
+          }
+
+          setCurrentUser(prev => ({
+            ...prev,
+            telegramId: me.telegramId || tgUser?.id || prev.telegramId,
+            name: me.firstName || tgUser?.first_name || prev.name,
+            username: me.username || tgUser?.username || prev.username,
+            age: me.age ? String(me.age) : prev.age,
+            bio: me.bio ?? prev.bio,
+            gender: me.gender || prev.gender,
+            preferredGender: me.preferredGender || prev.preferredGender,
+            preferredAgeRange: me.preferredAgeRange || prev.preferredAgeRange,
+            goals: me.goals || (me.goal ? [me.goal] : prev.goals),
+            goal: me.goal || prev.goal,
+            avatarUrl: me.avatarUrl || tgUser?.photo_url || prev.avatarUrl,
+            area: me.areaName || prev.area,
             isTourist: Boolean(me.isTourist),
             coordinates: userCoords
-          });
+          }));
+
+          if (me.hasAgreedToRules === false) {
+            setCurrentScreen('onboarding');
+          }
         }
       } catch (err) {
-        console.warn('Профиль me не получен:', err);
+        console.warn('Профиль me не получен (новый пользователь):', err);
       }
 
       await Promise.all([fetchNearbyUsers(), fetchEvents()]);
     };
 
     initUserData();
-  }, [fetchNearbyUsers, fetchEvents]);
+  }, []);
 
-  // Коллбек обновления координат по кнопке GPS
-  const handleUpdateUserCoordinates = (newCoords: [number, number]) => {
-    setCurrentUser((prev) => ({
-      ...prev,
-      coordinates: newCoords
-    }));
-  };
+  useEffect(() => {
+    fetchNearbyUsers();
+  }, [selectedGoal, fetchNearbyUsers]);
 
+  // Сохранение профиля
   const handleSaveProfile = async (formData: {
     name: string;
     age: string;
     bio: string;
-    gender: Gender;
-    preferredGender: PreferredGender;
-    preferredAgeRange: AgeRange;
-    goal: ActivityGoal;
+    gender?: Gender;
+    preferredGender?: PreferredGender;
+    preferredAgeRange?: AgeRange;
     goals: ActivityGoal[];
+    goal: ActivityGoal;
     avatarUrl: string;
     area: string;
     isTourist?: boolean;
+    coordinates?: [number, number];
     customCoordinates?: [number, number];
   }) => {
-    const coords = formData.customCoordinates || AREA_COORDINATES[formData.area] || [53.9045, 27.5615];
+    const rawCoords = formData.coordinates || formData.customCoordinates;
+    const coords: [number, number] = (rawCoords && Array.isArray(rawCoords) && rawCoords.length === 2 && !isNaN(rawCoords[0]))
+      ? rawCoords
+      : (AREA_COORDINATES[formData.area] || [53.9045, 27.5615]);
+
+    try {
+      localStorage.setItem('yesminsk_user_coords', JSON.stringify(coords));
+    } catch (e) {}
 
     await api.updateProfile({
       name: formData.name,
@@ -159,7 +203,7 @@ export const App: React.FC = () => {
       coordinates: coords
     });
 
-    setCurrentUser((prev) => ({
+    setCurrentUser(prev => ({
       ...prev,
       ...formData,
       coordinates: coords
@@ -167,6 +211,11 @@ export const App: React.FC = () => {
 
     setCurrentScreen('main');
     await fetchNearbyUsers();
+  };
+
+  const handleUserBlocked = (blockedId: number) => {
+    setUsers(prev => prev.filter(u => u.telegramId !== blockedId));
+    setSelectedUser(null);
   };
 
   const handleCreateEvent = async (eventData: {
@@ -186,9 +235,9 @@ export const App: React.FC = () => {
       const normalized: AppEvent = {
         ...created,
         id: String(created.id || (created as any)._id || Date.now()),
-        coordinates: created.coordinates || eventData.coordinates
+        coordinates: created.coordinates || [53.9045, 27.5615]
       };
-      setEvents((prev) => [normalized, ...prev]);
+      setEvents(prev => [normalized, ...prev]);
       return normalized;
     }
     throw new Error('Не удалось создать сходку');
@@ -197,8 +246,8 @@ export const App: React.FC = () => {
   const handleUpdateEvent = async (eventId: string, eventData: any): Promise<any> => {
     const updated = await api.updateEvent(eventId, eventData);
     if (updated) {
-      setEvents((prev) =>
-        prev.map((ev) =>
+      setEvents(prev =>
+        prev.map(ev =>
           ev.id === eventId || (ev as any)._id === eventId
             ? { ...ev, ...updated, id: String(updated.id || (updated as any)._id || eventId) }
             : ev
@@ -210,108 +259,187 @@ export const App: React.FC = () => {
 
   const handleDeleteEvent = async (eventId: string) => {
     await api.deleteEvent(eventId);
-    setEvents((prev) => prev.filter((ev) => ev.id !== eventId && (ev as any)._id !== eventId));
+    setEvents(prev => prev.filter(e => e.id !== eventId && (e as any)._id !== eventId));
   };
 
   const handleToggleJoinEvent = async (event: AppEvent) => {
-    const isJoined = Boolean(event.isJoined);
-    await api.toggleJoinEvent(event.id, isJoined);
-    setEvents((prev) =>
-      prev.map((e) =>
-        e.id === event.id
-          ? {
-              ...e,
-              isJoined: !isJoined,
-              participantsCount: !isJoined
-                ? (e.participantsCount || 0) + 1
-                : Math.max(0, (e.participantsCount || 1) - 1)
-            }
-          : e
-      )
-    );
+    try {
+      const isJoined = Boolean(event.isJoined);
+      await api.toggleJoinEvent(event.id, isJoined);
+      setEvents(prev =>
+        prev.map(e =>
+          e.id === event.id
+            ? {
+                ...e,
+                isJoined: !isJoined,
+                participantsCount: !isJoined
+                  ? (e.participantsCount || 0) + 1
+                  : Math.max(0, (e.participantsCount || 1) - 1)
+              }
+            : e
+        )
+      );
+    } catch (e) {
+      console.error('Ошибка изменения участия:', e);
+    }
   };
 
+  const handleAgreeRules = async () => {
+    try {
+      await api.agreeToRules();
+    } catch (e) {
+      console.warn('Agree rules warning:', e);
+    }
+    setCurrentScreen('profile_create');
+  };
+
+  const handleUpdateLocation = useCallback((coords: [number, number]) => {
+    try {
+      localStorage.setItem('yesminsk_user_coords', JSON.stringify(coords));
+    } catch (e) {}
+
+    setCurrentUser(prev => ({
+      ...prev,
+      coordinates: coords
+    }));
+
+    api.updateProfile({ coordinates: coords }).catch((err) => {
+      console.warn('Location sync warning:', err);
+    });
+  }, []);
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-[#E5DED5] p-0 sm:p-4 font-sans text-zine-ink">
-      <div className="w-full max-w-[420px] h-screen sm:h-[840px] bg-zine-paper sm:rounded-[36px] overflow-hidden shadow-2xl border-0 sm:border-[6px] sm:border-zine-ink flex flex-col relative">
-        
-        {apiError && (
-          <div className="absolute top-2 inset-x-2 z-50 p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-[11px] flex items-center justify-between shadow-lg">
-            <span>⏳ {apiError}</span>
-            <button
-              onClick={() => {
-                fetchNearbyUsers();
-                fetchEvents();
+    <YMaps
+      query={{
+        apikey: import.meta.env.VITE_YANDEX_MAPS_KEY || '',
+        lang: 'ru_RU',
+        load: 'package.full'
+      }}
+    >
+      <div className="flex justify-center items-center min-h-screen bg-[#E5DED5] p-0 sm:p-4 font-sans text-zine-ink">
+        <div className="w-full max-w-[420px] h-screen sm:h-[840px] bg-zine-paper sm:rounded-[36px] overflow-hidden shadow-2xl border-0 sm:border-[6px] sm:border-zine-ink flex flex-col relative">
+          
+          {apiError && (
+            <div className="absolute top-2 inset-x-2 z-50 p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-[11px] flex items-center justify-between shadow-lg">
+              <span>⏳ {apiError}</span>
+              <button
+                onClick={() => {
+                  fetchNearbyUsers();
+                  fetchEvents();
+                }}
+                className="px-2 py-0.5 rounded bg-amber-200 text-amber-900 font-bold text-[10px] cursor-pointer"
+              >
+                Повторить
+              </button>
+            </div>
+          )}
+
+          {currentScreen === 'onboarding' && (
+            <OnboardingScreen onAgree={handleAgreeRules} />
+          )}
+
+          {currentScreen === 'profile_create' && (
+            <ProfileFormScreen
+              isFirstTime={true}
+              initialData={currentUser}
+              onSave={handleSaveProfile}
+            />
+          )}
+
+          {currentScreen === 'profile_edit' && (
+            <ProfileFormScreen
+              isFirstTime={false}
+              initialData={currentUser}
+              onBack={() => setCurrentScreen('main')}
+              onSave={handleSaveProfile}
+            />
+          )}
+
+          {currentScreen === 'main' && (
+            <MapScreen
+              users={users}
+              events={events}
+              currentUser={currentUser}
+              selectedUser={selectedUser}
+              onSelectUser={(u) => setSelectedUser(u)}
+              selectedGoal={selectedGoal}
+              onSelectGoal={(g) => setSelectedGoal(g)}
+              currentArea={currentUser.area}
+              onOpenProfile={() => {
+                telegramService.haptic('selection');
+                setCurrentScreen('profile_edit');
               }}
-              className="px-2 py-0.5 rounded bg-amber-200 text-amber-900 font-bold text-[10px] cursor-pointer"
-            >
-              Повторить
-            </button>
-          </div>
-        )}
+              onOpenFeed={() => {
+                telegramService.haptic('selection');
+                setCurrentScreen('feed');
+              }}
+              onOpenEvents={() => {
+                telegramService.haptic('selection');
+                setCurrentScreen('events');
+              }}
+              onToggleJoinEvent={handleToggleJoinEvent}
+              onUpdateLocation={handleUpdateLocation}
+              onUpdateUserCoordinates={handleUpdateLocation}
+            />
+          )}
 
-        {currentScreen === 'onboarding' && (
-          <OnboardingScreen onAgree={() => setCurrentScreen('profile_create')} />
-        )}
+          {currentScreen === 'feed' && (
+            <FeedScreen
+              users={users}
+              eventsCount={events.length}
+              currentArea={currentUser.area}
+              onSelectUser={(u) => setSelectedUser(u)}
+              onOpenMap={() => {
+                telegramService.haptic('selection');
+                setCurrentScreen('main');
+              }}
+              onOpenEvents={() => {
+                telegramService.haptic('selection');
+                setCurrentScreen('events');
+              }}
+              onOpenProfile={() => {
+                telegramService.haptic('selection');
+                setCurrentScreen('profile_edit');
+              }}
+            />
+          )}
 
-        {currentScreen === 'profile_create' && (
-          <ProfileFormScreen isFirstTime={true} initialData={currentUser} onSave={handleSaveProfile} />
-        )}
+          {currentScreen === 'events' && (
+            <EventsScreen
+              events={events}
+              currentUserId={currentUser.telegramId}
+              onCreateEvent={handleCreateEvent}
+              onUpdateEvent={handleUpdateEvent}
+              onDeleteEvent={handleDeleteEvent}
+              onToggleJoin={handleToggleJoinEvent}
+              onRefreshEvents={fetchEvents}
+              currentArea={currentUser.area}
+              onOpenMap={() => {
+                telegramService.haptic('selection');
+                setCurrentScreen('main');
+              }}
+              onOpenFeed={() => {
+                telegramService.haptic('selection');
+                setCurrentScreen('feed');
+              }}
+              onOpenProfile={() => {
+                telegramService.haptic('selection');
+                setCurrentScreen('profile_edit');
+              }}
+            />
+          )}
 
-        {currentScreen === 'profile_edit' && (
-          <ProfileFormScreen
-            isFirstTime={false}
-            initialData={currentUser}
-            onBack={() => setCurrentScreen('main')}
-            onSave={handleSaveProfile}
-          />
-        )}
+          {currentScreen === 'feed' && selectedUser && (
+            <UserBottomSheet
+              user={selectedUser}
+              onClose={() => setSelectedUser(null)}
+              onUserBlocked={handleUserBlocked}
+            />
+          )}
 
-        {currentScreen === 'main' && (
-          <MapScreen
-            users={users}
-            events={events}
-            currentUser={currentUser}
-            selectedUser={selectedUser}
-            onSelectUser={(u) => setSelectedUser(u)}
-            selectedGoal={selectedGoal}
-            onSelectGoal={(g) => setSelectedGoal(g)}
-            currentArea={currentUser.area}
-            onOpenProfile={() => setCurrentScreen('profile_edit')}
-            onOpenFeed={() => setCurrentScreen('feed')}
-            onOpenEvents={() => setCurrentScreen('events')}
-            onToggleJoinEvent={handleToggleJoinEvent}
-            onUpdateUserCoordinates={handleUpdateUserCoordinates}
-          />
-        )}
-
-        {currentScreen === 'feed' && (
-          <FeedScreen
-            users={users}
-            eventsCount={events.length}
-            currentArea={currentUser.area}
-            onSelectUser={(u) => setSelectedUser(u)}
-            onOpenMap={() => setCurrentScreen('main')}
-            onOpenEvents={() => setCurrentScreen('events')}
-            onOpenProfile={() => setCurrentScreen('profile_edit')}
-          />
-        )}
-
-        {currentScreen === 'events' && (
-          <EventsScreen
-            events={events}
-            onCreateEvent={handleCreateEvent}
-            onUpdateEvent={handleUpdateEvent}
-            onDeleteEvent={handleDeleteEvent}
-            onToggleJoin={handleToggleJoinEvent}
-            onOpenMap={() => setCurrentScreen('main')}
-            onOpenFeed={() => setCurrentScreen('feed')}
-            onOpenProfile={() => setCurrentScreen('profile_edit')}
-            currentUserId={currentUser.telegramId}
-          />
-        )}
+        </div>
       </div>
-    </div>
+    </YMaps>
   );
 };
 
