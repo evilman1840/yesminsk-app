@@ -77,7 +77,6 @@ function separateCoordinates(
   for (const pt of existingPoints) {
     const dLat = Math.abs(lat - pt[0]);
     const dLng = Math.abs(lng - pt[1]);
-    // Если расстояние менее ~200 метров (0.0018 градуса)
     if (dLat < 0.0018 && dLng < 0.0018) {
       const angle = ((indexOffset * 75 + 30) * Math.PI) / 180;
       lat += 0.0024 * Math.cos(angle);
@@ -129,7 +128,6 @@ const MinskMapContent: React.FC<{
 }) => {
   const ymaps = useYMaps(['templateLayoutFactory']);
 
-  // Регистрация глобальных мостов кликов для мобильного Telegram WebView
   useEffect(() => {
     (window as any).__ymSelectUserDirect = (user: UserProfile) => {
       telegramService.haptic('selection');
@@ -651,7 +649,7 @@ const MinskMapContent: React.FC<{
   }
 
   return (
-    <>
+    <div className="w-full h-full relative overflow-hidden bg-zine-paper">
       {/* 1. Маркер запускающего («⭐️ ТЫ») */}
       {currentUser && currentUserCoords && (
         <Placemark
@@ -667,14 +665,10 @@ const MinskMapContent: React.FC<{
           options={{
             iconLayout: currentUserLayout,
             iconOffset: [-27, -68],
-            iconShape: {
-              type: 'Rectangle',
-              coordinates: [[-27, -68], [27, 0]]
-            },
             cursor: 'pointer',
             zIndex: 1000,
             hasBalloon: false
-          }}
+          } as any}
           onClick={() => {
             telegramService.haptic('selection');
             if (onSelectCurrentUser) {
@@ -733,13 +727,9 @@ const MinskMapContent: React.FC<{
               options={{
                 iconLayout: avatarLayout,
                 iconOffset: [-23, -52],
-                iconShape: {
-                  type: 'Rectangle',
-                  coordinates: [[-23, -52], [23, 0]]
-                },
                 cursor: 'pointer',
                 hasBalloon: false
-              }}
+              } as any}
               onClick={() => {
                 telegramService.haptic('selection');
                 onSelectUser(user);
@@ -774,14 +764,10 @@ const MinskMapContent: React.FC<{
             options={{
               iconLayout: eventLayout,
               iconOffset: [-45, -45],
-              iconShape: {
-                type: 'Rectangle',
-                coordinates: [[-50, -45], [50, 0]]
-              },
               cursor: 'pointer',
               zIndex: 850,
               hasBalloon: false
-            }}
+            } as any}
             onClick={() => {
               telegramService.haptic('medium');
               if (onSelectEvent) {
@@ -794,7 +780,7 @@ const MinskMapContent: React.FC<{
           />
         );
       })}
-    </>
+    </div>
   );
 };
 
@@ -819,7 +805,6 @@ export const MinskMap: React.FC<MinskMapProps> = ({
 
   const handleUpdate = onUpdateLocation || onUpdateUserCoordinates;
 
-  // Инициализация координат из localStorage
   const [currentCoords, setCurrentCoords] = useState<[number, number]>(() => {
     try {
       const saved = localStorage.getItem('yesminsk_user_coords');
@@ -835,7 +820,6 @@ export const MinskMap: React.FC<MinskMapProps> = ({
     return MINSK_CENTER;
   });
 
-  // Глобальный слушатель событий кликов по маркерам
   useEffect(() => {
     (window as any).__ymSelectUser = (userId: string) => {
       const found = users.find(
@@ -951,20 +935,16 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         telegramService.haptic('success');
         const newCoords: [number, number] = [Number(lat.toFixed(6)), Number(lng.toFixed(6))];
 
-        // 1. Фиксируем координаты в localStorage
         try {
           localStorage.setItem('yesminsk_user_coords', JSON.stringify(newCoords));
         } catch (e) {}
 
-        // 2. Моментально переносим маркер «⭐️ ТЫ»
         setCurrentCoords(newCoords);
 
-        // 3. Плавно перемещаем камеру карты прямо на пользователя
         if (mapRef.current) {
           mapRef.current.panTo(newCoords, { flying: true, duration: 500 });
         }
 
-        // 4. Передаем наверх для сохранения в базе
         if (handleUpdate) {
           handleUpdate(newCoords);
         }
