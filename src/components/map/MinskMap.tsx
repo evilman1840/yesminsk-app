@@ -628,7 +628,7 @@ const MinskMapContent: React.FC<{
           if (target && target.properties) {
             const user = target.properties.get('userObj');
             const userId = target.properties.get('userId');
-            const found = user || (userId && (window as any).__ymUsersMap?.get(String(userId)));
+            const found = user || (userId && (window as any).__ymUsersMap?.[String(userId)]);
             if (found) {
               telegramService.haptic('selection');
               onSelectUser(found);
@@ -753,18 +753,18 @@ export const MinskMap: React.FC<MinskMapProps> = ({
 
   // Хранилище быстрого доступа для мгновенного резолва по ID
   useEffect(() => {
-    const usersMap = new Map<string, UserProfile>();
-    users.forEach((u) => {
-      if (u.id) usersMap.set(String(u.id), u);
-      if ((u as any).telegramId) usersMap.set(String((u as any).telegramId), u);
-      if ((u as any)._id) usersMap.set(String((u as any)._id), u);
+    const usersMap: Record<string, UserProfile> = {};
+    users.forEach((u: UserProfile) => {
+      if (u.id) usersMap[String(u.id)] = u;
+      if ((u as any).telegramId) usersMap[String((u as any).telegramId)] = u;
+      if ((u as any)._id) usersMap[String((u as any)._id)] = u;
     });
     (window as any).__ymUsersMap = usersMap;
 
-    const eventsMap = new Map<string, AppEvent>();
-    events.forEach((ev) => {
-      if (ev.id) eventsMap.set(String(ev.id), ev);
-      if ((ev as any)._id) eventsMap.set(String((ev as any)._id), ev);
+    const eventsMap: Record<string, AppEvent> = {};
+    events.forEach((ev: AppEvent) => {
+      if (ev.id) eventsMap[String(ev.id)] = ev;
+      if ((ev as any)._id) eventsMap[String((ev as any)._id)] = ev;
     });
     (window as any).__ymEventsMap = eventsMap;
 
@@ -799,9 +799,9 @@ export const MinskMap: React.FC<MinskMapProps> = ({
       lastUserClickTs.current = now;
 
       const found =
-        (window as any).__ymUsersMap?.get(String(userId)) ||
+        (window as any).__ymUsersMap?.[String(userId)] ||
         users.find(
-          (u) =>
+          (u: UserProfile) =>
             String(u.id) === String(userId) ||
             String((u as any).telegramId) === String(userId) ||
             String((u as any)._id) === String(userId)
@@ -838,9 +838,9 @@ export const MinskMap: React.FC<MinskMapProps> = ({
       lastEventClickTs.current = now;
 
       const found =
-        (window as any).__ymEventsMap?.get(String(eventId)) ||
+        (window as any).__ymEventsMap?.[String(eventId)] ||
         events.find(
-          (e) => String(e.id) === String(eventId) || String((e as any)._id) === String(eventId)
+          (e: AppEvent) => String(e.id) === String(eventId) || String((e as any)._id) === String(eventId)
         );
 
       if (found) {
