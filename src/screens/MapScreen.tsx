@@ -25,7 +25,7 @@ export interface MapScreenProps {
   onOpenProfile: () => void;
   onOpenFeed: () => void;
   onOpenEvents: () => void;
-  onToggleJoinEvent?: (event: AppEvent) => void;
+  onToggleJoinEvent: (event: AppEvent) => void;
   currentArea: string;
   onUpdateLocation?: (coords: [number, number]) => void;
   onUpdateUserCoordinates?: (coords: [number, number]) => void;
@@ -49,9 +49,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 }) => {
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
   const [isCurrentUserSheetOpen, setIsCurrentUserSheetOpen] = useState(false);
-
-  // Поддерживаем оба названия функции обновления координат
-  const handleCoordsUpdate = onUpdateUserCoordinates || onUpdateLocation;
+  const handleLocationUpdate = onUpdateLocation || onUpdateUserCoordinates;
 
   const filteredUsers = selectedGoal === 'all'
     ? users
@@ -80,7 +78,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   return (
     <div className="flex flex-col h-full w-full zine-paper-texture overflow-hidden relative select-none bg-zine-paper">
       
-      {/* Шапка в одну строку */}
+      {/* 1. Компактная шапка в одну строку */}
       <header className="px-4 py-2.5 bg-zine-paper/95 backdrop-blur-md border-b border-zine-border/80 flex items-center justify-between z-30 shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-zine-terracotta text-white flex items-center justify-center font-serif font-bold text-xs shadow-zine-sm">
@@ -96,23 +94,23 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           </div>
         </div>
 
-        {/* Район */}
+        {/* Район / индикатор */}
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zine-card border border-zine-border text-xs text-zine-ink shadow-zine-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-zine-terracotta" />
           <span className="font-medium text-[11px] text-zine-ink truncate max-w-[140px]">{currentArea}</span>
         </div>
       </header>
 
-      {/* Слоган */}
+      {/* Тонкий деликатный слоган */}
       <div className="px-4 py-0.5 bg-zine-card/70 border-b border-zine-border/60 flex items-center justify-between text-[9px] text-zine-inkMuted tracking-wide font-medium shrink-0">
         <span>Минск для людей • прогулки, сходки и досуг</span>
         <span className="text-zine-terracotta font-semibold">только платоника</span>
       </div>
 
-      {/* Карта */}
+      {/* 2. Карта с фильтрами */}
       <div className="flex-1 relative bg-[#F4EFE7] overflow-hidden">
         
-        {/* Фильтры */}
+        {/* Фильтры целей поверх карты */}
         <div className="absolute top-2.5 inset-x-3 flex gap-1.5 overflow-x-auto no-scrollbar z-20 py-0.5">
           <button
             onClick={() => {
@@ -151,7 +149,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           })}
         </div>
 
-        {/* Интерактивная Яндекс.Карта */}
+        {/* Интерактивная карта Яндекс */}
         <MinskMap
           users={filteredUsers}
           events={events}
@@ -172,10 +170,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             setIsCurrentUserSheetOpen(false);
             setSelectedEvent(ev);
           }}
-          onUpdateLocation={handleCoordsUpdate}
+          onUpdateLocation={handleLocationUpdate}
+          onUpdateUserCoordinates={handleLocationUpdate}
         />
 
-        {/* Шторка текущего профиля ("⭐️ ТЫ") */}
+        {/* Шторка текущего пользователя ("⭐️ Твой профиль на карте") */}
         {isCurrentUserSheetOpen && currentUser && (
           <div className="absolute bottom-2 inset-x-2.5 bg-zine-cardElevated rounded-zine border-2 border-zine-terracotta p-3.5 shadow-zine-float z-30 animate-in fade-in slide-in-from-bottom-3 duration-200">
             <div className="w-8 h-1 rounded-full bg-zine-terracotta/40 mx-auto mb-2.5" />
@@ -254,7 +253,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           </div>
         )}
 
-        {/* Шторка выбранного пользователя */}
+        {/* Шторка выбранного участника */}
         {selectedUser && (
           <div className="absolute bottom-2 inset-x-2.5 bg-zine-cardElevated rounded-zine border border-zine-border p-3.5 shadow-zine-float z-30 animate-in fade-in slide-in-from-bottom-3 duration-200">
             <div className="w-8 h-1 rounded-full bg-zine-border mx-auto mb-2.5" />
@@ -293,7 +292,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                   </span>
                 </div>
 
-                <p className="text-[11.5px] text-zinc-800 leading-snug mb-3">
+                <p className="text-[11.5px] text-zine-ink/90 leading-snug mb-3">
                   {selectedUser.bio || 'Привет! Ищу дружескую компанию.'}
                 </p>
 
@@ -307,14 +306,14 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                   </button>
                   <button
                     onClick={() => onSelectUser(null)}
-                    className="p-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-600 transition-colors cursor-pointer"
+                    className="p-2 rounded-xl bg-zine-card border border-zine-border text-zine-inkMuted hover:text-zine-ink"
                   >
                     <X size={14} />
                   </button>
                 </div>
 
-                <div className="flex items-center justify-center gap-1 text-[9px] text-zinc-400 mt-2">
-                  <ShieldCheck size={11} className="text-emerald-600" />
+                <div className="flex items-center justify-center gap-1 text-[9px] text-zine-inkMuted mt-1.5">
+                  <ShieldCheck size={11} className="text-zine-sage" />
                   <span>Координаты смещены на 300м ради приватности</span>
                 </div>
               </div>
@@ -322,10 +321,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           </div>
         )}
 
-        {/* Шторка сходки */}
+        {/* Шторка выбранного события (сходки) */}
         {selectedEvent && (
           <div className="absolute bottom-2 inset-x-2.5 bg-zine-cardElevated rounded-zine border border-zine-border p-3.5 shadow-zine-float z-30 animate-in fade-in slide-in-from-bottom-3 duration-200">
-            <div className="w-8 h-1 rounded-full bg-zinc-200 mx-auto mb-2" />
+            <div className="w-8 h-1 rounded-full bg-zine-border mx-auto mb-2" />
             
             <div className="flex items-start justify-between mb-1.5">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#FAF4E6] text-[#B87C24] border border-[#F3E2B8]">
@@ -362,12 +361,12 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  onToggleJoinEvent?.(selectedEvent);
+                  onToggleJoinEvent(selectedEvent);
                   setSelectedEvent({ ...selectedEvent, isJoined: !selectedEvent.isJoined });
                 }}
                 className={`flex-1 py-2 px-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all cursor-pointer ${
                   selectedEvent.isJoined
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-zine-sage text-white'
                     : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
                 }`}
               >
@@ -396,7 +395,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
       </div>
 
-      {/* TabBar */}
+      {/* 3. Нижний 4-кнопочный TabBar */}
       <nav className="h-14 bg-zine-paper/95 backdrop-blur-md border-t border-zine-border flex items-center justify-around px-2 z-30 shrink-0">
         <button className="flex flex-col items-center gap-0.5 text-zine-terracotta cursor-pointer">
           <Compass size={18} strokeWidth={2.4} />
@@ -405,7 +404,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
         <button
           onClick={onOpenFeed}
-          className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-900 cursor-pointer"
+          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
         >
           <Users size={18} strokeWidth={1.8} />
           <span className="text-[9px] font-medium">Люди ({users.length})</span>
@@ -413,7 +412,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
         <button
           onClick={onOpenEvents}
-          className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-900 cursor-pointer"
+          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
         >
           <Calendar size={18} strokeWidth={1.8} />
           <span className="text-[9px] font-medium">События ({events.length})</span>
@@ -421,7 +420,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
         <button
           onClick={onOpenProfile}
-          className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-900 cursor-pointer"
+          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
         >
           <User size={18} strokeWidth={1.8} />
           <span className="text-[9px] font-medium">Профиль</span>
