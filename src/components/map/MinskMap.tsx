@@ -64,9 +64,7 @@ export function ensureLatLng(coords: any): [number, number] {
 }
 
 /**
- * Умное разведение накладывающихся координат сходок и людей (анти-коллизия).
- * Сдвигает метку сходки на безопасное расстояние (200-300 метров),
- * чтобы карточки и аватарки не закрывали друг друга на карте.
+ * Разведение накладывающихся меток сходок и людей (анти-коллизия).
  */
 function separateCoordinates(
   eventCoords: [number, number],
@@ -128,9 +126,15 @@ const MinskMapContent: React.FC<{
 }) => {
   const ymapsHook = useYMaps();
   const ymaps = ymapsHook || (typeof window !== 'undefined' ? (window as any).ymaps : null);
+  const lastDirectClickTs = useRef<number>(0);
 
+  // Глобальный direct-мост для мгновенного отклика на клики и тапы в мобильном WebView
   useEffect(() => {
     (window as any).__ymSelectUserDirect = (user: UserProfile) => {
+      const now = Date.now();
+      if (now - lastDirectClickTs.current < 250) return;
+      lastDirectClickTs.current = now;
+
       telegramService.haptic('selection');
       onSelectUser(user);
       if (mapInstance && user.coordinates) {
@@ -139,6 +143,10 @@ const MinskMapContent: React.FC<{
     };
 
     (window as any).__ymSelectCurrentUserDirect = () => {
+      const now = Date.now();
+      if (now - lastDirectClickTs.current < 250) return;
+      lastDirectClickTs.current = now;
+
       telegramService.haptic('selection');
       if (onSelectCurrentUser) {
         onSelectCurrentUser();
@@ -149,6 +157,10 @@ const MinskMapContent: React.FC<{
     };
 
     (window as any).__ymSelectEventDirect = (ev: AppEvent) => {
+      const now = Date.now();
+      if (now - lastDirectClickTs.current < 250) return;
+      lastDirectClickTs.current = now;
+
       telegramService.haptic('medium');
       if (onSelectEvent) {
         onSelectEvent(ev);
@@ -165,13 +177,15 @@ const MinskMapContent: React.FC<{
     };
   }, [onSelectUser, onSelectCurrentUser, onSelectEvent, currentUserCoords, mapInstance]);
 
-  // 1. Макет аватарок участников
+  // 1. Макет круглой аватарки других людей с гарантированным кликом и тачем
   const avatarLayout = useMemo(() => {
     if (!ymaps) return null;
 
     return (ymaps as any).templateLayoutFactory.createClass(
       `<div 
         class="ymaps-avatar-marker" 
+        onclick="window.__ymSelectUser && window.__ymSelectUser('$[properties.userId]')"
+        ontouchend="window.__ymSelectUser && window.__ymSelectUser('$[properties.userId]')"
         style="position: relative; width: 46px; height: 52px; cursor: pointer; user-select: none; pointer-events: auto !important; -webkit-tap-highlight-color: transparent;"
       >
         <div style="
@@ -224,66 +238,35 @@ const MinskMapContent: React.FC<{
       {
         build: function () {
           (this as any).constructor.superclass.build.call(this);
-          const root = (this as any).getParentElement();
-          const el = root ? root.querySelector('.ymaps-avatar-marker') : null;
+          const el = (this as any).getElement ? (this as any).getElement() : null;
           if (el) {
-            const triggerSelect = (e?: any) => {
+            el.style.cursor = 'pointer';
+            el.style.pointerEvents = 'auto';
+            const self = this as any;
+            const trigger = (e?: any) => {
               if (e && e.stopPropagation) e.stopPropagation();
-              const userObj = (this as any).getData()?.properties?.get('userObj');
-              const userId = (this as any).getData()?.properties?.get('userId');
+              const userObj = self.getData()?.properties?.get('userObj');
+              const userId = self.getData()?.properties?.get('userId');
               if (userObj && (window as any).__ymSelectUserDirect) {
                 (window as any).__ymSelectUserDirect(userObj);
               } else if (userId && (window as any).__ymSelectUser) {
                 (window as any).__ymSelectUser(String(userId));
               }
-              const geoObj = (this as any).getData()?.geoObject;
+              const geoObj = self.getData()?.geoObject;
               if (geoObj) {
                 geoObj.events.fire('click', { target: geoObj });
               }
             };
-
-            let startX = 0;
-            let startY = 0;
-            let moved = false;
-
-            (this as any)._touchStart = (e: any) => {
-              const t = e.touches ? e.touches[0] : e;
-              startX = t.clientX;
-              startY = t.clientY;
-              moved = false;
-            };
-
-            (this as any)._touchMove = (e: any) => {
-              const t = e.touches ? e.touches[0] : e;
-              if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) {
-                moved = true;
-              }
-            };
-
-            (this as any)._touchEnd = (e: any) => {
-              if (!moved) {
-                triggerSelect(e);
-              }
-            };
-
-            (this as any)._clickHandler = (e: any) => {
-              triggerSelect(e);
-            };
-
-            el.addEventListener('touchstart', (this as any)._touchStart, { passive: true });
-            el.addEventListener('touchmove', (this as any)._touchMove, { passive: true });
-            el.addEventListener('touchend', (this as any)._touchEnd);
-            el.addEventListener('click', (this as any)._clickHandler);
+            self._clickHandler = trigger;
+            el.addEventListener('click', trigger);
+            el.addEventListener('touchend', trigger);
           }
         },
         clear: function () {
-          const root = (this as any).getParentElement();
-          const el = root ? root.querySelector('.ymaps-avatar-marker') : null;
-          if (el) {
-            if ((this as any)._touchStart) el.removeEventListener('touchstart', (this as any)._touchStart);
-            if ((this as any)._touchMove) el.removeEventListener('touchmove', (this as any)._touchMove);
-            if ((this as any)._touchEnd) el.removeEventListener('touchend', (this as any)._touchEnd);
-            if ((this as any)._clickHandler) el.removeEventListener('click', (this as any)._clickHandler);
+          const el = (this as any).getElement ? (this as any).getElement() : null;
+          if (el && (this as any)._clickHandler) {
+            el.removeEventListener('click', (this as any)._clickHandler);
+            el.removeEventListener('touchend', (this as any)._clickHandler);
           }
           (this as any).constructor.superclass.clear.call(this);
         }
@@ -298,6 +281,8 @@ const MinskMapContent: React.FC<{
     return (ymaps as any).templateLayoutFactory.createClass(
       `<div 
         class="ymaps-current-user-marker" 
+        onclick="window.__ymSelectCurrentUser && window.__ymSelectCurrentUser()"
+        ontouchend="window.__ymSelectCurrentUser && window.__ymSelectCurrentUser()"
         style="position: relative; width: 54px; height: 68px; cursor: pointer; user-select: none; pointer-events: auto !important; -webkit-tap-highlight-color: transparent;"
       >
         <div style="
@@ -374,62 +359,33 @@ const MinskMapContent: React.FC<{
       {
         build: function () {
           (this as any).constructor.superclass.build.call(this);
-          const root = (this as any).getParentElement();
-          const el = root ? root.querySelector('.ymaps-current-user-marker') : null;
+          const el = (this as any).getElement ? (this as any).getElement() : null;
           if (el) {
-            const triggerSelect = (e?: any) => {
+            el.style.cursor = 'pointer';
+            el.style.pointerEvents = 'auto';
+            const self = this as any;
+            const trigger = (e?: any) => {
               if (e && e.stopPropagation) e.stopPropagation();
               if ((window as any).__ymSelectCurrentUserDirect) {
                 (window as any).__ymSelectCurrentUserDirect();
+              } else if ((window as any).__ymSelectCurrentUser) {
+                (window as any).__ymSelectCurrentUser();
               }
-              const geoObj = (this as any).getData()?.geoObject;
+              const geoObj = self.getData()?.geoObject;
               if (geoObj) {
                 geoObj.events.fire('click', { target: geoObj });
               }
             };
-
-            let startX = 0;
-            let startY = 0;
-            let moved = false;
-
-            (this as any)._touchStart = (e: any) => {
-              const t = e.touches ? e.touches[0] : e;
-              startX = t.clientX;
-              startY = t.clientY;
-              moved = false;
-            };
-
-            (this as any)._touchMove = (e: any) => {
-              const t = e.touches ? e.touches[0] : e;
-              if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) {
-                moved = true;
-              }
-            };
-
-            (this as any)._touchEnd = (e: any) => {
-              if (!moved) {
-                triggerSelect(e);
-              }
-            };
-
-            (this as any)._clickHandler = (e: any) => {
-              triggerSelect(e);
-            };
-
-            el.addEventListener('touchstart', (this as any)._touchStart, { passive: true });
-            el.addEventListener('touchmove', (this as any)._touchMove, { passive: true });
-            el.addEventListener('touchend', (this as any)._touchEnd);
-            el.addEventListener('click', (this as any)._clickHandler);
+            self._clickHandler = trigger;
+            el.addEventListener('click', trigger);
+            el.addEventListener('touchend', trigger);
           }
         },
         clear: function () {
-          const root = (this as any).getParentElement();
-          const el = root ? root.querySelector('.ymaps-current-user-marker') : null;
-          if (el) {
-            if ((this as any)._touchStart) el.removeEventListener('touchstart', (this as any)._touchStart);
-            if ((this as any)._touchMove) el.removeEventListener('touchmove', (this as any)._touchMove);
-            if ((this as any)._touchEnd) el.removeEventListener('touchend', (this as any)._touchEnd);
-            if ((this as any)._clickHandler) el.removeEventListener('click', (this as any)._clickHandler);
+          const el = (this as any).getElement ? (this as any).getElement() : null;
+          if (el && (this as any)._clickHandler) {
+            el.removeEventListener('click', (this as any)._clickHandler);
+            el.removeEventListener('touchend', (this as any)._clickHandler);
           }
           (this as any).constructor.superclass.clear.call(this);
         }
@@ -444,6 +400,8 @@ const MinskMapContent: React.FC<{
     return (ymaps as any).templateLayoutFactory.createClass(
       `<div 
         class="ymaps-event-marker" 
+        onclick="window.__ymSelectEvent && window.__ymSelectEvent('$[properties.eventId]')"
+        ontouchend="window.__ymSelectEvent && window.__ymSelectEvent('$[properties.eventId]')"
         style="position: relative; display: inline-flex; flex-direction: column; align-items: center; cursor: pointer; user-select: none; pointer-events: auto !important; -webkit-tap-highlight-color: transparent;"
       >
         <div style="
@@ -518,66 +476,35 @@ const MinskMapContent: React.FC<{
       {
         build: function () {
           (this as any).constructor.superclass.build.call(this);
-          const root = (this as any).getParentElement();
-          const el = root ? root.querySelector('.ymaps-event-marker') : null;
+          const el = (this as any).getElement ? (this as any).getElement() : null;
           if (el) {
-            const triggerSelect = (e?: any) => {
+            el.style.cursor = 'pointer';
+            el.style.pointerEvents = 'auto';
+            const self = this as any;
+            const trigger = (e?: any) => {
               if (e && e.stopPropagation) e.stopPropagation();
-              const evObj = (this as any).getData()?.properties?.get('eventObj');
-              const evId = (this as any).getData()?.properties?.get('eventId');
+              const evObj = self.getData()?.properties?.get('eventObj');
+              const evId = self.getData()?.properties?.get('eventId');
               if (evObj && (window as any).__ymSelectEventDirect) {
                 (window as any).__ymSelectEventDirect(evObj);
               } else if (evId && (window as any).__ymSelectEvent) {
                 (window as any).__ymSelectEvent(String(evId));
               }
-              const geoObj = (this as any).getData()?.geoObject;
+              const geoObj = self.getData()?.geoObject;
               if (geoObj) {
                 geoObj.events.fire('click', { target: geoObj });
               }
             };
-
-            let startX = 0;
-            let startY = 0;
-            let moved = false;
-
-            (this as any)._touchStart = (e: any) => {
-              const t = e.touches ? e.touches[0] : e;
-              startX = t.clientX;
-              startY = t.clientY;
-              moved = false;
-            };
-
-            (this as any)._touchMove = (e: any) => {
-              const t = e.touches ? e.touches[0] : e;
-              if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) {
-                moved = true;
-              }
-            };
-
-            (this as any)._touchEnd = (e: any) => {
-              if (!moved) {
-                triggerSelect(e);
-              }
-            };
-
-            (this as any)._clickHandler = (e: any) => {
-              triggerSelect(e);
-            };
-
-            el.addEventListener('touchstart', (this as any)._touchStart, { passive: true });
-            el.addEventListener('touchmove', (this as any)._touchMove, { passive: true });
-            el.addEventListener('touchend', (this as any)._touchEnd);
-            el.addEventListener('click', (this as any)._clickHandler);
+            self._clickHandler = trigger;
+            el.addEventListener('click', trigger);
+            el.addEventListener('touchend', trigger);
           }
         },
         clear: function () {
-          const root = (this as any).getParentElement();
-          const el = root ? root.querySelector('.ymaps-event-marker') : null;
-          if (el) {
-            if ((this as any)._touchStart) el.removeEventListener('touchstart', (this as any)._touchStart);
-            if ((this as any)._touchMove) el.removeEventListener('touchmove', (this as any)._touchMove);
-            if ((this as any)._touchEnd) el.removeEventListener('touchend', (this as any)._touchEnd);
-            if ((this as any)._clickHandler) el.removeEventListener('click', (this as any)._clickHandler);
+          const el = (this as any).getElement ? (this as any).getElement() : null;
+          if (el && (this as any)._clickHandler) {
+            el.removeEventListener('click', (this as any)._clickHandler);
+            el.removeEventListener('touchend', (this as any)._clickHandler);
           }
           (this as any).constructor.superclass.clear.call(this);
         }
@@ -585,7 +512,7 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
-  // 4. Макет кластера людей (ТОЛЬКО число и «чел.», никаких «места»)
+  // 4. Макет кластера людей
   const clusterLayout = useMemo(() => {
     if (!ymaps) return null;
 
@@ -613,6 +540,7 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
+  // Исключаем самого запускающего из общего пула, чтобы не было дубля его аватара
   const otherUsers = useMemo(() => {
     const myTgId = Number(currentUser?.telegramId || 0);
     return users.filter((u) => {
@@ -622,6 +550,7 @@ const MinskMapContent: React.FC<{
     });
   }, [users, currentUser]);
 
+  // Разведение координат сходок от людей, чтобы сходка не накладывалась прямо на аватарку
   const eventsWithSeparatedCoords = useMemo(() => {
     const existingPoints: [number, number][] = [];
     if (currentUserCoords) {
@@ -646,7 +575,7 @@ const MinskMapContent: React.FC<{
 
   return (
     <>
-      {/* 1. Маркер запускающего («⭐️ ТЫ») */}
+      {/* 1. Маркер запускающего приложение ("⭐️ ТЫ") */}
       {currentUser && currentUserCoords && (
         <Placemark
           key={`current-user-${currentUserCoords[0]}-${currentUserCoords[1]}`}
@@ -661,6 +590,11 @@ const MinskMapContent: React.FC<{
           options={{
             iconLayout: currentUserLayout,
             iconOffset: [-27, -68],
+            iconShape: ({
+              type: 'Rectangle',
+              coordinates: [[-27, -68], [27, 0]]
+            } as any),
+            interactivityModel: 'default#opaque',
             cursor: 'pointer',
             zIndex: 1000,
             hasBalloon: false
@@ -677,7 +611,7 @@ const MinskMapContent: React.FC<{
         />
       )}
 
-      {/* 2. Кластер участников */}
+      {/* 2. Кластеризация аватарок остальных участников */}
       <Clusterer
         options={{
           clusterIconLayout: clusterLayout,
@@ -693,11 +627,13 @@ const MinskMapContent: React.FC<{
           const target = e.get('target');
           if (target && target.properties) {
             const user = target.properties.get('userObj');
-            if (user) {
+            const userId = target.properties.get('userId');
+            const found = user || (userId && (window as any).__ymUsersMap?.get(String(userId)));
+            if (found) {
               telegramService.haptic('selection');
-              onSelectUser(user);
-              if (mapInstance && user.displayCoords) {
-                mapInstance.panTo(user.displayCoords, { flying: true, duration: 400 });
+              onSelectUser(found);
+              if (mapInstance && found.displayCoords) {
+                mapInstance.panTo(found.displayCoords, { flying: true, duration: 400 });
               }
             }
           }
@@ -707,13 +643,14 @@ const MinskMapContent: React.FC<{
           const isSelected = selectedUser?.id === user.id;
           const goalInfo = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг' };
           const coords = ensureLatLng(user.displayCoords);
+          const userIdStr = String(user.id || (user as any).telegramId || (user as any)._id || '');
 
           return (
             <Placemark
-              key={`user-${user.id || (user as any).telegramId}`}
+              key={`user-${userIdStr || coords.join('-')}`}
               geometry={coords}
               properties={{
-                userId: String(user.id || (user as any).telegramId),
+                userId: userIdStr,
                 userObj: user,
                 avatarUrl: user.avatarUrl,
                 name: user.firstName,
@@ -723,6 +660,11 @@ const MinskMapContent: React.FC<{
               options={{
                 iconLayout: avatarLayout,
                 iconOffset: [-23, -52],
+                iconShape: ({
+                  type: 'Rectangle',
+                  coordinates: [[-23, -52], [23, 0]]
+                } as any),
+                interactivityModel: 'default#opaque',
                 cursor: 'pointer',
                 hasBalloon: false
               } as any}
@@ -738,19 +680,20 @@ const MinskMapContent: React.FC<{
         })}
       </Clusterer>
 
-      {/* 3. Маркеры событий (сходок) */}
+      {/* 3. Маркеры событий (Сходок) */}
       {eventsWithSeparatedCoords.map((ev) => {
         const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️', label: 'Сходка' };
         const rawTitle = ev.title || 'Сходка';
         const displayTitle = rawTitle.length > 14 ? rawTitle.slice(0, 13).trim() + '…' : rawTitle;
         const coords = ev.separatedCoords;
+        const eventIdStr = String(ev.id || (ev as any)._id || '');
 
         return (
           <Placemark
-            key={`event-${ev.id || (ev as any)._id}-${coords[0]}-${coords[1]}`}
+            key={`event-${eventIdStr}-${coords[0]}-${coords[1]}`}
             geometry={coords}
             properties={{
-              eventId: String(ev.id || (ev as any)._id),
+              eventId: eventIdStr,
               eventObj: ev,
               eventEmoji: catConfig.emoji || '⭐️',
               displayTitle,
@@ -759,7 +702,12 @@ const MinskMapContent: React.FC<{
             }}
             options={{
               iconLayout: eventLayout,
-              iconOffset: [-45, -45],
+              iconOffset: [-50, -45],
+              iconShape: ({
+                type: 'Rectangle',
+                coordinates: [[-70, -45], [70, 0]]
+              } as any),
+              interactivityModel: 'default#opaque',
               cursor: 'pointer',
               zIndex: 850,
               hasBalloon: false
@@ -798,29 +746,67 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   const mapRef = useRef<any>(null);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
   const [cardEvent, setCardEvent] = useState<AppEvent | null>(null);
-
   const handleUpdate = onUpdateLocation || onUpdateUserCoordinates;
 
+  const lastUserClickTs = useRef<number>(0);
+  const lastEventClickTs = useRef<number>(0);
+
+  // Хранилище быстрого доступа для мгновенного резолва по ID
+  useEffect(() => {
+    const usersMap = new Map<string, UserProfile>();
+    users.forEach((u) => {
+      if (u.id) usersMap.set(String(u.id), u);
+      if ((u as any).telegramId) usersMap.set(String((u as any).telegramId), u);
+      if ((u as any)._id) usersMap.set(String((u as any)._id), u);
+    });
+    (window as any).__ymUsersMap = usersMap;
+
+    const eventsMap = new Map<string, AppEvent>();
+    events.forEach((ev) => {
+      if (ev.id) eventsMap.set(String(ev.id), ev);
+      if ((ev as any)._id) eventsMap.set(String((ev as any)._id), ev);
+    });
+    (window as any).__ymEventsMap = eventsMap;
+
+    return () => {
+      delete (window as any).__ymUsersMap;
+      delete (window as any).__ymEventsMap;
+    };
+  }, [users, events]);
+
+  // Восстановление сохраненных координат из localStorage
   const [currentCoords, setCurrentCoords] = useState<[number, number]>(() => {
     try {
       const saved = localStorage.getItem('yesminsk_user_coords');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === 2 && !isNaN(parsed[0]) && parsed[0] > 40) {
-          return [Number(parsed[0]), Number(parsed[1])];
+        if (Array.isArray(parsed) && parsed.length >= 2) {
+          return ensureLatLng(parsed);
         }
       }
     } catch (e) {}
+
     if (currentUser?.coordinates) return ensureLatLng(currentUser.coordinates);
     if (userLocation) return ensureLatLng(userLocation);
     return MINSK_CENTER;
   });
 
+  // Глобальные мостовые слушатели для гарантированного открытия шторки при клике на карте
   useEffect(() => {
     (window as any).__ymSelectUser = (userId: string) => {
-      const found = users.find(
-        (u) => String(u.id) === String(userId) || String((u as any).telegramId) === String(userId)
-      );
+      const now = Date.now();
+      if (now - lastUserClickTs.current < 250) return;
+      lastUserClickTs.current = now;
+
+      const found =
+        (window as any).__ymUsersMap?.get(String(userId)) ||
+        users.find(
+          (u) =>
+            String(u.id) === String(userId) ||
+            String((u as any).telegramId) === String(userId) ||
+            String((u as any)._id) === String(userId)
+        );
+
       if (found) {
         telegramService.haptic('selection');
         setCardEvent(null);
@@ -832,6 +818,10 @@ export const MinskMap: React.FC<MinskMapProps> = ({
     };
 
     (window as any).__ymSelectCurrentUser = () => {
+      const now = Date.now();
+      if (now - lastUserClickTs.current < 250) return;
+      lastUserClickTs.current = now;
+
       telegramService.haptic('selection');
       setCardEvent(null);
       if (onSelectCurrentUser) {
@@ -843,9 +833,16 @@ export const MinskMap: React.FC<MinskMapProps> = ({
     };
 
     (window as any).__ymSelectEvent = (eventId: string) => {
-      const found = events.find(
-        (e) => String(e.id) === String(eventId) || String((e as any)._id) === String(eventId)
-      );
+      const now = Date.now();
+      if (now - lastEventClickTs.current < 250) return;
+      lastEventClickTs.current = now;
+
+      const found =
+        (window as any).__ymEventsMap?.get(String(eventId)) ||
+        events.find(
+          (e) => String(e.id) === String(eventId) || String((e as any)._id) === String(eventId)
+        );
+
       if (found) {
         telegramService.haptic('medium');
         if (onSelectEvent) {
@@ -866,6 +863,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
     };
   }, [users, events, onSelectUser, onSelectCurrentUser, onSelectEvent, currentCoords]);
 
+  // Обновление локальных координат при внешнем изменении
   useEffect(() => {
     if (currentUser?.coordinates) {
       const fresh = ensureLatLng(currentUser.coordinates);
@@ -931,16 +929,20 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         telegramService.haptic('success');
         const newCoords: [number, number] = [Number(lat.toFixed(6)), Number(lng.toFixed(6))];
 
+        // 1. Фиксируем в localStorage, чтобы гео-позиция сохранялась при любых переключениях
         try {
           localStorage.setItem('yesminsk_user_coords', JSON.stringify(newCoords));
         } catch (e) {}
 
+        // 2. Моментально переносим маркер «⭐️ ТЫ»
         setCurrentCoords(newCoords);
 
+        // 3. Плавно перемещаем камеру карты прямо на пользователя
         if (mapRef.current) {
           mapRef.current.panTo(newCoords, { flying: true, duration: 500 });
         }
 
+        // 4. Передаем наверх для синхронизации с базой данных
         if (handleUpdate) {
           handleUpdate(newCoords);
         }
@@ -1023,7 +1025,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         </Map>
       </YMaps>
 
-      {/* Автономная шторка сходки */}
+      {/* Автономная карточка сходки (если MinskMap используется отдельно) */}
       {!onSelectEvent && cardEvent && (
         <div className="absolute bottom-20 inset-x-3 bg-zine-cardElevated rounded-2xl border border-zine-border p-3.5 shadow-2xl z-30 animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="flex items-start justify-between mb-1.5">
