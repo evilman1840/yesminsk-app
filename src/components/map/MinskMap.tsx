@@ -177,7 +177,7 @@ const MinskMapContent: React.FC<{
     };
   }, [onSelectUser, onSelectCurrentUser, onSelectEvent, currentUserCoords, mapInstance]);
 
-  // 1. Макет круглой аватарки других людей с гарантированной зоной shape и слушателем geoObject.events
+  // 1. Макет круглой аватарки других людей с правильной геометрической зоной shape
   const avatarLayout = useMemo(() => {
     if (!ymaps) return null;
 
@@ -239,7 +239,6 @@ const MinskMapContent: React.FC<{
           (this as any).constructor.superclass.build.call(this);
           const data = (this as any).getData();
           if (data) {
-            // Ключевой параметр Яндекс.Карт 2.1: регистрация активной кликабельной зоны
             if (data.options) {
               data.options.set('shape', {
                 type: 'Rectangle',
@@ -649,17 +648,30 @@ const MinskMapContent: React.FC<{
           const target = e.get('target');
           if (!target) return;
 
-          // 1. Клик по кластеру (круг с цифрой) -> плавно приближаем карту
-          if (typeof target.getGeoObjects === 'function') {
-            const coords = target.geometry?.getCoordinates();
-            if (mapInstance && coords) {
-              const curZoom = mapInstance.getZoom();
-              mapInstance.setCenter(coords, Math.min(curZoom + 2, 17), { flying: true, duration: 300 });
+          // 1. Если кликнули на кластер (группу людей с цифрой) — плавно приближаем карту
+          const clustered = target.properties?.get('geoObjects');
+          if (clustered && Array.isArray(clustered)) {
+            if (clustered.length > 1) {
+              const coords = target.geometry?.getCoordinates();
+              if (mapInstance && coords) {
+                const curZoom = mapInstance.getZoom();
+                mapInstance.setCenter(coords, Math.min(curZoom + 2, 17), { flying: true, duration: 300 });
+              }
+              return;
+            } else if (clustered.length === 1) {
+              const single = clustered[0]?.properties?.get('userObj');
+              if (single) {
+                telegramService.haptic('selection');
+                onSelectUser(single);
+                if (mapInstance && single.displayCoords) {
+                  mapInstance.panTo(single.displayCoords, { flying: true, duration: 400 });
+                }
+                return;
+              }
             }
-            return;
           }
 
-          // 2. Клик по отдельной аватарке внутри кластера
+          // 2. Если кликнули на отдельную аватарку
           const props = target.properties;
           if (props) {
             const user = props.get('userObj');
@@ -1020,8 +1032,8 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   return (
     <div className="w-full h-full relative overflow-hidden bg-zine-paper">
       <style>{`
-        .ymaps-2-1-79-map,
-        .ymaps-2-1-79-islets_map {
+        .ymaps-2-1-79-ground-pane,
+        [class*="ground-pane"] {
           filter: sepia(20%) brightness(99%) contrast(94%) hue-rotate(-8deg) !important;
         }
         .ymaps-2-1-79-inner-panes {
