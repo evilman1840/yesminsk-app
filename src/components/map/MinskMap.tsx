@@ -126,7 +126,8 @@ const MinskMapContent: React.FC<{
   mapInstance,
   currentUserCoords
 }) => {
-  const ymaps = useYMaps(['templateLayoutFactory']);
+  const ymapsHook = useYMaps();
+  const ymaps = ymapsHook || (typeof window !== 'undefined' ? (window as any).ymaps : null);
 
   useEffect(() => {
     (window as any).__ymSelectUserDirect = (user: UserProfile) => {
@@ -640,16 +641,11 @@ const MinskMapContent: React.FC<{
   }, [events, otherUsers, currentUserCoords]);
 
   if (!ymaps || !avatarLayout || !clusterLayout || !eventLayout || !currentUserLayout) {
-    return (
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zine-paper/70 backdrop-blur-xs">
-        <div className="w-8 h-8 rounded-full border-2 border-zine-terracotta border-t-transparent animate-spin mb-2" />
-        <span className="font-serif text-xs text-zine-ink font-medium">Загружаем карту Минска...</span>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-zine-paper">
+    <>
       {/* 1. Маркер запускающего («⭐️ ТЫ») */}
       {currentUser && currentUserCoords && (
         <Placemark
@@ -780,7 +776,7 @@ const MinskMapContent: React.FC<{
           />
         );
       })}
-    </div>
+    </>
   );
 };
 
