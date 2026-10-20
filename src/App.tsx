@@ -108,7 +108,7 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Симпатии и мэтчи. При новом мэтче (например, человек ответил, пока нас не было) показываем окно
+  // «Хотят пообщаться» и «На связи». Если кто-то ответил 👋, пока нас не было, показываем окно
   const fetchInbox = useCallback(async (showNewMatch = false) => {
     try {
       const data = await api.getInbox();
@@ -127,7 +127,7 @@ export const App: React.FC = () => {
         } catch (e) {}
       }
     } catch (err) {
-      console.warn('Ошибка загрузки симпатий:', err);
+      console.warn('Ошибка загрузки входящих приветов:', err);
     }
   }, []);
 
@@ -244,7 +244,7 @@ export const App: React.FC = () => {
     await fetchNearbyUsers();
   };
 
-  // 👍 / 👎 на анкете
+  // 👋 Пообщаться / 🙈 Скрыть
   const handleReact = async (user: UserProfile, type: ReactionType) => {
     try {
       const result = await api.reactToUser(user.telegramId, type);

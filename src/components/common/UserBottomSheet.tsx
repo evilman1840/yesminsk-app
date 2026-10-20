@@ -42,16 +42,15 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
 
         <div className="flex gap-3.5 items-start">
           {/* Аватарка с бейджем цели и реакциями */}
-          <div className="relative shrink-0 w-16">
+          <div className="relative shrink-0">
             <img
               src={user.avatarUrl}
               alt={user.firstName}
               className="w-16 h-16 rounded-2xl object-cover border border-zine-border shadow-sm"
             />
-            <span className="absolute top-12 -right-1 text-xs bg-white rounded-full p-0.5 border border-zine-border shadow-sm">
+            <span className="absolute -bottom-1 -right-1 text-xs bg-white rounded-full p-0.5 border border-zine-border shadow-sm">
               {goalConfig.emoji}
             </span>
-            <ReactionButtons user={user} onReact={onReact} size="md" />
           </div>
 
           <div className="flex-1 min-w-0 pr-3">
@@ -96,7 +95,10 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
               {user.bio || 'Пока нет описания о себе.'}
             </p>
 
-            <ChatButton user={user} className="w-full" />
+            <div className="space-y-2">
+              {!user.isMatch && <ReactionButtons user={user} onReact={onReact} labeled />}
+              <ChatButton user={user} className="w-full" />
+            </div>
 
             {/* Плашка безопасности */}
             <div className="flex items-center justify-center gap-1 text-[9.5px] text-zine-inkMuted mt-2.5 pt-2 border-t border-zine-border/50">

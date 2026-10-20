@@ -41,9 +41,9 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     : tabUsers.filter((u) => u.goal === selectedGoal);
 
   const tabs: { id: FeedTab; label: string; count: number }[] = [
-    { id: 'all', label: 'Все рядом', count: users.length },
-    { id: 'likes', label: '👍 Симпатии', count: likedMe.length },
-    { id: 'matches', label: '🎉 Мэтчи', count: matches.length }
+    { id: 'all', label: 'Все', count: users.length },
+    { id: 'likes', label: '👋 Хотят пообщаться', count: likedMe.length },
+    { id: 'matches', label: '🤝 На связи', count: matches.length }
   ];
 
   const handleGoalFilter = (goal: ActivityGoal | 'all') => {
@@ -87,7 +87,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
         </div>
       </header>
 
-      {/* Вкладки: все / кто лайкнул меня / взаимные */}
+      {/* Вкладки: все / хотят пообщаться / на связи */}
       <div className="px-3 pt-2 pb-1 bg-zine-paper/90 flex gap-1.5 shrink-0">
         {tabs.map((t) => (
           <button
@@ -96,7 +96,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               telegramService.haptic('selection');
               setTab(t.id);
             }}
-            className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition-all border flex items-center justify-center gap-1 ${
+            className={`flex-auto px-2 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all border flex items-center justify-center gap-1 ${
               tab === t.id
                 ? 'bg-zine-ink text-white border-zine-ink'
                 : 'bg-zine-cardElevated text-zine-ink border-zine-border'
@@ -160,13 +160,13 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           <div className="p-8 text-center text-zine-inkMuted">
             {tab === 'likes' ? (
               <>
-                <p className="font-serif text-sm">Пока никто не поставил тебе 👍</p>
-                <p className="text-xs mt-1">Когда кто-то лайкнет анкету, он появится здесь, а бот пришлёт уведомление.</p>
+                <p className="font-serif text-sm">Пока никто не передал привет 👋</p>
+                <p className="text-xs mt-1">Когда кто-то захочет пообщаться, он появится здесь, а бот пришлёт уведомление.</p>
               </>
             ) : tab === 'matches' ? (
               <>
-                <p className="font-serif text-sm">Мэтчей пока нет</p>
-                <p className="text-xs mt-1">Лайкай анкеты — при взаимной симпатии здесь появится кнопка «Написать».</p>
+                <p className="font-serif text-sm">Пока никого на связи</p>
+                <p className="text-xs mt-1">Нажимай 👋 на анкетах. Когда человек ответит тем же, здесь появится кнопка «Написать».</p>
               </>
             ) : (
               <>
@@ -235,11 +235,11 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                     <div className="flex items-center justify-between pt-1 border-t border-zine-border/50">
                       <span className="text-[10px] text-zine-inkMuted">
                         {user.isMatch
-                          ? '🎉 Взаимная симпатия'
+                          ? '🤝 На связи'
                           : user.iLiked
-                          ? 'Лайк отправлен'
+                          ? 'Привет отправлен'
                           : user.likedMe
-                          ? 'Ты понравился(ась)! Ответь 👍'
+                          ? 'Хочет пообщаться! Ответь 👋'
                           : 'Нажми, чтобы открыть анкету'}
                       </span>
                       {user.isMatch && user.username && (

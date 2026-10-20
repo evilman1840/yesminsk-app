@@ -6,14 +6,16 @@ import { telegramService } from '../../services/telegram';
 export type ReactionType = 'like' | 'dislike';
 
 /**
- * Кнопки 👍 / 👎 под фото анкеты.
- * Дизлайк скрывает человека навсегда, поэтому спрашиваем подтверждение.
+ * Кнопки 👋 «Пообщаться» / 🙈 «Скрыть».
+ * «Скрыть» убирает человека навсегда, поэтому спрашиваем подтверждение.
+ * labeled — крупные кнопки с подписями (для открытой анкеты), иначе компактные значки под фото.
  */
 export const ReactionButtons: React.FC<{
   user: UserProfile;
   onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
   size?: 'sm' | 'md';
-}> = ({ user, onReact, size = 'sm' }) => {
+  labeled?: boolean;
+}> = ({ user, onReact, size = 'sm', labeled = false }) => {
   const [isConfirmingDislike, setIsConfirmingDislike] = useState(false);
   const [busy, setBusy] = useState<ReactionType | null>(null);
 
@@ -36,6 +38,28 @@ export const ReactionButtons: React.FC<{
       setIsConfirmingDislike(false);
     }
   };
+
+  if (isConfirmingDislike && labeled) {
+    return (
+      <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-red-50 border border-red-200">
+        <span className="text-[10.5px] leading-tight text-red-800">🙈 Скрыть навсегда? Вы больше не увидите друг друга</span>
+        <div className="flex gap-1 shrink-0">
+          <button onClick={(e) => react(e, 'dislike')} className="px-2.5 py-1 rounded-lg bg-red-600 text-white text-[11px] font-bold cursor-pointer">
+            {busy ? <Loader2 size={11} className="animate-spin" /> : 'Да'}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsConfirmingDislike(false);
+            }}
+            className="px-2.5 py-1 rounded-lg bg-white border border-zine-border text-zine-ink text-[11px] cursor-pointer"
+          >
+            Нет
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (isConfirmingDislike) {
     return (
@@ -62,32 +86,58 @@ export const ReactionButtons: React.FC<{
     );
   }
 
+  if (labeled) {
+    return (
+      <div className="flex gap-2">
+        <button
+          onClick={(e) => react(e, 'like')}
+          disabled={user.iLiked}
+          className={`flex-1 py-2 px-3 rounded-xl border font-semibold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer ${
+            user.iLiked
+              ? 'bg-zine-sage/15 border-zine-sage/50 text-zine-ink'
+              : 'bg-white border-zine-border text-zine-ink hover:border-zine-sage'
+          }`}
+        >
+          {busy === 'like' ? <Loader2 size={13} className="animate-spin" /> : <span className="text-sm">👋</span>}
+          <span>{user.iLiked ? 'Привет отправлен' : 'Пообщаться'}</span>
+        </button>
+        <button
+          onClick={(e) => react(e, 'dislike')}
+          className="py-2 px-3 rounded-xl border bg-white border-zine-border text-zine-inkMuted hover:border-red-300 font-medium text-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+        >
+          <span className="text-sm">🙈</span>
+          <span>Скрыть</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex justify-center gap-1 mt-1.5">
       <button
         onClick={(e) => react(e, 'like')}
-        title="Нравится"
+        title="Пообщаться"
         className={`${btn} rounded-full border flex items-center justify-center transition-all active:scale-90 cursor-pointer ${
           user.iLiked
             ? 'bg-zine-sage/20 border-zine-sage ring-1 ring-zine-sage/50'
             : 'bg-white border-zine-border hover:border-zine-sage'
         }`}
       >
-        {busy === 'like' ? <Loader2 size={11} className="animate-spin" /> : '👍'}
+        {busy === 'like' ? <Loader2 size={11} className="animate-spin" /> : '👋'}
       </button>
       <button
         onClick={(e) => react(e, 'dislike')}
-        title="Не нравится — скрыть"
+        title="Скрыть"
         className={`${btn} rounded-full border bg-white border-zine-border hover:border-red-300 flex items-center justify-center transition-all active:scale-90 cursor-pointer`}
       >
-        👎
+        🙈
       </button>
     </div>
   );
 };
 
 /**
- * Кнопка «Написать». Доступна только после взаимного лайка (мэтча).
+ * Кнопка «Написать». Доступна, только когда оба нажали 👋 (на связи).
  */
 export const ChatButton: React.FC<{ user: UserProfile; className?: string }> = ({ user, className = '' }) => {
   if (user.isMatch && user.username) {
@@ -109,7 +159,7 @@ export const ChatButton: React.FC<{ user: UserProfile; className?: string }> = (
   if (user.isMatch) {
     return (
       <div className={`py-2 px-3 rounded-xl bg-zine-sage/15 border border-zine-sage/40 text-zine-ink text-[10.5px] leading-tight text-center ${className}`}>
-        🎉 Мэтч! У человека нет @username — ссылка на него в чате с ботом YesMinsk
+        🤝 Вы на связи! У человека нет @username — ссылка на него в чате с ботом YesMinsk
       </div>
     );
   }
@@ -119,17 +169,17 @@ export const ChatButton: React.FC<{ user: UserProfile; className?: string }> = (
       <Lock size={12} className="shrink-0" />
       <span>
         {user.iLiked
-          ? 'Лайк отправлен. Ждём ответной симпатии'
+          ? 'Привет отправлен. Ждём ответа'
           : user.likedMe
-          ? 'Вы понравились! Лайкни в ответ, чтобы написать'
-          : 'Писать можно после взаимного 👍'}
+          ? 'Хочет пообщаться! Нажми 👋 в ответ, чтобы написать'
+          : 'Писать можно, когда оба нажмёте 👋'}
       </span>
     </div>
   );
 };
 
 /**
- * Всплывающее окно «Это мэтч!»
+ * Всплывающее окно «Вы на связи!» — оба нажали 👋
  */
 export const MatchModal: React.FC<{
   user: UserProfile;
@@ -139,17 +189,17 @@ export const MatchModal: React.FC<{
   <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
     <div onClick={onClose} className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
     <div className="relative w-full max-w-[340px] bg-zine-cardElevated rounded-zine border-2 border-zine-terracotta p-5 shadow-zine-float text-center animate-in fade-in zoom-in-95 duration-200">
-      <div className="text-3xl mb-1">🎉</div>
-      <h2 className="font-serif font-bold text-xl text-zine-ink mb-1">Это мэтч!</h2>
+      <div className="text-3xl mb-1">🤝</div>
+      <h2 className="font-serif font-bold text-xl text-zine-ink mb-1">Вы на связи!</h2>
       <p className="text-xs text-zine-inkMuted mb-4">
-        Вы и {user.firstName} понравились друг другу. Теперь можно написать в Telegram.
+        Вы и {user.firstName} оба хотите пообщаться. Теперь можно написать в Telegram.
       </p>
 
       <div className="flex justify-center items-center mb-5">
         {myAvatarUrl && (
           <img src={myAvatarUrl} alt="Ты" className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-md -rotate-6" />
         )}
-        <span className="text-xl -mx-2 z-10">❤️</span>
+        <span className="text-xl -mx-2 z-10">👋</span>
         <img src={user.avatarUrl} alt={user.firstName} className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-md rotate-6" />
       </div>
 
