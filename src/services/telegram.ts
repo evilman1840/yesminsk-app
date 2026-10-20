@@ -14,14 +14,30 @@ const tg = () => {
 // Цвет фона приложения для светлой и тёмной темы (совпадает с --c-paper в index.css)
 const PAPER = { light: '#FAF7F2', dark: '#1C1917' };
 
+// Тема, которую человек выбрал сам кнопкой ☀️/🌙 (иначе — как в Telegram)
+const THEME_KEY = 'yesminsk_theme';
+type ThemeMode = 'light' | 'dark';
+
+const getSavedTheme = (): ThemeMode | null => {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return v === 'light' || v === 'dark' ? v : null;
+  } catch {
+    return null;
+  }
+};
+
 /**
- * Светлая или тёмная тема: берём из Telegram, а в обычном браузере — из настроек системы
+ * Светлая или тёмная тема: выбор человека → тема Telegram → настройки системы (в обычном браузере)
  */
 const applyTheme = () => {
   const webapp = tg();
   // Скрипт Telegram загружен и в обычном браузере, но реальная тема есть только внутри Telegram
   const insideTelegram = Boolean(webapp?.initData);
-  const isDark = insideTelegram
+  const saved = getSavedTheme();
+  const isDark = saved
+    ? saved === 'dark'
+    : insideTelegram
     ? webapp!.colorScheme === 'dark'
     : window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
@@ -76,6 +92,25 @@ export const telegramService = {
       username: 'minsk_stroller',
       photo_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
     };
+  },
+
+  // Применить тему сразу при запуске, до отрисовки экранов
+  applyTheme() {
+    applyTheme();
+  },
+
+  isDarkTheme(): boolean {
+    return document.documentElement.classList.contains('dark');
+  },
+
+  // Переключение темы кнопкой ☀️/🌙 — выбор запоминается
+  setTheme(mode: ThemeMode) {
+    try {
+      localStorage.setItem(THEME_KEY, mode);
+    } catch {
+      // без сохранения тема просто вернётся к телеграмной при следующем запуске
+    }
+    applyTheme();
   },
 
   getInitData(): string {

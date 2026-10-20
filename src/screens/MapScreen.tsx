@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Clock, MapPin, Pencil, Users, Eye, EyeOff, Send } from 'lucide-react';
+import { Check, Clock, MapPin, Pencil, Users, Eye, EyeOff, Send, Sun, Moon } from 'lucide-react';
 import { GOALS_CONFIG, ActivityGoal, UserProfile, AppEvent, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
@@ -31,6 +31,18 @@ export interface MapScreenProps {
   onUpdateLocation?: (coords: [number, number]) => void;
 }
 
+// Подсказки для новичков: коротко — в бегущей строке, подробно — в шторке «Как это работает»
+const TIPS_LINE =
+  '👋 Впервые здесь? Нажми, чтобы узнать, как всё устроено  ·  Нажми на фото на карте — откроется анкета  ·  «Пообщаться» — передай привет  ·  «Сходки» — найди компанию или собери свою  ·  Заполни анкету во вкладке «Я»';
+
+const HELP_STEPS = [
+  { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото — откроется анкета.' },
+  { emoji: '👋', title: '«Пообщаться»', text: 'Передай человеку привет. Если он ответит тем же, вы сможете написать друг другу в Telegram.' },
+  { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию — это займёт минуту.' },
+  { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе — так тебя быстрее заметят.' },
+  { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 300–500 м. Можно включить режим невидимки.' }
+];
+
 export const formatEventDate = (isoString: string) => {
   try {
     const d = new Date(isoString);
@@ -56,6 +68,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 }) => {
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
   const [isMySheetOpen, setIsMySheetOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => telegramService.isDarkTheme());
 
   const filteredUsers = selectedGoal === 'all' ? users : users.filter((u) => u.goal === selectedGoal);
   const isVisible = currentUser?.isProfileActive !== false;
@@ -87,24 +101,87 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
       {/* Шапка поверх карты: логотип и фильтры */}
       <div className="absolute top-0 inset-x-0 z-20 pt-3 space-y-3 pointer-events-none">
-        <div className="px-4 flex items-center justify-between">
-          <div className="pointer-events-auto px-4 h-12 flex items-center rounded-full bg-zine-cardElevated shadow-zine">
+        <div className="px-4 flex items-center gap-2">
+          <div className="pointer-events-auto shrink-0 px-4 h-12 flex items-center rounded-full bg-zine-cardElevated shadow-zine">
             <Logo />
           </div>
-          {!isVisible && (
+
+          {isVisible ? (
+            // Бегущая строка с подсказками; по нажатию — инструкция целиком
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                setIsHelpOpen(true);
+              }}
+              aria-label="Как это работает"
+              className="pointer-events-auto flex-1 min-w-0 h-12 rounded-full bg-zine-cardElevated shadow-zine overflow-hidden flex items-center cursor-pointer"
+            >
+              <span className="marquee-track text-sm2 font-semibold text-zine-ink">
+                <span className="px-4">{TIPS_LINE}</span>
+                <span className="px-4" aria-hidden="true">{TIPS_LINE}</span>
+              </span>
+            </button>
+          ) : (
             <button
               onClick={onOpenProfile}
-              className="pointer-events-auto h-12 px-4 rounded-full bg-zine-plum text-white text-sm2 font-bold flex items-center gap-2 shadow-zine cursor-pointer"
+              className="pointer-events-auto flex-1 min-w-0 h-12 px-4 rounded-full bg-zine-plum text-white text-sm2 font-bold flex items-center justify-center gap-2 shadow-zine cursor-pointer"
             >
-              <EyeOff size={18} />
-              <span>Ты скрыт</span>
+              <EyeOff size={18} className="shrink-0" />
+              <span className="truncate">Ты скрыт</span>
             </button>
           )}
+
+          <button
+            onClick={() => {
+              telegramService.haptic('selection');
+              const next = isDark ? 'light' : 'dark';
+              telegramService.setTheme(next);
+              setIsDark(next === 'dark');
+            }}
+            aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
+            className="pointer-events-auto shrink-0 w-12 h-12 rounded-full bg-zine-cardElevated shadow-zine text-zine-ink flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+          >
+            {isDark ? <Sun size={24} /> : <Moon size={22} />}
+          </button>
         </div>
         <div className="pointer-events-auto">
           <GoalChips value={selectedGoal} onChange={onSelectGoal} floating />
         </div>
       </div>
+
+      {/* Как это работает — для тех, кто здесь впервые */}
+      {isHelpOpen && (
+        <BottomSheet title="Как это работает" onClose={() => setIsHelpOpen(false)}>
+          <div className="space-y-4">
+            {HELP_STEPS.map((step) => (
+              <div key={step.title} className="flex gap-3.5">
+                <span className="w-12 h-12 shrink-0 rounded-zine-sm bg-zine-card flex items-center justify-center text-[24px]">{step.emoji}</span>
+                <div>
+                  <p className="text-body font-bold text-zine-ink">{step.title}</p>
+                  <p className="text-sm2 text-zine-inkMuted mt-0.5">{step.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setIsHelpOpen(false)}
+              className="h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
+            >
+              Понятно
+            </button>
+            <button
+              onClick={() => {
+                setIsHelpOpen(false);
+                onOpenProfile();
+              }}
+              className="h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer"
+            >
+              Моя анкета
+            </button>
+          </div>
+        </BottomSheet>
+      )}
 
       {/* Моя анкета на карте */}
       {isMySheetOpen && currentUser && (
