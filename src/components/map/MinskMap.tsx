@@ -1,7 +1,8 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 import { LocateFixed } from 'lucide-react';
-import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, isAvailableNow } from '../../types';
+import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, isAvailableNow, PlaceItem, PLACE_MOODS } from '../../types';
+import { serverUrl } from '../../services/api';
 import { telegramService } from '../../services/telegram';
 
 export interface MinskMapProps {
@@ -24,6 +25,8 @@ export interface MinskMapProps {
   onSelectCurrentUser?: () => void;
   onSelectEvent?: (event: AppEvent) => void;
   onToggleJoinEvent?: (event: AppEvent) => void;
+  places?: PlaceItem[];
+  onSelectPlace?: (place: PlaceItem) => void;
   onUpdateLocation?: (coords: [number, number]) => void;
   onUpdateUserCoordinates?: (coords: [number, number]) => void;
   userLocation?: [number, number];
@@ -122,6 +125,12 @@ const formatMarkerDate = (iso: string) => {
   }
 };
 
+// Заглушка для места без фото: бежевый квадрат с эмодзи
+const placePlaceholder = (emoji: string) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#F4EFEA"/><text x="32" y="44" font-size="30" text-anchor="middle">${emoji}</text></svg>`
+  )}`;
+
 const MinskMapContent: React.FC<{
   users: (UserProfile & { displayCoords: [number, number] })[];
   events: AppEvent[];
@@ -132,9 +141,13 @@ const MinskMapContent: React.FC<{
   onSelectEvent?: (event: AppEvent) => void;
   mapInstance: any;
   currentUserCoords: [number, number] | null;
+  places: PlaceItem[];
+  onSelectPlace?: (place: PlaceItem) => void;
 }> = ({
   users,
   events,
+  places,
+  onSelectPlace,
   currentUser,
   selectedUser,
   onSelectUser,
@@ -196,6 +209,20 @@ const MinskMapContent: React.FC<{
           </div>
         </div>
         <div style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 10px solid $[properties.accent]; margin: -1px 0 0 20px; pointer-events: none;"></div>
+      </div>`
+    );
+  }, [ymaps]);
+
+  // 3б. Макет МЕСТА: фото в скруглённом квадрате и эмодзи настроения
+  const placeLayout = useMemo(() => {
+    if (!ymaps) return null;
+    return (ymaps as any).templateLayoutFactory.createClass(
+      `<div style="position: relative; width: 58px; height: 66px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
+        <div style="width: 58px; height: 58px; border-radius: 16px; padding: 3px; background: #FFFDF9; box-shadow: 0 6px 16px rgba(43, 38, 35, 0.3); box-sizing: border-box; border: 2.5px solid #5B7B68;">
+          <img src="$[properties.photo]" alt="" style="width: 100%; height: 100%; border-radius: 11px; object-fit: cover; display: block; pointer-events: none; background: #E8DFD5;" />
+          <span style="position: absolute; top: -6px; right: -6px; width: 26px; height: 26px; border-radius: 50%; background: #FFFDF9; border: 2px solid #5B7B68; display: flex; align-items: center; justify-content: center; font-size: 14px; pointer-events: none;">$[properties.emoji]</span>
+        </div>
+        <div style="width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 8px solid #5B7B68; margin: -1px auto 0 auto; pointer-events: none;"></div>
       </div>`
     );
   }, [ymaps]);
@@ -361,6 +388,33 @@ const MinskMapContent: React.FC<{
         })}
       </Clusterer>
 
+      {/* Места по вайбу */}
+      {placeLayout &&
+        places.map((place) => (
+          <Placemark
+            key={`place-${place.id}`}
+            geometry={place.coordinates}
+            properties={{
+              photo: place.photos[0] ? serverUrl(place.photos[0]) : placePlaceholder(PLACE_MOODS[place.moods[0]]?.emoji || '📍'),
+              emoji: PLACE_MOODS[place.moods[0]]?.emoji || '📍'
+            }}
+            options={{
+              iconLayout: placeLayout,
+              iconOffset: [-29, -66],
+              iconShape: { type: 'Rectangle', coordinates: [[0, 0], [58, 66]] } as any,
+              interactivityModel: 'default#opaque',
+              cursor: 'pointer',
+              zIndex: 900,
+              hasBalloon: false
+            } as any}
+            onClick={() => {
+              telegramService.haptic('selection');
+              onSelectPlace?.(place);
+              if (mapInstance) mapInstance.panTo(place.coordinates, { flying: true, duration: 400 });
+            }}
+          />
+        ))}
+
       {/* 3. Маркеры событий (Сходок) */}
       {eventsWithSeparatedCoords.map((ev: AppEvent & { separatedCoords: [number, number] }) => {
         const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️', label: 'Сходка' };
@@ -416,7 +470,9 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   onUpdateLocation,
   onUpdateUserCoordinates,
   userLocation,
-  applyFuzzyOffset = false
+  applyFuzzyOffset = false,
+  places = [],
+  onSelectPlace
 }) => {
   const mapRef = useRef<any>(null);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
@@ -535,6 +591,8 @@ export const MinskMap: React.FC<MinskMapProps> = ({
           onSelectCurrentUser={onSelectCurrentUser}
           onSelectEvent={handleEventClick}
           mapInstance={mapRef.current}
+          places={places}
+          onSelectPlace={onSelectPlace}
         />
       </Map>
 

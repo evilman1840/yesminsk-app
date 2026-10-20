@@ -113,3 +113,50 @@ export interface AppEvent {
     avatarUrl: string;
   }>;
 }
+
+/* ---------- Места по вайбу ---------- */
+
+// Настроения — те же, что рубрики блога yesminsk.com
+export type PlaceMood = 'tosku' | 'escape' | 'wow' | 'love' | 'party' | 'solo' | 'food';
+
+export const PLACE_MOODS: Record<PlaceMood, { label: string; emoji: string; blog: string }> = {
+  tosku: { label: 'Разогнать тоску', emoji: '🌤', blog: 'https://yesminsk.com/razognat-tosku-minsk/' },
+  escape: { label: 'Сбежать от всех', emoji: '🤫', blog: 'https://yesminsk.com/sbezhat-ot-vseh-minsk/' },
+  wow: { label: 'Поймать восторг', emoji: '🤩', blog: 'https://yesminsk.com/poymat-vostorg-minsk/' },
+  love: { label: 'Влюбиться в Минск', emoji: '💛', blog: 'https://yesminsk.com/vlyubitsya-v-minsk/' },
+  party: { label: 'Оторваться компанией', emoji: '🎉', blog: 'https://yesminsk.com/otorvatsya-kompaniey-minsk/' },
+  solo: { label: 'Еду соло', emoji: '🎒', blog: 'https://yesminsk.com/edu-solo-minsk/' },
+  food: { label: 'Накормить душу', emoji: '🥞', blog: 'https://yesminsk.com/nakormit-dushu-minsk/' }
+};
+
+export const PLACE_PRICES: Record<'free' | 'cheap' | 'mid', string> = {
+  free: '💸 Бесплатно',
+  cheap: '💸 Недорого',
+  mid: '💸💸 Средне'
+};
+
+export interface PlaceItem {
+  id: string;
+  name: string;
+  description: string;
+  moods: PlaceMood[];
+  photos: string[]; // пути на сервере: /api/places/photo/…
+  address: string;
+  coordinates: [number, number]; // [lat, lng]
+  mishaTip: string;
+  blogUrl: string;
+  price: 'free' | 'cheap' | 'mid' | null;
+  rainOk: boolean;
+  evening: boolean;
+  oneDay: boolean;
+  tipsCount: number;
+}
+
+export interface PlaceTipItem {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  text: string;
+  createdAt: string;
+  isMine: boolean;
+}

@@ -1,5 +1,5 @@
 import { telegramService } from './telegram';
-import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender } from '../types';
+import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem } from '../types';
 
 /**
  * Нормализация базового URL бэкенда.
@@ -183,6 +183,23 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ targetTelegramId, type })
     });
+  }
+
+  // Места по вайбу и советы людей к ним
+  async getPlaces(): Promise<PlaceItem[]> {
+    return this.request('/places');
+  }
+
+  async getPlaceTips(placeId: string): Promise<PlaceTipItem[]> {
+    return this.request(`/places/${placeId}/tips`);
+  }
+
+  async addPlaceTip(placeId: string, text: string): Promise<{ success: boolean; tip: PlaceTipItem }> {
+    return this.request(`/places/${placeId}/tips`, { method: 'POST', body: JSON.stringify({ text }) });
+  }
+
+  async deletePlaceTip(tipId: string): Promise<{ success: boolean }> {
+    return this.request(`/places/tips/${tipId}/delete`, { method: 'POST' });
   }
 
   // Жалоба на анкету или сходку — уходит модератору

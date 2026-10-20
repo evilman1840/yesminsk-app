@@ -17,7 +17,7 @@ import { DonateSheet } from './components/common/DonateSheet';
 import { NewsScreen } from './screens/NewsScreen';
 import { FirstStepsCard } from './components/people/FirstSteps';
 import { NewsItem } from './services/api';
-import { UserProfile, ActivityGoal, GoalFilter, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
+import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
 // Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
@@ -104,6 +104,20 @@ export const App: React.FC = () => {
     }
   });
   const [isDonateOpen, setIsDonateOpen] = useState(false);
+
+  // Места по вайбу
+  const [places, setPlaces] = useState<PlaceItem[]>([]);
+  const [mapMode, setMapMode] = useState<'people' | 'places'>('people');
+  const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
+  const [pendingEventPlace, setPendingEventPlace] = useState<{ name: string; coordinates: [number, number]; category: EventCategory } | null>(null);
+
+  const fetchPlaces = useCallback(async () => {
+    try {
+      setPlaces(await api.getPlaces());
+    } catch (err) {
+      console.warn('Ошибка загрузки мест:', err);
+    }
+  }, []);
   const unreadNews = news.filter(n => new Date(n.createdAt).getTime() > newsSeenAt).length;
 
   const fetchNews = useCallback(async () => {
@@ -246,12 +260,16 @@ export const App: React.FC = () => {
         console.warn('Профиль me не получен (новый пользователь):', err);
       }
 
-      const [, loadedEvents] = await Promise.all([fetchNearbyUsers(), fetchEvents(), fetchInbox(true), fetchNews()]);
+      const [, loadedEvents] = await Promise.all([fetchNearbyUsers(), fetchEvents(), fetchInbox(true), fetchNews(), fetchPlaces()]);
 
       // Открыли по ссылке на сходку или из уведомления бота
       const target = telegramService.getLaunchTarget();
       if (target.tab === 'events') {
         setCurrentScreen(prev => (prev === 'main' ? 'events' : prev));
+      }
+      if (target.tab === 'places' || target.placeId) {
+        setMapMode('places');
+        if (target.placeId) setInitialPlaceId(target.placeId);
       }
       if (target.eventId) {
         const found = loadedEvents.find(e => String(e.id) === target.eventId);
@@ -567,6 +585,18 @@ export const App: React.FC = () => {
                 onSetAvailable={handleSetAvailable}
                 onOpenNews={() => handleNavigate('news')}
                 fewPeople={isUsersLoaded && !apiError && users.length < 3}
+                places={places}
+                mapMode={mapMode}
+                onChangeMapMode={setMapMode}
+                initialPlaceId={initialPlaceId}
+                onCreateEventAtPlace={(p) => {
+                  setPendingEventPlace({
+                    name: p.address ? `${p.name}, ${p.address}` : p.name,
+                    coordinates: p.coordinates,
+                    category: p.moods.includes('food') || p.moods.includes('party') ? 'cafe_bar' : 'walk'
+                  });
+                  handleNavigate('events');
+                }}
               />
             )}
 
@@ -598,6 +628,8 @@ export const App: React.FC = () => {
                 onDeleteEvent={handleDeleteEvent}
                 onToggleJoin={handleToggleJoinEvent}
                 onRefreshEvents={fetchEvents}
+                initialPlace={pendingEventPlace}
+                onInitialPlaceUsed={() => setPendingEventPlace(null)}
               />
             )}
           </div>

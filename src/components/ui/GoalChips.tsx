@@ -9,7 +9,8 @@ export const GoalChips: React.FC<{
   value: GoalFilter;
   onChange: (goal: GoalFilter) => void;
   floating?: boolean; // поверх карты — с тенью и плотным фоном
-}> = ({ value, onChange, floating = false }) => {
+  wrapperClassName?: string;
+}> = ({ value, onChange, floating = false, wrapperClassName = 'flex gap-2 overflow-x-auto no-scrollbar px-4' }) => {
   const items: { id: GoalFilter; label: string; emoji?: string }[] = [
     { id: 'all', label: 'Все' },
     ...(Object.keys(GOALS_CONFIG) as ActivityGoal[]).map((id) => ({
@@ -21,7 +22,7 @@ export const GoalChips: React.FC<{
   ];
 
   return (
-    <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
+    <div className={wrapperClassName}>
       {items.map((item) => {
         const isActive = value === item.id;
         return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, Search, Share2 } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
@@ -141,6 +141,9 @@ export interface EventsScreenProps {
   onDeleteEvent?: (eventId: string) => Promise<any> | void;
   onToggleJoin?: (event: AppEvent) => Promise<boolean> | void;
   onRefreshEvents?: () => void;
+  // «Сходка сюда» из карточки места: открыть форму с уже заполненным местом
+  initialPlace?: { name: string; coordinates: [number, number]; category: EventCategory } | null;
+  onInitialPlaceUsed?: () => void;
 }
 
 export const EventsScreen: React.FC<EventsScreenProps> = ({
@@ -150,7 +153,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   onUpdateEvent,
   onDeleteEvent,
   onToggleJoin,
-  onRefreshEvents
+  onRefreshEvents,
+  initialPlace,
+  onInitialPlaceUsed
 }) => {
   const currentTgUser = telegramService.getUser();
   const currentUserId = propUserId || currentTgUser?.id;
@@ -181,16 +186,16 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     ? events
     : events.filter((e) => e.category === selectedCategory);
 
-  const handleOpenCreateModal = (presetCategory?: EventCategory) => {
+  const handleOpenCreateModal = (presetCategory?: EventCategory, place?: { name: string; coordinates: [number, number] }) => {
     telegramService.haptic('selection');
     setEditingEventId(null);
     setTitle('');
     setDescription('');
     const startCategory = presetCategory || 'walk';
     setCategory(startCategory);
-    setLocationName('');
-    setCustomCoords(null);
-    setPlaceLabel(null);
+    setLocationName(place?.name || '');
+    setCustomCoords(place?.coordinates || null);
+    setPlaceLabel(place?.name || null);
     setPlaceNotFound(false);
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
     tomorrow.setMinutes(0, 0, 0);
@@ -199,6 +204,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setFormError(null);
     setIsModalOpen(true);
   };
+
+  // Пришли из карточки места — сразу открываем форму с этим местом
+  useEffect(() => {
+    if (!initialPlace) return;
+    handleOpenCreateModal(initialPlace.category, initialPlace);
+    onInitialPlaceUsed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPlace]);
 
   const handleOpenEditModal = (ev: AppEvent) => {
     telegramService.haptic('selection');

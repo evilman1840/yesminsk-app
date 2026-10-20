@@ -179,11 +179,11 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; tab?: string } {
+  getLaunchTarget(): { eventId?: string; tab?: string; placeId?: string } {
     const params = new URLSearchParams(window.location.search);
     const startParam: string = (tg()?.initDataUnsafe as any)?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
-    return { eventId, tab: params.get('tab') || undefined };
+    return { eventId, tab: params.get('tab') || undefined, placeId: params.get('place') || undefined };
   },
 
   /**
