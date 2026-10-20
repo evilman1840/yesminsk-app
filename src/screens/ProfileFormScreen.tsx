@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender } from '../types';
 import { telegramService } from '../services/telegram';
+import { compressImage } from '../utils/compressImage';
 
 interface ProfileFormScreenProps {
   initialData?: {
@@ -161,35 +162,32 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ''; // чтобы можно было выбрать то же фото ещё раз
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setErrorText('Пожалуйста, выбери файл изображения (JPG, PNG)');
+      setErrorText('Выбери файл с фотографией (JPG или PNG)');
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorText('Размер изображения не должен превышать 5 МБ');
+    if (file.size > 25 * 1024 * 1024) {
+      setErrorText('Фото слишком большое — выбери другое (до 25 МБ)');
       return;
     }
 
     setIsUploading(true);
     setErrorText(null);
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setAvatarUrl(base64);
-      setIsUploading(false);
+    try {
+      // Сжимаем фото, чтобы анкета быстро грузилась и не переполняла базу
+      setAvatarUrl(await compressImage(file));
       telegramService.haptic('success');
-    };
-    reader.onerror = () => {
+    } catch {
+      setErrorText('Не получилось обработать фото. Попробуй другое');
+    } finally {
       setIsUploading(false);
-      setErrorText('Ошибка при чтении файла');
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleApplyCustomUrl = () => {
