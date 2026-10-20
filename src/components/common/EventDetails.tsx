@@ -1,14 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, Clock, MapPin, Users, Send, Share2 } from 'lucide-react';
 import { AppEvent, EVENT_CATEGORIES_CONFIG } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
+import { ReportSheet } from './ReportSheet';
 
 /**
  * Подробности сходки: когда, где, сколько идёт, кнопки «Пойду!», «Позвать друзей» и «Организатору»
  */
-export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void }> = ({ event, onToggleJoin }) => {
+export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void; onReported?: () => void }> = ({
+  event,
+  onToggleJoin,
+  onReported
+}) => {
   const cat = EVENT_CATEGORIES_CONFIG[event.category];
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
   const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;
 
   return (
@@ -88,6 +95,21 @@ export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void 
           )}
         </div>
       </div>
+
+      {!isCreator && (
+        <button onClick={() => setIsReportOpen(true)} className="w-full h-11 text-sm2 font-semibold text-zine-danger cursor-pointer">
+          ⚠️ Пожаловаться на сходку
+        </button>
+      )}
+      {isReportOpen && (
+        <ReportSheet
+          targetType="event"
+          targetId={event.id}
+          targetName={event.title}
+          onClose={() => setIsReportOpen(false)}
+          onReported={() => onReported?.()}
+        />
+      )}
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { formatEventDate } from './MapScreen';
+import { ReportSheet } from '../components/common/ReportSheet';
 
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
   { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'ул. ленина 5', 'ленина'], coords: [53.8998, 27.5585] },
@@ -159,6 +160,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reportEvent, setReportEvent] = useState<AppEvent | null>(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -510,11 +512,26 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   </button>
                 </div>
                 {ev.isJoined && !isCreator && <p className="mt-2 text-cap text-zine-inkMuted text-center">Планы изменились? Нажми «Я иду» ещё раз</p>}
+                {!isCreator && (
+                  <button onClick={() => setReportEvent(ev)} className="mt-1 w-full h-10 text-cap font-semibold text-zine-inkMuted cursor-pointer">
+                    ⚠️ Пожаловаться
+                  </button>
+                )}
               </article>
             );
           })
         )}
       </main>
+
+      {reportEvent && (
+        <ReportSheet
+          targetType="event"
+          targetId={reportEvent.id}
+          targetName={reportEvent.title}
+          onClose={() => setReportEvent(null)}
+          onReported={() => setReportEvent(null)}
+        />
+      )}
 
       {/* Создание / редактирование сходки */}
       {isModalOpen && (

@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { UserProfile, GOALS_CONFIG, isAvailableNow, formatTime } from '../../types';
 import { ReactionButtons, ChatButton, ReactionType } from './Reactions';
 import { BottomSheet } from '../ui/BottomSheet';
+import { ReportSheet, SafetyTipsSheet } from './ReportSheet';
 
 interface UserBottomSheetProps {
   user: UserProfile;
   onClose: () => void;
   onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
+  onReported: (user: UserProfile) => void;
 }
 
 export const formatDistance = (meters?: number) => {
@@ -18,7 +20,10 @@ export const formatDistance = (meters?: number) => {
 /**
  * Анкета человека во всплывающей шторке (с карты и из ленты)
  */
-export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose, onReact }) => {
+export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose, onReact, onReported }) => {
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isTipsOpen, setIsTipsOpen] = useState(false);
+
   const goal = GOALS_CONFIG[user.goal] || GOALS_CONFIG.walk;
   const distance = formatDistance(user.distanceMeters);
 
@@ -64,6 +69,27 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
       <div className="mt-5">
         {user.isMatch ? <ChatButton user={user} className="w-full" /> : <ReactionButtons user={user} onReact={onReact} />}
       </div>
+
+      {/* Безопасность */}
+      <div className="mt-4 pt-3 border-t border-zine-border flex items-center justify-between gap-2">
+        <button onClick={() => setIsTipsOpen(true)} className="h-11 px-1 text-sm2 font-semibold text-zine-inkMuted cursor-pointer">
+          🛡 Советы для встречи
+        </button>
+        <button onClick={() => setIsReportOpen(true)} className="h-11 px-1 text-sm2 font-semibold text-zine-danger cursor-pointer">
+          ⚠️ Пожаловаться
+        </button>
+      </div>
+
+      {isTipsOpen && <SafetyTipsSheet onClose={() => setIsTipsOpen(false)} />}
+      {isReportOpen && (
+        <ReportSheet
+          targetType="user"
+          targetId={user.telegramId}
+          targetName={user.firstName}
+          onClose={() => setIsReportOpen(false)}
+          onReported={() => onReported(user)}
+        />
+      )}
     </BottomSheet>
   );
 };

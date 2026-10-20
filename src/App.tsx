@@ -48,7 +48,7 @@ const getSavedCoordinates = (): [number, number] => {
 
 export const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<
-    'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'news' | 'profile_edit'
+    'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'news' | 'profile_edit' | 'banned'
   >('main');
 
   const tgUser = telegramService.getUser();
@@ -224,6 +224,10 @@ export const App: React.FC = () => {
             coordinates: userCoords
           }));
 
+          if (me.isBanned) {
+            setCurrentScreen('banned');
+            return;
+          }
           if (me.hasAgreedToRules === false) {
             setCurrentScreen('onboarding');
           }
@@ -309,6 +313,15 @@ export const App: React.FC = () => {
     // После первой анкеты — на карту; при редактировании остаёмся в профиле
     setCurrentScreen(prev => (prev === 'profile_create' ? 'main' : prev));
     await fetchNearbyUsers();
+  };
+
+  // Пожаловались на человека — убираем его отовсюду у того, кто пожаловался
+  const handleUserReported = (user: UserProfile) => {
+    const id = user.telegramId;
+    setUsers(prev => prev.filter(u => u.telegramId !== id));
+    setLikedMe(prev => prev.filter(u => u.telegramId !== id));
+    setMatches(prev => prev.filter(u => u.telegramId !== id));
+    setSelectedUser(null);
   };
 
   // 👋 Пообщаться / 🙈 Скрыть
@@ -490,6 +503,16 @@ export const App: React.FC = () => {
           <div className="flex-1 min-h-0 relative">
             {currentScreen === 'onboarding' && <OnboardingScreen onAgree={handleAgreeRules} />}
 
+            {currentScreen === 'banned' && (
+              <div className="h-full flex flex-col items-center justify-center text-center px-8 bg-zine-paper">
+                <div className="text-[56px] mb-4">🚫</div>
+                <h1 className="font-serif font-bold text-display text-zine-ink">Аккаунт заблокирован</h1>
+                <p className="mt-3 text-body text-zine-inkMuted">
+                  Мы заблокировали аккаунт за нарушение правил ДА! МИНСК. Если считаешь, что это ошибка, напиши боту @yesminsk_app_bot.
+                </p>
+              </div>
+            )}
+
             {currentScreen === 'profile_create' && (
               <ProfileFormScreen isFirstTime={true} initialData={currentUser} onSave={handleSaveProfile} />
             )}
@@ -555,7 +578,12 @@ export const App: React.FC = () => {
           )}
 
           {selectedUser && (currentScreen === 'feed' || currentScreen === 'main') && (
-            <UserBottomSheet user={selectedUser} onClose={() => setSelectedUser(null)} onReact={handleReact} />
+            <UserBottomSheet
+              user={selectedUser}
+              onClose={() => setSelectedUser(null)}
+              onReact={handleReact}
+              onReported={handleUserReported}
+            />
           )}
 
           {sharedEvent && isTab && !matchPopupUser && (

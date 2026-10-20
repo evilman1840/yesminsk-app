@@ -185,6 +185,14 @@ class ApiService {
     });
   }
 
+  // Жалоба на анкету или сходку — уходит модератору
+  async report(targetType: 'user' | 'event', targetId: string | number, reason: string, comment: string) {
+    return this.request<{ success: boolean }>('/reports', {
+      method: 'POST',
+      body: JSON.stringify({ targetType, targetId, reason, comment })
+    });
+  }
+
   // Новости проекта (автор пишет их боту командой /news)
   async getNews(): Promise<NewsItem[]> {
     return this.request('/news');
