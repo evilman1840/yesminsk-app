@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pencil, Eye, EyeOff, Sun, Moon, Loader2, X, Layers, Users, CalendarDays, MapPin, Info } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
@@ -36,6 +36,7 @@ export interface MapScreenProps {
   onUpdateLocation?: (coords: [number, number]) => void;
   onSetAvailable: (hours: number) => Promise<void>;
   onOpenNews: () => void;
+  unreadNews?: number;
   fewPeople?: boolean; // рядом меньше 3 человек — предлагаем позвать друзей
   places: PlaceItem[];
   mapMode: MapMode;
@@ -120,6 +121,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onUpdateLocation,
   onSetAvailable,
   onOpenNews,
+  unreadNews = 0,
   fewPeople = false,
   places,
   mapMode,
@@ -180,7 +182,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       setIsSavingAvailability(false);
     }
   };
-  const [isDark, setIsDark] = useState(() => telegramService.isDarkTheme());
 
   const filteredUsers = users.filter((u) => matchesGoalFilter(u, selectedGoal));
   const isVisible = currentUser?.isProfileActive !== false;
@@ -384,18 +385,21 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         </div>
       )}
 
-      {/* Светлая / тёмная тема — небольшая кнопка у края карты, под фильтрами */}
+      {/* Новости проекта — иконка у края карты, со счётчиком новых */}
       <button
         onClick={() => {
           telegramService.haptic('selection');
-          const next = isDark ? 'light' : 'dark';
-          telegramService.setTheme(next);
-          setIsDark(next === 'dark');
+          onOpenNews();
         }}
-        aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
-        className={`absolute right-4 ${overlayTop} z-20 w-11 h-11 rounded-full bg-zine-cardElevated shadow-zine text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer`}
+        aria-label="Новости проекта"
+        className={`absolute right-4 ${overlayTop} z-20 w-12 h-12 rounded-full bg-zine-cardElevated shadow-zine text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer`}
       >
-        {isDark ? <Sun size={20} /> : <Moon size={18} />}
+        <Newspaper size={22} />
+        {unreadNews > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1.5 rounded-full bg-zine-terracotta text-white text-cap font-bold flex items-center justify-center border-2 border-zine-cardElevated">
+            {unreadNews}
+          </span>
+        )}
       </button>
 
       {/* Донат — заметная кнопка над «Где я?» */}

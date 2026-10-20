@@ -29,13 +29,14 @@ const PAPER = { light: '#FAF7F2', dark: '#1C1917' };
 const THEME_KEY = 'yesminsk_theme';
 type ThemeMode = 'light' | 'dark';
 
+// Переключателя темы больше нет — тема как в Telegram. Старый ручной выбор стираем
 const getSavedTheme = (): ThemeMode | null => {
   try {
-    const v = localStorage.getItem(THEME_KEY);
-    return v === 'light' || v === 'dark' ? v : null;
+    localStorage.removeItem(THEME_KEY);
   } catch {
-    return null;
+    // не страшно
   }
+  return null;
 };
 
 /**

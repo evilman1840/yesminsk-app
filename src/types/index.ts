@@ -138,6 +138,7 @@ export const PLACE_PRICES: Record<'free' | 'cheap' | 'mid', string> = {
 export interface PlaceItem {
   id: string;
   name: string;
+  category: string; // достопримечательность, кафе, парк…
   description: string;
   moods: PlaceMood[];
   photos: string[]; // пути на сервере: /api/places/photo/…

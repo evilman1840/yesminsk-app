@@ -86,7 +86,8 @@ export const PlaceSheet: React.FC<{
         </div>
       )}
 
-      {place.description && <p className="mt-4 text-lead text-zine-ink">{place.description}</p>}
+      {place.category && <p className="mt-4 text-cap font-bold uppercase tracking-wider text-zine-inkMuted">{place.category}</p>}
+      {place.description && <p className={`${place.category ? 'mt-1' : 'mt-4'} text-lead text-zine-ink`}>{place.description}</p>}
 
       {/* Настроения — ведут в рубрики блога */}
       <div className="mt-3 flex flex-wrap gap-2">

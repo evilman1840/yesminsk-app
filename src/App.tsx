@@ -15,6 +15,7 @@ import { BottomSheet } from './components/ui/BottomSheet';
 import { EventDetails } from './components/common/EventDetails';
 import { DonateSheet } from './components/common/DonateSheet';
 import { NewsScreen } from './screens/NewsScreen';
+import { PlacesScreen } from './screens/PlacesScreen';
 import { FirstStepsCard } from './components/people/FirstSteps';
 import { ShareSheet } from './components/common/ShareSheet';
 import type { MapMode } from './screens/MapScreen';
@@ -51,7 +52,7 @@ const getSavedCoordinates = (): [number, number] => {
 
 export const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<
-    'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'news' | 'profile_edit' | 'banned'
+    'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'places' | 'news' | 'profile_edit' | 'banned'
   >('main');
 
   const tgUser = telegramService.getUser();
@@ -303,9 +304,12 @@ export const App: React.FC = () => {
       if (target.tab === 'events') {
         setCurrentScreen(prev => (prev === 'main' ? 'events' : prev));
       }
-      if (target.tab === 'places' || target.placeId) {
+      if (target.tab === 'places') {
+        setCurrentScreen(prev => (prev === 'main' ? 'places' : prev));
+      }
+      if (target.placeId) {
         setMapModeState('places');
-        if (target.placeId) setInitialPlaceId(target.placeId);
+        setInitialPlaceId(target.placeId);
       }
       if (target.eventId) {
         const found = loadedEvents.find(e => String(e.id) === target.eventId);
@@ -525,7 +529,23 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  const isTab = ['main', 'feed', 'events', 'news', 'profile_edit'].includes(currentScreen);
+  const isTab = ['main', 'feed', 'events', 'places', 'news', 'profile_edit'].includes(currentScreen);
+
+  // Места: сохранить и «Сходка сюда» — общие для карты и вкладки «Места»
+  const toggleSavePlace = async (p: PlaceItem): Promise<PlaceItem> => {
+    const { saved } = await api.toggleSavePlace(p.id);
+    const updated = { ...p, isSaved: saved };
+    setPlaces(prev => prev.map(x => (x.id === p.id ? updated : x)));
+    return updated;
+  };
+  const createEventAtPlace = (p: PlaceItem) => {
+    setPendingEventPlace({
+      name: p.address && p.address !== p.name ? `${p.name}, ${p.address}` : p.name,
+      coordinates: p.coordinates,
+      category: p.moods.includes('food') || p.moods.includes('party') ? 'cafe_bar' : 'walk'
+    });
+    handleNavigate('events');
+  };
 
   // «Первые шаги» для новичков
   const firstSteps = [
@@ -625,21 +645,10 @@ export const App: React.FC = () => {
                 mapMode={mapMode}
                 onChangeMapMode={setMapMode}
                 onOpenEvents={() => handleNavigate('events')}
-                onToggleSavePlace={async (p) => {
-                  const { saved } = await api.toggleSavePlace(p.id);
-                  const updated = { ...p, isSaved: saved };
-                  setPlaces(prev => prev.map(x => (x.id === p.id ? updated : x)));
-                  return updated;
-                }}
+                onToggleSavePlace={toggleSavePlace}
+                unreadNews={unreadNews}
                 initialPlaceId={initialPlaceId}
-                onCreateEventAtPlace={(p) => {
-                  setPendingEventPlace({
-                    name: p.address ? `${p.name}, ${p.address}` : p.name,
-                    coordinates: p.coordinates,
-                    category: p.moods.includes('food') || p.moods.includes('party') ? 'cafe_bar' : 'walk'
-                  });
-                  handleNavigate('events');
-                }}
+                onCreateEventAtPlace={createEventAtPlace}
               />
             )}
 
@@ -658,8 +667,12 @@ export const App: React.FC = () => {
               />
             )}
 
+            {currentScreen === 'places' && (
+              <PlacesScreen places={places} onToggleSave={toggleSavePlace} onCreateEvent={createEventAtPlace} />
+            )}
+
             {currentScreen === 'news' && (
-              <NewsScreen news={news} isLoading={isNewsLoading} onOpenDonate={() => setIsDonateOpen(true)} />
+              <NewsScreen news={news} isLoading={isNewsLoading} onOpenDonate={() => setIsDonateOpen(true)} onBack={() => handleNavigate('main')} />
             )}
 
             {currentScreen === 'events' && (
