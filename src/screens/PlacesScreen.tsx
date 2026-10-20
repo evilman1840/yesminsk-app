@@ -153,12 +153,12 @@ const PlaceReel: React.FC<{
       <div className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white">
         {place.category && <p className="text-cap font-bold uppercase tracking-wider text-white/75">{place.category}</p>}
         <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight">{place.name}</h2>
-        <div className="mt-2 flex flex-wrap gap-1.5 pr-16">
+        <div className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar">
           {place.moods.map((m) => (
             <button
               key={m}
               onClick={() => onMood(m)}
-              className="h-8 px-3 rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold cursor-pointer"
+              className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold text-white cursor-pointer"
             >
               {PLACE_MOODS[m].emoji} {PLACE_MOODS[m].label}
             </button>
@@ -167,7 +167,7 @@ const PlaceReel: React.FC<{
         {place.description && <p className="mt-2 pr-16 text-body text-white/90 line-clamp-2">{place.description}</p>}
         <button
           onClick={onOpen}
-          className="mt-3 h-12 px-5 rounded-full bg-white text-zine-ink text-body font-bold cursor-pointer active:scale-[0.98] transition-transform"
+          className="mt-3 h-12 px-5 rounded-full bg-white text-[#2B2623] text-body font-bold cursor-pointer active:scale-[0.98] transition-transform"
         >
           Подробнее {place.tipsCount > 0 ? `· 💬 ${place.tipsCount}` : ''}
         </button>
