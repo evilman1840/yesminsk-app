@@ -6,6 +6,7 @@ import { MinskMap } from '../components/map/MinskMap';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
 import { Logo } from '../components/ui/Logo';
+import { EventDetails } from '../components/common/EventDetails';
 
 export interface MapScreenProps {
   users: UserProfile[];
@@ -228,76 +229,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           />
         </BottomSheet>
       )}
-    </div>
-  );
-};
-
-/**
- * Подробности сходки: когда, где, кто собирает и кнопка участия
- */
-const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void }> = ({ event, onToggleJoin }) => {
-  const cat = EVENT_CATEGORIES_CONFIG[event.category];
-
-  return (
-    <div className="space-y-3">
-      {cat && (
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold ${cat.badgeBg} ${cat.badgeText}`}>
-          <span>{cat.emoji}</span>
-          <span>{cat.label}</span>
-        </span>
-      )}
-
-      <div className="space-y-2 text-body text-zine-ink">
-        <p className="flex items-center gap-2.5">
-          <Clock size={20} className="text-zine-terracotta shrink-0" />
-          <span className="font-semibold">{formatEventDate(event.dateTime)}</span>
-        </p>
-        <p className="flex items-center gap-2.5">
-          <MapPin size={20} className="text-zine-terracotta shrink-0" />
-          <span>{event.locationName}</span>
-        </p>
-        <p className="flex items-center gap-2.5 text-zine-inkMuted">
-          <Users size={20} className="shrink-0" />
-          <span>Идут: {event.participantsCount || 1}</span>
-        </p>
-      </div>
-
-      {event.description && <p className="text-body text-zine-ink whitespace-pre-line">{event.description}</p>}
-
-      <div className="flex gap-2 pt-2">
-        <button
-          onClick={() => {
-            telegramService.haptic('medium');
-            onToggleJoin();
-          }}
-          className={`flex-1 h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-            event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : 'bg-zine-terracotta text-white'
-          }`}
-        >
-          {event.isJoined ? (
-            <>
-              <Check size={20} strokeWidth={3} />
-              <span>Я иду</span>
-            </>
-          ) : (
-            <span>Пойду!</span>
-          )}
-        </button>
-        {event.creator?.username && (
-          <button
-            onClick={() => {
-              telegramService.haptic('medium');
-              telegramService.openChat(event.creator.username);
-            }}
-            aria-label="Написать организатору"
-            className="h-12 px-4 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold flex items-center gap-2 cursor-pointer"
-          >
-            <Send size={20} />
-            <span>Организатору</span>
-          </button>
-        )}
-      </div>
-      {event.isJoined && <p className="text-cap text-zine-inkMuted text-center">Передумал? Нажми «Я иду» ещё раз, чтобы отменить</p>}
     </div>
   );
 };

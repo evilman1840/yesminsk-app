@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, Search } from 'lucide-react';
+import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, Search, Share2 } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
@@ -468,24 +468,37 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleToggleJoin(ev)}
-                  disabled={isJoining}
-                  className={`mt-4 w-full h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-                    ev.isJoined ? 'bg-zine-sage/15 text-zine-sage' : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
-                  }`}
-                >
-                  {isJoining ? (
-                    <Loader2 size={20} className="animate-spin" />
-                  ) : ev.isJoined ? (
-                    <>
-                      <Check size={20} strokeWidth={3} />
-                      <span>Я иду · нажми, чтобы отменить</span>
-                    </>
-                  ) : (
-                    <span>Пойду!</span>
-                  )}
-                </button>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => handleToggleJoin(ev)}
+                    disabled={isJoining}
+                    className={`flex-1 h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
+                      ev.isJoined ? 'bg-zine-sage/15 text-zine-sage' : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
+                    }`}
+                  >
+                    {isJoining ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : ev.isJoined ? (
+                      <>
+                        <Check size={20} strokeWidth={3} />
+                        <span>Я иду</span>
+                      </>
+                    ) : (
+                      <span>Пойду!</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      telegramService.shareEvent(ev);
+                    }}
+                    className="h-12 px-4 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+                  >
+                    <Share2 size={20} />
+                    <span>Позвать</span>
+                  </button>
+                </div>
+                {ev.isJoined && !isCreator && <p className="mt-2 text-cap text-zine-inkMuted text-center">Передумал? Нажми «Я иду» ещё раз</p>}
               </article>
             );
           })

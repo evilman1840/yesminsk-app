@@ -134,6 +134,37 @@ export const telegramService = {
     }
   },
 
+  /**
+   * «Позвать друзей»: открывает выбор чата в Telegram со ссылкой-приглашением на сходку.
+   * Ссылка ведёт в бота, он присылает карточку сходки с кнопкой «Открыть сходку»
+   */
+  shareEvent(event: { id: string; title: string; dateTime: string }) {
+    const bot = import.meta.env.VITE_BOT_USERNAME || 'yesminsk_app_bot';
+    const link = `https://t.me/${bot}?start=event_${event.id}`;
+    const when = new Date(event.dateTime).toLocaleString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    const text = `Пойдём вместе? «${event.title}», ${when} 👋`;
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+
+    const webapp = tg();
+    if (webapp?.initData && webapp.openTelegramLink) {
+      webapp.openTelegramLink(shareUrl);
+    } else if (navigator.share) {
+      navigator.share({ title: event.title, text, url: link }).catch(() => {});
+    } else {
+      window.open(shareUrl, '_blank');
+    }
+  },
+
+  /**
+   * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
+   */
+  getLaunchTarget(): { eventId?: string; tab?: string } {
+    const params = new URLSearchParams(window.location.search);
+    const startParam: string = (tg()?.initDataUnsafe as any)?.start_param || '';
+    const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
+    return { eventId, tab: params.get('tab') || undefined };
+  },
+
   openChat(username?: string) {
     if (!username) return;
     const cleanUsername = username.replace(/^@/, '');

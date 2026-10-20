@@ -11,6 +11,8 @@ import { UserBottomSheet } from './components/common/UserBottomSheet';
 import { MatchModal, ReactionType } from './components/common/Reactions';
 import { ServerWakingBanner } from './components/common/ServerWakingBanner';
 import { TabBar, TabId } from './components/ui/TabBar';
+import { BottomSheet } from './components/ui/BottomSheet';
+import { EventDetails } from './components/common/EventDetails';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
 // Примерные координаты районов Минска
@@ -73,6 +75,9 @@ export const App: React.FC = () => {
   const [likedMe, setLikedMe] = useState<UserProfile[]>([]);
   const [matches, setMatches] = useState<UserProfile[]>([]);
   const [matchPopupUser, setMatchPopupUser] = useState<UserProfile | null>(null);
+  // Сходка, открытая по ссылке-приглашению или из уведомления бота
+  const [sharedEvent, setSharedEvent] = useState<AppEvent | null>(null);
+  const [launchNotice, setLaunchNotice] = useState<string | null>(null);
 
   const currentUserCoordsRef = useRef(currentUser.coordinates);
   useEffect(() => {
@@ -101,12 +106,14 @@ export const App: React.FC = () => {
   }, [selectedGoal]);
 
   // Загрузка событий
-  const fetchEvents = useCallback(async () => {
+  const fetchEvents = useCallback(async (): Promise<AppEvent[]> => {
     try {
       const data = await api.getEvents();
       setEvents(data || []);
+      return data || [];
     } catch (err: any) {
       console.warn('Ошибка загрузки событий:', err);
+      return [];
     }
   }, []);
 
@@ -183,7 +190,18 @@ export const App: React.FC = () => {
         console.warn('Профиль me не получен (новый пользователь):', err);
       }
 
-      await Promise.all([fetchNearbyUsers(), fetchEvents(), fetchInbox(true)]);
+      const [, loadedEvents] = await Promise.all([fetchNearbyUsers(), fetchEvents(), fetchInbox(true)]);
+
+      // Открыли по ссылке на сходку или из уведомления бота
+      const target = telegramService.getLaunchTarget();
+      if (target.tab === 'events') {
+        setCurrentScreen(prev => (prev === 'main' ? 'events' : prev));
+      }
+      if (target.eventId) {
+        const found = loadedEvents.find(e => String(e.id) === target.eventId);
+        if (found) setSharedEvent(found);
+        else setLaunchNotice('Эта сходка уже прошла или отменена. Загляни в «Сходки» — там есть другие встречи.');
+      }
     };
 
     initUserData();
@@ -467,6 +485,37 @@ export const App: React.FC = () => {
 
           {selectedUser && (currentScreen === 'feed' || currentScreen === 'main') && (
             <UserBottomSheet user={selectedUser} onClose={() => setSelectedUser(null)} onReact={handleReact} />
+          )}
+
+          {sharedEvent && isTab && !matchPopupUser && (
+            <BottomSheet title={sharedEvent.title} onClose={() => setSharedEvent(null)}>
+              <EventDetails
+                event={sharedEvent}
+                onToggleJoin={() => {
+                  handleToggleJoinEvent(sharedEvent);
+                  setSharedEvent({
+                    ...sharedEvent,
+                    isJoined: !sharedEvent.isJoined,
+                    participantsCount: (sharedEvent.participantsCount || 1) + (sharedEvent.isJoined ? -1 : 1)
+                  });
+                }}
+              />
+            </BottomSheet>
+          )}
+
+          {launchNotice && (
+            <BottomSheet title="Сходка не найдена" onClose={() => setLaunchNotice(null)}>
+              <p className="text-body text-zine-inkMuted">{launchNotice}</p>
+              <button
+                onClick={() => {
+                  setLaunchNotice(null);
+                  handleNavigate('events');
+                }}
+                className="mt-5 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer"
+              >
+                Посмотреть сходки
+              </button>
+            </BottomSheet>
           )}
 
           {matchPopupUser && (
