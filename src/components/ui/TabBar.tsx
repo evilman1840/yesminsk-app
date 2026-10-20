@@ -1,13 +1,14 @@
 import React from 'react';
-import { Map, Users, CalendarDays, CircleUser } from 'lucide-react';
+import { Map, Users, CalendarDays, CircleUser, Newspaper } from 'lucide-react';
 import { telegramService } from '../../services/telegram';
 
-export type TabId = 'main' | 'feed' | 'events' | 'profile_edit';
+export type TabId = 'main' | 'feed' | 'events' | 'news' | 'profile_edit';
 
 const TABS: { id: TabId; label: string; Icon: React.FC<any> }[] = [
   { id: 'main', label: 'Карта', Icon: Map },
   { id: 'feed', label: 'Люди', Icon: Users },
   { id: 'events', label: 'Сходки', Icon: CalendarDays },
+  { id: 'news', label: 'Новости', Icon: Newspaper },
   { id: 'profile_edit', label: 'Я', Icon: CircleUser }
 ];
 

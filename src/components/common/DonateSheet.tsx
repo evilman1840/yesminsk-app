@@ -8,7 +8,7 @@ import { STAR_AMOUNTS, DONATE_LINKS } from '../../config/donate';
 /**
  * Окно «Поддержать проект»: звёзды Telegram и другие способы (если заданы в config/donate.ts)
  */
-export const DonateSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => void }> = ({ onClose, onOpenNews }) => {
   const [busyStars, setBusyStars] = useState<number | null>(null);
   const [thanks, setThanks] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +85,21 @@ export const DonateSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <span className="shrink-0 w-14 text-lead font-bold text-zine-inkMuted">49%</span>
             <span className="text-sm2 text-zine-inkMuted">Серверы, развитие приложения и зарплата людям, которые его ведут.</span>
           </p>
+        </div>
+      </div>
+
+      {/* Обещание прозрачности */}
+      <div className="mt-3 p-4 rounded-zine bg-zine-sage/15 flex gap-3">
+        <span className="text-[24px] leading-none">📸</span>
+        <div className="min-w-0">
+          <p className="text-sm2 text-zine-ink">
+            <b>Всё прозрачно.</b> Раз в 2 недели выкладываю скриншоты всех донатов и рассказываю, кому достались подарки, — в «Новостях проекта».
+          </p>
+          {onOpenNews && (
+            <button onClick={onOpenNews} className="mt-2 text-sm2 font-bold text-zine-sage underline cursor-pointer">
+              Смотреть отчёты →
+            </button>
+          )}
         </div>
       </div>
 

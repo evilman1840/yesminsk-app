@@ -33,6 +33,7 @@ export interface MapScreenProps {
   onToggleJoinEvent: (event: AppEvent) => Promise<boolean>;
   onUpdateLocation?: (coords: [number, number]) => void;
   onSetAvailable: (hours: number) => Promise<void>;
+  onOpenNews: () => void;
 }
 
 // Подсказки для новичков: коротко — в бегущей строке, подробно — в шторке «Как это работает»
@@ -74,7 +75,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onOpenProfile,
   onToggleJoinEvent,
   onUpdateLocation,
-  onSetAvailable
+  onSetAvailable,
+  onOpenNews
 }) => {
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
   const [isMySheetOpen, setIsMySheetOpen] = useState(false);
@@ -191,7 +193,15 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         <span className="absolute inset-0 rounded-full bg-zine-terracotta/40 animate-ping [animation-duration:2.5s]" />
         <span className="relative text-[26px] leading-none">💛</span>
       </button>
-      {isDonateOpen && <DonateSheet onClose={() => setIsDonateOpen(false)} />}
+      {isDonateOpen && (
+        <DonateSheet
+          onClose={() => setIsDonateOpen(false)}
+          onOpenNews={() => {
+            setIsDonateOpen(false);
+            onOpenNews();
+          }}
+        />
+      )}
 
       {/* «⚡ Хочу сейчас» — переключатель: включает статус на 3 часа или выключает */}
       <button

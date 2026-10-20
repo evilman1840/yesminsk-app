@@ -16,6 +16,16 @@ const getApiBaseUrl = (): string => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Полный адрес файла на сервере (например, фото из новостей: /api/news/photo/…)
+export const serverUrl = (path: string) => API_BASE_URL.replace(/\/api$/, '') + path;
+
+export interface NewsItem {
+  id: string;
+  text: string;
+  photos: string[];
+  createdAt: string;
+}
+
 /**
  * Отслеживание «медленных» запросов. Бесплатный сервер на Render засыпает без нагрузки
  * и просыпается до минуты — в это время показываем пользователю доброе сообщение.
@@ -173,6 +183,11 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ targetTelegramId, type })
     });
+  }
+
+  // Новости проекта (автор пишет их боту командой /news)
+  async getNews(): Promise<NewsItem[]> {
+    return this.request('/news');
   }
 
   // Ссылка на оплату звёздами Telegram

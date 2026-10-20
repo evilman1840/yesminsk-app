@@ -13,6 +13,9 @@ import { ServerWakingBanner } from './components/common/ServerWakingBanner';
 import { TabBar, TabId } from './components/ui/TabBar';
 import { BottomSheet } from './components/ui/BottomSheet';
 import { EventDetails } from './components/common/EventDetails';
+import { DonateSheet } from './components/common/DonateSheet';
+import { NewsScreen } from './screens/NewsScreen';
+import { NewsItem } from './services/api';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
 // Примерные координаты районов Минска
@@ -45,7 +48,7 @@ const getSavedCoordinates = (): [number, number] => {
 
 export const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<
-    'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'profile_edit'
+    'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'news' | 'profile_edit'
   >('main');
 
   const tgUser = telegramService.getUser();
@@ -80,6 +83,39 @@ export const App: React.FC = () => {
   const [matchPopupUser, setMatchPopupUser] = useState<UserProfile | null>(null);
   // Сходка, открытая по ссылке-приглашению или из уведомления бота
   const [sharedEvent, setSharedEvent] = useState<AppEvent | null>(null);
+
+  // Новости проекта и счётчик непрочитанных
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [isNewsLoading, setIsNewsLoading] = useState(true);
+  const [newsSeenAt, setNewsSeenAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem('yesminsk_news_seen_at')) || 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [isDonateOpen, setIsDonateOpen] = useState(false);
+  const unreadNews = news.filter(n => new Date(n.createdAt).getTime() > newsSeenAt).length;
+
+  const fetchNews = useCallback(async () => {
+    try {
+      setNews(await api.getNews());
+    } catch (err) {
+      console.warn('Ошибка загрузки новостей:', err);
+    } finally {
+      setIsNewsLoading(false);
+    }
+  }, []);
+
+  const markNewsSeen = () => {
+    const now = Date.now();
+    setNewsSeenAt(now);
+    try {
+      localStorage.setItem('yesminsk_news_seen_at', String(now));
+    } catch {
+      // не страшно: счётчик просто покажется снова
+    }
+  };
   const [launchNotice, setLaunchNotice] = useState<string | null>(null);
 
   const currentUserCoordsRef = useRef(currentUser.coordinates);
@@ -196,7 +232,7 @@ export const App: React.FC = () => {
         console.warn('Профиль me не получен (новый пользователь):', err);
       }
 
-      const [, loadedEvents] = await Promise.all([fetchNearbyUsers(), fetchEvents(), fetchInbox(true)]);
+      const [, loadedEvents] = await Promise.all([fetchNearbyUsers(), fetchEvents(), fetchInbox(true), fetchNews()]);
 
       // Открыли по ссылке на сходку или из уведомления бота
       const target = telegramService.getLaunchTarget();
@@ -412,12 +448,16 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  const isTab = currentScreen === 'main' || currentScreen === 'feed' || currentScreen === 'events' || currentScreen === 'profile_edit';
+  const isTab = ['main', 'feed', 'events', 'news', 'profile_edit'].includes(currentScreen);
 
   const handleNavigate = (tab: TabId) => {
     setSelectedUser(null);
     setCurrentScreen(tab);
     if (tab === 'feed') fetchInbox();
+    if (tab === 'news') {
+      fetchNews();
+      markNewsSeen();
+    }
   };
 
   return (
@@ -471,6 +511,7 @@ export const App: React.FC = () => {
                 onToggleJoinEvent={handleToggleJoinEvent}
                 onUpdateLocation={handleUpdateLocation}
                 onSetAvailable={handleSetAvailable}
+                onOpenNews={() => handleNavigate('news')}
               />
             )}
 
@@ -486,6 +527,10 @@ export const App: React.FC = () => {
                 onSelectUser={(u) => setSelectedUser(u)}
                 onReact={handleReact}
               />
+            )}
+
+            {currentScreen === 'news' && (
+              <NewsScreen news={news} isLoading={isNewsLoading} onOpenDonate={() => setIsDonateOpen(true)} />
             )}
 
             {currentScreen === 'events' && (
@@ -505,7 +550,7 @@ export const App: React.FC = () => {
             <TabBar
               current={currentScreen as TabId}
               onNavigate={handleNavigate}
-              badges={{ feed: likedMe.length }}
+              badges={{ feed: likedMe.length, news: currentScreen === 'news' ? 0 : unreadNews }}
             />
           )}
 
@@ -542,6 +587,16 @@ export const App: React.FC = () => {
                 Посмотреть сходки
               </button>
             </BottomSheet>
+          )}
+
+          {isDonateOpen && (
+            <DonateSheet
+              onClose={() => setIsDonateOpen(false)}
+              onOpenNews={() => {
+                setIsDonateOpen(false);
+                handleNavigate('news');
+              }}
+            />
           )}
 
           {matchPopupUser && (
