@@ -16,6 +16,22 @@ const getApiBaseUrl = (): string => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+/**
+ * Отслеживание «медленных» запросов. Бесплатный сервер на Render засыпает без нагрузки
+ * и просыпается до минуты — в это время показываем пользователю доброе сообщение.
+ */
+const SLOW_REQUEST_MS = 2500;
+let slowRequests = 0;
+const slowListeners = new Set<(isSlow: boolean) => void>();
+const notifySlow = () => slowListeners.forEach((fn) => fn(slowRequests > 0));
+
+export const onServerWaking = (listener: (isWaking: boolean) => void) => {
+  slowListeners.add(listener);
+  return () => {
+    slowListeners.delete(listener);
+  };
+};
+
 class ApiService {
   /**
    * Универсальный метод отправки запросов с передачей Telegram initData в заголовках
@@ -30,6 +46,13 @@ class ApiService {
     };
 
     const url = `${API_BASE_URL}${endpoint}`;
+
+    let markedSlow = false;
+    const slowTimer = setTimeout(() => {
+      markedSlow = true;
+      slowRequests++;
+      notifySlow();
+    }, SLOW_REQUEST_MS);
 
     try {
       const response = await fetch(url, {
@@ -46,6 +69,12 @@ class ApiService {
     } catch (error: any) {
       console.warn(`[API] Ошибка запроса к ${url}:`, error.message);
       throw error;
+    } finally {
+      clearTimeout(slowTimer);
+      if (markedSlow) {
+        slowRequests--;
+        notifySlow();
+      }
     }
   }
 

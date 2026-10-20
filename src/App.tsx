@@ -9,6 +9,7 @@ import { OnboardingScreen } from './screens/OnboardingScreen';
 import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
 import { MatchModal, ReactionType } from './components/common/Reactions';
+import { ServerWakingBanner } from './components/common/ServerWakingBanner';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
 // Примерные координаты районов Минска
@@ -94,7 +95,7 @@ export const App: React.FC = () => {
       }
     } catch (err: any) {
       console.warn('Ошибка загрузки пользователей:', err);
-      setApiError('Сервер временно недоступен или обновляется.');
+      setApiError('Не получилось загрузить людей рядом. Попробуй ещё раз 🙏');
     }
   }, [selectedGoal]);
 
@@ -381,6 +382,8 @@ export const App: React.FC = () => {
       <div className="flex justify-center items-center min-h-screen bg-[#E5DED5] p-0 sm:p-4 font-sans text-zine-ink">
         <div className="w-full max-w-[420px] h-screen sm:h-[840px] bg-zine-paper sm:rounded-[36px] overflow-hidden shadow-2xl border-0 sm:border-[6px] sm:border-zine-ink flex flex-col relative">
           
+          <ServerWakingBanner />
+
           {apiError && (
             <div className="absolute top-2 inset-x-2 z-50 p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-[11px] flex items-center justify-between shadow-lg">
               <span>⏳ {apiError}</span>
