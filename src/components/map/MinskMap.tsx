@@ -103,6 +103,25 @@ export function obfuscateCoordinates(
   return [fuzzyLat, fuzzyLng];
 }
 
+// Короткая дата для метки сходки: «сегодня · 18:00», «завтра · 12:00» или «сб, 25 окт · 18:00»
+const formatMarkerDate = (iso: string) => {
+  try {
+    const d = new Date(iso);
+    const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const today = new Date();
+    const dayDiff = Math.round(
+      (new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() -
+        new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86400000
+    );
+    if (dayDiff === 0) return `сегодня · ${time}`;
+    if (dayDiff === 1) return `завтра · ${time}`;
+    const day = d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '');
+    return `${day} · ${time}`;
+  } catch {
+    return '';
+  }
+};
+
 const MinskMapContent: React.FC<{
   users: (UserProfile & { displayCoords: [number, number] })[];
   events: AppEvent[];
@@ -134,7 +153,7 @@ const MinskMapContent: React.FC<{
       `<div class="ymaps-avatar-marker" style="position: relative; width: 46px; height: 52px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
         <div style="width: 46px; height: 46px; border-radius: 50%; padding: 2px; background-color: #FAF7F2; border: 2.5px solid $[properties.borderColor]; box-shadow: 0 4px 14px rgba(43, 38, 35, 0.22); position: relative; box-sizing: border-box;">
           <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'" />
-          <span style="position: absolute; bottom: -3px; right: -3px; background: #FFFFFF; font-size: 11px; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border: 1px solid #E8DFD5; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">
+          <span style="position: absolute; bottom: -3px; right: -3px; background: #FFFFFF; font-size: 13px; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 1px solid #E8DFD5; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">
             $[properties.goalEmoji]
           </span>
         </div>
@@ -147,11 +166,11 @@ const MinskMapContent: React.FC<{
   const currentUserLayout = useMemo(() => {
     if (!ymaps) return null;
     return (ymaps as any).templateLayoutFactory.createClass(
-      `<div class="ymaps-current-user-marker" style="position: relative; width: 54px; height: 68px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
-        <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); background: #D95C3C; color: #FAF7F2; font-size: 9px; font-weight: 800; padding: 1.5px 7px; border-radius: 9px; border: 1.5px solid #FAF7F2; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; z-index: 10; pointer-events: none;">
-          ⭐️ ТЫ
+      `<div class="ymaps-current-user-marker" style="position: relative; width: 54px; height: 76px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
+        <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); background: #D95C3C; color: #FAF7F2; font-size: 13px; font-weight: 800; padding: 2px 10px; border-radius: 12px; border: 2px solid #FFFDF9; box-shadow: 0 2px 6px rgba(0,0,0,0.3); white-space: nowrap; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; z-index: 10; pointer-events: none;">
+          Ты
         </div>
-        <div style="margin-top: 10px; width: 52px; height: 52px; border-radius: 50%; padding: 2.5px; background-color: #FAF7F2; border: 3.5px solid #D95C3C; box-shadow: 0 0 0 3px rgba(217, 92, 60, 0.4), 0 8px 22px rgba(43, 38, 35, 0.35); position: relative; box-sizing: border-box;">
+        <div style="margin-top: 16px; width: 52px; height: 52px; border-radius: 50%; padding: 2.5px; background-color: #FAF7F2; border: 3.5px solid #D95C3C; box-shadow: 0 0 0 3px rgba(217, 92, 60, 0.4), 0 8px 22px rgba(43, 38, 35, 0.35); position: relative; box-sizing: border-box;">
           <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'" />
           <span style="position: absolute; bottom: -3px; right: -3px; background: #FAF7F2; font-size: 12px; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border: 1.5px solid #D95C3C; box-shadow: 0 1px 4px rgba(0,0,0,0.15); pointer-events: none;">
             $[properties.goalEmoji]
@@ -162,34 +181,32 @@ const MinskMapContent: React.FC<{
     );
   }, [ymaps]);
 
-  // 3. Макет маркера СХОДКИ
+  // 3. Макет маркера СХОДКИ: крупное название и время, «хвостик» указывает на место встречи
   const eventLayout = useMemo(() => {
     if (!ymaps) return null;
     return (ymaps as any).templateLayoutFactory.createClass(
-      `<div class="ymaps-event-marker" style="position: relative; display: inline-flex; flex-direction: column; align-items: center; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
-        <div style="display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 3px 10px 3px 6px; border-radius: 19px; background: #FAF7F2; border: 2px solid #E2A03F; box-shadow: 0 4px 16px rgba(43, 38, 35, 0.28); box-sizing: border-box; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-          <div style="width: 28px; height: 28px; border-radius: 50%; background: #E2A03F; color: #FAF7F2; display: flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; flex-shrink: 0; pointer-events: none;">
+      `<div class="ymaps-event-marker" style="position: relative; display: inline-flex; flex-direction: column; align-items: flex-start; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <div style="display: inline-flex; align-items: center; gap: 8px; height: 56px; padding: 6px 12px 6px 6px; border-radius: 28px; background: #FFFDF9; border: 2.5px solid #E2A03F; box-shadow: 0 6px 18px rgba(43, 38, 35, 0.3); box-sizing: border-box; white-space: nowrap;">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: #E2A03F; display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 1; flex-shrink: 0; pointer-events: none;">
             $[properties.eventEmoji]
           </div>
-          <span style="font-size: 12px; font-weight: 700; color: #2B2623; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -0.2px; pointer-events: none;">
-            $[properties.displayTitle]
-          </span>
-          <span style="background: #D95C3C; color: #FAF7F2; font-size: 9.5px; font-weight: 800; border-radius: 10px; padding: 1.5px 6px; pointer-events: none;">
-            $[properties.participantsCount]
-          </span>
+          <div style="display: flex; flex-direction: column; min-width: 0; pointer-events: none;">
+            <span style="font-size: 15px; font-weight: 800; line-height: 19px; color: #2B2623; max-width: 170px; overflow: hidden; text-overflow: ellipsis;">$[properties.displayTitle]</span>
+            <span style="font-size: 13px; font-weight: 600; line-height: 17px; color: #B5462A;">$[properties.displayWhen] · 👥 $[properties.participantsCount]</span>
+          </div>
         </div>
-        <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid #E2A03F; margin: -1px auto 0 auto; pointer-events: none;"></div>
+        <div style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 10px solid #E2A03F; margin: -1px 0 0 20px; pointer-events: none;"></div>
       </div>`
     );
   }, [ymaps]);
 
-  // 4. Макет кластера людей
+  // 4. Макет кластера людей (несколько человек рядом)
   const clusterLayout = useMemo(() => {
     if (!ymaps) return null;
     return (ymaps as any).templateLayoutFactory.createClass(
-      `<div style="width: 44px; height: 44px; border-radius: 50%; background-color: #D95C3C; border: 2.5px solid #FAF7F2; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(217, 92, 60, 0.45); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; cursor: pointer; user-select: none;">
-        <span style="font-size: 14px; font-weight: 800; line-height: 1; pointer-events: none;">$[properties.geoObjects.length]</span>
-        <span style="font-size: 8px; font-weight: 700; text-transform: uppercase; margin-top: 1px; letter-spacing: 0.5px; opacity: 0.95; pointer-events: none;">чел.</span>
+      `<div style="width: 52px; height: 52px; border-radius: 50%; background-color: #D95C3C; border: 3px solid #FFFDF9; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 2px; box-shadow: 0 4px 14px rgba(217, 92, 60, 0.45); font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; cursor: pointer; user-select: none;">
+        <span style="font-size: 18px; font-weight: 800; line-height: 1; pointer-events: none;">$[properties.geoObjects.length]</span>
+        <span style="font-size: 14px; line-height: 1; pointer-events: none;">👥</span>
       </div>`
     );
   }, [ymaps]);
@@ -236,8 +253,8 @@ const MinskMapContent: React.FC<{
           }}
           options={{
             iconLayout: currentUserLayout,
-            iconOffset: [-27, -68],
-            iconShape: { type: 'Rectangle', coordinates: [[0, 0], [54, 68]] } as any,
+            iconOffset: [-27, -76],
+            iconShape: { type: 'Rectangle', coordinates: [[0, 0], [54, 76]] } as any,
             interactivityModel: 'default#opaque',
             cursor: 'pointer',
             zIndex: 1000,
@@ -257,8 +274,8 @@ const MinskMapContent: React.FC<{
       <Clusterer
         options={{
           clusterIconLayout: clusterLayout,
-          clusterIconOffset: [-22, -22],
-          clusterIconShape: { type: 'Circle', coordinates: [0, 0], radius: 24 } as any,
+          clusterIconOffset: [-26, -26],
+          clusterIconShape: { type: 'Circle', coordinates: [0, 0], radius: 28 } as any,
           gridSize: 64,
           groupByCoordinates: false,
           clusterDisableClickZoom: false,
@@ -346,7 +363,8 @@ const MinskMapContent: React.FC<{
       {eventsWithSeparatedCoords.map((ev: AppEvent & { separatedCoords: [number, number] }) => {
         const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️', label: 'Сходка' };
         const rawTitle = ev.title || 'Сходка';
-        const displayTitle = rawTitle.length > 14 ? rawTitle.slice(0, 13).trim() + '…' : rawTitle;
+        const displayTitle = rawTitle.length > 20 ? rawTitle.slice(0, 19).trim() + '…' : rawTitle;
+        const displayWhen = formatMarkerDate(ev.dateTime);
         const coords = ev.separatedCoords;
         const eventIdStr = String(ev.id || (ev as any)._id || '');
 
@@ -358,15 +376,16 @@ const MinskMapContent: React.FC<{
               eventId: eventIdStr,
               eventEmoji: catConfig.emoji || '⭐️',
               displayTitle,
+              displayWhen,
               participantsCount: ev.participantsCount || 1
             }}
             options={{
               iconLayout: eventLayout,
-              iconOffset: [-50, -45],
-              iconShape: { type: 'Rectangle', coordinates: [[0, 0], [150, 45]] } as any,
+              iconOffset: [-28, -66],
+              iconShape: { type: 'Rectangle', coordinates: [[0, 0], [240, 66]] } as any,
               interactivityModel: 'default#opaque',
               cursor: 'pointer',
-              zIndex: 850,
+              zIndex: 1100,
               hasBalloon: false
             } as any}
             onClick={() => {
