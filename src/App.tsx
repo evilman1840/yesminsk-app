@@ -112,9 +112,9 @@ export const App: React.FC = () => {
   const [mapMode, setMapModeState] = useState<MapMode>(() => {
     try {
       const saved = localStorage.getItem('yesminsk_map_mode');
-      return saved === 'people' || saved === 'events' || saved === 'places' ? saved : 'people';
+      return saved === 'all' || saved === 'people' || saved === 'events' || saved === 'places' ? saved : 'all';
     } catch {
-      return 'people';
+      return 'all';
     }
   });
   const setMapMode = (mode: MapMode) => {
@@ -280,7 +280,7 @@ export const App: React.FC = () => {
         console.warn('Профиль me не получен (новый пользователь):', err);
       }
 
-      const [, loadedEvents, , , loadedPlaces] = await Promise.all([
+      const [, loadedEvents] = await Promise.all([
         fetchNearbyUsers(),
         fetchEvents(),
         fetchInbox(true),
@@ -288,15 +288,6 @@ export const App: React.FC = () => {
         fetchPlaces()
       ]);
 
-      // Первый вход: открываем самое интересное — сходки, иначе места, иначе людей
-      let hasSavedMode = false;
-      try {
-        hasSavedMode = Boolean(localStorage.getItem('yesminsk_map_mode'));
-      } catch {}
-      if (!hasSavedMode) {
-        const upcoming = loadedEvents.some(e => new Date(e.dateTime).getTime() > Date.now());
-        setMapModeState(upcoming ? 'events' : loadedPlaces.length > 0 ? 'places' : 'people');
-      }
 
       // Открыли по ссылке на сходку или из уведомления бота
       const target = telegramService.getLaunchTarget();

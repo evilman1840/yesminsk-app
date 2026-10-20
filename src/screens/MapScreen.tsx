@@ -60,9 +60,10 @@ const HELP_STEPS = [
   { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 300–500 м. Можно включить режим невидимки.' }
 ];
 
-export type MapMode = 'people' | 'events' | 'places';
+export type MapMode = 'all' | 'people' | 'events' | 'places';
 
 const MAP_TABS: [MapMode, string, string][] = [
+  ['all', '🗺', 'Всё'],
   ['people', '👥', 'Люди'],
   ['events', '🗓', 'Сходки'],
   ['places', '📍', 'Места']
@@ -134,6 +135,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [isMoodPickerOpen, setIsMoodPickerOpen] = useState(true);
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
   const isPlaces = mapMode === 'places';
+  // Во вкладке «Всё» нет строки фильтров — подсказки поднимаем выше
+  const overlayTop = mapMode === 'all' ? 'top-[132px]' : 'top-[188px]';
   const filteredPlaces = mood === 'all' ? places : places.filter((p) => p.moods.includes(mood));
   const moodCounts = places.reduce<Partial<Record<PlaceMood, number>>>((acc, p) => {
     p.moods.forEach((m) => (acc[m] = (acc[m] || 0) + 1));
@@ -176,9 +179,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   return (
     <div className="relative h-full w-full overflow-hidden bg-zine-paper">
       <MinskMap
-        users={mapMode === 'people' ? filteredUsers : []}
-        events={mapMode === 'events' ? filteredEvents : []}
-        places={isPlaces ? filteredPlaces : []}
+        users={mapMode === 'people' ? filteredUsers : mapMode === 'all' ? users : []}
+        events={mapMode === 'events' ? filteredEvents : mapMode === 'all' ? events : []}
+        places={isPlaces ? filteredPlaces : mapMode === 'all' ? places : []}
         onSelectPlace={(p) => {
           setIsMoodPickerOpen(false);
           setSelectedPlace(p);
@@ -242,7 +245,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         </div>
         {/* Три вкладки карты: Люди / Сходки / Места */}
         <div className="pointer-events-auto px-4">
-          <div className="h-11 p-1 rounded-full bg-zine-cardElevated shadow-zine grid grid-cols-3">
+          <div className="h-11 p-1 rounded-full bg-zine-cardElevated shadow-zine grid grid-cols-[0.8fr_1fr_1.15fr_1fr]">
             {MAP_TABS.map(([id, emoji, label]) => (
               <button
                 key={id}
@@ -253,11 +256,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                   setSelectedEvent(null);
                   onChangeMapMode(id);
                 }}
-                className={`h-9 rounded-full text-sm2 font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                className={`h-9 rounded-full text-sm2 font-bold flex items-center justify-center gap-1 whitespace-nowrap transition-colors cursor-pointer ${
                   mapMode === id ? 'bg-zine-terracotta text-white' : 'text-zine-ink'
                 }`}
               >
-                <span className="text-[16px] leading-none">{emoji}</span>
+                <span className="text-[15px] leading-none">{emoji}</span>
                 <span>{label}</span>
               </button>
             ))}
@@ -301,7 +304,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
       {/* Места: «С каким настроением ты сегодня?» или заглушка, пока мест нет */}
       {isPlaces && (places.length === 0 || isMoodPickerOpen) && (
-        <div className="absolute left-4 right-4 top-[188px] z-30">
+        <div className={`absolute left-4 right-4 ${overlayTop} z-30`}>
           {places.length === 0 ? (
             <div className="p-4 rounded-zine bg-zine-cardElevated shadow-zine-float">
               <p className="font-serif font-bold text-title text-zine-ink">📍 Места по вайбу</p>
@@ -324,7 +327,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
       {/* Сходок по выбранному времени нет */}
       {mapMode === 'events' && filteredEvents.length === 0 && (
-        <div className="absolute left-4 right-[72px] top-[188px] z-20 p-4 rounded-zine bg-zine-cardElevated shadow-zine-float">
+        <div className={`absolute left-4 right-[72px] ${overlayTop} z-20 p-4 rounded-zine bg-zine-cardElevated shadow-zine-float`}>
           <p className="text-body font-bold text-zine-ink">{events.length === 0 ? 'Сходок пока нет' : 'На это время сходок нет'}</p>
           <p className="mt-1 text-sm2 text-zine-inkMuted">Собери свою — это займёт минуту, а люди рядом увидят её на карте.</p>
           <button onClick={onOpenEvents} className="mt-3 w-full h-11 rounded-zine-sm bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer">
@@ -344,8 +347,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         />
       )}
 
-      {mapMode === 'people' && fewPeople && !isFewHintClosed && (
-        <div className="absolute left-4 right-[72px] top-[188px] z-20 p-3.5 rounded-zine bg-zine-cardElevated shadow-zine-float">
+      {(mapMode === 'people' || mapMode === 'all') && fewPeople && !isFewHintClosed && (
+        <div className={`absolute left-4 right-[72px] ${overlayTop} z-20 p-3.5 rounded-zine bg-zine-cardElevated shadow-zine-float`}>
           <div className="flex items-start gap-2">
             <p className="flex-1 text-sm2 text-zine-ink">
               <b>Рядом пока мало людей.</b> Позови друзей — вместе веселее 💛
@@ -375,7 +378,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           setIsDark(next === 'dark');
         }}
         aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
-        className="absolute right-4 top-[188px] z-20 w-11 h-11 rounded-full bg-zine-cardElevated shadow-zine text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+        className={`absolute right-4 ${overlayTop} z-20 w-11 h-11 rounded-full bg-zine-cardElevated shadow-zine text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer`}
       >
         {isDark ? <Sun size={20} /> : <Moon size={18} />}
       </button>
@@ -403,7 +406,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       )}
 
       {/* «⚡ Хочу сейчас» — переключатель: включает статус на 3 часа или выключает */}
-      {mapMode === 'people' && <button
+      {(mapMode === 'people' || mapMode === 'all') && <button
         onClick={() => {
           telegramService.haptic('selection');
           if (!isVisible && !iAmAvailable) {
