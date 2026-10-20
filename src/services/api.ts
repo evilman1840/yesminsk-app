@@ -183,7 +183,7 @@ class ApiService {
     });
   }
 
-  // «⚡ Сейчас могу»: hours > 0 — включить на столько часов, 0 — выключить
+  // «⚡ Хочу сейчас»: hours > 0 — включить на столько часов, 0 — выключить
   async setAvailable(hours: number): Promise<{ success: boolean; availableUntil: string | null }> {
     return this.request('/users/available', {
       method: 'POST',

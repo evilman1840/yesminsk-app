@@ -42,7 +42,7 @@ const TIPS_LINE =
 const HELP_STEPS = [
   { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото — откроется анкета.' },
   { emoji: '👋', title: '«Пообщаться»', text: 'Передай человеку привет. Если он ответит тем же, вы сможете написать друг другу в Telegram.' },
-  { emoji: '⚡', title: '«Сейчас могу»', text: 'Нажми, если можешь встретиться в ближайшие часы — твою анкету покажут в начале списка.' },
+  { emoji: '⚡', title: '«Хочу сейчас»', text: 'Нажми, если можешь встретиться в ближайшие часы — твою анкету покажут в начале списка.' },
   { emoji: '🧭', title: '«Покажут город»', text: 'Ты турист? Местные жители с радостью покажут Минск. А если ты местный — включи «Покажу город» в анкете.' },
   { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию — это займёт минуту.' },
   { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе — так тебя быстрее заметят.' },
@@ -186,7 +186,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       </button>
       {isDonateOpen && <DonateSheet onClose={() => setIsDonateOpen(false)} />}
 
-      {/* «⚡ Сейчас могу» — можно встретиться в ближайшие часы */}
+      {/* «⚡ Хочу сейчас» — можно встретиться в ближайшие часы */}
       <button
         onClick={() => {
           telegramService.haptic('selection');
@@ -197,11 +197,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         }`}
       >
         <span className="text-[22px] leading-none">⚡</span>
-        <span>{iAmAvailable ? `Сейчас могу · до ${formatTime(currentUser?.availableUntil)}` : 'Сейчас могу'}</span>
+        <span>{iAmAvailable ? `Хочу сейчас · до ${formatTime(currentUser?.availableUntil)}` : 'Хочу сейчас'}</span>
       </button>
 
       {isAvailabilityOpen && (
-        <BottomSheet title={iAmAvailable ? '«Сейчас могу» включено ⚡' : 'Сейчас можешь встретиться?'} onClose={() => setIsAvailabilityOpen(false)}>
+        <BottomSheet title={iAmAvailable ? '«Хочу сейчас» включено ⚡' : 'Сейчас можешь встретиться?'} onClose={() => setIsAvailabilityOpen(false)}>
           {!isVisible ? (
             <>
               <p className="text-body text-zine-inkMuted">

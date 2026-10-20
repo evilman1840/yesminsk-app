@@ -69,7 +69,7 @@ export interface UserProfile {
   iLiked?: boolean;   // я нажал 👋 «Пообщаться»
   likedMe?: boolean;  // мне нажали 👋
   isMatch?: boolean;  // оба нажали 👋 — на связи, можно писать
-  availableUntil?: string; // «⚡ Сейчас могу» — до этого времени
+  availableUntil?: string; // «⚡ Хочу сейчас» — до этого времени
   isGuide?: boolean;       // «🧭 Покажу город» — местный гид-волонтёр
   guideAbout?: string;     // что может показать
 }
