@@ -140,7 +140,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<EventCategory>('walk');
-  const [locationName, setLocationName] = useState('ул. Ленина 5');
+  const [locationName, setLocationName] = useState('');
   const [customCoords, setCustomCoords] = useState<[number, number] | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -174,8 +174,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setTitle('');
     setDescription('');
     setCategory('walk');
-    setLocationName('ул. Ленина 5');
-    setCustomCoords([53.8998, 27.5585]);
+    setLocationName('');
+    setCustomCoords(null);
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
     tomorrow.setMinutes(0, 0, 0);
     setDateTime(tomorrow.toISOString().slice(0, 16));
