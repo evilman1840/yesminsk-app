@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { YMaps, Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
+import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 import { Clock, MapPin, X, Send, Check, Sparkles } from 'lucide-react';
 import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG } from '../../types';
 import { telegramService } from '../../services/telegram';
@@ -177,7 +177,7 @@ const MinskMapContent: React.FC<{
     };
   }, [onSelectUser, onSelectCurrentUser, onSelectEvent, currentUserCoords, mapInstance]);
 
-  // 1. Макет круглой аватарки других людей с правильной геометрической зоной shape
+  // 1. Макет круглой аватарки других людей с гарантированной зоной shape и слушателем geoObject.events
   const avatarLayout = useMemo(() => {
     if (!ymaps) return null;
 
@@ -239,12 +239,6 @@ const MinskMapContent: React.FC<{
           (this as any).constructor.superclass.build.call(this);
           const data = (this as any).getData();
           if (data) {
-            if (data.options) {
-              data.options.set('shape', {
-                type: 'Rectangle',
-                coordinates: [[-26, -56], [26, 6]]
-              });
-            }
             const geoObject = data.geoObject;
             if (geoObject && geoObject.events) {
               const onPinClick = (e: any) => {
@@ -260,6 +254,24 @@ const MinskMapContent: React.FC<{
               (this as any)._onPinClick = onPinClick;
               geoObject.events.add('click', onPinClick);
             }
+
+            const el = (this as any).getParentElement();
+            if (el) {
+              const onDomClick = (e: any) => {
+                if (e && e.stopPropagation) e.stopPropagation();
+                const userObj = data.properties?.get('userObj');
+                const userId = data.properties?.get('userId');
+                if (userObj && (window as any).__ymSelectUserDirect) {
+                  (window as any).__ymSelectUserDirect(userObj);
+                } else if (userId && (window as any).__ymSelectUser) {
+                  (window as any).__ymSelectUser(String(userId));
+                }
+              };
+              el.addEventListener('click', onDomClick);
+              el.addEventListener('touchend', onDomClick);
+              (this as any)._onDomClick = onDomClick;
+              (this as any)._domEl = el;
+            }
           }
         },
         clear: function () {
@@ -268,7 +280,21 @@ const MinskMapContent: React.FC<{
           if (geoObject && geoObject.events && (this as any)._onPinClick) {
             geoObject.events.remove('click', (this as any)._onPinClick);
           }
+          if ((this as any)._domEl && (this as any)._onDomClick) {
+            (this as any)._domEl.removeEventListener('click', (this as any)._onDomClick);
+            (this as any)._domEl.removeEventListener('touchend', (this as any)._onDomClick);
+          }
           (this as any).constructor.superclass.clear.call(this);
+        },
+        getShape: function () {
+          if (ymaps && (ymaps as any).shape?.Rectangle && (ymaps as any).geometry?.pixel?.Rectangle) {
+            return new (ymaps as any).shape.Rectangle(
+              new (ymaps as any).geometry.pixel.Rectangle([
+                [-26, -58], [26, 6]
+              ])
+            );
+          }
+          return null;
         }
       }
     );
@@ -360,12 +386,6 @@ const MinskMapContent: React.FC<{
           (this as any).constructor.superclass.build.call(this);
           const data = (this as any).getData();
           if (data) {
-            if (data.options) {
-              data.options.set('shape', {
-                type: 'Rectangle',
-                coordinates: [[-30, -72], [30, 6]]
-              });
-            }
             const geoObject = data.geoObject;
             if (geoObject && geoObject.events) {
               const onPinClick = (e: any) => {
@@ -379,6 +399,22 @@ const MinskMapContent: React.FC<{
               (this as any)._onPinClick = onPinClick;
               geoObject.events.add('click', onPinClick);
             }
+
+            const el = (this as any).getParentElement();
+            if (el) {
+              const onDomClick = (e: any) => {
+                if (e && e.stopPropagation) e.stopPropagation();
+                if ((window as any).__ymSelectCurrentUserDirect) {
+                  (window as any).__ymSelectCurrentUserDirect();
+                } else if ((window as any).__ymSelectCurrentUser) {
+                  (window as any).__ymSelectCurrentUser();
+                }
+              };
+              el.addEventListener('click', onDomClick);
+              el.addEventListener('touchend', onDomClick);
+              (this as any)._onDomClick = onDomClick;
+              (this as any)._domEl = el;
+            }
           }
         },
         clear: function () {
@@ -387,7 +423,21 @@ const MinskMapContent: React.FC<{
           if (geoObject && geoObject.events && (this as any)._onPinClick) {
             geoObject.events.remove('click', (this as any)._onPinClick);
           }
+          if ((this as any)._domEl && (this as any)._onDomClick) {
+            (this as any)._domEl.removeEventListener('click', (this as any)._onDomClick);
+            (this as any)._domEl.removeEventListener('touchend', (this as any)._onDomClick);
+          }
           (this as any).constructor.superclass.clear.call(this);
+        },
+        getShape: function () {
+          if (ymaps && (ymaps as any).shape?.Rectangle && (ymaps as any).geometry?.pixel?.Rectangle) {
+            return new (ymaps as any).shape.Rectangle(
+              new (ymaps as any).geometry.pixel.Rectangle([
+                [-30, -74], [30, 6]
+              ])
+            );
+          }
+          return null;
         }
       }
     );
@@ -477,12 +527,6 @@ const MinskMapContent: React.FC<{
           (this as any).constructor.superclass.build.call(this);
           const data = (this as any).getData();
           if (data) {
-            if (data.options) {
-              data.options.set('shape', {
-                type: 'Rectangle',
-                coordinates: [[-80, -50], [80, 8]]
-              });
-            }
             const geoObject = data.geoObject;
             if (geoObject && geoObject.events) {
               const onPinClick = (e: any) => {
@@ -498,6 +542,24 @@ const MinskMapContent: React.FC<{
               (this as any)._onPinClick = onPinClick;
               geoObject.events.add('click', onPinClick);
             }
+
+            const el = (this as any).getParentElement();
+            if (el) {
+              const onDomClick = (e: any) => {
+                if (e && e.stopPropagation) e.stopPropagation();
+                const evObj = data.properties?.get('eventObj');
+                const evId = data.properties?.get('eventId');
+                if (evObj && (window as any).__ymSelectEventDirect) {
+                  (window as any).__ymSelectEventDirect(evObj);
+                } else if (evId && (window as any).__ymSelectEvent) {
+                  (window as any).__ymSelectEvent(String(evId));
+                }
+              };
+              el.addEventListener('click', onDomClick);
+              el.addEventListener('touchend', onDomClick);
+              (this as any)._onDomClick = onDomClick;
+              (this as any)._domEl = el;
+            }
           }
         },
         clear: function () {
@@ -506,7 +568,21 @@ const MinskMapContent: React.FC<{
           if (geoObject && geoObject.events && (this as any)._onPinClick) {
             geoObject.events.remove('click', (this as any)._onPinClick);
           }
+          if ((this as any)._domEl && (this as any)._onDomClick) {
+            (this as any)._domEl.removeEventListener('click', (this as any)._onDomClick);
+            (this as any)._domEl.removeEventListener('touchend', (this as any)._onDomClick);
+          }
           (this as any).constructor.superclass.clear.call(this);
+        },
+        getShape: function () {
+          if (ymaps && (ymaps as any).shape?.Rectangle && (ymaps as any).geometry?.pixel?.Rectangle) {
+            return new (ymaps as any).shape.Rectangle(
+              new (ymaps as any).geometry.pixel.Rectangle([
+                [-85, -50], [85, 8]
+              ])
+            );
+          }
+          return null;
         }
       }
     );
@@ -539,14 +615,17 @@ const MinskMapContent: React.FC<{
       {
         build: function () {
           (this as any).constructor.superclass.build.call(this);
-          const data = (this as any).getData();
-          if (data && data.options) {
-            data.options.set('shape', {
-              type: 'Circle',
-              coordinates: [0, 0],
-              radius: 24
-            });
+        },
+        clear: function () {
+          (this as any).constructor.superclass.clear.call(this);
+        },
+        getShape: function () {
+          if (ymaps && (ymaps as any).shape?.Circle && (ymaps as any).geometry?.pixel?.Circle) {
+            return new (ymaps as any).shape.Circle(
+              new (ymaps as any).geometry.pixel.Circle([0, 0], 24)
+            );
           }
+          return null;
         }
       }
     );
@@ -602,13 +681,9 @@ const MinskMapContent: React.FC<{
           options={{
             iconLayout: currentUserLayout,
             iconOffset: [-27, -68],
-            shape: ({
-              type: 'Rectangle',
-              coordinates: [[-30, -72], [30, 6]]
-            } as any),
             iconShape: ({
               type: 'Rectangle',
-              coordinates: [[-30, -72], [30, 6]]
+              coordinates: [[-30, -74], [30, 6]]
             } as any),
             interactivityModel: 'default#opaque',
             cursor: 'pointer',
@@ -648,8 +723,11 @@ const MinskMapContent: React.FC<{
           const target = e.get('target');
           if (!target) return;
 
-          // 1. Если кликнули на кластер (группу людей с цифрой) — плавно приближаем карту
-          const clustered = target.properties?.get('geoObjects');
+          // 1. Если кликнули на кластер (группу людей) — увеличиваем масштаб
+          const clustered =
+            (typeof target.getGeoObjects === 'function' ? target.getGeoObjects() : null) ||
+            target.properties?.get('geoObjects');
+
           if (clustered && Array.isArray(clustered)) {
             if (clustered.length > 1) {
               const coords = target.geometry?.getCoordinates();
@@ -659,7 +737,10 @@ const MinskMapContent: React.FC<{
               }
               return;
             } else if (clustered.length === 1) {
-              const single = clustered[0]?.properties?.get('userObj');
+              const single =
+                clustered[0]?.properties?.get('userObj') ||
+                (window as any).__ymUsersMap?.[String(clustered[0]?.properties?.get('userId'))];
+
               if (single) {
                 telegramService.haptic('selection');
                 onSelectUser(single);
@@ -687,7 +768,7 @@ const MinskMapContent: React.FC<{
           }
         }}
       >
-        {otherUsers.map((user: UserProfile & { displayCoords: [number, number] }) => {
+        {otherUsers.map((user: UserProfile & { displayCoords: [number, number] }, idx: number) => {
           const isSelected = selectedUser?.id === user.id;
           const goalInfo = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг' };
           const coords = ensureLatLng(user.displayCoords);
@@ -695,7 +776,7 @@ const MinskMapContent: React.FC<{
 
           return (
             <Placemark
-              key={`user-${userIdStr || coords.join('-')}`}
+              key={`user-${userIdStr || `idx-${idx}`}-${coords[0]}-${coords[1]}`}
               geometry={coords}
               properties={{
                 userId: userIdStr,
@@ -708,13 +789,9 @@ const MinskMapContent: React.FC<{
               options={{
                 iconLayout: avatarLayout,
                 iconOffset: [-23, -52],
-                shape: ({
-                  type: 'Rectangle',
-                  coordinates: [[-26, -56], [26, 6]]
-                } as any),
                 iconShape: ({
                   type: 'Rectangle',
-                  coordinates: [[-26, -56], [26, 6]]
+                  coordinates: [[-26, -58], [26, 6]]
                 } as any),
                 interactivityModel: 'default#opaque',
                 cursor: 'pointer',
@@ -755,13 +832,9 @@ const MinskMapContent: React.FC<{
             options={{
               iconLayout: eventLayout,
               iconOffset: [-50, -45],
-              shape: ({
-                type: 'Rectangle',
-                coordinates: [[-80, -50], [80, 8]]
-              } as any),
               iconShape: ({
                 type: 'Rectangle',
-                coordinates: [[-80, -50], [80, 8]]
+                coordinates: [[-85, -50], [85, 8]]
               } as any),
               interactivityModel: 'default#opaque',
               cursor: 'pointer',
@@ -1041,45 +1114,37 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         }
       `}</style>
 
-      <YMaps
-        query={{
-          apikey: apiKey,
-          lang: 'ru_RU',
-          load: 'package.full'
+      <Map
+        defaultState={{
+          center: currentCoords,
+          zoom: 13,
+          controls: []
+        }}
+        options={{
+          suppressMapOpenBlock: true
+        }}
+        className="w-full h-full"
+        instanceRef={(ref: any) => {
+          if (ref) {
+            mapRef.current = ref;
+          }
         }}
       >
-        <Map
-          defaultState={{
-            center: currentCoords,
-            zoom: 13,
-            controls: []
+        <MinskMapContent
+          users={usersWithSafeCoords}
+          events={events}
+          currentUser={currentUser}
+          currentUserCoords={currentCoords}
+          selectedUser={selectedUser}
+          onSelectUser={(u: UserProfile) => {
+            setCardEvent(null);
+            onSelectUser(u);
           }}
-          options={{
-            suppressMapOpenBlock: true
-          }}
-          className="w-full h-full"
-          instanceRef={(ref: any) => {
-            if (ref) {
-              mapRef.current = ref;
-            }
-          }}
-        >
-          <MinskMapContent
-            users={usersWithSafeCoords}
-            events={events}
-            currentUser={currentUser}
-            currentUserCoords={currentCoords}
-            selectedUser={selectedUser}
-            onSelectUser={(u: UserProfile) => {
-              setCardEvent(null);
-              onSelectUser(u);
-            }}
-            onSelectCurrentUser={onSelectCurrentUser}
-            onSelectEvent={handleEventClick}
-            mapInstance={mapRef.current}
-          />
-        </Map>
-      </YMaps>
+          onSelectCurrentUser={onSelectCurrentUser}
+          onSelectEvent={handleEventClick}
+          mapInstance={mapRef.current}
+        />
+      </Map>
 
       {/* Автономная карточка сходки (если MinskMap используется отдельно) */}
       {!onSelectEvent && cardEvent && (
