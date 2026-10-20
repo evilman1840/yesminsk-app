@@ -139,7 +139,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                   )}
                   {isAvailableNow(user) && (
                     <span className="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-[#2FA36B] text-white text-sm2 font-bold shadow-zine-sm">
-                      ⚡ Есть время до {formatTime(user.availableUntil)}
+                      ⚡ Могу сейчас · до {formatTime(user.availableUntil)}
                     </span>
                   )}
                 </div>

@@ -32,7 +32,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
 
       {isAvailableNow(user) && (
         <p className="mt-4 p-3 rounded-zine-sm bg-[#2FA36B]/15 text-body font-semibold text-zine-ink">
-          ⚡ Есть время — можно встретиться до {formatTime(user.availableUntil)}
+          ⚡ Могу сейчас · до {formatTime(user.availableUntil)}
         </p>
       )}
 
