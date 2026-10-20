@@ -1,6 +1,6 @@
 import React from 'react';
 import { MapPin } from 'lucide-react';
-import { UserProfile, GOALS_CONFIG } from '../../types';
+import { UserProfile, GOALS_CONFIG, isAvailableNow, formatTime } from '../../types';
 import { ReactionButtons, ChatButton, ReactionType } from './Reactions';
 import { BottomSheet } from '../ui/BottomSheet';
 
@@ -29,6 +29,12 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
         alt={user.firstName}
         className="w-full aspect-[4/3] rounded-zine object-cover bg-zine-card"
       />
+
+      {isAvailableNow(user) && (
+        <p className="mt-4 p-3 rounded-zine-sm bg-[#2FA36B]/15 text-body font-semibold text-zine-ink">
+          ⚡ Свободен сейчас — готов встретиться до {formatTime(user.availableUntil)}
+        </p>
+      )}
 
       <div className="flex items-center gap-2 mt-4 text-body text-zine-inkMuted">
         <MapPin size={20} className="text-zine-terracotta shrink-0" />

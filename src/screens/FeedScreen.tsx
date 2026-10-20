@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
-import { UserProfile, GOALS_CONFIG, ActivityGoal } from '../types';
+import { UserProfile, GOALS_CONFIG, ActivityGoal, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionButtons, ChatButton, ReactionType } from '../components/common/Reactions';
 import { formatDistance } from '../components/common/UserBottomSheet';
@@ -95,6 +95,11 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({ users, likedMe = [], mat
                   {user.isMatch && (
                     <span className="absolute top-3 left-3 px-3 py-1.5 rounded-full bg-zine-sage text-white text-sm2 font-bold shadow-zine-sm">
                       🤝 На связи
+                    </span>
+                  )}
+                  {isAvailableNow(user) && (
+                    <span className="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-[#2FA36B] text-white text-sm2 font-bold shadow-zine-sm">
+                      ⚡ Свободен до {formatTime(user.availableUntil)}
                     </span>
                   )}
                 </div>

@@ -9,6 +9,7 @@ import { formatEventDate } from '../../screens/MapScreen';
  */
 export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void }> = ({ event, onToggleJoin }) => {
   const cat = EVENT_CATEGORIES_CONFIG[event.category];
+  const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;
 
   return (
     <div className="space-y-3">
@@ -30,7 +31,10 @@ export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void 
         </p>
         <p className="flex items-center gap-2.5 text-zine-inkMuted">
           <Users size={20} className="shrink-0" />
-          <span>Идут: {event.participantsCount || 1}</span>
+          <span>
+            Идут: {event.participantsCount || 1}
+            {event.maxParticipants ? ` из ${event.maxParticipants}` : ''}
+          </span>
         </p>
       </div>
 
@@ -42,11 +46,14 @@ export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void 
             telegramService.haptic('medium');
             onToggleJoin();
           }}
+          disabled={isFull}
           className={`w-full h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-            event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : 'bg-zine-terracotta text-white'
+            event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : isFull ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'bg-zine-terracotta text-white'
           }`}
         >
-          {event.isJoined ? (
+          {isFull ? (
+            <span>Мест нет — все {event.maxParticipants} заняты</span>
+          ) : event.isJoined ? (
             <>
               <Check size={20} strokeWidth={3} />
               <span>Я иду · нажми, чтобы отменить</span>

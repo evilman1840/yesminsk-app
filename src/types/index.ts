@@ -1,7 +1,7 @@
 export type ActivityGoal = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors';
 export type Gender = 'male' | 'female' | 'not_specified';
 export type PreferredGender = 'all' | 'male' | 'female';
-export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport';
+export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'talk';
 
 export interface AgeRange {
   min: number;
@@ -24,7 +24,8 @@ const BADGES = {
   mustard: { badgeBg: 'bg-zine-mustard/15', badgeText: 'text-zine-mustardInk', badgeBorder: 'border-zine-mustard/30' },
   plum: { badgeBg: 'bg-zine-plum/10', badgeText: 'text-zine-plum', badgeBorder: 'border-zine-plum/25' },
   sage: { badgeBg: 'bg-zine-sage/15', badgeText: 'text-zine-sage', badgeBorder: 'border-zine-sage/30' },
-  sky: { badgeBg: 'bg-zine-sky/10', badgeText: 'text-zine-sky', badgeBorder: 'border-zine-sky/25' }
+  sky: { badgeBg: 'bg-zine-sky/10', badgeText: 'text-zine-sky', badgeBorder: 'border-zine-sky/25' },
+  blush: { badgeBg: 'bg-zine-blush/15', badgeText: 'text-zine-terracotta', badgeBorder: 'border-zine-blush/30' }
 };
 const badge = (color: keyof typeof BADGES) => BADGES[color];
 
@@ -41,7 +42,8 @@ export const EVENT_CATEGORIES_CONFIG: Record<EventCategory, { label: string; emo
   expo_cinema: { label: 'Арт, кино', emoji: '🎨', ...badge('plum') },
   trip_outdoors: { label: 'За город', emoji: '🌲', ...badge('sage') },
   boardgames: { label: 'Настолки', emoji: '🎲', ...badge('sky') },
-  sport: { label: 'Спорт, вело', emoji: '🚴', ...badge('sky') }
+  sport: { label: 'Спорт, вело', emoji: '🚴', ...badge('sky') },
+  talk: { label: 'По душам', emoji: '🤗', ...badge('blush') }
 };
 
 export interface UserProfile {
@@ -68,7 +70,15 @@ export interface UserProfile {
   iLiked?: boolean;   // я нажал 👋 «Пообщаться»
   likedMe?: boolean;  // мне нажали 👋
   isMatch?: boolean;  // оба нажали 👋 — на связи, можно писать
+  availableUntil?: string; // «⚡ Свободен сейчас» — до этого времени
 }
+
+// «⚡ Свободен сейчас» ещё действует?
+export const isAvailableNow = (u?: { availableUntil?: string | null } | null) =>
+  Boolean(u?.availableUntil && new Date(u.availableUntil).getTime() > Date.now());
+
+export const formatTime = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
 
 export interface AppEvent {
   id: string;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Check, Clock, MapPin, Pencil, Users, Eye, EyeOff, Send, Sun, Moon } from 'lucide-react';
-import { GOALS_CONFIG, ActivityGoal, UserProfile, AppEvent, EVENT_CATEGORIES_CONFIG } from '../types';
+import { Pencil, Eye, EyeOff, Sun, Moon, Loader2 } from 'lucide-react';
+import { ActivityGoal, UserProfile, AppEvent, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -22,14 +22,16 @@ export interface MapScreenProps {
     bio?: string;
     age?: string | number;
     isProfileActive?: boolean;
+    availableUntil?: string | null;
   } | null;
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile | null) => void;
   selectedGoal: ActivityGoal | 'all';
   onSelectGoal: (goal: ActivityGoal | 'all') => void;
   onOpenProfile: () => void;
-  onToggleJoinEvent: (event: AppEvent) => void;
+  onToggleJoinEvent: (event: AppEvent) => Promise<boolean>;
   onUpdateLocation?: (coords: [number, number]) => void;
+  onSetAvailable: (hours: number) => Promise<void>;
 }
 
 // Подсказки для новичков: коротко — в бегущей строке, подробно — в шторке «Как это работает»
@@ -39,6 +41,7 @@ const TIPS_LINE =
 const HELP_STEPS = [
   { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото — откроется анкета.' },
   { emoji: '👋', title: '«Пообщаться»', text: 'Передай человеку привет. Если он ответит тем же, вы сможете написать друг другу в Telegram.' },
+  { emoji: '⚡', title: '«Я свободен»', text: 'Нажми, если готов встретиться в ближайшие часы — тебя увидят первым.' },
   { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию — это займёт минуту.' },
   { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе — так тебя быстрее заметят.' },
   { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 300–500 м. Можно включить режим невидимки.' }
@@ -65,11 +68,27 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onSelectGoal,
   onOpenProfile,
   onToggleJoinEvent,
-  onUpdateLocation
+  onUpdateLocation,
+  onSetAvailable
 }) => {
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
   const [isMySheetOpen, setIsMySheetOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
+  const [isSavingAvailability, setIsSavingAvailability] = useState(false);
+  const iAmAvailable = isAvailableNow(currentUser);
+
+  const changeAvailability = async (hours: number) => {
+    setIsSavingAvailability(true);
+    try {
+      await onSetAvailable(hours);
+      setIsAvailabilityOpen(false);
+    } catch (err: any) {
+      alert(err.message || 'Не удалось изменить статус');
+    } finally {
+      setIsSavingAvailability(false);
+    }
+  };
   const [isDark, setIsDark] = useState(() => telegramService.isDarkTheme());
 
   const filteredUsers = selectedGoal === 'all' ? users : users.filter((u) => u.goal === selectedGoal);
@@ -150,6 +169,81 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         </div>
       </div>
 
+      {/* «⚡ Свободен сейчас» — готов встретиться в ближайшие часы */}
+      <button
+        onClick={() => {
+          telegramService.haptic('selection');
+          setIsAvailabilityOpen(true);
+        }}
+        className={`absolute left-4 bottom-10 z-20 h-14 px-5 rounded-full shadow-zine-float text-body font-bold flex items-center gap-2 active:scale-95 transition-transform cursor-pointer ${
+          iAmAvailable ? 'bg-zine-sage text-white' : 'bg-zine-cardElevated text-zine-ink border border-zine-border'
+        }`}
+      >
+        <span className="text-[22px] leading-none">⚡</span>
+        <span>{iAmAvailable ? `Свободен до ${formatTime(currentUser?.availableUntil)}` : 'Я свободен'}</span>
+      </button>
+
+      {isAvailabilityOpen && (
+        <BottomSheet title={iAmAvailable ? 'Ты свободен ⚡' : 'Свободен сейчас?'} onClose={() => setIsAvailabilityOpen(false)}>
+          {!isVisible ? (
+            <>
+              <p className="text-body text-zine-inkMuted">
+                Сейчас включён режим невидимки — тебя не видно на карте. Выключи его в анкете, чтобы другие увидели, что ты свободен.
+              </p>
+              <button
+                onClick={() => {
+                  setIsAvailabilityOpen(false);
+                  onOpenProfile();
+                }}
+                className="mt-5 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer"
+              >
+                Открыть анкету
+              </button>
+            </>
+          ) : iAmAvailable ? (
+            <>
+              <p className="text-body text-zine-inkMuted">
+                Другие видят зелёную обводку и ⚡ на твоей аватарке до {formatTime(currentUser?.availableUntil)}. Потом статус выключится сам.
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => changeAvailability(3)}
+                  disabled={isSavingAvailability}
+                  className="h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
+                >
+                  Продлить на 3 ч
+                </button>
+                <button
+                  onClick={() => changeAvailability(0)}
+                  disabled={isSavingAvailability}
+                  className="h-12 rounded-zine-sm bg-zine-ink text-zine-paper text-body font-bold cursor-pointer"
+                >
+                  Выключить
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-body text-zine-inkMuted">
+                Покажем людям рядом, что ты готов встретиться: на аватарке появится ⚡ и ты будешь первым в списке. Статус выключится сам.
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                {[1, 3].map((h) => (
+                  <button
+                    key={h}
+                    onClick={() => changeAvailability(h)}
+                    disabled={isSavingAvailability}
+                    className="h-14 rounded-zine-sm bg-zine-sage text-white text-lead font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+                  >
+                    {isSavingAvailability ? <Loader2 size={22} className="animate-spin" /> : `На ${h} ${h === 1 ? 'час' : 'часа'}`}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </BottomSheet>
+      )}
+
       {/* Как это работает — для тех, кто здесь впервые */}
       {isHelpOpen && (
         <BottomSheet title="Как это работает" onClose={() => setIsHelpOpen(false)}>
@@ -222,9 +316,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         <BottomSheet title={selectedEvent.title} onClose={() => setSelectedEvent(null)}>
           <EventDetails
             event={selectedEvent}
-            onToggleJoin={() => {
-              onToggleJoinEvent(selectedEvent);
-              setSelectedEvent({ ...selectedEvent, isJoined: !selectedEvent.isJoined });
+            onToggleJoin={async () => {
+              if (!(await onToggleJoinEvent(selectedEvent))) return;
+              setSelectedEvent({
+                ...selectedEvent,
+                isJoined: !selectedEvent.isJoined,
+                participantsCount: (selectedEvent.participantsCount || 1) + (selectedEvent.isJoined ? -1 : 1)
+              });
             }}
           />
         </BottomSheet>

@@ -173,6 +173,14 @@ class ApiService {
     });
   }
 
+  // «⚡ Свободен сейчас»: hours > 0 — включить на столько часов, 0 — выключить
+  async setAvailable(hours: number): Promise<{ success: boolean; availableUntil: string | null }> {
+    return this.request('/users/available', {
+      method: 'POST',
+      body: JSON.stringify({ hours })
+    });
+  }
+
   async getInbox(): Promise<{ likedMe: UserProfile[]; matches: UserProfile[] }> {
     return this.request('/reactions/inbox');
   }

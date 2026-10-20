@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 import { LocateFixed } from 'lucide-react';
-import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG } from '../../types';
+import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, isAvailableNow } from '../../types';
 import { telegramService } from '../../services/telegram';
 
 export interface MinskMapProps {
@@ -327,6 +327,7 @@ const MinskMapContent: React.FC<{
         {otherUsers.map((user: UserProfile & { displayCoords: [number, number] }, idx: number) => {
           const isSelected = selectedUser?.id === user.id;
           const goalInfo = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг' };
+          const available = isAvailableNow(user);
           const coords = ensureLatLng(user.displayCoords);
           const userIdStr = String(user.id || (user as any).telegramId || (user as any)._id || '');
 
@@ -338,8 +339,9 @@ const MinskMapContent: React.FC<{
                 userId: userIdStr,
                 avatarUrl: user.avatarUrl,
                 name: user.firstName,
-                goalEmoji: goalInfo.emoji,
-                borderColor: isSelected ? '#D95C3C' : '#FAF7F2'
+                // «⚡ Свободен сейчас» — зелёная обводка и молния вместо значка цели
+                goalEmoji: available ? '⚡' : goalInfo.emoji,
+                borderColor: isSelected ? '#D95C3C' : available ? '#2FA36B' : '#FAF7F2'
               }}
               options={{
                 iconLayout: avatarLayout,

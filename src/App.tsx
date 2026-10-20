@@ -64,6 +64,7 @@ export const App: React.FC = () => {
     area: 'Немига / Центр',
     isTourist: false,
     isProfileActive: true,
+    availableUntil: null as string | null,
     coordinates: getSavedCoordinates()
   });
 
@@ -179,6 +180,7 @@ export const App: React.FC = () => {
             area: me.areaName || prev.area,
             isTourist: Boolean(me.isTourist),
             isProfileActive: me.isProfileActive !== false,
+            availableUntil: me.availableUntil || null,
             coordinates: userCoords
           }));
 
@@ -345,7 +347,8 @@ export const App: React.FC = () => {
     setEvents(prev => prev.filter(e => e.id !== eventId && (e as any)._id !== eventId));
   };
 
-  const handleToggleJoinEvent = async (event: AppEvent) => {
+  // Возвращает true, если получилось (на сходке «По душам» места могут закончиться)
+  const handleToggleJoinEvent = async (event: AppEvent): Promise<boolean> => {
     try {
       const isJoined = Boolean(event.isJoined);
       await api.toggleJoinEvent(event.id, isJoined);
@@ -362,9 +365,19 @@ export const App: React.FC = () => {
             : e
         )
       );
-    } catch (e) {
-      console.error('Ошибка изменения участия:', e);
+      return true;
+    } catch (e: any) {
+      telegramService.haptic('error');
+      alert(e?.message || 'Не получилось изменить участие');
+      return false;
     }
+  };
+
+  // «⚡ Свободен сейчас»
+  const handleSetAvailable = async (hours: number) => {
+    const res = await api.setAvailable(hours);
+    setCurrentUser(prev => ({ ...prev, availableUntil: res.availableUntil || null }));
+    telegramService.haptic('success');
   };
 
   const handleAgreeRules = async () => {
@@ -449,6 +462,7 @@ export const App: React.FC = () => {
                 onOpenProfile={() => handleNavigate('profile_edit')}
                 onToggleJoinEvent={handleToggleJoinEvent}
                 onUpdateLocation={handleUpdateLocation}
+                onSetAvailable={handleSetAvailable}
               />
             )}
 
@@ -491,8 +505,8 @@ export const App: React.FC = () => {
             <BottomSheet title={sharedEvent.title} onClose={() => setSharedEvent(null)}>
               <EventDetails
                 event={sharedEvent}
-                onToggleJoin={() => {
-                  handleToggleJoinEvent(sharedEvent);
+                onToggleJoin={async () => {
+                  if (!(await handleToggleJoinEvent(sharedEvent))) return;
                   setSharedEvent({
                     ...sharedEvent,
                     isJoined: !sharedEvent.isJoined,
