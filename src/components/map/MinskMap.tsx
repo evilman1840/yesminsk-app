@@ -237,7 +237,7 @@ const MinskMapContent: React.FC<{
           options={{
             iconLayout: currentUserLayout,
             iconOffset: [-27, -68],
-            iconShape: { type: 'Rectangle', coordinates: [[-27, -68], [27, 0]] } as any,
+            iconShape: { type: 'Rectangle', coordinates: [[0, 0], [54, 68]] } as any,
             interactivityModel: 'default#opaque',
             cursor: 'pointer',
             zIndex: 1000,
@@ -327,7 +327,7 @@ const MinskMapContent: React.FC<{
               options={{
                 iconLayout: avatarLayout,
                 iconOffset: [-23, -52],
-                iconShape: { type: 'Rectangle', coordinates: [[-23, -52], [23, 0]] } as any,
+                iconShape: { type: 'Rectangle', coordinates: [[0, 0], [46, 58]] } as any,
                 interactivityModel: 'default#opaque',
                 cursor: 'pointer',
                 hasBalloon: false
@@ -363,7 +363,7 @@ const MinskMapContent: React.FC<{
             options={{
               iconLayout: eventLayout,
               iconOffset: [-50, -45],
-              iconShape: { type: 'Rectangle', coordinates: [[-75, -38], [75, 0]] } as any,
+              iconShape: { type: 'Rectangle', coordinates: [[0, 0], [150, 45]] } as any,
               interactivityModel: 'default#opaque',
               cursor: 'pointer',
               zIndex: 850,
