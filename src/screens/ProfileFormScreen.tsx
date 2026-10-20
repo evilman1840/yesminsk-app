@@ -281,6 +281,23 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           <p className="mt-2 text-body text-zine-inkMuted">Пара минут — и тебя увидят люди рядом.</p>
         )}
 
+        {!isFirstTime && (
+          <button
+            type="button"
+            onClick={() => {
+              telegramService.haptic('selection');
+              telegramService.shareApp();
+            }}
+            className="mt-4 w-full p-4 rounded-zine bg-zine-terracotta/10 border border-zine-terracotta/25 flex items-center gap-3 text-left cursor-pointer"
+          >
+            <span className="text-[28px] leading-none">💌</span>
+            <span>
+              <span className="block text-body font-bold text-zine-ink">Позвать друзей</span>
+              <span className="block text-sm2 text-zine-inkMuted">Чем больше знакомых рядом, тем проще найти компанию</span>
+            </span>
+          </button>
+        )}
+
         {errorText && (
           <div className="mt-4 p-3.5 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">⚠️ {errorText}</div>
         )}

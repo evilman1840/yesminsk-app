@@ -15,6 +15,7 @@ import { BottomSheet } from './components/ui/BottomSheet';
 import { EventDetails } from './components/common/EventDetails';
 import { DonateSheet } from './components/common/DonateSheet';
 import { NewsScreen } from './screens/NewsScreen';
+import { FirstStepsCard } from './components/people/FirstSteps';
 import { NewsItem } from './services/api';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
@@ -78,6 +79,14 @@ export const App: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<GoalFilter>('all');
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isUsersLoaded, setIsUsersLoaded] = useState(false);
+  const [isFirstStepsHidden, setIsFirstStepsHidden] = useState(() => {
+    try {
+      return localStorage.getItem('yesminsk_first_steps_hidden') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [likedMe, setLikedMe] = useState<UserProfile[]>([]);
   const [matches, setMatches] = useState<UserProfile[]>([]);
   const [matchPopupUser, setMatchPopupUser] = useState<UserProfile | null>(null);
@@ -137,6 +146,7 @@ export const App: React.FC = () => {
 
       if (Array.isArray(data)) {
         setUsers(data);
+        setIsUsersLoaded(true);
       }
     } catch (err: any) {
       console.warn('Ошибка загрузки пользователей:', err);
@@ -463,6 +473,27 @@ export const App: React.FC = () => {
 
   const isTab = ['main', 'feed', 'events', 'news', 'profile_edit'].includes(currentScreen);
 
+  // «Первые шаги» для новичков
+  const firstSteps = [
+    {
+      id: 'photo',
+      title: 'Добавь своё фото',
+      done: Boolean(currentUser.avatarUrl) && !currentUser.avatarUrl.includes('images.unsplash.com'),
+      onClick: () => handleNavigate('profile_edit')
+    },
+    { id: 'bio', title: 'Напиши пару слов о себе', done: currentUser.bio.trim().length > 0, onClick: () => handleNavigate('profile_edit') },
+    { id: 'hello', title: 'Нажми 👋 у того, с кем хочешь пообщаться', done: matches.length > 0 || users.some(u => u.iLiked) },
+    { id: 'event', title: 'Запишись на сходку или собери свою', done: events.some(e => e.isJoined), onClick: () => handleNavigate('events') }
+  ];
+  const hideFirstSteps = () => {
+    setIsFirstStepsHidden(true);
+    try {
+      localStorage.setItem('yesminsk_first_steps_hidden', '1');
+    } catch {
+      // не страшно
+    }
+  };
+
   const handleNavigate = (tab: TabId) => {
     setSelectedUser(null);
     setCurrentScreen(tab);
@@ -535,6 +566,7 @@ export const App: React.FC = () => {
                 onUpdateLocation={handleUpdateLocation}
                 onSetAvailable={handleSetAvailable}
                 onOpenNews={() => handleNavigate('news')}
+                fewPeople={isUsersLoaded && !apiError && users.length < 3}
               />
             )}
 
@@ -545,6 +577,7 @@ export const App: React.FC = () => {
                 matches={matches}
                 isTourist={currentUser.isTourist}
                 myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange }}
+                topSlot={!isFirstStepsHidden && <FirstStepsCard steps={firstSteps} onDismiss={hideFirstSteps} />}
                 selectedGoal={selectedGoal}
                 onSelectGoal={setSelectedGoal}
                 onSelectUser={(u) => setSelectedUser(u)}

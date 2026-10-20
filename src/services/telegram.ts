@@ -156,6 +156,27 @@ export const telegramService = {
   },
 
   /**
+   * «Позвать друзей»: личная ссылка-приглашение в приложение.
+   * Бот встретит друга словами «<имя> зовёт тебя в ДА! МИНСК», а пригласившему придёт спасибо
+   */
+  shareApp() {
+    const me = this.getUser();
+    const bot = import.meta.env.VITE_BOT_USERNAME || 'yesminsk_app_bot';
+    const link = me?.id ? `https://t.me/${bot}?start=invite_${me.id}` : `https://t.me/${bot}`;
+    const text = 'Пошли со мной в ДА! МИНСК — там легко найти компанию для прогулок, кофе и выставок в Минске 👋';
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+
+    const webapp = tg();
+    if (webapp?.initData && webapp.openTelegramLink) {
+      webapp.openTelegramLink(shareUrl);
+    } else if (navigator.share) {
+      navigator.share({ title: 'ДА! МИНСК', text, url: link }).catch(() => {});
+    } else {
+      window.open(shareUrl, '_blank');
+    }
+  },
+
+  /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
   getLaunchTarget(): { eventId?: string; tab?: string } {

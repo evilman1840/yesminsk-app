@@ -20,6 +20,7 @@ export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void;
 
   return (
     <div className="space-y-3">
+      {event.isOfficial && <p className="text-sm2 font-bold text-zine-terracotta">⭐ От ДА! МИНСК — приходи, тут рады новичкам</p>}
       {cat && (
         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold ${cat.badgeBg} ${cat.badgeText}`}>
           <span>{cat.emoji}</span>

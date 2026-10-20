@@ -418,7 +418,13 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             const isDeleting = deletingId === String(ev.id);
 
             return (
-              <article key={ev.id} className="p-4 rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-sm">
+              <article
+                key={ev.id}
+                className={`p-4 rounded-zine bg-zine-cardElevated shadow-zine-sm ${ev.isOfficial ? 'border-2 border-zine-terracotta' : 'border border-zine-border'}`}
+              >
+                {ev.isOfficial && (
+                  <p className="mb-2 text-sm2 font-bold text-zine-terracotta">⭐ От ДА! МИНСК — приходи, тут рады новичкам</p>
+                )}
                 <div className="flex items-center justify-between gap-2">
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold ${cat.badgeBg} ${cat.badgeText}`}>
                     <span>{cat.emoji}</span>

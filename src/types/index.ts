@@ -105,6 +105,7 @@ export interface AppEvent {
   participantsCount: number;
   maxParticipants: number;
   isJoined: boolean;
+  isOfficial?: boolean; // «⭐ От ДА! МИНСК» — сходка автора проекта
   participants?: Array<{
     telegramId: number;
     name: string;

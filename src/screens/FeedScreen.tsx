@@ -25,6 +25,7 @@ export interface FeedScreenProps {
   selectedGoal: GoalFilter;
   onSelectGoal: (goal: GoalFilter) => void;
   myPrefs: MyPrefs;
+  topSlot?: React.ReactNode; // например, «Первые шаги» для новичков
 }
 
 type FeedTab = 'all' | 'likes' | 'matches';
@@ -38,7 +39,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   isTourist = false,
   selectedGoal,
   onSelectGoal,
-  myPrefs
+  myPrefs,
+  topSlot
 }) => {
   const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -112,6 +114,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       </div>
 
       <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">
+        {tab === 'all' && topSlot}
+
         {/* Туристам — местные, которые готовы показать город */}
         {isTourist && tab === 'all' && selectedGoal !== 'guides' && guidesCount > 0 && (
           <section className="p-4 rounded-zine bg-zine-sky/10 border border-zine-sky/25">
@@ -239,7 +243,7 @@ const EmptyState: React.FC<{ tab: FeedTab }> = ({ tab }) => {
   const content = {
     likes: { emoji: '👋', title: 'Пока никто не передал привет', text: 'Когда кто-то захочет пообщаться, он появится здесь, а бот пришлёт уведомление.' },
     matches: { emoji: '🤝', title: 'Пока никого на связи', text: 'Нажимай 👋 на анкетах. Когда человек ответит тем же, здесь появится кнопка «Написать».' },
-    all: { emoji: '🗺', title: 'Здесь пока никого', text: 'Попробуй выбрать другую цель или загляни чуть позже.' }
+    all: { emoji: '🗺', title: 'Здесь пока никого', text: 'Позови друзей — вместе веселее. А ещё загляни чуть позже.' }
   }[tab];
 
   return (
@@ -247,6 +251,14 @@ const EmptyState: React.FC<{ tab: FeedTab }> = ({ tab }) => {
       <div className="text-[44px] mb-3">{content.emoji}</div>
       <h3 className="font-serif font-bold text-title text-zine-ink mb-2">{content.title}</h3>
       <p className="text-body text-zine-inkMuted">{content.text}</p>
+      {tab === 'all' && (
+        <button
+          onClick={() => telegramService.shareApp()}
+          className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer"
+        >
+          💌 Позвать друзей
+        </button>
+      )}
     </div>
   );
 };

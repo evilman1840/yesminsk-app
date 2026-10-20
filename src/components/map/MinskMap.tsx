@@ -186,8 +186,8 @@ const MinskMapContent: React.FC<{
     if (!ymaps) return null;
     return (ymaps as any).templateLayoutFactory.createClass(
       `<div class="ymaps-event-marker" style="position: relative; display: inline-flex; flex-direction: column; align-items: flex-start; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-        <div style="display: inline-flex; align-items: center; gap: 8px; height: 56px; padding: 6px 12px 6px 6px; border-radius: 28px; background: #FFFDF9; border: 2.5px solid #E2A03F; box-shadow: 0 6px 18px rgba(43, 38, 35, 0.3); box-sizing: border-box; white-space: nowrap;">
-          <div style="width: 40px; height: 40px; border-radius: 50%; background: #E2A03F; display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 1; flex-shrink: 0; pointer-events: none;">
+        <div style="display: inline-flex; align-items: center; gap: 8px; height: 56px; padding: 6px 12px 6px 6px; border-radius: 28px; background: #FFFDF9; border: 2.5px solid $[properties.accent]; box-shadow: 0 6px 18px rgba(43, 38, 35, 0.3); box-sizing: border-box; white-space: nowrap;">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: $[properties.accent]; display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 1; flex-shrink: 0; pointer-events: none;">
             $[properties.eventEmoji]
           </div>
           <div style="display: flex; flex-direction: column; min-width: 0; pointer-events: none;">
@@ -195,7 +195,7 @@ const MinskMapContent: React.FC<{
             <span style="font-size: 13px; font-weight: 600; line-height: 17px; color: #B5462A;">$[properties.displayWhen] · 👥 $[properties.participantsCount]</span>
           </div>
         </div>
-        <div style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 10px solid #E2A03F; margin: -1px 0 0 20px; pointer-events: none;"></div>
+        <div style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 10px solid $[properties.accent]; margin: -1px 0 0 20px; pointer-events: none;"></div>
       </div>`
     );
   }, [ymaps]);
@@ -377,6 +377,8 @@ const MinskMapContent: React.FC<{
             properties={{
               eventId: eventIdStr,
               eventEmoji: catConfig.emoji || '⭐️',
+              // Официальные сходки ДА! МИНСК — терракотовые, остальные — горчичные
+              accent: ev.isOfficial ? '#D95C3C' : '#E2A03F',
               displayTitle,
               displayWhen,
               participantsCount: ev.participantsCount || 1

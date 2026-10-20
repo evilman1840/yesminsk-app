@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pencil, Eye, EyeOff, Sun, Moon, Loader2 } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Sun, Moon, Loader2, X } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter } from '../types';
 import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
@@ -34,6 +34,7 @@ export interface MapScreenProps {
   onUpdateLocation?: (coords: [number, number]) => void;
   onSetAvailable: (hours: number) => Promise<void>;
   onOpenNews: () => void;
+  fewPeople?: boolean; // рядом меньше 3 человек — предлагаем позвать друзей
 }
 
 // Подсказки для новичков: коротко — в бегущей строке, подробно — в шторке «Как это работает»
@@ -76,8 +77,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onToggleJoinEvent,
   onUpdateLocation,
   onSetAvailable,
-  onOpenNews
+  onOpenNews,
+  fewPeople = false
 }) => {
+  const [isFewHintClosed, setIsFewHintClosed] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
   const [isMySheetOpen, setIsMySheetOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -167,6 +170,29 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           <GoalChips value={selectedGoal} onChange={onSelectGoal} floating />
         </div>
       </div>
+
+      {/* Рядом мало людей — мягко предлагаем позвать друзей */}
+      {fewPeople && !isFewHintClosed && (
+        <div className="absolute left-4 right-[72px] top-[132px] z-20 p-3.5 rounded-zine bg-zine-cardElevated shadow-zine-float">
+          <div className="flex items-start gap-2">
+            <p className="flex-1 text-sm2 text-zine-ink">
+              <b>Рядом пока мало людей.</b> Позови друзей — вместе веселее 💛
+            </p>
+            <button onClick={() => setIsFewHintClosed(true)} aria-label="Скрыть" className="w-8 h-8 -mt-1 -mr-1 rounded-full flex items-center justify-center text-zine-inkMuted cursor-pointer">
+              <X size={18} />
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              telegramService.haptic('selection');
+              telegramService.shareApp();
+            }}
+            className="mt-2 w-full h-11 rounded-zine-sm bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer"
+          >
+            💌 Позвать друзей
+          </button>
+        </div>
+      )}
 
       {/* Светлая / тёмная тема — небольшая кнопка у края карты, под фильтрами */}
       <button
