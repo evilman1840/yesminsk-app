@@ -9,15 +9,32 @@
 // Сколько звёзд можно отправить (такой же список — на сервере)
 export const STAR_AMOUNTS = [50, 100, 250, 500];
 
+// Способ доната: ссылка (открывается) или реквизит (копируется одним нажатием)
 export interface DonateLink {
   emoji: string;
-  title: string; // «Картой из Беларуси»
-  hint: string;  // «Через Boosty, любая карта»
-  url: string;
+  title: string;  // «Перевод на карту»
+  hint: string;   // «Альфа-Банк, любая карта»
+  url?: string;   // если есть — кнопка открывает ссылку
+  copy?: string;  // если есть — кнопка копирует это значение
 }
 
 export const DONATE_LINKS: DonateLink[] = [
-  // Пример:
-  // { emoji: '🇧🇾', title: 'Картой из Беларуси', hint: 'Через …', url: 'https://…' },
-  // { emoji: '🇷🇺', title: 'Картой из России', hint: 'Через Boosty', url: 'https://boosty.to/…' },
+  {
+    emoji: '💳',
+    title: 'Перевод на карту',
+    hint: 'Альфа-Банк — по ссылке, с любой карты',
+    url: 'https://www.alfabank.by/share/?transferLinkId=697bdff3d6f242317b6e3cab&version=INSNC3'
+  },
+  {
+    emoji: '🏦',
+    title: 'ЕРИП (Альфа-Банк), счёт',
+    hint: 'BY81ALFA301432X3X40010270000',
+    copy: 'BY81ALFA301432X3X40010270000'
+  },
+  {
+    emoji: '📱',
+    title: 'Перевод по номеру телефона',
+    hint: '+375 29 588-14-72',
+    copy: '+375295881472'
+  }
 ];

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, ExternalLink } from 'lucide-react';
+import { Loader2, ExternalLink, Copy, Check } from 'lucide-react';
 import { BottomSheet } from '../ui/BottomSheet';
 import { api } from '../../services/api';
 import { telegramService } from '../../services/telegram';
@@ -12,6 +12,24 @@ export const DonateSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [busyStars, setBusyStars] = useState<number | null>(null);
   const [thanks, setThanks] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const copyValue = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // запасной способ для старых браузеров
+      const area = document.createElement('textarea');
+      area.value = value;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+    telegramService.haptic('success');
+    setCopied(value);
+    setTimeout(() => setCopied(null), 2000);
+  };
 
   const donateStars = async (stars: number) => {
     setError(null);
@@ -45,11 +63,40 @@ export const DonateSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   return (
     <BottomSheet title="Поддержать проект" onClose={onClose}>
-      <p className="text-body text-zine-inkMuted">
-        ДА! МИНСК — бесплатный и без рекламы. Если приложение помогло найти компанию, можно сказать спасибо — любая сумма помогает оплачивать серверы и делать новое 💛
+      <p className="text-lead font-bold text-zine-ink">🔥 Поддержи проект 1 рублём или больше</p>
+      <p className="mt-1 text-body text-zine-inkMuted">
+        ДА! МИНСК — бесплатный и без рекламы. Любая сумма помогает оплачивать серверы и делать новое 💛
       </p>
 
-      <h4 className="mt-5 mb-2 text-body font-bold text-zine-ink">⭐ Звёздами Telegram</h4>
+      {DONATE_LINKS.length > 0 && (
+        <div className="mt-5 space-y-2">
+          {DONATE_LINKS.map((link) => {
+            const isCopied = Boolean(link.copy) && copied === link.copy;
+            return (
+              <button
+                key={link.title}
+                onClick={() => (link.url ? telegramService.openLink(link.url) : link.copy && copyValue(link.copy))}
+                className="w-full p-3.5 rounded-zine-sm bg-zine-card flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform"
+              >
+                <span className="text-[26px] leading-none">{link.emoji}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-body font-bold text-zine-ink">{link.title}</span>
+                  <span className={`block text-sm2 text-zine-inkMuted ${link.copy ? 'break-all' : ''}`}>{isCopied ? 'Скопировано ✓' : link.hint}</span>
+                </span>
+                {link.url ? (
+                  <ExternalLink size={20} className="text-zine-inkMuted shrink-0" />
+                ) : isCopied ? (
+                  <Check size={20} strokeWidth={3} className="text-zine-sage shrink-0" />
+                ) : (
+                  <Copy size={20} className="text-zine-inkMuted shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <h4 className="mt-6 mb-2 text-body font-bold text-zine-ink">⭐ Или звёздами Telegram</h4>
       <div className="grid grid-cols-2 gap-2">
         {STAR_AMOUNTS.map((stars) => (
           <button
@@ -68,27 +115,6 @@ export const DonateSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
       {error && <p className="mt-3 p-3 rounded-zine-sm bg-zine-danger/10 text-sm2 text-zine-danger">{error}</p>}
 
-      {DONATE_LINKS.length > 0 && (
-        <>
-          <h4 className="mt-6 mb-2 text-body font-bold text-zine-ink">Другие способы</h4>
-          <div className="space-y-2">
-            {DONATE_LINKS.map((link) => (
-              <button
-                key={link.url}
-                onClick={() => telegramService.openLink(link.url)}
-                className="w-full p-3.5 rounded-zine-sm bg-zine-card flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform"
-              >
-                <span className="text-[26px] leading-none">{link.emoji}</span>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-body font-bold text-zine-ink">{link.title}</span>
-                  <span className="block text-sm2 text-zine-inkMuted">{link.hint}</span>
-                </span>
-                <ExternalLink size={20} className="text-zine-inkMuted shrink-0" />
-              </button>
-            ))}
-          </div>
-        </>
-      )}
     </BottomSheet>
   );
 };
