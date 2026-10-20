@@ -2,26 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Палитра «Тёплый зин». Значения — каналы RGB, чтобы работала прозрачность в Tailwind */
 :root {
   color-scheme: light;
   -webkit-tap-highlight-color: transparent;
+
+  --c-paper: 250 247 242;
+  --c-card: 244 239 234;
+  --c-card-elevated: 255 253 249;
+  --c-border: 232 223 213;
+  --c-ink: 43 38 35;
+  --c-ink-muted: 107 99 92;
+  --c-terracotta: 217 92 60;
+  --c-terracotta-hover: 198 79 48;
+  --c-mustard: 226 160 63;
+  --c-mustard-ink: 154 100 18;
+  --c-sage: 91 123 104;
+  --c-blush: 232 139 116;
+  --c-plum: 106 78 158;
+  --c-sky: 59 114 158;
+  --c-danger: 200 50 50;
 }
 
+/* Тёмная тема — включается вместе с тёмной темой Telegram */
+html.dark {
+  color-scheme: dark;
+
+  --c-paper: 28 25 23;
+  --c-card: 38 34 31;
+  --c-card-elevated: 46 42 38;
+  --c-border: 66 60 54;
+  --c-ink: 243 238 232;
+  --c-ink-muted: 178 169 160;
+  --c-terracotta: 232 113 79;
+  --c-terracotta-hover: 240 130 98;
+  --c-mustard: 232 176 90;
+  --c-mustard-ink: 232 176 90;
+  --c-sage: 127 168 143;
+  --c-blush: 240 160 140;
+  --c-plum: 170 145 220;
+  --c-sky: 115 165 210;
+  --c-danger: 240 110 110;
+}
+
+html,
 body {
-  background-color: #FAF7F2;
-  color: #2B2623;
+  background-color: rgb(var(--c-paper));
+  color: rgb(var(--c-ink));
   margin: 0;
   padding: 0;
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 17px;
 }
 
-/* Деликатная микро-текстура крафтовой бумаги */
+/* Раньше здесь была точечная текстура; теперь чистый фон */
 .zine-paper-texture {
-  background-color: #FAF7F2;
-  background-image: radial-gradient(#2B2623 0.45px, transparent 0.45px);
-  background-size: 16px 16px;
-  background-position: 0 0;
-  background-attachment: fixed;
+  background-color: rgb(var(--c-paper));
+}
+
+/* Поля ввода — крупные и единообразные */
+.field {
+  @apply w-full h-12 px-4 rounded-zine-sm bg-zine-cardElevated border border-zine-border text-body text-zine-ink placeholder:text-zine-inkMuted/70 focus:outline-none focus:border-zine-terracotta focus:ring-2 focus:ring-zine-terracotta/20 transition-colors;
+}
+textarea.field {
+  @apply h-auto py-3 leading-relaxed resize-none;
 }
 
 /* Скрытие стандартного скроллбара для горизонтальных плашек */
@@ -31,4 +75,9 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Отступ снизу под «полоску» iPhone */
+.pb-safe {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
 }

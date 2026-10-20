@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
-import { Clock, MapPin, X, Send, Check, Sparkles } from 'lucide-react';
+import { LocateFixed } from 'lucide-react';
 import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG } from '../../types';
 import { telegramService } from '../../services/telegram';
 
@@ -397,7 +397,6 @@ export const MinskMap: React.FC<MinskMapProps> = ({
 }) => {
   const mapRef = useRef<any>(null);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
-  const [cardEvent, setCardEvent] = useState<AppEvent | null>(null);
   const handleUpdate = onUpdateLocation || onUpdateUserCoordinates;
 
   // Восстановление сохраненных координат из localStorage
@@ -440,11 +439,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   }, [users, applyFuzzyOffset]);
 
   const handleEventClick = (ev: AppEvent) => {
-    if (onSelectEvent) {
-      onSelectEvent(ev);
-    } else {
-      setCardEvent(ev);
-    }
+    onSelectEvent?.(ev);
   };
 
   const handleLocateGPS = () => {
@@ -489,23 +484,14 @@ export const MinskMap: React.FC<MinskMapProps> = ({
     );
   };
 
-  const formatEventDate = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleDateString('ru-RU', {
-        month: 'short', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit'
-      });
-    } catch {
-      return isoString;
-    }
-  };
-
   return (
     <div className="w-full h-full relative overflow-hidden bg-zine-paper">
       <style>{`
         .ymaps-2-1-79-ground-pane,
         [class*="ground-pane"] { filter: sepia(20%) brightness(99%) contrast(94%) hue-rotate(-8deg) !important; }
         .ymaps-2-1-79-inner-panes { background-color: #F4EFE7 !important; }
+        html.dark [class*="ground-pane"] { filter: invert(92%) hue-rotate(180deg) brightness(95%) contrast(88%) sepia(12%) !important; }
+        html.dark .ymaps-2-1-79-inner-panes { background-color: #1C1917 !important; }
       `}</style>
 
       <Map
@@ -522,106 +508,22 @@ export const MinskMap: React.FC<MinskMapProps> = ({
           currentUser={currentUser}
           currentUserCoords={currentCoords}
           selectedUser={selectedUser}
-          onSelectUser={(u: UserProfile) => {
-            setCardEvent(null);
-            onSelectUser(u);
-          }}
+          onSelectUser={onSelectUser}
           onSelectCurrentUser={onSelectCurrentUser}
           onSelectEvent={handleEventClick}
           mapInstance={mapRef.current}
         />
       </Map>
 
-      {/* Автономная карточка сходки (если MinskMap используется отдельно) */}
-      {!onSelectEvent && cardEvent && (
-        <div className="absolute bottom-20 inset-x-3 bg-zine-cardElevated rounded-2xl border border-zine-border p-3.5 shadow-2xl z-30 animate-in fade-in slide-in-from-bottom-2 duration-150">
-          <div className="flex items-start justify-between mb-1.5">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#FAF4E6] text-[#B87C24] border border-[#F3E2B8]">
-              <span>{EVENT_CATEGORIES_CONFIG[cardEvent.category]?.emoji || '⭐️'}</span>
-              <span>Сходка в Минске</span>
-            </span>
-            <button
-              onClick={() => setCardEvent(null)}
-              className="w-6 h-6 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-500 cursor-pointer"
-            >
-              <X size={13} />
-            </button>
-          </div>
-
-          <h3 className="font-serif font-bold text-sm text-zinc-900 leading-snug mb-1">
-            {cardEvent.title}
-          </h3>
-
-          <div className="flex items-center gap-3 text-[11px] text-zinc-600 mb-2">
-            <span className="flex items-center gap-1 text-zine-terracotta font-semibold">
-              <Clock size={11} strokeWidth={2.4} />
-              <span>{formatEventDate(cardEvent.dateTime)}</span>
-            </span>
-            <span className="flex items-center gap-1 truncate">
-              <MapPin size={11} className="shrink-0" />
-              <span className="truncate">{cardEvent.locationName}</span>
-            </span>
-          </div>
-
-          <p className="text-xs text-zinc-700 leading-snug line-clamp-2 mb-3">
-            {cardEvent.description}
-          </p>
-
-          <div className="flex items-center gap-2">
-            {onToggleJoinEvent ? (
-              <button
-                onClick={() => {
-                  onToggleJoinEvent(cardEvent);
-                  setCardEvent({ ...cardEvent, isJoined: !cardEvent.isJoined });
-                }}
-                className={`flex-1 py-2 px-3 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer ${
-                  cardEvent.isJoined
-                    ? 'bg-zine-sage text-white'
-                    : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
-                }`}
-              >
-                {cardEvent.isJoined ? (
-                  <>
-                    <Check size={13} strokeWidth={3} />
-                    <span>Ты идёшь (Отменить)</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={12} />
-                    <span>Присоединиться к сходке</span>
-                  </>
-                )}
-              </button>
-            ) : (
-              <div className="text-[11px] font-semibold text-zinc-700">
-                👥 {cardEvent.participantsCount || 1} участников
-              </div>
-            )}
-
-            {cardEvent.creator?.username && (
-              <button
-                onClick={() => {
-                  telegramService.haptic('medium');
-                  telegramService.openChat(cardEvent.creator!.username);
-                }}
-                className="p-2 rounded-xl bg-white border border-zinc-200 text-zinc-700 hover:text-zinc-900 active:scale-95 transition-all cursor-pointer"
-                title="Написать организатору"
-              >
-                <Send size={13} />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Кнопка "Где я?" (GPS) */}
       <button
         onClick={handleLocateGPS}
         disabled={isGpsLoading}
-        className="absolute right-3.5 bottom-28 w-11 h-11 rounded-2xl bg-zine-cardElevated/95 backdrop-blur-md border border-zine-border shadow-zine flex items-center justify-center text-sm z-20 active:scale-90 transition-transform cursor-pointer"
-        title="Определить мое местоположение (GPS)"
+        className="absolute right-4 bottom-10 w-14 h-14 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine-float flex items-center justify-center text-zine-terracotta z-20 active:scale-90 transition-transform cursor-pointer"
+        title="Где я?"
+        aria-label="Показать, где я"
       >
-        <span className={isGpsLoading ? 'animate-spin' : ''}>📍</span>
+        <LocateFixed size={26} className={isGpsLoading ? 'animate-spin' : ''} />
       </button>
     </div>
   );

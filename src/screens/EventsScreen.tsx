@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Compass, Users, User, Calendar, MapPin, Plus, Clock, Check, X, Loader2, Edit2, Trash2, Navigation, Search } from 'lucide-react';
+import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, Search } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
+import { BottomSheet } from '../components/ui/BottomSheet';
+import { formatEventDate } from './MapScreen';
 
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
   { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'ул. ленина 5', 'ленина'], coords: [53.8998, 27.5585] },
@@ -109,10 +111,6 @@ export interface EventsScreenProps {
   onDeleteEvent?: (eventId: string) => Promise<any> | void;
   onToggleJoin?: (event: AppEvent) => void;
   onRefreshEvents?: () => void;
-  onOpenMap?: () => void;
-  onOpenFeed?: () => void;
-  onOpenProfile?: () => void;
-  currentArea?: string;
 }
 
 export const EventsScreen: React.FC<EventsScreenProps> = ({
@@ -122,11 +120,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   onUpdateEvent,
   onDeleteEvent,
   onToggleJoin,
-  onRefreshEvents,
-  onOpenMap,
-  onOpenFeed,
-  onOpenProfile,
-  currentArea = 'Минск'
+  onRefreshEvents
 }) => {
   const currentTgUser = telegramService.getUser();
   const currentUserId = propUserId || currentTgUser?.id;
@@ -152,21 +146,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const filteredEvents = selectedCategory === 'all'
     ? events
     : events.filter((e) => e.category === selectedCategory);
-
-  const formatEventDate = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleDateString('ru-RU', {
-        month: 'short',
-        day: 'numeric',
-        weekday: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return isoString;
-    }
-  };
 
   const handleOpenCreateModal = () => {
     telegramService.haptic('selection');
@@ -328,78 +307,57 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full w-full zine-paper-texture overflow-hidden relative select-none bg-zine-paper">
-      
-      {/* Шапка */}
-      <header className="px-4 py-2.5 bg-zine-paper/95 backdrop-blur-md border-b border-zine-border/80 flex items-center justify-between z-30 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-zine-terracotta text-white flex items-center justify-center font-serif font-bold text-xs shadow-zine-sm">
-            Y
-          </div>
-          <span className="font-serif font-bold text-[16px] tracking-tight text-zine-ink">
-            Сходки YesMinsk
-          </span>
-        </div>
-
+    <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden">
+      <header className="shrink-0 px-5 pt-5 pb-3 flex items-center justify-between gap-3">
+        <h1 className="font-serif font-bold text-display text-zine-ink">Сходки</h1>
         <button
           onClick={handleOpenCreateModal}
-          className="px-3 py-1 rounded-full bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-xs font-semibold flex items-center gap-1 shadow-zine-sm active:scale-95 transition-all cursor-pointer"
+          className="h-12 px-5 rounded-full bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-body font-bold flex items-center gap-2 shadow-zine-sm active:scale-95 transition-transform cursor-pointer"
         >
-          <Plus size={13} strokeWidth={2.5} />
+          <Plus size={22} strokeWidth={2.5} />
           <span>Создать</span>
         </button>
       </header>
 
       {/* Фильтры категорий */}
-      <div className="px-3 py-2 bg-zine-paper/90 border-b border-zine-border/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-        <button
-          onClick={() => setSelectedCategory('all')}
-          className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all border ${
-            selectedCategory === 'all'
-              ? 'bg-zinc-800 text-white border-zinc-800'
-              : 'bg-white text-zinc-700 border-zinc-200'
-          }`}
-        >
-          Все ({events.length})
-        </button>
-
-        {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).map((cat) => {
-          const cfg = EVENT_CATEGORIES_CONFIG[cat];
-          const isActive = selectedCategory === cat;
+      <div className="shrink-0 pb-3 flex gap-2 overflow-x-auto no-scrollbar px-4">
+        {([['all', 'Все', ''], ...(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji])] as [EventCategory | 'all', string, string][]).map(([id, label, emoji]) => {
+          const isActive = selectedCategory === id;
           return (
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap flex items-center gap-1 transition-all border ${
-                isActive
-                  ? 'bg-zinc-800 text-white border-zinc-800'
-                  : 'bg-white text-zinc-700 border-zinc-200'
+              key={id}
+              onClick={() => {
+                telegramService.haptic('selection');
+                setSelectedCategory(id);
+              }}
+              className={`h-11 px-4 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap flex items-center gap-2 border transition-colors cursor-pointer ${
+                isActive ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-zine-cardElevated text-zine-ink border-zine-border'
               }`}
             >
-              <span>{cfg.emoji}</span>
-              <span>{cfg.label}</span>
+              {emoji && <span className="text-[18px] leading-none">{emoji}</span>}
+              <span>{label}</span>
             </button>
           );
         })}
       </div>
 
       {/* Список сходок */}
-      <div className="flex-1 overflow-y-auto px-3.5 py-3 space-y-3 pb-20">
+      <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">
         {filteredEvents.length === 0 ? (
-          <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-zinc-300 mt-4">
-            <span className="text-3xl mb-2 block">⭐️</span>
-            <h4 className="font-serif font-bold text-base text-zinc-800 mb-1">Пока нет сходок в этой категории</h4>
-            <p className="text-xs text-zinc-500 mb-4">Будь первым, кто соберет компанию на прогулку или в музей!</p>
+          <div className="mt-6 p-8 rounded-zine bg-zine-card text-center">
+            <div className="text-[44px] mb-3">🗓</div>
+            <h3 className="font-serif font-bold text-title text-zine-ink mb-2">Сходок пока нет</h3>
+            <p className="text-body text-zine-inkMuted mb-5">Собери компанию на прогулку, в кафе или в музей — это займёт минуту.</p>
             <button
               onClick={handleOpenCreateModal}
-              className="px-4 py-2 rounded-xl bg-zine-terracotta text-white font-semibold text-xs shadow-sm cursor-pointer"
+              className="h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer"
             >
-              + Создать сходку
+              Создать сходку
             </button>
           </div>
         ) : (
           filteredEvents.map((ev) => {
-            const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️', label: 'Сходка', badgeBg: 'bg-zinc-100', badgeText: 'text-zinc-800' };
+            const cat = EVENT_CATEGORIES_CONFIG[ev.category] || EVENT_CATEGORIES_CONFIG.walk;
             const isCreator = Boolean(
               currentUserId && (
                 Number(ev.creator?.telegramId) === Number(currentUserId) ||
@@ -410,299 +368,233 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             const isDeleting = deletingId === String(ev.id);
 
             return (
-              <div
-                key={ev.id}
-                className="p-4 rounded-2xl bg-white border border-zine-border shadow-sm hover:shadow-md transition-all relative overflow-hidden"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-bold ${catConfig.badgeBg} ${catConfig.badgeText}`}>
-                    <span>{catConfig.emoji}</span>
-                    <span>{catConfig.label}</span>
+              <article key={ev.id} className="p-4 rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold ${cat.badgeBg} ${cat.badgeText}`}>
+                    <span>{cat.emoji}</span>
+                    <span>{cat.label}</span>
                   </span>
-
-                  <span className="flex items-center gap-1 text-[11px] font-semibold text-zine-terracotta bg-zine-terracotta/10 px-2.5 py-0.5 rounded-full">
-                    <Clock size={11} strokeWidth={2.4} />
-                    <span>{formatEventDate(ev.dateTime)}</span>
-                  </span>
+                  {isCreator && (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleOpenEditModal(ev)}
+                        aria-label="Изменить сходку"
+                        className="w-11 h-11 rounded-full bg-zine-card text-zine-ink flex items-center justify-center cursor-pointer active:scale-95"
+                      >
+                        <Edit2 size={19} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEvent(ev)}
+                        disabled={isDeleting}
+                        aria-label="Удалить сходку"
+                        className="w-11 h-11 rounded-full bg-zine-danger/10 text-zine-danger flex items-center justify-center cursor-pointer active:scale-95"
+                      >
+                        {isDeleting ? <Loader2 size={19} className="animate-spin" /> : <Trash2 size={19} />}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <h3 className="font-serif font-bold text-[16px] text-zinc-900 leading-snug mb-1">
-                  {ev.title}
-                </h3>
+                <h3 className="mt-3 font-serif font-bold text-title text-zine-ink">{ev.title}</h3>
 
-                <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-2">
-                  <MapPin size={13} className="shrink-0 text-zine-terracotta" />
-                  <span className="truncate">{ev.locationName}</span>
+                <div className="mt-2 space-y-1.5 text-body text-zine-ink">
+                  <p className="flex items-center gap-2.5">
+                    <Clock size={20} className="text-zine-terracotta shrink-0" />
+                    <span className="font-semibold">{formatEventDate(ev.dateTime)}</span>
+                  </p>
+                  <p className="flex items-center gap-2.5">
+                    <MapPin size={20} className="text-zine-terracotta shrink-0" />
+                    <span className="truncate">{ev.locationName}</span>
+                  </p>
                 </div>
 
-                <p className="text-xs text-zinc-700 leading-relaxed mb-3 whitespace-pre-wrap">
-                  {ev.description}
-                </p>
+                {ev.description && <p className="mt-3 text-body text-zine-inkMuted line-clamp-3 whitespace-pre-wrap">{ev.description}</p>}
 
-                <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={ev.creator?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-                      alt={ev.creator?.name || 'Организатор'}
-                      className="w-6 h-6 rounded-full object-cover border border-zinc-200"
-                    />
-                    <span className="text-[10.5px] font-medium text-zinc-700">
-                      {ev.creator?.name || 'Организатор'}
-                      {isCreator && <span className="ml-1 text-[9px] font-bold text-zine-terracotta">(ты)</span>}
-                    </span>
+                <div className="mt-4 flex items-center gap-3">
+                  <img
+                    src={ev.creator?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                    alt={ev.creator?.name || 'Организатор'}
+                    className="w-10 h-10 rounded-full object-cover shrink-0"
+                  />
+                  <div className="min-w-0 text-sm2">
+                    <p className="text-zine-ink font-semibold truncate">{isCreator ? 'Ты собираешь' : `Собирает ${ev.creator?.name || 'организатор'}`}</p>
+                    <p className="text-zine-inkMuted">Идут: {ev.participantsCount || 1}</p>
                   </div>
-
-                  <span className="text-[10.5px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-md">
-                    👥 {ev.participantsCount || 1} участников
-                  </span>
                 </div>
 
-                {isCreator && (
-                  <div className="flex items-center justify-end gap-1.5 mt-2.5 pt-2 border-t border-dashed border-zinc-200">
-                    <button
-                      onClick={() => handleOpenEditModal(ev)}
-                      className="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit2 size={11} />
-                      <span>Редактировать</span>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteEvent(ev)}
-                      disabled={isDeleting}
-                      className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 size={11} />
-                      <span>{isDeleting ? '...' : 'Удалить'}</span>
-                    </button>
-                  </div>
-                )}
-
-                <div className="mt-3">
-                  <button
-                    onClick={() => handleToggleJoin(ev)}
-                    disabled={isJoining}
-                    className={`w-full py-2 px-3 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all cursor-pointer ${
-                      ev.isJoined
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
-                    }`}
-                  >
-                    {isJoining ? (
-                      <Loader2 size={13} className="animate-spin" />
-                    ) : ev.isJoined ? (
-                      <>
-                        <Check size={13} strokeWidth={3} />
-                        <span>Ты идёшь (Отменить участие)</span>
-                      </>
-                    ) : (
-                      <span>Присоединиться к сходке</span>
-                    )}
-                  </button>
-                </div>
-              </div>
+                <button
+                  onClick={() => handleToggleJoin(ev)}
+                  disabled={isJoining}
+                  className={`mt-4 w-full h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
+                    ev.isJoined ? 'bg-zine-sage/15 text-zine-sage' : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
+                  }`}
+                >
+                  {isJoining ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : ev.isJoined ? (
+                    <>
+                      <Check size={20} strokeWidth={3} />
+                      <span>Я иду · нажми, чтобы отменить</span>
+                    </>
+                  ) : (
+                    <span>Пойду!</span>
+                  )}
+                </button>
+              </article>
             );
           })
         )}
-      </div>
+      </main>
 
-      {/* Модальное окно создания / редактирования */}
+      {/* Создание / редактирование сходки */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="px-4 py-3 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="font-serif font-bold text-base text-zinc-900">
-                {editingEventId ? 'Редактировать сходку' : 'Новая сходка в Минске'}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-500 cursor-pointer"
-              >
-                <X size={14} />
-              </button>
-            </div>
+        <BottomSheet title={editingEventId ? 'Изменить сходку' : 'Новая сходка'} onClose={() => setIsModalOpen(false)}>
+          <form onSubmit={handleSubmitForm} className="space-y-5">
+            {formError && (
+              <div className="p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">{formError}</div>
+            )}
 
-            <form onSubmit={handleSubmitForm} className="p-4 overflow-y-auto space-y-3.5 text-xs">
-              {formError && (
-                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700">
-                  {formError}
-                </div>
+            <Field label="Как назовём?">
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Прогулка по Осмоловке с кофе"
+                className="field"
+                required
+              />
+            </Field>
+
+            <Field label="Что будем делать?">
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).map((cat) => {
+                  const cfg = EVENT_CATEGORIES_CONFIG[cat];
+                  const isSelected = category === cat;
+                  return (
+                    <button
+                      type="button"
+                      key={cat}
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        setCategory(cat);
+                      }}
+                      className={`h-[72px] rounded-zine-sm border-2 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
+                        isSelected ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
+                      }`}
+                    >
+                      <span className="text-[24px] leading-none">{cfg.emoji}</span>
+                      <span className={`text-cap font-semibold ${isSelected ? 'text-zine-terracotta' : 'text-zine-ink'}`}>{cfg.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+
+            <Field label="Где встречаемся?">
+              <input
+                type="text"
+                value={locationName}
+                onChange={(e) => {
+                  setLocationName(e.target.value);
+                  // Сбрасываем старые координаты, чтобы адрес определился заново
+                  setCustomCoords(null);
+                }}
+                onBlur={() => {
+                  if (locationName.trim()) {
+                    handleGeocodeAddress(locationName.trim());
+                  }
+                }}
+                placeholder="Например: ул. Ленина 5"
+                className="field"
+                required
+              />
+
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => handleGeocodeAddress(locationName)}
+                  disabled={isGeocoding || !locationName.trim()}
+                  className="h-11 rounded-zine-sm bg-zine-card text-zine-ink text-sm2 font-semibold flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  {isGeocoding ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
+                  <span>Найти на карте</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGetGPS}
+                  disabled={isLocating}
+                  className="h-11 rounded-zine-sm bg-zine-card text-zine-ink text-sm2 font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isLocating ? <Loader2 size={18} className="animate-spin" /> : <Navigation size={18} />}
+                  <span>Я сейчас здесь</span>
+                </button>
+              </div>
+
+              {customCoords && (
+                <p className="mt-2 flex items-center gap-2 text-sm2 text-zine-sage font-semibold">
+                  <Check size={18} strokeWidth={3} />
+                  <span>Место отмечено на карте</span>
+                </p>
               )}
 
-              <div>
-                <label className="block font-semibold text-zinc-800 mb-1">Название сходки *</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Например: Прогулка по Осмоловке с кофе"
-                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 focus:outline-none focus:border-zine-terracotta"
-                  required
-                />
+              <div className="flex gap-2 overflow-x-auto no-scrollbar mt-3 -mx-5 px-5">
+                {MINSK_SPOTS_PRESETS.slice(0, 6).map((spot) => (
+                  <button
+                    type="button"
+                    key={spot.name}
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      setLocationName(spot.name);
+                      setCustomCoords(spot.coords);
+                    }}
+                    className="h-10 px-3.5 shrink-0 rounded-full border border-zine-border bg-zine-cardElevated text-zine-ink text-sm2 whitespace-nowrap cursor-pointer"
+                  >
+                    {spot.name}
+                  </button>
+                ))}
               </div>
+            </Field>
 
-              <div>
-                <label className="block font-semibold text-zinc-800 mb-1">Категория *</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).map((cat) => {
-                    const cfg = EVENT_CATEGORIES_CONFIG[cat];
-                    const isSelected = category === cat;
-                    return (
-                      <button
-                        type="button"
-                        key={cat}
-                        onClick={() => setCategory(cat)}
-                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-zine-terracotta text-white border-zine-terracotta font-bold'
-                            : 'bg-white border-zinc-200 text-zinc-700'
-                        }`}
-                      >
-                        <div className="text-sm">{cfg.emoji}</div>
-                        <div className="text-[10px] truncate mt-0.5">{cfg.label}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            <Field label="Когда?">
+              <input
+                type="datetime-local"
+                value={dateTime}
+                onChange={(e) => setDateTime(e.target.value)}
+                className="field"
+                required
+              />
+            </Field>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-semibold text-zinc-800">Где встречаемся (Адрес или заведение) *</label>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleGeocodeAddress(locationName)}
-                      disabled={isGeocoding}
-                      className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full cursor-pointer"
-                    >
-                      {isGeocoding ? <Loader2 size={10} className="animate-spin" /> : <Search size={10} />}
-                      <span>Найти точку</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleGetGPS}
-                      disabled={isLocating}
-                      className="inline-flex items-center gap-1 text-[10px] font-bold text-zinc-800 bg-zinc-100 px-2 py-0.5 rounded-full cursor-pointer"
-                    >
-                      {isLocating ? <Loader2 size={10} className="animate-spin" /> : <Navigation size={10} />}
-                      <span>Мой GPS</span>
-                    </button>
-                  </div>
-                </div>
+            <Field label="Пару слов о встрече">
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Какой план, кого ждём, во что одеться"
+                className="field"
+                required
+              />
+            </Field>
 
-                <input
-                  type="text"
-                  value={locationName}
-                  onChange={(e) => {
-                    setLocationName(e.target.value);
-                    // Сбрасываем старые координаты, чтобы адрес определился заново
-                    setCustomCoords(null);
-                  }}
-                  onBlur={() => {
-                    if (locationName.trim()) {
-                      handleGeocodeAddress(locationName.trim());
-                    }
-                  }}
-                  placeholder="Например: ул. Ленина 5 или Октябрьская 19"
-                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 focus:outline-none focus:border-zine-terracotta"
-                  required
-                />
-
-                {/* Индикатор найденных координат */}
-                {customCoords && (
-                  <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    <Check size={11} strokeWidth={2.5} />
-                    <span>Точка найдена: [{customCoords[0].toFixed(4)}, {customCoords[1].toFixed(4)}]</span>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 mt-1">
-                  <span className="text-[9.5px] text-zinc-400 shrink-0 font-medium">Быстро:</span>
-                  {MINSK_SPOTS_PRESETS.slice(0, 6).map((spot) => (
-                    <button
-                      type="button"
-                      key={spot.name}
-                      onClick={() => {
-                        setLocationName(spot.name);
-                        setCustomCoords(spot.coords);
-                      }}
-                      className="px-2 py-0.5 rounded-lg bg-zinc-100 text-zinc-700 text-[10px] whitespace-nowrap cursor-pointer hover:bg-zinc-200"
-                    >
-                      {spot.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-zinc-800 mb-1">Дата и время *</label>
-                <input
-                  type="datetime-local"
-                  value={dateTime}
-                  onChange={(e) => setDateTime(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 focus:outline-none focus:border-zine-terracotta"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-zinc-800 mb-1">Описание сходки *</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  placeholder="Опиши план встречи, кого ждешь, как одеться..."
-                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 focus:outline-none focus:border-zine-terracotta resize-none"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-2.5 rounded-xl bg-zine-terracotta hover:bg-zine-terracottaHover text-white font-semibold text-xs shadow-md active:scale-[0.99] transition-all cursor-pointer"
-              >
-                {isSubmitting ? 'Сохранение...' : editingEventId ? 'Сохранить изменения' : 'Опубликовать сходку'}
-              </button>
-            </form>
-          </div>
-        </div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full h-14 rounded-zine-sm bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-lead font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.99] transition-transform cursor-pointer"
+            >
+              {isSubmitting ? <Loader2 size={22} className="animate-spin" /> : editingEventId ? 'Сохранить' : 'Опубликовать'}
+            </button>
+          </form>
+        </BottomSheet>
       )}
-
-      {/* TabBar */}
-      <nav className="h-14 bg-zine-paper/95 backdrop-blur-md border-t border-zine-border flex items-center justify-around px-2 z-30 shrink-0">
-        <button
-          onClick={onOpenMap}
-          className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-900 cursor-pointer"
-        >
-          <Compass size={18} strokeWidth={1.8} />
-          <span className="text-[9px] font-medium">Карта</span>
-        </button>
-
-        <button
-          onClick={onOpenFeed}
-          className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-900 cursor-pointer"
-        >
-          <Users size={18} strokeWidth={1.8} />
-          <span className="text-[9px] font-medium">Люди</span>
-        </button>
-
-        <button className="flex flex-col items-center gap-0.5 text-zine-terracotta cursor-pointer">
-          <Calendar size={18} strokeWidth={2.4} />
-          <span className="text-[9px] font-bold">События ({events.length})</span>
-        </button>
-
-        <button
-          onClick={onOpenProfile}
-          className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-900 cursor-pointer"
-        >
-          <User size={18} strokeWidth={1.8} />
-          <span className="text-[9px] font-medium">Профиль</span>
-        </button>
-      </nav>
-
     </div>
   );
 };
+
+const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div>
+    <label className="block mb-2 text-body font-bold text-zine-ink">{label}</label>
+    {children}
+  </div>
+);
 
 export default EventsScreen;

@@ -1,41 +1,60 @@
 /** @type {import('tailwindcss').Config} */
+
+// Цвет из CSS-переменной (значения — в src/index.css, отдельно для светлой и тёмной темы).
+// Такая запись сохраняет прозрачность: bg-zine-terracotta/10 и т.п.
+const v = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // Фирменная палитра «Теплый зин» (YesMinsk)
+        // Фирменная палитра «Тёплый зин» (ДА! МИНСК)
         zine: {
-          paper: '#FAF7F2',        // Фон небеленой бумаги
-          card: '#F4EFEA',         // Карточки первого уровня
-          cardElevated: '#FFFDF9', // Выделенные модалки / шторка
-          border: '#E8DFD5',       // Тонкие тактильные границы
-          ink: '#2B2623',          // Мягкий графитовый текст
-          inkMuted: '#7A726B',     // Второстепенный текст
-          terracotta: '#D95C3C',   // Главный акцент (кнопка действия, прогулка)
-          terracottaHover: '#C64F30',
-          mustard: '#E2A03F',      // Горчичный стикер (бар / кафе)
-          sage: '#5B7B68',         // Шалфейный зеленый (природа / загород)
-          blush: '#E88B74',        // Мягкий румянец (выставки / кино)
-          cream: '#FCFAF6'
+          paper: v('paper'),               // Фон экрана
+          card: v('card'),                 // Карточки первого уровня
+          cardElevated: v('card-elevated'),// Выделенные карточки / шторки
+          border: v('border'),             // Тонкие границы
+          ink: v('ink'),                   // Основной текст
+          inkMuted: v('ink-muted'),        // Второстепенный текст
+          terracotta: v('terracotta'),     // Главный акцент
+          terracottaHover: v('terracotta-hover'),
+          mustard: v('mustard'),           // Кафе / бар
+          mustardInk: v('mustard-ink'),    // Текст на горчичном фоне
+          sage: v('sage'),                 // Природа / успех
+          blush: v('blush'),
+          plum: v('plum'),                 // Выставки / кино
+          sky: v('sky'),                   // Спорт
+          danger: v('danger'),
+          cream: v('card-elevated')
         }
       },
       fontFamily: {
         serif: ['"Lora"', 'Georgia', 'serif'],
         sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif']
       },
+      // Крупная шкала шрифтов — читается в любом возрасте
+      fontSize: {
+        cap: ['13px', '18px'],     // самые мелкие подписи
+        sm2: ['15px', '21px'],     // второстепенный текст
+        body: ['17px', '24px'],    // основной текст
+        lead: ['19px', '26px'],    // имена, акценты
+        title: ['22px', '28px'],   // заголовки карточек
+        display: ['28px', '34px']  // заголовки экранов
+      },
       boxShadow: {
-        'zine-sm': '0 1px 3px rgba(43, 38, 35, 0.05), 0 1px 2px rgba(43, 38, 35, 0.03)',
-        'zine': '0 4px 14px rgba(43, 38, 35, 0.07)',
-        'zine-float': '0 8px 24px -4px rgba(43, 38, 35, 0.12), 0 2px 6px -1px rgba(43, 38, 35, 0.04)'
+        'zine-sm': '0 1px 3px rgba(43, 38, 35, 0.06), 0 1px 2px rgba(43, 38, 35, 0.04)',
+        'zine': '0 4px 16px rgba(43, 38, 35, 0.08)',
+        'zine-float': '0 10px 30px -6px rgba(43, 38, 35, 0.18), 0 2px 8px -2px rgba(43, 38, 35, 0.06)'
       },
       borderRadius: {
-        'zine-sm': '12px',
-        'zine': '18px',
-        'zine-lg': '26px'
+        'zine-sm': '14px',
+        'zine': '20px',
+        'zine-lg': '28px'
       }
     },
   },

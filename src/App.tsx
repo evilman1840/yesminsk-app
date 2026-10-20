@@ -10,6 +10,7 @@ import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
 import { MatchModal, ReactionType } from './components/common/Reactions';
 import { ServerWakingBanner } from './components/common/ServerWakingBanner';
+import { TabBar, TabId } from './components/ui/TabBar';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
 // Примерные координаты районов Минска
@@ -241,7 +242,8 @@ export const App: React.FC = () => {
       coordinates: coords
     }));
 
-    setCurrentScreen('main');
+    // После первой анкеты — на карту; при редактировании остаёмся в профиле
+    setCurrentScreen(prev => (prev === 'profile_create' ? 'main' : prev));
     await fetchNearbyUsers();
   };
 
@@ -371,6 +373,14 @@ export const App: React.FC = () => {
     });
   }, []);
 
+  const isTab = currentScreen === 'main' || currentScreen === 'feed' || currentScreen === 'events' || currentScreen === 'profile_edit';
+
+  const handleNavigate = (tab: TabId) => {
+    setSelectedUser(null);
+    setCurrentScreen(tab);
+    if (tab === 'feed') fetchInbox();
+  };
+
   return (
     <YMaps
       query={{
@@ -379,133 +389,84 @@ export const App: React.FC = () => {
         load: 'package.full'
       }}
     >
-      <div className="flex justify-center items-center min-h-screen bg-[#E5DED5] p-0 sm:p-4 font-sans text-zine-ink">
-        <div className="w-full max-w-[420px] h-screen sm:h-[840px] bg-zine-paper sm:rounded-[36px] overflow-hidden shadow-2xl border-0 sm:border-[6px] sm:border-zine-ink flex flex-col relative">
-          
+      <div className="flex justify-center min-h-screen bg-zine-card sm:items-center sm:p-4 font-sans text-zine-ink">
+        <div className="w-full max-w-[420px] h-[100dvh] sm:h-[860px] bg-zine-paper sm:rounded-[36px] overflow-hidden sm:shadow-2xl sm:border sm:border-zine-border flex flex-col relative">
           <ServerWakingBanner />
 
           {apiError && (
-            <div className="absolute top-2 inset-x-2 z-50 p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-[11px] flex items-center justify-between shadow-lg">
-              <span>⏳ {apiError}</span>
+            <div className="absolute top-20 inset-x-3 z-50 p-3.5 rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-float flex items-center justify-between gap-3">
+              <span className="text-sm2 text-zine-ink">{apiError}</span>
               <button
                 onClick={() => {
                   fetchNearbyUsers();
                   fetchEvents();
                 }}
-                className="px-2 py-0.5 rounded bg-amber-200 text-amber-900 font-bold text-[10px] cursor-pointer"
+                className="h-11 px-4 shrink-0 rounded-full bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer"
               >
                 Повторить
               </button>
             </div>
           )}
 
-          {currentScreen === 'onboarding' && (
-            <OnboardingScreen onAgree={handleAgreeRules} />
-          )}
+          <div className="flex-1 min-h-0 relative">
+            {currentScreen === 'onboarding' && <OnboardingScreen onAgree={handleAgreeRules} />}
 
-          {currentScreen === 'profile_create' && (
-            <ProfileFormScreen
-              isFirstTime={true}
-              initialData={currentUser}
-              onSave={handleSaveProfile}
+            {currentScreen === 'profile_create' && (
+              <ProfileFormScreen isFirstTime={true} initialData={currentUser} onSave={handleSaveProfile} />
+            )}
+
+            {currentScreen === 'profile_edit' && (
+              <ProfileFormScreen isFirstTime={false} initialData={currentUser} onSave={handleSaveProfile} />
+            )}
+
+            {currentScreen === 'main' && (
+              <MapScreen
+                users={users}
+                events={events}
+                currentUser={currentUser}
+                selectedUser={selectedUser}
+                onSelectUser={(u) => setSelectedUser(u)}
+                selectedGoal={selectedGoal}
+                onSelectGoal={(g) => setSelectedGoal(g)}
+                onOpenProfile={() => handleNavigate('profile_edit')}
+                onToggleJoinEvent={handleToggleJoinEvent}
+                onUpdateLocation={handleUpdateLocation}
+              />
+            )}
+
+            {currentScreen === 'feed' && (
+              <FeedScreen
+                users={users}
+                likedMe={likedMe}
+                matches={matches}
+                onSelectUser={(u) => setSelectedUser(u)}
+                onReact={handleReact}
+              />
+            )}
+
+            {currentScreen === 'events' && (
+              <EventsScreen
+                events={events}
+                currentUserId={currentUser.telegramId}
+                onCreateEvent={handleCreateEvent}
+                onUpdateEvent={handleUpdateEvent}
+                onDeleteEvent={handleDeleteEvent}
+                onToggleJoin={handleToggleJoinEvent}
+                onRefreshEvents={fetchEvents}
+              />
+            )}
+          </div>
+
+          {isTab && (
+            <TabBar
+              current={currentScreen as TabId}
+              onNavigate={handleNavigate}
+              badges={{ feed: likedMe.length }}
             />
           )}
 
-          {currentScreen === 'profile_edit' && (
-            <ProfileFormScreen
-              isFirstTime={false}
-              initialData={currentUser}
-              onBack={() => setCurrentScreen('main')}
-              onSave={handleSaveProfile}
-            />
-          )}
-
-          {currentScreen === 'main' && (
-            <MapScreen
-              users={users}
-              events={events}
-              currentUser={currentUser}
-              selectedUser={selectedUser}
-              onSelectUser={(u) => setSelectedUser(u)}
-              selectedGoal={selectedGoal}
-              onSelectGoal={(g) => setSelectedGoal(g)}
-              currentArea={currentUser.area}
-              onOpenProfile={() => {
-                telegramService.haptic('selection');
-                setCurrentScreen('profile_edit');
-              }}
-              onOpenFeed={() => {
-                telegramService.haptic('selection');
-                setCurrentScreen('feed');
-                fetchInbox();
-              }}
-              onOpenEvents={() => {
-                telegramService.haptic('selection');
-                setCurrentScreen('events');
-              }}
-              onToggleJoinEvent={handleToggleJoinEvent}
-              onUpdateLocation={handleUpdateLocation}
-              onUpdateUserCoordinates={handleUpdateLocation}
-              onReact={handleReact}
-              inboxCount={likedMe.length}
-            />
-          )}
-
-          {currentScreen === 'feed' && (
-            <FeedScreen
-              users={users}
-              eventsCount={events.length}
-              currentArea={currentUser.area}
-              onSelectUser={(u) => setSelectedUser(u)}
-              likedMe={likedMe}
-              matches={matches}
-              onReact={handleReact}
-              onOpenMap={() => {
-                telegramService.haptic('selection');
-                setCurrentScreen('main');
-              }}
-              onOpenEvents={() => {
-                telegramService.haptic('selection');
-                setCurrentScreen('events');
-              }}
-              onOpenProfile={() => {
-                telegramService.haptic('selection');
-                setCurrentScreen('profile_edit');
-              }}
-            />
-          )}
-
-          {currentScreen === 'events' && (
-            <EventsScreen
-              events={events}
-              currentUserId={currentUser.telegramId}
-              onCreateEvent={handleCreateEvent}
-              onUpdateEvent={handleUpdateEvent}
-              onDeleteEvent={handleDeleteEvent}
-              onToggleJoin={handleToggleJoinEvent}
-              onRefreshEvents={fetchEvents}
-              currentArea={currentUser.area}
-              onOpenMap={() => {
-                telegramService.haptic('selection');
-                setCurrentScreen('main');
-              }}
-              onOpenFeed={() => {
-                telegramService.haptic('selection');
-                setCurrentScreen('feed');
-              }}
-              onOpenProfile={() => {
-                telegramService.haptic('selection');
-                setCurrentScreen('profile_edit');
-              }}
-            />
-          )}
-
-          {currentScreen === 'feed' && selectedUser && (
-            <UserBottomSheet
-              user={selectedUser}
-              onClose={() => setSelectedUser(null)}
-              onReact={handleReact}
-            />
+          {selectedUser && (currentScreen === 'feed' || currentScreen === 'main') && (
+            <UserBottomSheet user={selectedUser} onClose={() => setSelectedUser(null)} onReact={handleReact} />
           )}
 
           {matchPopupUser && (
@@ -515,7 +476,6 @@ export const App: React.FC = () => {
               onClose={() => setMatchPopupUser(null)}
             />
           )}
-
         </div>
       </div>
     </YMaps>

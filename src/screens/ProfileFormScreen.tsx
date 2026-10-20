@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Check, Sparkles, MapPin, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff } from 'lucide-react';
+import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender } from '../types';
 import { telegramService } from '../services/telegram';
 
@@ -104,6 +104,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [isProfileActive, setIsProfileActive] = useState<boolean>(
     initialData?.isProfileActive !== false
   );
+
+  const [justSaved, setJustSaved] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [isLocating, setIsLocating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -236,6 +239,10 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         coordinates
       });
       telegramService.haptic('success');
+      if (!isFirstTime) {
+        setJustSaved(true);
+        setTimeout(() => setJustSaved(false), 2500);
+      }
     } catch (err: any) {
       setErrorText(err.message || 'Ошибка сохранения профиля на сервере');
       telegramService.haptic('error');
@@ -245,10 +252,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full w-full zine-paper-texture overflow-y-auto px-5 py-5 select-none bg-zine-paper">
-      
-      {/* Шапка экрана */}
-      <div className="flex items-center justify-between pb-3 border-b border-zine-border shrink-0">
+    <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden">
+      <div className="flex-1 overflow-y-auto px-5 pt-5 pb-6">
         <div className="flex items-center gap-2">
           {!isFirstTime && onBack && (
             <button
@@ -256,252 +261,152 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 telegramService.haptic('light');
                 onBack();
               }}
-              className="p-1.5 -ml-1.5 rounded-full hover:bg-zinc-200/60 active:scale-95 transition-all text-zine-ink cursor-pointer"
+              aria-label="Назад"
+              className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-zine-ink cursor-pointer"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={24} />
             </button>
           )}
-          <h2 className="font-serif font-bold text-lg text-zine-ink tracking-tight">
-            {isFirstTime ? 'Создание анкеты' : 'Мой профиль'}
-          </h2>
+          <h1 className="font-serif font-bold text-display text-zine-ink">
+            {isFirstTime ? 'Расскажи о себе' : 'Моя анкета'}
+          </h1>
         </div>
+        {isFirstTime && (
+          <p className="mt-2 text-body text-zine-inkMuted">Пара минут — и тебя увидят люди рядом.</p>
+        )}
 
-        <span className="text-[10px] font-semibold tracking-wider text-zine-terracotta bg-zine-terracotta/10 px-2.5 py-1 rounded-full uppercase">
-          {isFirstTime ? 'Шаг 1 из 1' : 'Редактирование'}
-        </span>
-      </div>
+        {errorText && (
+          <div className="mt-4 p-3.5 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">⚠️ {errorText}</div>
+        )}
 
-      {errorText && (
-        <div className="mt-3 p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium animate-in fade-in">
-          ⚠️ {errorText}
-        </div>
-      )}
+        <div className="mt-5 space-y-4">
+          {/* Фото */}
+          <Section>
+            <div className="flex flex-col items-center text-center">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="relative cursor-pointer"
+                aria-label="Сменить фото"
+              >
+                <img src={avatarUrl} alt={name} className="w-28 h-28 rounded-full object-cover border-4 border-zine-cardElevated shadow-zine" />
+                <span className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-zine-terracotta text-white flex items-center justify-center border-4 border-zine-cardElevated">
+                  {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+                </span>
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
 
-      <div className="space-y-4 py-4 flex-1">
-        
-        {/* Аватарка (без пресетов — только загрузка и ссылка) */}
-        <div className="p-3.5 rounded-2xl bg-zine-card border border-zine-border shadow-zine-sm">
-          <div className="flex items-center gap-3.5">
-            <div
-              className="relative cursor-pointer shrink-0 group"
-              onClick={() => fileInputRef.current?.click()}
-              title="Нажмите, чтобы загрузить фото"
-            >
-              <img
-                src={avatarUrl}
-                alt={name}
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-zine-paper shadow-sm"
-              />
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-zine-terracotta text-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                {isUploading ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Camera size={12} />
-                )}
-              </div>
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <h4 className="font-serif font-bold text-xs text-zine-ink">Фото профиля</h4>
-              <p className="text-[10px] text-zine-inkMuted leading-tight mt-0.5">
-                Загрузи своё фото или укажи прямую ссылку на изображение.
-              </p>
-
-              <div className="flex items-center gap-2 mt-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
+              <div className="grid grid-cols-2 gap-2 w-full mt-4">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-2.5 py-1 rounded-lg bg-zine-cardElevated border border-zine-border text-[10.5px] font-semibold text-zine-ink hover:text-zine-terracotta flex items-center gap-1 shadow-zine-sm cursor-pointer active:scale-95 transition-transform"
+                  className="h-12 rounded-zine-sm bg-zine-card text-zine-ink text-sm2 font-semibold flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Upload size={11} />
+                  <Upload size={18} />
                   <span>Загрузить фото</span>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => setShowUrlInput(!showUrlInput)}
-                  className="px-2.5 py-1 rounded-lg bg-zine-cardElevated border border-zine-border text-[10.5px] font-semibold text-zine-ink hover:text-zine-terracotta flex items-center gap-1 shadow-zine-sm cursor-pointer active:scale-95 transition-transform"
+                  className="h-12 rounded-zine-sm bg-zine-card text-zine-ink text-sm2 font-semibold flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <LinkIcon size={11} />
+                  <LinkIcon size={18} />
                   <span>По ссылке</span>
                 </button>
               </div>
+
+              {showUrlInput && (
+                <div className="w-full mt-2 flex gap-2">
+                  <input
+                    type="url"
+                    value={customUrl}
+                    onChange={(e) => setCustomUrl(e.target.value)}
+                    placeholder="https://… ссылка на фото"
+                    className="field flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCustomUrl}
+                    className="h-12 px-5 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer"
+                  >
+                    ОК
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
+          </Section>
 
-          {showUrlInput && (
-            <div className="mt-3 pt-3 border-t border-zine-border/60 flex gap-1.5 animate-in fade-in">
-              <input
-                type="url"
-                value={customUrl}
-                onChange={(e) => setCustomUrl(e.target.value)}
-                placeholder="Вставь прямую ссылку https://... на фото"
-                className="flex-1 px-3 py-1.5 rounded-xl bg-zine-cardElevated border border-zine-border text-xs text-zine-ink focus:outline-none focus:border-zine-terracotta"
-              />
-              <button
-                type="button"
-                onClick={handleApplyCustomUrl}
-                className="px-3 py-1.5 rounded-xl bg-zine-terracotta text-white text-xs font-semibold cursor-pointer active:scale-95 transition-transform"
-              >
-                ОК
-              </button>
+          {/* Имя, возраст, о себе */}
+          <Section>
+            <div className="grid grid-cols-[1fr_96px] gap-3">
+              <Label text="Имя">
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Как тебя зовут?" className="field" />
+              </Label>
+              <Label text="Возраст">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="16"
+                  max="99"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  placeholder="25"
+                  className="field text-center"
+                />
+              </Label>
             </div>
-          )}
-        </div>
 
-        {/* Имя и Возраст */}
-        <div className="grid grid-cols-3 gap-2.5">
-          <div className="col-span-2 space-y-1">
-            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider px-1">
-              Имя *
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Как тебя зовут?"
-              className="w-full px-3.5 py-2.5 rounded-2xl bg-zine-cardElevated border border-zine-border text-xs text-zine-ink focus:outline-none focus:border-zine-terracotta shadow-zine-sm"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider px-1">
-              Возраст
-            </label>
-            <input
-              type="number"
-              min="16"
-              max="99"
-              value={age}
-              onChange={(e) => setAge(e.target.value)}
-              placeholder="25"
-              className="w-full px-3.5 py-2.5 rounded-2xl bg-zine-cardElevated border border-zine-border text-xs text-center text-zine-ink focus:outline-none focus:border-zine-terracotta shadow-zine-sm"
-            />
-          </div>
-        </div>
-
-        {/* Пол и Предпочтения для общения */}
-        <div className="p-3.5 rounded-2xl bg-zine-card border border-zine-border shadow-zine-sm space-y-3">
-          <div>
-            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider block mb-1.5">
-              Мой пол
-            </label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {[
-                { id: 'male', label: 'Парень' },
-                { id: 'female', label: 'Девушка' },
-                { id: 'not_specified', label: 'Не важно' }
-              ].map((g) => (
-                <button
-                  type="button"
-                  key={g.id}
-                  onClick={() => {
-                    telegramService.haptic('selection');
-                    setGender(g.id as Gender);
-                  }}
-                  className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer text-center ${
-                    gender === g.id
-                      ? 'bg-zine-terracotta text-white border-zine-terracotta shadow-sm'
-                      : 'bg-zine-cardElevated text-zinc-700 border-zine-border hover:bg-white'
-                  }`}
-                >
-                  {g.label}
-                </button>
-              ))}
+            <div className="mt-4">
+              <Label text="О себе" hint={`${bio.length}/200`}>
+                <textarea
+                  rows={3}
+                  maxLength={200}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Люблю спешелти кофе на Киселёва и неспешные прогулки вдоль Свислочи"
+                  className="field"
+                />
+              </Label>
             </div>
-          </div>
+          </Section>
 
-          <div className="pt-2 border-t border-zine-border/50">
-            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider block mb-1.5">
-              С кем комфортно гулять
-            </label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {[
-                { id: 'all', label: 'Со всеми' },
-                { id: 'female', label: 'С девушками' },
-                { id: 'male', label: 'С парнями' }
-              ].map((pg) => (
-                <button
-                  type="button"
-                  key={pg.id}
-                  onClick={() => {
-                    telegramService.haptic('selection');
-                    setPreferredGender(pg.id as PreferredGender);
-                  }}
-                  className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer text-center ${
-                    preferredGender === pg.id
-                      ? 'bg-zinc-800 text-white border-zinc-800 shadow-sm'
-                      : 'bg-zine-cardElevated text-zinc-700 border-zine-border hover:bg-white'
-                  }`}
-                >
-                  {pg.label}
-                </button>
-              ))}
+          {/* Цели */}
+          <Section title="Что тебе интересно?" subtitle="Можно выбрать несколько">
+            <div className="grid grid-cols-2 gap-2">
+              {(Object.keys(GOALS_CONFIG) as ActivityGoal[]).map((key) => {
+                const item = GOALS_CONFIG[key];
+                const isSelected = selectedGoals.includes(key);
+                return (
+                  <button
+                    type="button"
+                    key={key}
+                    onClick={() => toggleGoal(key)}
+                    className={`relative min-h-[76px] p-3 rounded-zine-sm border-2 text-left flex flex-col justify-between gap-1 transition-colors cursor-pointer ${
+                      isSelected ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
+                    }`}
+                  >
+                    <span className="text-[24px] leading-none">{item.emoji}</span>
+                    <span className="text-sm2 font-semibold text-zine-ink leading-tight">{item.label}</span>
+                    {isSelected && (
+                      <span className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-zine-terracotta text-white flex items-center justify-center">
+                        <Check size={14} strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          </Section>
 
-          <div className="pt-2 border-t border-zine-border/50">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider">
-                Возраст компании
-              </label>
-              <span className="text-[10px] text-zine-terracotta font-bold">
-                от {minAge} до {maxAge} лет
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="16"
-                max={maxAge}
-                value={minAge}
-                onChange={(e) => setMinAge(Number(e.target.value) || 16)}
-                className="w-1/2 px-2.5 py-1.5 rounded-xl bg-zine-cardElevated border border-zine-border text-xs text-center text-zine-ink focus:outline-none focus:border-zine-terracotta"
-                placeholder="18"
-              />
-              <span className="text-zinc-400 text-xs">—</span>
-              <input
-                type="number"
-                min={minAge}
-                max="99"
-                value={maxAge}
-                onChange={(e) => setMaxAge(Number(e.target.value) || 99)}
-                className="w-1/2 px-2.5 py-1.5 rounded-xl bg-zine-cardElevated border border-zine-border text-xs text-center text-zine-ink focus:outline-none focus:border-zine-terracotta"
-                placeholder="45"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Район города + GPS */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between px-1">
-            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider flex items-center gap-1">
-              <MapPin size={12} className="text-zine-terracotta" />
-              <span>Твой район в Минске</span>
-            </label>
-            {coordinates && (
-              <span className="text-[9.5px] text-zinc-500 font-medium">
-                GPS зафиксирован ✓
-              </span>
-            )}
-          </div>
-
-          <div className="space-y-2">
+          {/* Район */}
+          <Section title="Где ты в Минске?" subtitle="Точный адрес никто не увидит — метка смещается на 300–500 м">
             <select
               value={area}
               onChange={(e) => {
                 setArea(e.target.value);
                 telegramService.haptic('selection');
               }}
-              className="w-full px-3.5 py-2.5 rounded-2xl bg-zine-cardElevated border border-zine-border text-xs text-zine-ink focus:outline-none focus:border-zine-terracotta shadow-zine-sm"
+              className="field"
             >
               {MINSK_AREAS.map((a, idx) => (
                 <option key={a} value={a}>
@@ -509,161 +414,172 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 </option>
               ))}
             </select>
-
             <button
               type="button"
               onClick={handleGetGPS}
               disabled={isLocating}
-              className="w-full py-2 px-3 rounded-xl bg-zine-cardElevated border border-zine-border hover:bg-white text-zine-ink font-semibold text-[11px] flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
+              className="mt-2 w-full h-12 rounded-zine-sm bg-zine-card text-zine-ink text-sm2 font-semibold flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Navigation size={12} className={isLocating ? 'animate-spin text-zine-terracotta' : 'text-zine-terracotta'} />
-              <span>{isLocating ? 'Определяем координаты...' : 'Определить точнее по GPS'}</span>
+              {isLocating ? <Loader2 size={18} className="animate-spin text-zine-terracotta" /> : <Navigation size={18} className="text-zine-terracotta" />}
+              <span>{isLocating ? 'Определяем…' : coordinates ? 'Место определено ✓ Обновить' : 'Определить по GPS'}</span>
             </button>
-          </div>
-        </div>
+          </Section>
 
-        {/* Цели встреч */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between px-1">
-            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider">
-              Что тебе интересно? (Цели) *
-            </label>
-            <span className="text-[10px] text-zine-inkMuted font-medium">
-              выбрано {selectedGoals.length}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {(Object.keys(GOALS_CONFIG) as ActivityGoal[]).map((key) => {
-              const item = GOALS_CONFIG[key];
-              const isSelected = selectedGoals.includes(key);
-
-              return (
-                <div
-                  key={key}
-                  onClick={() => toggleGoal(key)}
-                  className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between shadow-zine-sm active:scale-[0.98] ${
-                    isSelected
-                      ? `${item.badgeBg} ${item.badgeBorder} ring-1 ring-zine-terracotta/40`
-                      : 'bg-zine-cardElevated border-zine-border opacity-70'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">{item.emoji}</span>
-                    <span className={`text-[11px] font-bold ${isSelected ? item.badgeText : 'text-zine-ink'}`}>
-                      {item.label}
-                    </span>
-                  </div>
-                  {isSelected && (
-                    <div className="w-4 h-4 rounded-full bg-zine-terracotta text-white flex items-center justify-center shrink-0">
-                      <Check size={10} strokeWidth={3} />
-                    </div>
-                  )}
+          {/* Видимость анкеты (режим невидимки) */}
+          {!isFirstTime && (
+            <button
+              type="button"
+              onClick={() => {
+                telegramService.haptic('selection');
+                setIsProfileActive((v) => !v);
+              }}
+              className={`w-full p-4 rounded-zine border flex items-center justify-between gap-3 text-left transition-colors cursor-pointer ${
+                isProfileActive ? 'bg-zine-cardElevated border-zine-border' : 'bg-zine-plum/10 border-zine-plum/30'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                {isProfileActive ? <Eye size={26} className="text-zine-sage shrink-0" /> : <EyeOff size={26} className="text-zine-plum shrink-0" />}
+                <div>
+                  <p className="text-body font-bold text-zine-ink">{isProfileActive ? 'Меня видно на карте' : 'Режим невидимки'}</p>
+                  <p className="text-sm2 text-zine-inkMuted">
+                    {isProfileActive ? 'Другие видят твою анкету' : 'Тебя не видно, но ты видишь других и можешь передавать привет'}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* О себе */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between px-1">
-            <label className="text-[11px] font-semibold text-zine-ink uppercase tracking-wider">
-              О себе (до 200 символов)
-            </label>
-            <span
-              className={`text-[10px] font-medium ${
-                bio.length > 180 ? 'text-zine-terracotta font-bold' : 'text-zine-inkMuted'
-              }`}
-            >
-              {bio.length}/200
-            </span>
-          </div>
-
-          <textarea
-            rows={3}
-            maxLength={200}
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder="Люблю архитектуру конструктивизма, спешелти кофе на Киселёва и неспешные прогулки вдоль Свислочи..."
-            className="w-full px-3 py-2 rounded-xl bg-zine-cardElevated border border-zine-border text-xs text-zine-ink leading-relaxed focus:outline-none focus:border-zine-terracotta shadow-zine-sm resize-none"
-          />
-
-          <p className="text-[10px] text-zine-inkMuted leading-tight px-1 flex items-center gap-1">
-            <Sparkles size={11} className="text-zine-mustard shrink-0" />
-            <span>Напиши, о чем любишь говорить или куда хочешь сходить в городе.</span>
-          </p>
-        </div>
-
-        {/* Видимость анкеты (режим невидимки) */}
-        {!isFirstTime && (
-          <div
-            onClick={() => {
-              telegramService.haptic('selection');
-              setIsProfileActive((v) => !v);
-            }}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 shadow-zine-sm active:scale-[0.99] ${
-              isProfileActive
-                ? 'bg-zine-cardElevated border-zine-border'
-                : 'bg-[#F0EBF8] border-[#D9CFEA]'
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              {isProfileActive ? (
-                <Eye size={18} className="text-zine-sage shrink-0" />
-              ) : (
-                <EyeOff size={18} className="text-[#6A4E9E] shrink-0" />
-              )}
-              <div className="flex flex-col">
-                <span className="text-[12px] font-bold text-zine-ink">
-                  {isProfileActive ? 'Меня видно на карте' : 'Режим невидимки'}
-                </span>
-                <span className="text-[10px] text-zine-inkMuted leading-tight">
-                  {isProfileActive
-                    ? 'Другие видят твою анкету и могут написать'
-                    : 'Анкета скрыта с карты и из ленты. Ты по-прежнему видишь других и можешь писать им'}
-                </span>
               </div>
-            </div>
-            <div
-              className={`w-10 h-6 rounded-full p-0.5 transition-colors shrink-0 ${
-                isProfileActive ? 'bg-zine-sage' : 'bg-zinc-300'
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                  isProfileActive ? 'translate-x-4' : 'translate-x-0'
-                }`}
-              />
-            </div>
-          </div>
-        )}
+              <div className={`w-14 h-8 rounded-full p-1 transition-colors shrink-0 ${isProfileActive ? 'bg-zine-sage' : 'bg-zine-border'}`}>
+                <div className={`w-6 h-6 rounded-full bg-white shadow transition-transform ${isProfileActive ? 'translate-x-6' : 'translate-x-0'}`} />
+              </div>
+            </button>
+          )}
 
+          {/* Дополнительно: пол и предпочтения */}
+          <Section>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="w-full flex items-center justify-between text-left cursor-pointer"
+            >
+              <span>
+                <span className="block text-body font-bold text-zine-ink">Дополнительно</span>
+                <span className="block text-sm2 text-zine-inkMuted">Пол, с кем комфортно, возраст компании</span>
+              </span>
+              <ChevronDown size={24} className={`text-zine-inkMuted transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-4 space-y-4">
+                <Label text="Я">
+                  <Segmented
+                    value={gender}
+                    onChange={(v) => setGender(v as Gender)}
+                    options={[
+                      { id: 'male', label: 'Мужчина' },
+                      { id: 'female', label: 'Женщина' },
+                      { id: 'not_specified', label: 'Не скажу' }
+                    ]}
+                  />
+                </Label>
+                <Label text="С кем комфортно встречаться">
+                  <Segmented
+                    value={preferredGender}
+                    onChange={(v) => setPreferredGender(v as PreferredGender)}
+                    options={[
+                      { id: 'all', label: 'Со всеми' },
+                      { id: 'female', label: 'С женщинами' },
+                      { id: 'male', label: 'С мужчинами' }
+                    ]}
+                  />
+                </Label>
+                <Label text="Возраст компании" hint={`от ${minAge} до ${maxAge}`}>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="16"
+                      max={maxAge}
+                      value={minAge}
+                      onChange={(e) => setMinAge(Number(e.target.value) || 16)}
+                      className="field text-center"
+                    />
+                    <span className="text-body text-zine-inkMuted">—</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={minAge}
+                      max="99"
+                      value={maxAge}
+                      onChange={(e) => setMaxAge(Number(e.target.value) || 99)}
+                      className="field text-center"
+                    />
+                  </div>
+                </Label>
+              </div>
+            )}
+          </Section>
+        </div>
       </div>
 
-      {/* Кнопка Сохранить */}
-      <div className="pt-2 pb-1 shrink-0">
+      {/* Кнопка «Сохранить» всегда под рукой */}
+      <div className="shrink-0 px-5 pt-3 pb-3 bg-zine-paper border-t border-zine-border">
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="w-full py-3.5 px-5 rounded-2xl bg-zine-terracotta hover:bg-zine-terracottaHover disabled:opacity-70 text-white font-semibold text-xs tracking-wide shadow-zine active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.99] transition-all cursor-pointer ${
+            justSaved ? 'bg-zine-sage text-white' : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
+          }`}
         >
           {isSaving ? (
+            <Loader2 size={22} className="animate-spin" />
+          ) : justSaved ? (
             <>
-              <Loader2 size={14} className="animate-spin" />
-              <span>Сохраняем на сервере...</span>
+              <Check size={22} strokeWidth={3} />
+              <span>Сохранено</span>
             </>
           ) : (
-            <>
-              <span>{isFirstTime ? 'Сохранить и открыть карту Минска' : 'Сохранить изменения'}</span>
-              <span>→</span>
-            </>
+            <span>{isFirstTime ? 'Готово, на карту!' : 'Сохранить'}</span>
           )}
         </button>
       </div>
-
     </div>
   );
 };
+
+const Section: React.FC<{ title?: string; subtitle?: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
+  <section className="p-4 rounded-zine bg-zine-cardElevated border border-zine-border">
+    {title && <h2 className="text-body font-bold text-zine-ink">{title}</h2>}
+    {subtitle && <p className="text-sm2 text-zine-inkMuted mt-0.5">{subtitle}</p>}
+    <div className={title ? 'mt-3' : ''}>{children}</div>
+  </section>
+);
+
+const Label: React.FC<{ text: string; hint?: string; children: React.ReactNode }> = ({ text, hint, children }) => (
+  <label className="block">
+    <span className="flex items-baseline justify-between mb-2">
+      <span className="text-sm2 font-bold text-zine-ink">{text}</span>
+      {hint && <span className="text-cap text-zine-inkMuted">{hint}</span>}
+    </span>
+    {children}
+  </label>
+);
+
+const Segmented: React.FC<{ value: string; onChange: (v: string) => void; options: { id: string; label: string }[] }> = ({ value, onChange, options }) => (
+  <div className="grid grid-cols-3 gap-1 p-1 rounded-zine-sm bg-zine-card">
+    {options.map((o) => (
+      <button
+        type="button"
+        key={o.id}
+        onClick={() => {
+          telegramService.haptic('selection');
+          onChange(o.id);
+        }}
+        className={`h-11 rounded-[11px] text-sm2 font-semibold transition-all cursor-pointer ${
+          value === o.id ? 'bg-zine-cardElevated text-zine-ink shadow-zine-sm' : 'text-zine-inkMuted'
+        }`}
+      >
+        {o.label}
+      </button>
+    ))}
+  </div>
+);
 
 export default ProfileFormScreen;

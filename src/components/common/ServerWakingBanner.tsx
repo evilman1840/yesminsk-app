@@ -27,13 +27,13 @@ export const ServerWakingBanner: React.FC = () => {
   if (!isWaking) return null;
 
   return (
-    <div className="absolute top-14 inset-x-3 z-50 p-3 rounded-2xl bg-zine-cardElevated/95 backdrop-blur border border-zine-border shadow-zine-float flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-      <div className="w-8 h-8 shrink-0 rounded-full border-[3px] border-zine-terracotta/25 border-t-zine-terracotta animate-spin" />
+    <div className="absolute top-20 inset-x-3 z-50 p-4 rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-float flex items-center gap-3.5">
+      <div className="w-9 h-9 shrink-0 rounded-full border-[3px] border-zine-terracotta/25 border-t-zine-terracotta animate-spin" />
       <div className="min-w-0">
-        <p key={index} className="text-[12px] font-semibold text-zine-ink leading-snug animate-in fade-in duration-500">
+        <p key={index} className="text-body font-semibold text-zine-ink">
           {MESSAGES[index]}
         </p>
-        <p className="text-[10px] text-zine-inkMuted mt-0.5">
+        <p className="text-sm2 text-zine-inkMuted mt-1">
           Обычно это занимает до минуты. Спасибо, что ждёшь 💛
         </p>
       </div>
