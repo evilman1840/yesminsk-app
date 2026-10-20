@@ -42,12 +42,15 @@ const TIPS_LINE =
 const HELP_STEPS = [
   { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото — откроется анкета.' },
   { emoji: '👋', title: '«Пообщаться»', text: 'Передай человеку привет. Если он ответит тем же, вы сможете написать друг другу в Telegram.' },
-  { emoji: '⚡', title: '«Хочу сейчас»', text: 'Нажми, если можешь встретиться в ближайшие часы — твою анкету покажут в начале списка.' },
+  { emoji: '⚡', title: '«Хочу сейчас»', text: 'Включи переключатель, если можешь встретиться в ближайшие 3 часа — твою анкету покажут в начале списка.' },
   { emoji: '🧭', title: '«Покажут город»', text: 'Ты турист? Местные жители с радостью покажут Минск. А если ты местный — включи «Покажу город» в анкете.' },
   { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию — это займёт минуту.' },
   { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе — так тебя быстрее заметят.' },
   { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 300–500 м. Можно включить режим невидимки.' }
 ];
+
+// На сколько часов включается «⚡ Хочу сейчас»
+const AVAILABLE_HOURS = 3;
 
 export const formatEventDate = (isoString: string) => {
   try {
@@ -85,7 +88,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     setIsSavingAvailability(true);
     try {
       await onSetAvailable(hours);
-      setIsAvailabilityOpen(false);
     } catch (err: any) {
       alert(err.message || 'Не удалось изменить статус');
     } finally {
@@ -179,85 +181,59 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           setIsDonateOpen(true);
         }}
         aria-label="Поддержать проект"
-        className="absolute right-4 bottom-[112px] z-20 w-14 h-14 rounded-full bg-zine-terracotta text-white shadow-zine-float flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+        className="absolute right-4 bottom-[128px] z-20 w-14 h-14 rounded-full bg-zine-terracotta text-white shadow-zine-float flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
       >
         <span className="absolute inset-0 rounded-full bg-zine-terracotta/40 animate-ping [animation-duration:2.5s]" />
         <span className="relative text-[26px] leading-none">💛</span>
       </button>
       {isDonateOpen && <DonateSheet onClose={() => setIsDonateOpen(false)} />}
 
-      {/* «⚡ Хочу сейчас» — можно встретиться в ближайшие часы */}
+      {/* «⚡ Хочу сейчас» — переключатель: включает статус на 3 часа или выключает */}
       <button
         onClick={() => {
           telegramService.haptic('selection');
-          setIsAvailabilityOpen(true);
+          if (!isVisible && !iAmAvailable) {
+            setIsAvailabilityOpen(true); // в режиме невидимки сначала объясняем
+            return;
+          }
+          if (!isSavingAvailability) changeAvailability(iAmAvailable ? 0 : AVAILABLE_HOURS);
         }}
-        className={`absolute left-4 bottom-10 z-20 h-14 px-5 rounded-full shadow-zine-float text-body font-bold flex items-center gap-2 active:scale-95 transition-transform cursor-pointer ${
-          iAmAvailable ? 'bg-zine-sage text-white' : 'bg-zine-cardElevated text-zine-ink border border-zine-border'
-        }`}
+        role="switch"
+        aria-checked={iAmAvailable}
+        aria-label="Хочу сейчас"
+        className="absolute left-4 bottom-14 z-20 h-14 pl-4 pr-2.5 rounded-zine bg-zine-cardElevated text-zine-ink shadow-zine-float flex items-center gap-2.5 active:scale-95 transition-transform cursor-pointer"
       >
         <span className="text-[22px] leading-none">⚡</span>
-        <span>{iAmAvailable ? `Хочу сейчас · до ${formatTime(currentUser?.availableUntil)}` : 'Хочу сейчас'}</span>
+        <span className="flex flex-col items-start leading-tight">
+          <span className="text-body font-bold">Хочу сейчас</span>
+          {iAmAvailable && <span className="text-cap font-semibold text-[#2FA36B]">до {formatTime(currentUser?.availableUntil)}</span>}
+        </span>
+        <span className={`ml-1 w-12 h-7 rounded-full p-[3px] transition-colors ${iAmAvailable ? 'bg-[#2FA36B]' : 'bg-zine-border'}`}>
+          <span
+            className={`flex items-center justify-center w-[22px] h-[22px] rounded-full bg-white shadow transition-transform ${
+              iAmAvailable ? 'translate-x-5' : 'translate-x-0'
+            }`}
+          >
+            {isSavingAvailability && <Loader2 size={14} className="animate-spin text-zine-inkMuted" />}
+          </span>
+        </span>
       </button>
 
+      {/* В режиме невидимки статус бесполезен — подсказываем, что сделать */}
       {isAvailabilityOpen && (
-        <BottomSheet title={iAmAvailable ? '«Хочу сейчас» включено ⚡' : 'Сейчас можешь встретиться?'} onClose={() => setIsAvailabilityOpen(false)}>
-          {!isVisible ? (
-            <>
-              <p className="text-body text-zine-inkMuted">
-                Сейчас включён режим невидимки — тебя не видно на карте. Выключи его в анкете, чтобы другие увидели, что ты сейчас можешь встретиться.
-              </p>
-              <button
-                onClick={() => {
-                  setIsAvailabilityOpen(false);
-                  onOpenProfile();
-                }}
-                className="mt-5 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer"
-              >
-                Открыть анкету
-              </button>
-            </>
-          ) : iAmAvailable ? (
-            <>
-              <p className="text-body text-zine-inkMuted">
-                Другие видят зелёную обводку и ⚡ на твоей аватарке до {formatTime(currentUser?.availableUntil)}. Потом статус выключится сам.
-              </p>
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => changeAvailability(3)}
-                  disabled={isSavingAvailability}
-                  className="h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
-                >
-                  Продлить на 3 ч
-                </button>
-                <button
-                  onClick={() => changeAvailability(0)}
-                  disabled={isSavingAvailability}
-                  className="h-12 rounded-zine-sm bg-zine-ink text-zine-paper text-body font-bold cursor-pointer"
-                >
-                  Выключить
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-body text-zine-inkMuted">
-                Покажем людям рядом, что ты можешь встретиться: на аватарке появится ⚡, а твоя анкета будет в начале списка. Статус выключится сам.
-              </p>
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                {[1, 3].map((h) => (
-                  <button
-                    key={h}
-                    onClick={() => changeAvailability(h)}
-                    disabled={isSavingAvailability}
-                    className="h-14 rounded-zine-sm bg-zine-sage text-white text-lead font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
-                  >
-                    {isSavingAvailability ? <Loader2 size={22} className="animate-spin" /> : `На ${h} ${h === 1 ? 'час' : 'часа'}`}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+        <BottomSheet title="Сейчас тебя не видно" onClose={() => setIsAvailabilityOpen(false)}>
+          <p className="text-body text-zine-inkMuted">
+            Включён режим невидимки, поэтому никто не увидит «Хочу сейчас». Выключи невидимку в анкете — и включи переключатель снова.
+          </p>
+          <button
+            onClick={() => {
+              setIsAvailabilityOpen(false);
+              onOpenProfile();
+            }}
+            className="mt-5 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer"
+          >
+            Открыть анкету
+          </button>
         </BottomSheet>
       )}
 
