@@ -116,9 +116,6 @@ export const findEventPlace = async (address: string): Promise<FoundPlace | null
   return null;
 };
 
-// Сколько человек максимум на сходке «По душам»
-const TALK_MAX_PEOPLE = 6;
-
 export interface EventsScreenProps {
   events: AppEvent[];
   currentUserId?: number;
@@ -196,7 +193,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
     tomorrow.setMinutes(0, 0, 0);
     setDateTime(tomorrow.toISOString().slice(0, 16));
-    setMaxParticipants(startCategory === 'talk' ? String(TALK_MAX_PEOPLE) : '0');
+    setMaxParticipants('0');
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -393,32 +390,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
       {/* Список сходок */}
       <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">
-        {(selectedCategory === 'all' || selectedCategory === 'talk') && (
-          <section className="p-4 rounded-zine bg-zine-blush/15 border border-zine-blush/30">
-            <p className="text-lead font-bold text-zine-ink">🤗 Хочется просто поговорить?</p>
-            <p className="mt-1 text-body text-zine-inkMuted">
-              Сходки «По душам» — тёплая небольшая компания, где можно выговориться и быть услышанным.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setSelectedCategory('talk');
-                }}
-                className="h-12 rounded-zine-sm bg-zine-cardElevated text-zine-ink text-sm2 font-semibold cursor-pointer"
-              >
-                Найти такую
-              </button>
-              <button
-                onClick={() => handleOpenCreateModal('talk')}
-                className="h-12 rounded-zine-sm bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer"
-              >
-                Собрать свою
-              </button>
-            </div>
-          </section>
-        )}
-
         {filteredEvents.length === 0 ? (
           <div className="mt-6 p-8 rounded-zine bg-zine-card text-center">
             <div className="text-[44px] mb-3">🗓</div>
@@ -538,7 +509,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                     <span>Позвать</span>
                   </button>
                 </div>
-                {ev.isJoined && !isCreator && <p className="mt-2 text-cap text-zine-inkMuted text-center">Передумал? Нажми «Я иду» ещё раз</p>}
+                {ev.isJoined && !isCreator && <p className="mt-2 text-cap text-zine-inkMuted text-center">Планы изменились? Нажми «Я иду» ещё раз</p>}
               </article>
             );
           })
@@ -576,9 +547,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                       onClick={() => {
                         telegramService.haptic('selection');
                         setCategory(cat);
-                        // «По душам» — небольшая компания, до 6 человек
-                        if (cat === 'talk') setMaxParticipants(String(TALK_MAX_PEOPLE));
-                        else if (category === 'talk') setMaxParticipants('0');
                       }}
                       className={`h-[72px] rounded-zine-sm border-2 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
                         isSelected ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
@@ -591,15 +559,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 })}
               </div>
             </Field>
-
-            {category === 'talk' && (
-              <div className="p-4 rounded-zine-sm bg-zine-blush/15 text-sm2 text-zine-ink space-y-1.5">
-                <p className="font-bold text-body">🤗 Сходка «По душам»</p>
-                <p>Небольшая компания — до {TALK_MAX_PEOPLE} человек, чтобы каждого услышали.</p>
-                <p>Встречайтесь в кафе или другом людном месте.</p>
-                <p>Слушаем без оценок и советуем, только если об этом просят.</p>
-              </div>
-            )}
 
             <Field label="Где встречаемся?">
               <input

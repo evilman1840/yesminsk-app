@@ -17,6 +17,8 @@ interface ProfileFormScreenProps {
     area?: string;
     isTourist?: boolean;
     isProfileActive?: boolean;
+    isGuide?: boolean;
+    guideAbout?: string;
     coordinates?: [number, number];
   };
   onSave: (data: {
@@ -32,6 +34,8 @@ interface ProfileFormScreenProps {
     area: string;
     isTourist: boolean;
     isProfileActive: boolean;
+    isGuide: boolean;
+    guideAbout: string;
     coordinates?: [number, number];
   }) => Promise<void> | void;
   onBack?: () => void;
@@ -105,6 +109,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     initialData?.isProfileActive !== false
   );
 
+  const [isGuide, setIsGuide] = useState<boolean>(Boolean(initialData?.isGuide));
+  const [guideAbout, setGuideAbout] = useState<string>(initialData?.guideAbout || '');
   const [justSaved, setJustSaved] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -236,6 +242,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         area,
         isTourist,
         isProfileActive,
+        isGuide: isGuide && !isTourist,
+        guideAbout: guideAbout.trim(),
         coordinates
       });
       telegramService.haptic('success');
@@ -424,6 +432,43 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               <span>{isLocating ? 'Определяем…' : coordinates ? 'Место определено ✓ Обновить' : 'Определить по GPS'}</span>
             </button>
           </Section>
+
+          {/* «🧭 Покажу город» — только для местных */}
+          {!area.includes('турист') && (
+            <Section>
+              <button
+                type="button"
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  setIsGuide((v) => !v);
+                }}
+                className="w-full flex items-center justify-between gap-3 text-left cursor-pointer"
+              >
+                <span>
+                  <span className="block text-body font-bold text-zine-ink">🧭 Покажу город</span>
+                  <span className="block text-sm2 text-zine-inkMuted">Туристы увидят, что ты можешь показать им Минск</span>
+                </span>
+                <span className={`w-14 h-8 rounded-full p-1 transition-colors shrink-0 ${isGuide ? 'bg-zine-sky' : 'bg-zine-border'}`}>
+                  <span className={`block w-6 h-6 rounded-full bg-white shadow transition-transform ${isGuide ? 'translate-x-6' : 'translate-x-0'}`} />
+                </span>
+              </button>
+
+              {isGuide && (
+                <div className="mt-4">
+                  <Label text="Что можешь показать?" hint={`${guideAbout.length}/140`}>
+                    <textarea
+                      rows={2}
+                      maxLength={140}
+                      value={guideAbout}
+                      onChange={(e) => setGuideAbout(e.target.value)}
+                      placeholder="Верхний город, кофейни на Октябрьской, граффити на Зыбицкой"
+                      className="field"
+                    />
+                  </Label>
+                </div>
+              )}
+            </Section>
+          )}
 
           {/* Видимость анкеты (режим невидимки) */}
           {!isFirstTime && (

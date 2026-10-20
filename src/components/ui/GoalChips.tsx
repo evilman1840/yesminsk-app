@@ -1,17 +1,18 @@
 import React from 'react';
-import { GOALS_CONFIG, ActivityGoal } from '../../types';
+import { GOALS_CONFIG, ActivityGoal, GoalFilter } from '../../types';
 import { telegramService } from '../../services/telegram';
 
 /**
  * Крупные кнопки-фильтры по цели встречи. Лента прокручивается вбок
  */
 export const GoalChips: React.FC<{
-  value: ActivityGoal | 'all';
-  onChange: (goal: ActivityGoal | 'all') => void;
+  value: GoalFilter;
+  onChange: (goal: GoalFilter) => void;
   floating?: boolean; // поверх карты — с тенью и плотным фоном
 }> = ({ value, onChange, floating = false }) => {
-  const items: { id: ActivityGoal | 'all'; label: string; emoji?: string }[] = [
+  const items: { id: GoalFilter; label: string; emoji?: string }[] = [
     { id: 'all', label: 'Все' },
+    { id: 'guides', label: 'Покажут город', emoji: '🧭' },
     ...(Object.keys(GOALS_CONFIG) as ActivityGoal[]).map((id) => ({
       id,
       label: GOALS_CONFIG[id].label,

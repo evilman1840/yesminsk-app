@@ -340,7 +340,7 @@ const MinskMapContent: React.FC<{
                 avatarUrl: user.avatarUrl,
                 name: user.firstName,
                 // «⚡ Свободен сейчас» — зелёная обводка и молния вместо значка цели
-                goalEmoji: available ? '⚡' : goalInfo.emoji,
+                goalEmoji: available ? '⚡' : user.isGuide ? '🧭' : goalInfo.emoji,
                 borderColor: isSelected ? '#D95C3C' : available ? '#2FA36B' : '#FAF7F2'
               }}
               options={{

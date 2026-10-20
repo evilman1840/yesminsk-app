@@ -135,6 +135,8 @@ class ApiService {
     isTourist?: boolean;
     coordinates?: [number, number];
     isProfileActive?: boolean;
+    isGuide?: boolean;
+    guideAbout?: string;
   }): Promise<any> {
     try {
       return await this.request<any>('/users/profile', {
@@ -173,7 +175,15 @@ class ApiService {
     });
   }
 
-  // «⚡ Свободен сейчас»: hours > 0 — включить на столько часов, 0 — выключить
+  // Ссылка на оплату звёздами Telegram
+  async createDonateInvoice(stars: number): Promise<{ url: string }> {
+    return this.request('/donate/invoice', {
+      method: 'POST',
+      body: JSON.stringify({ stars })
+    });
+  }
+
+  // «⚡ Есть время»: hours > 0 — включить на столько часов, 0 — выключить
   async setAvailable(hours: number): Promise<{ success: boolean; availableUntil: string | null }> {
     return this.request('/users/available', {
       method: 'POST',

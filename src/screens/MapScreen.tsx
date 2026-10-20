@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Pencil, Eye, EyeOff, Sun, Moon, Loader2 } from 'lucide-react';
-import { ActivityGoal, UserProfile, AppEvent, isAvailableNow, formatTime } from '../types';
+import { ActivityGoal, UserProfile, AppEvent, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter } from '../types';
 import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
 import { Logo } from '../components/ui/Logo';
 import { EventDetails } from '../components/common/EventDetails';
+import { DonateSheet } from '../components/common/DonateSheet';
 
 export interface MapScreenProps {
   users: UserProfile[];
@@ -26,8 +27,8 @@ export interface MapScreenProps {
   } | null;
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile | null) => void;
-  selectedGoal: ActivityGoal | 'all';
-  onSelectGoal: (goal: ActivityGoal | 'all') => void;
+  selectedGoal: GoalFilter;
+  onSelectGoal: (goal: GoalFilter) => void;
   onOpenProfile: () => void;
   onToggleJoinEvent: (event: AppEvent) => Promise<boolean>;
   onUpdateLocation?: (coords: [number, number]) => void;
@@ -41,7 +42,8 @@ const TIPS_LINE =
 const HELP_STEPS = [
   { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото — откроется анкета.' },
   { emoji: '👋', title: '«Пообщаться»', text: 'Передай человеку привет. Если он ответит тем же, вы сможете написать друг другу в Telegram.' },
-  { emoji: '⚡', title: '«Я свободен»', text: 'Нажми, если готов встретиться в ближайшие часы — тебя увидят первым.' },
+  { emoji: '⚡', title: '«Есть время»', text: 'Нажми, если можешь встретиться в ближайшие часы — твою анкету покажут в начале списка.' },
+  { emoji: '🧭', title: '«Покажут город»', text: 'Ты турист? Местные жители с радостью покажут Минск. А если ты местный — включи «Покажу город» в анкете.' },
   { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию — это займёт минуту.' },
   { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе — так тебя быстрее заметят.' },
   { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 300–500 м. Можно включить режим невидимки.' }
@@ -75,6 +77,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [isMySheetOpen, setIsMySheetOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
+  const [isDonateOpen, setIsDonateOpen] = useState(false);
   const [isSavingAvailability, setIsSavingAvailability] = useState(false);
   const iAmAvailable = isAvailableNow(currentUser);
 
@@ -91,7 +94,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   };
   const [isDark, setIsDark] = useState(() => telegramService.isDarkTheme());
 
-  const filteredUsers = selectedGoal === 'all' ? users : users.filter((u) => u.goal === selectedGoal);
+  const filteredUsers = users.filter((u) => matchesGoalFilter(u, selectedGoal));
   const isVisible = currentUser?.isProfileActive !== false;
 
   return (
@@ -147,7 +150,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               className="pointer-events-auto flex-1 min-w-0 h-12 px-4 rounded-full bg-zine-plum text-white text-sm2 font-bold flex items-center justify-center gap-2 shadow-zine cursor-pointer"
             >
               <EyeOff size={18} className="shrink-0" />
-              <span className="truncate">Ты скрыт</span>
+              <span className="truncate">Тебя не видно</span>
             </button>
           )}
 
@@ -169,7 +172,21 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         </div>
       </div>
 
-      {/* «⚡ Свободен сейчас» — готов встретиться в ближайшие часы */}
+      {/* Донат — заметная кнопка над «Где я?» */}
+      <button
+        onClick={() => {
+          telegramService.haptic('selection');
+          setIsDonateOpen(true);
+        }}
+        aria-label="Поддержать проект"
+        className="absolute right-4 bottom-[112px] z-20 w-14 h-14 rounded-full bg-zine-terracotta text-white shadow-zine-float flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+      >
+        <span className="absolute inset-0 rounded-full bg-zine-terracotta/40 animate-ping [animation-duration:2.5s]" />
+        <span className="relative text-[26px] leading-none">💛</span>
+      </button>
+      {isDonateOpen && <DonateSheet onClose={() => setIsDonateOpen(false)} />}
+
+      {/* «⚡ Есть время» — можно встретиться в ближайшие часы */}
       <button
         onClick={() => {
           telegramService.haptic('selection');
@@ -180,15 +197,15 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         }`}
       >
         <span className="text-[22px] leading-none">⚡</span>
-        <span>{iAmAvailable ? `Свободен до ${formatTime(currentUser?.availableUntil)}` : 'Я свободен'}</span>
+        <span>{iAmAvailable ? `Есть время до ${formatTime(currentUser?.availableUntil)}` : 'Есть время'}</span>
       </button>
 
       {isAvailabilityOpen && (
-        <BottomSheet title={iAmAvailable ? 'Ты свободен ⚡' : 'Свободен сейчас?'} onClose={() => setIsAvailabilityOpen(false)}>
+        <BottomSheet title={iAmAvailable ? 'У тебя есть время ⚡' : 'Есть свободное время?'} onClose={() => setIsAvailabilityOpen(false)}>
           {!isVisible ? (
             <>
               <p className="text-body text-zine-inkMuted">
-                Сейчас включён режим невидимки — тебя не видно на карте. Выключи его в анкете, чтобы другие увидели, что ты свободен.
+                Сейчас включён режим невидимки — тебя не видно на карте. Выключи его в анкете, чтобы другие увидели, что у тебя есть время.
               </p>
               <button
                 onClick={() => {
@@ -225,7 +242,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           ) : (
             <>
               <p className="text-body text-zine-inkMuted">
-                Покажем людям рядом, что ты готов встретиться: на аватарке появится ⚡ и ты будешь первым в списке. Статус выключится сам.
+                Покажем людям рядом, что ты можешь встретиться: на аватарке появится ⚡, а твоя анкета будет в начале списка. Статус выключится сам.
               </p>
               <div className="mt-5 grid grid-cols-2 gap-2">
                 {[1, 3].map((h) => (

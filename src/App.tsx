@@ -13,7 +13,7 @@ import { ServerWakingBanner } from './components/common/ServerWakingBanner';
 import { TabBar, TabId } from './components/ui/TabBar';
 import { BottomSheet } from './components/ui/BottomSheet';
 import { EventDetails } from './components/common/EventDetails';
-import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
+import { UserProfile, ActivityGoal, GoalFilter, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
 // Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
@@ -64,6 +64,8 @@ export const App: React.FC = () => {
     area: 'Немига / Центр',
     isTourist: false,
     isProfileActive: true,
+    isGuide: false,
+    guideAbout: '',
     availableUntil: null as string | null,
     coordinates: getSavedCoordinates()
   });
@@ -71,7 +73,7 @@ export const App: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [selectedGoal, setSelectedGoal] = useState<ActivityGoal | 'all'>('all');
+  const [selectedGoal, setSelectedGoal] = useState<GoalFilter>('all');
   const [apiError, setApiError] = useState<string | null>(null);
   const [likedMe, setLikedMe] = useState<UserProfile[]>([]);
   const [matches, setMatches] = useState<UserProfile[]>([]);
@@ -91,7 +93,7 @@ export const App: React.FC = () => {
       setApiError(null);
       const coords = currentUserCoordsRef.current || getSavedCoordinates();
       const data = await api.getNearbyUsers({
-        goal: selectedGoal,
+        goal: selectedGoal === 'guides' ? 'all' : selectedGoal,
         lat: coords[0],
         lng: coords[1],
         radiusKm: 25
@@ -180,6 +182,8 @@ export const App: React.FC = () => {
             area: me.areaName || prev.area,
             isTourist: Boolean(me.isTourist),
             isProfileActive: me.isProfileActive !== false,
+            isGuide: Boolean(me.isGuide),
+            guideAbout: me.guideAbout || '',
             availableUntil: me.availableUntil || null,
             coordinates: userCoords
           }));
@@ -227,6 +231,8 @@ export const App: React.FC = () => {
     area: string;
     isTourist?: boolean;
     isProfileActive?: boolean;
+    isGuide?: boolean;
+    guideAbout?: string;
     coordinates?: [number, number];
     customCoordinates?: [number, number];
   }) => {
@@ -253,6 +259,8 @@ export const App: React.FC = () => {
       areaName: formData.area,
       isTourist: formData.isTourist,
       isProfileActive: formData.isProfileActive,
+      isGuide: formData.isGuide,
+      guideAbout: formData.guideAbout,
       coordinates: coords
     });
 
@@ -347,7 +355,7 @@ export const App: React.FC = () => {
     setEvents(prev => prev.filter(e => e.id !== eventId && (e as any)._id !== eventId));
   };
 
-  // Возвращает true, если получилось (на сходке «По душам» места могут закончиться)
+  // Возвращает true, если получилось (на сходке с ограничением мест они могут закончиться)
   const handleToggleJoinEvent = async (event: AppEvent): Promise<boolean> => {
     try {
       const isJoined = Boolean(event.isJoined);
@@ -471,6 +479,9 @@ export const App: React.FC = () => {
                 users={users}
                 likedMe={likedMe}
                 matches={matches}
+                isTourist={currentUser.isTourist}
+                selectedGoal={selectedGoal}
+                onSelectGoal={setSelectedGoal}
                 onSelectUser={(u) => setSelectedUser(u)}
                 onReact={handleReact}
               />

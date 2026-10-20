@@ -165,6 +165,27 @@ export const telegramService = {
     return { eventId, tab: params.get('tab') || undefined };
   },
 
+  /**
+   * Открыть оплату звёздами. Возвращает 'paid', 'cancelled', 'failed' или 'pending'
+   */
+  openInvoice(url: string): Promise<string> {
+    const webapp = tg();
+    return new Promise((resolve) => {
+      if (webapp?.initData && (webapp as any).openInvoice) {
+        (webapp as any).openInvoice(url, (status: string) => resolve(status));
+      } else {
+        window.open(url, '_blank');
+        resolve('pending');
+      }
+    });
+  },
+
+  openLink(url: string) {
+    const webapp = tg();
+    if (webapp?.initData && webapp.openLink) webapp.openLink(url);
+    else window.open(url, '_blank');
+  },
+
   openChat(username?: string) {
     if (!username) return;
     const cleanUsername = username.replace(/^@/, '');

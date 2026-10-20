@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
-import { UserProfile, GOALS_CONFIG, ActivityGoal, isAvailableNow, formatTime } from '../types';
+import { UserProfile, GOALS_CONFIG, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionButtons, ChatButton, ReactionType } from '../components/common/Reactions';
 import { formatDistance } from '../components/common/UserBottomSheet';
@@ -12,16 +12,28 @@ export interface FeedScreenProps {
   matches?: UserProfile[];
   onSelectUser: (user: UserProfile) => void;
   onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
+  isTourist?: boolean;
+  selectedGoal: GoalFilter;
+  onSelectGoal: (goal: GoalFilter) => void;
 }
 
 type FeedTab = 'all' | 'likes' | 'matches';
 
-export const FeedScreen: React.FC<FeedScreenProps> = ({ users, likedMe = [], matches = [], onSelectUser, onReact }) => {
-  const [selectedGoal, setSelectedGoal] = useState<ActivityGoal | 'all'>('all');
+export const FeedScreen: React.FC<FeedScreenProps> = ({
+  users,
+  likedMe = [],
+  matches = [],
+  onSelectUser,
+  onReact,
+  isTourist = false,
+  selectedGoal,
+  onSelectGoal
+}) => {
   const [tab, setTab] = useState<FeedTab>(likedMe.length > 0 ? 'likes' : 'all');
 
   const tabUsers = tab === 'likes' ? likedMe : tab === 'matches' ? matches : users;
-  const filteredUsers = selectedGoal === 'all' ? tabUsers : tabUsers.filter((u) => u.goal === selectedGoal);
+  const filteredUsers = tabUsers.filter((u) => matchesGoalFilter(u, selectedGoal));
+  const guidesCount = users.filter((u) => u.isGuide).length;
 
   const tabs: { id: FeedTab; label: string; count: number }[] = [
     { id: 'all', label: 'Рядом', count: 0 },
@@ -59,10 +71,33 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({ users, likedMe = [], mat
       </header>
 
       <div className="shrink-0 pb-3">
-        <GoalChips value={selectedGoal} onChange={setSelectedGoal} />
+        <GoalChips value={selectedGoal} onChange={onSelectGoal} />
       </div>
 
       <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">
+        {/* Туристам — местные, которые готовы показать город */}
+        {isTourist && tab === 'all' && selectedGoal !== 'guides' && guidesCount > 0 && (
+          <section className="p-4 rounded-zine bg-zine-sky/10 border border-zine-sky/25">
+            <p className="text-lead font-bold text-zine-ink">🧳 Впервые в Минске?</p>
+            <p className="mt-1 text-body text-zine-inkMuted">Местные жители готовы показать тебе город — бесплатно, просто из любви к Минску.</p>
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                onSelectGoal('guides');
+              }}
+              className="mt-3 w-full h-12 rounded-zine-sm bg-zine-sky text-white text-body font-bold cursor-pointer"
+            >
+              🧭 Кто покажет город ({guidesCount})
+            </button>
+          </section>
+        )}
+
+        {selectedGoal === 'guides' && (
+          <p className="px-1 text-sm2 text-zine-inkMuted">
+            🧭 Местные, которые с радостью покажут город. Нажми 👋 «Пообщаться», чтобы договориться о прогулке.
+          </p>
+        )}
+
         {tab === 'likes' && filteredUsers.length > 0 && (
           <p className="px-1 text-sm2 text-zine-inkMuted">
             Эти люди хотят с тобой пообщаться. Нажми 👋 в ответ — и сможете написать друг другу.
@@ -97,9 +132,14 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({ users, likedMe = [], mat
                       🤝 На связи
                     </span>
                   )}
+                  {user.isGuide && (
+                    <span className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-zine-sky text-white text-sm2 font-bold shadow-zine-sm">
+                      🧭 Покажу город
+                    </span>
+                  )}
                   {isAvailableNow(user) && (
                     <span className="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-[#2FA36B] text-white text-sm2 font-bold shadow-zine-sm">
-                      ⚡ Свободен до {formatTime(user.availableUntil)}
+                      ⚡ Есть время до {formatTime(user.availableUntil)}
                     </span>
                   )}
                 </div>

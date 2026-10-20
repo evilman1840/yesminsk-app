@@ -1,7 +1,7 @@
 export type ActivityGoal = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors';
 export type Gender = 'male' | 'female' | 'not_specified';
 export type PreferredGender = 'all' | 'male' | 'female';
-export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'talk';
+export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport';
 
 export interface AgeRange {
   min: number;
@@ -42,8 +42,7 @@ export const EVENT_CATEGORIES_CONFIG: Record<EventCategory, { label: string; emo
   expo_cinema: { label: 'Арт, кино', emoji: '🎨', ...badge('plum') },
   trip_outdoors: { label: 'За город', emoji: '🌲', ...badge('sage') },
   boardgames: { label: 'Настолки', emoji: '🎲', ...badge('sky') },
-  sport: { label: 'Спорт, вело', emoji: '🚴', ...badge('sky') },
-  talk: { label: 'По душам', emoji: '🤗', ...badge('blush') }
+  sport: { label: 'Спорт, вело', emoji: '🚴', ...badge('sky') }
 };
 
 export interface UserProfile {
@@ -70,8 +69,16 @@ export interface UserProfile {
   iLiked?: boolean;   // я нажал 👋 «Пообщаться»
   likedMe?: boolean;  // мне нажали 👋
   isMatch?: boolean;  // оба нажали 👋 — на связи, можно писать
-  availableUntil?: string; // «⚡ Свободен сейчас» — до этого времени
+  availableUntil?: string; // «⚡ Есть время» — до этого времени
+  isGuide?: boolean;       // «🧭 Покажу город» — местный гид-волонтёр
+  guideAbout?: string;     // что может показать
 }
+
+// Фильтр людей: по цели, все или «🧭 Покажут город»
+export type GoalFilter = ActivityGoal | 'all' | 'guides';
+
+export const matchesGoalFilter = (u: UserProfile, filter: GoalFilter) =>
+  filter === 'all' ? true : filter === 'guides' ? Boolean(u.isGuide) : u.goal === filter;
 
 // «⚡ Свободен сейчас» ещё действует?
 export const isAvailableNow = (u?: { availableUntil?: string | null } | null) =>

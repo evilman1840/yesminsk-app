@@ -32,7 +32,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
 
       {isAvailableNow(user) && (
         <p className="mt-4 p-3 rounded-zine-sm bg-[#2FA36B]/15 text-body font-semibold text-zine-ink">
-          ⚡ Свободен сейчас — готов встретиться до {formatTime(user.availableUntil)}
+          ⚡ Есть время — можно встретиться до {formatTime(user.availableUntil)}
         </p>
       )}
 
@@ -50,6 +50,15 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
       </span>
 
       {user.bio && <p className="mt-4 text-body text-zine-ink whitespace-pre-line">{user.bio}</p>}
+
+      {user.isGuide && (
+        <div className="mt-4 p-4 rounded-zine-sm bg-zine-sky/10 border border-zine-sky/25">
+          <p className="text-body font-bold text-zine-ink">🧭 Покажу город</p>
+          <p className="mt-1 text-body text-zine-ink">
+            {user.guideAbout || 'С радостью покажу Минск гостям города.'}
+          </p>
+        </div>
+      )}
 
       <div className="mt-5">
         {user.isMatch ? <ChatButton user={user} className="w-full" /> : <ReactionButtons user={user} onReact={onReact} />}
