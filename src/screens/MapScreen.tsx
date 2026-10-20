@@ -38,8 +38,9 @@ export interface MapScreenProps {
   onOpenNews: () => void;
   fewPeople?: boolean; // рядом меньше 3 человек — предлагаем позвать друзей
   places: PlaceItem[];
-  mapMode: 'people' | 'places';
-  onChangeMapMode: (mode: 'people' | 'places') => void;
+  mapMode: MapMode;
+  onChangeMapMode: (mode: MapMode) => void;
+  onOpenEvents: () => void;
   onCreateEventAtPlace: (place: PlaceItem) => void;
   initialPlaceId?: string | null;
 }
@@ -58,6 +59,37 @@ const HELP_STEPS = [
   { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе — так тебя быстрее заметят.' },
   { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 300–500 м. Можно включить режим невидимки.' }
 ];
+
+export type MapMode = 'people' | 'events' | 'places';
+
+const MAP_TABS: [MapMode, string, string][] = [
+  ['people', '👥', 'Люди'],
+  ['events', '🗓', 'Сходки'],
+  ['places', '📍', 'Места']
+];
+
+// Сходки по времени: всё / сегодня / завтра / ближайшие выходные
+type EventWhen = 'all' | 'today' | 'tomorrow' | 'weekend';
+const EVENT_WHEN: [EventWhen, string][] = [
+  ['all', 'Все'],
+  ['today', 'Сегодня'],
+  ['tomorrow', 'Завтра'],
+  ['weekend', 'Выходные']
+];
+
+const matchesWhen = (iso: string, when: EventWhen) => {
+  if (when === 'all') return true;
+  const d = new Date(iso);
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const dayDiff = Math.floor((d.getTime() - start.getTime()) / 86400000);
+  if (when === 'today') return dayDiff === 0;
+  if (when === 'tomorrow') return dayDiff === 1;
+  // Ближайшие суббота и воскресенье (если сегодня выходной — эти же)
+  const dow = start.getDay(); // 0 — воскресенье, 6 — суббота
+  const toSat = dow === 0 ? -1 : 6 - dow;
+  return dayDiff >= toSat && dayDiff <= toSat + 1 && dayDiff >= 0;
+};
 
 // На сколько часов включается «⚡ Хочу сейчас»
 const AVAILABLE_HOURS = 3;
@@ -91,8 +123,12 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   mapMode,
   onChangeMapMode,
   onCreateEventAtPlace,
-  initialPlaceId
+  initialPlaceId,
+  onOpenEvents
 }) => {
+  // Сходки на карте: фильтр по времени
+  const [eventWhen, setEventWhen] = useState<EventWhen>('all');
+  const filteredEvents = events.filter((e) => matchesWhen(e.dateTime, eventWhen));
   // Места по вайбу
   const [mood, setMood] = useState<PlaceMood | 'all'>('all');
   const [isMoodPickerOpen, setIsMoodPickerOpen] = useState(true);
@@ -140,8 +176,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   return (
     <div className="relative h-full w-full overflow-hidden bg-zine-paper">
       <MinskMap
-        users={isPlaces ? [] : filteredUsers}
-        events={isPlaces ? [] : events}
+        users={mapMode === 'people' ? filteredUsers : []}
+        events={mapMode === 'events' ? filteredEvents : []}
         places={isPlaces ? filteredPlaces : []}
         onSelectPlace={(p) => {
           setIsMoodPickerOpen(false);
@@ -204,13 +240,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
           </div>
         </div>
-        {/* Переключатель «Люди | Места» и фильтры */}
-        <div className="pointer-events-auto flex items-center gap-2 pl-4">
-          <div className="shrink-0 h-11 p-1 rounded-full bg-zine-cardElevated shadow-zine flex">
-            {([
-              ['people', '👥', 'Люди'],
-              ['places', '📍', 'Места']
-            ] as const).map(([id, emoji, label]) => (
+        {/* Три вкладки карты: Люди / Сходки / Места */}
+        <div className="pointer-events-auto px-4">
+          <div className="h-11 p-1 rounded-full bg-zine-cardElevated shadow-zine grid grid-cols-3">
+            {MAP_TABS.map(([id, emoji, label]) => (
               <button
                 key={id}
                 onClick={() => {
@@ -220,7 +253,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                   setSelectedEvent(null);
                   onChangeMapMode(id);
                 }}
-                className={`h-9 px-3 rounded-full text-sm2 font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`h-9 rounded-full text-sm2 font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                   mapMode === id ? 'bg-zine-terracotta text-white' : 'text-zine-ink'
                 }`}
               >
@@ -229,8 +262,31 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               </button>
             ))}
           </div>
-          {isPlaces ? (
-            <div className="flex-1 min-w-0 flex gap-2 overflow-x-auto no-scrollbar pr-4">
+        </div>
+
+        {/* Фильтры выбранной вкладки */}
+        <div className="pointer-events-auto">
+          {mapMode === 'people' && <GoalChips value={selectedGoal} onChange={onSelectGoal} floating />}
+          {mapMode === 'events' && (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
+              {EVENT_WHEN.map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setEventWhen(id);
+                  }}
+                  className={`h-11 px-4 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap border transition-colors cursor-pointer ${
+                    eventWhen === id ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-zine-cardElevated text-zine-ink border-zine-border shadow-zine'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {isPlaces && (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
               <MoodChips
                 value={mood}
                 onChange={(m) => {
@@ -239,21 +295,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 }}
               />
             </div>
-          ) : (
-            <GoalChips
-              value={selectedGoal}
-              onChange={onSelectGoal}
-              floating
-              wrapperClassName="flex-1 min-w-0 flex gap-2 overflow-x-auto no-scrollbar pr-4"
-            />
           )}
         </div>
       </div>
 
-      {/* Рядом мало людей — мягко предлагаем позвать друзей */}
       {/* Места: «С каким настроением ты сегодня?» или заглушка, пока мест нет */}
       {isPlaces && (places.length === 0 || isMoodPickerOpen) && (
-        <div className="absolute left-4 right-4 top-[132px] z-30">
+        <div className="absolute left-4 right-4 top-[188px] z-30">
           {places.length === 0 ? (
             <div className="p-4 rounded-zine bg-zine-cardElevated shadow-zine-float">
               <p className="font-serif font-bold text-title text-zine-ink">📍 Места по вайбу</p>
@@ -274,6 +322,17 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         </div>
       )}
 
+      {/* Сходок по выбранному времени нет */}
+      {mapMode === 'events' && filteredEvents.length === 0 && (
+        <div className="absolute left-4 right-[72px] top-[188px] z-20 p-4 rounded-zine bg-zine-cardElevated shadow-zine-float">
+          <p className="text-body font-bold text-zine-ink">{events.length === 0 ? 'Сходок пока нет' : 'На это время сходок нет'}</p>
+          <p className="mt-1 text-sm2 text-zine-inkMuted">Собери свою — это займёт минуту, а люди рядом увидят её на карте.</p>
+          <button onClick={onOpenEvents} className="mt-3 w-full h-11 rounded-zine-sm bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer">
+            Создать сходку
+          </button>
+        </div>
+      )}
+
       {selectedPlace && (
         <PlaceSheet
           place={selectedPlace}
@@ -285,8 +344,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         />
       )}
 
-      {!isPlaces && fewPeople && !isFewHintClosed && (
-        <div className="absolute left-4 right-[72px] top-[132px] z-20 p-3.5 rounded-zine bg-zine-cardElevated shadow-zine-float">
+      {mapMode === 'people' && fewPeople && !isFewHintClosed && (
+        <div className="absolute left-4 right-[72px] top-[188px] z-20 p-3.5 rounded-zine bg-zine-cardElevated shadow-zine-float">
           <div className="flex items-start gap-2">
             <p className="flex-1 text-sm2 text-zine-ink">
               <b>Рядом пока мало людей.</b> Позови друзей — вместе веселее 💛
@@ -316,7 +375,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           setIsDark(next === 'dark');
         }}
         aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
-        className="absolute right-4 top-[132px] z-20 w-11 h-11 rounded-full bg-zine-cardElevated shadow-zine text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+        className="absolute right-4 top-[188px] z-20 w-11 h-11 rounded-full bg-zine-cardElevated shadow-zine text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
       >
         {isDark ? <Sun size={20} /> : <Moon size={18} />}
       </button>
@@ -344,7 +403,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       )}
 
       {/* «⚡ Хочу сейчас» — переключатель: включает статус на 3 часа или выключает */}
-      {!isPlaces && <button
+      {mapMode === 'people' && <button
         onClick={() => {
           telegramService.haptic('selection');
           if (!isVisible && !iAmAvailable) {

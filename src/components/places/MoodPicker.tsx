@@ -10,7 +10,7 @@ type MoodFilter = PlaceMood | 'all';
  */
 export const MoodChips: React.FC<{ value: MoodFilter; onChange: (m: MoodFilter) => void }> = ({ value, onChange }) => (
   <>
-    {([['all', 'Все места', ''], ...(Object.keys(PLACE_MOODS) as PlaceMood[]).map((m) => [m, PLACE_MOODS[m].label, PLACE_MOODS[m].emoji])] as [
+    {([['all', 'Все', ''], ...(Object.keys(PLACE_MOODS) as PlaceMood[]).map((m) => [m, PLACE_MOODS[m].label, PLACE_MOODS[m].emoji])] as [
       MoodFilter,
       string,
       string

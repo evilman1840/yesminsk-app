@@ -16,6 +16,7 @@ import { EventDetails } from './components/common/EventDetails';
 import { DonateSheet } from './components/common/DonateSheet';
 import { NewsScreen } from './screens/NewsScreen';
 import { FirstStepsCard } from './components/people/FirstSteps';
+import type { MapMode } from './screens/MapScreen';
 import { NewsItem } from './services/api';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
@@ -107,15 +108,34 @@ export const App: React.FC = () => {
 
   // Места по вайбу
   const [places, setPlaces] = useState<PlaceItem[]>([]);
-  const [mapMode, setMapMode] = useState<'people' | 'places'>('people');
+  // Вкладка карты запоминается; при первом входе выбираем её сами после загрузки данных
+  const [mapMode, setMapModeState] = useState<MapMode>(() => {
+    try {
+      const saved = localStorage.getItem('yesminsk_map_mode');
+      return saved === 'people' || saved === 'events' || saved === 'places' ? saved : 'people';
+    } catch {
+      return 'people';
+    }
+  });
+  const setMapMode = (mode: MapMode) => {
+    setMapModeState(mode);
+    try {
+      localStorage.setItem('yesminsk_map_mode', mode);
+    } catch {
+      // не страшно
+    }
+  };
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
   const [pendingEventPlace, setPendingEventPlace] = useState<{ name: string; coordinates: [number, number]; category: EventCategory } | null>(null);
 
-  const fetchPlaces = useCallback(async () => {
+  const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
     try {
-      setPlaces(await api.getPlaces());
+      const data = await api.getPlaces();
+      setPlaces(data);
+      return data;
     } catch (err) {
       console.warn('Ошибка загрузки мест:', err);
+      return [];
     }
   }, []);
   const unreadNews = news.filter(n => new Date(n.createdAt).getTime() > newsSeenAt).length;
@@ -260,7 +280,23 @@ export const App: React.FC = () => {
         console.warn('Профиль me не получен (новый пользователь):', err);
       }
 
-      const [, loadedEvents] = await Promise.all([fetchNearbyUsers(), fetchEvents(), fetchInbox(true), fetchNews(), fetchPlaces()]);
+      const [, loadedEvents, , , loadedPlaces] = await Promise.all([
+        fetchNearbyUsers(),
+        fetchEvents(),
+        fetchInbox(true),
+        fetchNews(),
+        fetchPlaces()
+      ]);
+
+      // Первый вход: открываем самое интересное — сходки, иначе места, иначе людей
+      let hasSavedMode = false;
+      try {
+        hasSavedMode = Boolean(localStorage.getItem('yesminsk_map_mode'));
+      } catch {}
+      if (!hasSavedMode) {
+        const upcoming = loadedEvents.some(e => new Date(e.dateTime).getTime() > Date.now());
+        setMapModeState(upcoming ? 'events' : loadedPlaces.length > 0 ? 'places' : 'people');
+      }
 
       // Открыли по ссылке на сходку или из уведомления бота
       const target = telegramService.getLaunchTarget();
@@ -268,7 +304,7 @@ export const App: React.FC = () => {
         setCurrentScreen(prev => (prev === 'main' ? 'events' : prev));
       }
       if (target.tab === 'places' || target.placeId) {
-        setMapMode('places');
+        setMapModeState('places');
         if (target.placeId) setInitialPlaceId(target.placeId);
       }
       if (target.eventId) {
@@ -588,6 +624,7 @@ export const App: React.FC = () => {
                 places={places}
                 mapMode={mapMode}
                 onChangeMapMode={setMapMode}
+                onOpenEvents={() => handleNavigate('events')}
                 initialPlaceId={initialPlaceId}
                 onCreateEventAtPlace={(p) => {
                   setPendingEventPlace({
