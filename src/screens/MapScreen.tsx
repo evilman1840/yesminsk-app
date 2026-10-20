@@ -128,7 +128,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
       {/* Шапка поверх карты: логотип и фильтры */}
       <div className="absolute top-0 inset-x-0 z-20 pt-3 space-y-3 pointer-events-none">
-        {/* Одна панель: маленький логотип │ бегущая строка │ тема */}
+        {/* Одна панель: маленький логотип │ бегущая строка */}
         <div className="px-4">
           <div className="pointer-events-auto h-12 flex items-center rounded-full bg-zine-cardElevated shadow-zine overflow-hidden">
             <div className="shrink-0 pl-4 pr-3 flex items-center">
@@ -161,25 +161,26 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               </button>
             )}
 
-            <span className="shrink-0 w-px h-6 bg-zine-border" />
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                const next = isDark ? 'light' : 'dark';
-                telegramService.setTheme(next);
-                setIsDark(next === 'dark');
-              }}
-              aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
-              className="shrink-0 w-12 h-full text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
-            >
-              {isDark ? <Sun size={22} /> : <Moon size={20} />}
-            </button>
           </div>
         </div>
         <div className="pointer-events-auto">
           <GoalChips value={selectedGoal} onChange={onSelectGoal} floating />
         </div>
       </div>
+
+      {/* Светлая / тёмная тема — небольшая кнопка у края карты, под фильтрами */}
+      <button
+        onClick={() => {
+          telegramService.haptic('selection');
+          const next = isDark ? 'light' : 'dark';
+          telegramService.setTheme(next);
+          setIsDark(next === 'dark');
+        }}
+        aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
+        className="absolute right-4 top-[132px] z-20 w-11 h-11 rounded-full bg-zine-cardElevated shadow-zine text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+      >
+        {isDark ? <Sun size={20} /> : <Moon size={18} />}
+      </button>
 
       {/* Донат — заметная кнопка над «Где я?» */}
       <button
