@@ -26,17 +26,18 @@ const openShare = (data: ShareData) => window.dispatchEvent(new CustomEvent<Shar
 const PAPER = { light: '#FAF7F2', dark: '#1C1917' };
 
 // Тема, которую человек выбрал сам кнопкой ☀️/🌙 (иначе — как в Telegram)
-const THEME_KEY = 'yesminsk_theme';
+// Тема: как в Telegram (по умолчанию) или выбранная вручную в профиле
+const THEME_KEY = 'yesminsk_theme_pref';
 type ThemeMode = 'light' | 'dark';
+export type ThemePreference = 'auto' | ThemeMode;
 
-// Переключателя темы больше нет — тема как в Telegram. Старый ручной выбор стираем
 const getSavedTheme = (): ThemeMode | null => {
   try {
-    localStorage.removeItem(THEME_KEY);
+    const v = localStorage.getItem(THEME_KEY);
+    return v === 'light' || v === 'dark' ? v : null;
   } catch {
-    // не страшно
+    return null;
   }
-  return null;
 };
 
 /**
@@ -116,9 +117,15 @@ export const telegramService = {
   },
 
   // Переключение темы кнопкой ☀️/🌙 — выбор запоминается
-  setTheme(mode: ThemeMode) {
+  getThemePreference(): ThemePreference {
+    return getSavedTheme() || 'auto';
+  },
+
+  // Выбор темы в профиле: 'auto' — как в Telegram
+  setThemePreference(pref: ThemePreference) {
     try {
-      localStorage.setItem(THEME_KEY, mode);
+      if (pref === 'auto') localStorage.removeItem(THEME_KEY);
+      else localStorage.setItem(THEME_KEY, pref);
     } catch {
       // без сохранения тема просто вернётся к телеграмной при следующем запуске
     }

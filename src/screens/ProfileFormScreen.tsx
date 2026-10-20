@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender } from '../types';
-import { telegramService } from '../services/telegram';
+import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage } from '../utils/compressImage';
 
 interface ProfileFormScreenProps {
@@ -113,6 +113,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [isGuide, setIsGuide] = useState<boolean>(Boolean(initialData?.isGuide));
   const [guideAbout, setGuideAbout] = useState<string>(initialData?.guideAbout || '');
   const [justSaved, setJustSaved] = useState(false);
+  const [themePref, setThemePref] = useState<ThemePreference>(() => telegramService.getThemePreference());
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [isLocating, setIsLocating] = useState(false);
@@ -513,6 +514,24 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 <div className={`w-6 h-6 rounded-full bg-white shadow transition-transform ${isProfileActive ? 'translate-x-6' : 'translate-x-0'}`} />
               </div>
             </button>
+          )}
+
+          {/* Тема оформления — применяется сразу */}
+          {!isFirstTime && (
+            <Section title="Тема оформления" subtitle="«Авто» — как в Telegram">
+              <Segmented
+                value={themePref}
+                onChange={(v) => {
+                  setThemePref(v as ThemePreference);
+                  telegramService.setThemePreference(v as ThemePreference);
+                }}
+                options={[
+                  { id: 'auto', label: '📱 Авто' },
+                  { id: 'light', label: '☀️ Светлая' },
+                  { id: 'dark', label: '🌙 Тёмная' }
+                ]}
+              />
+            </Section>
           )}
 
           {/* Дополнительно: пол и предпочтения */}
