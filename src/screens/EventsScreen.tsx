@@ -24,67 +24,96 @@ export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coord
   { name: 'Уручье / Музей валунов', aliases: ['уручь', 'музей валунов', 'валун'], coords: [53.9450, 27.6880] }
 ];
 
-export const resolveEventCoordinates = async (
-  address: string,
-  existingCoords?: [number, number]
-): Promise<[number, number]> => {
+export interface FoundPlace {
+  coords: [number, number]; // [lat, lng]
+  label: string;            // что нашли — показываем пользователю для проверки
+}
+
+// Слова-уточнения, которые мешают поиску адреса («у входа», «возле кафе»…)
+const FILLER_RE = /(?:^|[\s,]+)(у|возле|около|напротив|рядом\s+с|за|перед|под|над|во\s+дворе|в\s+холле|вход|подъезд|этаж)(?=[\s,.]|$).*$/i;
+
+/**
+ * Варианты адреса для поиска: целиком, без уточнений после запятых, без слов «у входа» и т.п.
+ * «Юрово-Завальная 15, у входа» → «Юрово-Завальная 15, у входа», «Юрово-Завальная 15»
+ */
+const addressVariants = (address: string): string[] => {
+  const variants: string[] = [address];
+  const noFiller = address.replace(FILLER_RE, '').replace(/[,\s]+$/, '').trim();
+  if (noFiller) variants.push(noFiller);
+  const parts = address.split(',').map((p) => p.trim()).filter(Boolean);
+  for (let n = parts.length - 1; n >= 1; n--) variants.push(parts.slice(0, n).join(', '));
+  return [...new Set(variants)].filter((v) => v.length >= 3);
+};
+
+const withCity = (q: string) => (q.toLowerCase().includes('минск') ? q : `Беларусь, Минск, ${q}`);
+const inMinsk = (lat: number, lng: number) => lat >= 53.7 && lat <= 54.1 && lng >= 27.3 && lng <= 27.85;
+
+// Яндекс: принимаем только конкретное место (дом, улица, метро, парк), а не «весь Минск»
+const geocodeYandex = async (q: string): Promise<FoundPlace | null> => {
+  const ymaps = (window as any).ymaps;
+  if (!ymaps || typeof ymaps.geocode !== 'function') return null;
+  const res = await ymaps.geocode(withCity(q), { results: 1 });
+  const obj = res.geoObjects?.get?.(0);
+  if (!obj) return null;
+  const kind = obj.properties?.get('metaDataProperty.GeocoderMetaData.kind');
+  if (['country', 'province', 'area', 'locality'].includes(kind)) return null;
+  const [a, b] = (obj.geometry?.getCoordinates() || []).map(Number);
+  const coords: [number, number] = a > b ? [a, b] : [b, a];
+  if (!inMinsk(coords[0], coords[1])) return null;
+  const line: string = obj.getAddressLine?.() || obj.properties?.get('name') || q;
+  return { coords, label: line.replace(/^Беларусь,\s*/, '').replace(/^Минск,\s*/, '') };
+};
+
+// OpenStreetMap: запасной вариант
+const geocodeOsm = async (q: string): Promise<FoundPlace | null> => {
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(withCity(q))}`,
+    { headers: { 'Accept-Language': 'ru' } }
+  );
+  if (!response.ok) return null;
+  const data = await response.json();
+  if (!Array.isArray(data) || !data[0]) return null;
+  const lat = parseFloat(data[0].lat);
+  const lng = parseFloat(data[0].lon);
+  if (isNaN(lat) || isNaN(lng) || !inMinsk(lat, lng)) return null;
+  // «15, Юрово-Завальная улица, …» → «Юрово-Завальная улица, 15»
+  const [first, second] = String(data[0].display_name || q).split(',').map((p: string) => p.trim());
+  const label = /^\d/.test(first) && second ? `${second}, ${first}` : first;
+  return { coords: [lat, lng], label };
+};
+
+/**
+ * Ищет место встречи. Возвращает null, если адрес не нашёлся —
+ * тогда не ставим сходку куда попало, а просим уточнить адрес
+ */
+export const findEventPlace = async (address: string): Promise<FoundPlace | null> => {
   const trimmed = address.trim();
-  if (!trimmed) {
-    return existingCoords || [53.9045, 27.5615];
+  if (!trimmed) return null;
+
+  for (const variant of addressVariants(trimmed)) {
+    try {
+      const found = await geocodeYandex(variant);
+      if (found) return found;
+    } catch (err) {
+      console.warn('Yandex Geocode error:', err);
+    }
   }
 
+  // Популярные места Минска
   const lower = trimmed.toLowerCase();
+  const spot = MINSK_SPOTS_PRESETS.find((s) => s.aliases.some((alias) => lower.includes(alias)));
+  if (spot) return { coords: spot.coords, label: spot.name };
 
-  // 1. Полноценное геокодирование через скрипт Яндекс.Карт
-  try {
-    const ymaps = (window as any).ymaps;
-    if (ymaps && typeof ymaps.geocode === 'function') {
-      const query = lower.includes('минск') ? trimmed : `Беларусь, Минск, ${trimmed}`;
-      const res = await ymaps.geocode(query, { results: 1 });
-      const firstGeoObject = res.geoObjects?.get?.(0);
-      if (firstGeoObject) {
-        const coords = firstGeoObject.geometry?.getCoordinates();
-        if (Array.isArray(coords) && coords.length === 2) {
-          const c0 = Number(coords[0]);
-          const c1 = Number(coords[1]);
-          if (c0 > 40 && c1 < 40) return [c0, c1];
-          if (c1 > 40 && c0 < 40) return [c1, c0];
-        }
-      }
-    }
-  } catch (geoErr) {
-    console.warn('Yandex Geocode error:', geoErr);
-  }
-
-  // 2. Поиск по популярным местам
-  for (const spot of MINSK_SPOTS_PRESETS) {
-    if (spot.aliases.some((alias) => lower.includes(alias))) {
-      return spot.coords;
+  for (const variant of addressVariants(trimmed)) {
+    try {
+      const found = await geocodeOsm(variant);
+      if (found) return found;
+    } catch (err) {
+      console.warn('Nominatim error:', err);
     }
   }
 
-  // 3. OpenStreetMap
-  try {
-    const nomQuery = lower.includes('минск') ? trimmed : `Беларусь, Минск, ${trimmed}`;
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(nomQuery)}&limit=1`,
-      { headers: { 'Accept-Language': 'ru' } }
-    );
-    if (response.ok) {
-      const data = await response.json();
-      if (Array.isArray(data) && data.length > 0 && data[0].lat && data[0].lon) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-        if (!isNaN(lat) && !isNaN(lon) && lat >= 53.7 && lat <= 54.1) {
-          return [lat, lon];
-        }
-      }
-    }
-  } catch (nomErr) {
-    console.warn('Nominatim error:', nomErr);
-  }
-
-  return existingCoords || [53.9045, 27.5615];
+  return null;
 };
 
 export interface EventsScreenProps {
@@ -136,6 +165,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [category, setCategory] = useState<EventCategory>('walk');
   const [locationName, setLocationName] = useState('');
   const [customCoords, setCustomCoords] = useState<[number, number] | null>(null);
+  // Что нашли по адресу: подпись для проверки или «не нашли»
+  const [placeLabel, setPlaceLabel] = useState<string | null>(null);
+  const [placeNotFound, setPlaceNotFound] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [dateTime, setDateTime] = useState('');
@@ -155,6 +187,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setCategory('walk');
     setLocationName('');
     setCustomCoords(null);
+    setPlaceLabel(null);
+    setPlaceNotFound(false);
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
     tomorrow.setMinutes(0, 0, 0);
     setDateTime(tomorrow.toISOString().slice(0, 16));
@@ -172,6 +206,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setCategory(ev.category || 'walk');
     setLocationName(ev.locationName || '');
     setCustomCoords(ev.coordinates || null);
+    setPlaceLabel(ev.coordinates ? ev.locationName : null);
+    setPlaceNotFound(false);
     try {
       const d = new Date(ev.dateTime);
       setDateTime(d.toISOString().slice(0, 16));
@@ -183,13 +219,16 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setIsModalOpen(true);
   };
 
-  const handleGeocodeAddress = async (addr: string) => {
-    if (!addr.trim()) return;
+  const handleGeocodeAddress = async (addr: string): Promise<FoundPlace | null> => {
+    if (!addr.trim()) return null;
     setIsGeocoding(true);
     try {
-      const coords = await resolveEventCoordinates(addr.trim());
-      setCustomCoords(coords);
-      telegramService.haptic('selection');
+      const found = await findEventPlace(addr.trim());
+      setCustomCoords(found ? found.coords : null);
+      setPlaceLabel(found ? found.label : null);
+      setPlaceNotFound(!found);
+      telegramService.haptic(found ? 'selection' : 'warning');
+      return found;
     } finally {
       setIsGeocoding(false);
     }
@@ -208,6 +247,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lng = Number(pos.coords.longitude.toFixed(6));
         setCustomCoords([lat, lng]);
+        setPlaceLabel('Твоё текущее место (по GPS)');
+        setPlaceNotFound(false);
         telegramService.haptic('success');
       },
       (err) => {
@@ -269,7 +310,12 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       // Всегда определяем точные координаты по введенному адресу
       let resolvedCoords = customCoords;
       if (!resolvedCoords || resolvedCoords.length !== 2) {
-        resolvedCoords = await resolveEventCoordinates(locationName.trim());
+        const found = await handleGeocodeAddress(locationName.trim());
+        if (!found) {
+          setFormError('Не нашли этот адрес на карте. Напиши улицу и номер дома или нажми «Я сейчас здесь».');
+          return;
+        }
+        resolvedCoords = found.coords;
       }
 
       const payload = {
@@ -496,8 +542,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 value={locationName}
                 onChange={(e) => {
                   setLocationName(e.target.value);
-                  // Сбрасываем старые координаты, чтобы адрес определился заново
+                  // Сбрасываем старую точку, чтобы адрес определился заново
                   setCustomCoords(null);
+                  setPlaceLabel(null);
+                  setPlaceNotFound(false);
                 }}
                 onBlur={() => {
                   if (locationName.trim()) {
@@ -530,10 +578,17 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 </button>
               </div>
 
-              {customCoords && (
-                <p className="mt-2 flex items-center gap-2 text-sm2 text-zine-sage font-semibold">
-                  <Check size={18} strokeWidth={3} />
-                  <span>Место отмечено на карте</span>
+              {customCoords && placeLabel && !isGeocoding && (
+                <p className="mt-2 p-3 rounded-zine-sm bg-zine-sage/15 flex items-start gap-2 text-sm2 text-zine-ink">
+                  <Check size={18} strokeWidth={3} className="text-zine-sage shrink-0 mt-0.5" />
+                  <span>
+                    Нашли: <b>{placeLabel}</b>
+                  </span>
+                </p>
+              )}
+              {placeNotFound && !isGeocoding && (
+                <p className="mt-2 p-3 rounded-zine-sm bg-zine-danger/10 text-sm2 text-zine-ink">
+                  Не нашли такой адрес. Напиши улицу и номер дома, например «Юрово-Завальная 15». Уточнения вроде «у входа» можно оставить — мы их учтём.
                 </p>
               )}
 
@@ -546,6 +601,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                       telegramService.haptic('selection');
                       setLocationName(spot.name);
                       setCustomCoords(spot.coords);
+                      setPlaceLabel(spot.name);
+                      setPlaceNotFound(false);
                     }}
                     className="h-10 px-3.5 shrink-0 rounded-full border border-zine-border bg-zine-cardElevated text-zine-ink text-sm2 whitespace-nowrap cursor-pointer"
                   >
