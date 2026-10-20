@@ -72,6 +72,7 @@ export interface UserProfile {
   availableUntil?: string; // «⚡ Хочу сейчас» — до этого времени
   isGuide?: boolean;       // «🧭 Покажу город» — местный гид-волонтёр
   guideAbout?: string;     // что может показать
+  activeRecently?: boolean; // заходил(а) за последние 3 дня
 }
 
 // Фильтр людей: по цели, все или «🧭 Покажут город»

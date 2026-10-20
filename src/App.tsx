@@ -57,7 +57,7 @@ export const App: React.FC = () => {
     bio: '',
     gender: 'not_specified' as Gender,
     preferredGender: 'all' as PreferredGender,
-    preferredAgeRange: { min: 18, max: 45 } as AgeRange,
+    preferredAgeRange: { min: 18, max: 99 } as AgeRange,
     goals: ['walk'] as ActivityGoal[],
     goal: 'walk' as ActivityGoal,
     avatarUrl: tgUser?.photo_url || '',
@@ -252,7 +252,7 @@ export const App: React.FC = () => {
       bio: formData.bio,
       gender: formData.gender || 'not_specified',
       preferredGender: formData.preferredGender || 'all',
-      preferredAgeRange: formData.preferredAgeRange || { min: 18, max: 45 },
+      preferredAgeRange: formData.preferredAgeRange || { min: 18, max: 99 },
       goal: formData.goal,
       goals: formData.goals,
       avatarUrl: formData.avatarUrl,
@@ -480,6 +480,7 @@ export const App: React.FC = () => {
                 likedMe={likedMe}
                 matches={matches}
                 isTourist={currentUser.isTourist}
+                myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange }}
                 selectedGoal={selectedGoal}
                 onSelectGoal={setSelectedGoal}
                 onSelectUser={(u) => setSelectedUser(u)}

@@ -1,10 +1,19 @@
-import React, { useState } from 'react';
-import { MapPin } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { MapPin, SlidersHorizontal } from 'lucide-react';
 import { UserProfile, GOALS_CONFIG, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionButtons, ChatButton, ReactionType } from '../components/common/Reactions';
 import { formatDistance } from '../components/common/UserBottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
+import {
+  PeopleFiltersSheet,
+  PeopleFilters,
+  MyPrefs,
+  loadFilters,
+  saveFilters,
+  applyPeopleFilters,
+  countActiveFilters
+} from '../components/people/PeopleFilters';
 
 export interface FeedScreenProps {
   users: UserProfile[];
@@ -15,6 +24,7 @@ export interface FeedScreenProps {
   isTourist?: boolean;
   selectedGoal: GoalFilter;
   onSelectGoal: (goal: GoalFilter) => void;
+  myPrefs: MyPrefs;
 }
 
 type FeedTab = 'all' | 'likes' | 'matches';
@@ -27,11 +37,19 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   onReact,
   isTourist = false,
   selectedGoal,
-  onSelectGoal
+  onSelectGoal,
+  myPrefs
 }) => {
+  const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  useEffect(() => saveFilters(filters), [filters]);
+  const activeFilters = countActiveFilters(filters);
+
   const [tab, setTab] = useState<FeedTab>(likedMe.length > 0 ? 'likes' : 'all');
 
-  const tabUsers = tab === 'likes' ? likedMe : tab === 'matches' ? matches : users;
+  // Фильтры действуют на «Рядом»; тех, кто уже хочет пообщаться или на связи, не прячем
+  const nearbyFiltered = applyPeopleFilters(users, filters, myPrefs);
+  const tabUsers = tab === 'likes' ? likedMe : tab === 'matches' ? matches : nearbyFiltered;
   const filteredUsers = tabUsers.filter((u) => matchesGoalFilter(u, selectedGoal));
   const guidesCount = users.filter((u) => u.isGuide).length;
 
@@ -44,7 +62,26 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   return (
     <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden">
       <header className="shrink-0 px-5 pt-5 pb-3 space-y-4">
-        <h1 className="font-serif font-bold text-display text-zine-ink">Люди</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="font-serif font-bold text-display text-zine-ink">Люди</h1>
+          <button
+            onClick={() => {
+              telegramService.haptic('selection');
+              setIsFiltersOpen(true);
+            }}
+            className={`h-12 px-4 rounded-full text-body font-bold flex items-center gap-2 border transition-colors cursor-pointer ${
+              activeFilters > 0 ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-zine-cardElevated text-zine-ink border-zine-border'
+            }`}
+          >
+            <SlidersHorizontal size={20} />
+            <span>Фильтры</span>
+            {activeFilters > 0 && (
+              <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-zine-terracotta text-white text-cap font-bold flex items-center justify-center">
+                {activeFilters}
+              </span>
+            )}
+          </button>
+        </div>
 
         {/* Вкладки: рядом / хотят пообщаться / на связи */}
         <div className="grid grid-cols-3 gap-1 p-1 rounded-zine bg-zine-card">
@@ -105,7 +142,18 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
         )}
 
         {filteredUsers.length === 0 ? (
-          <EmptyState tab={tab} />
+          tab === 'all' && activeFilters > 0 && users.length > 0 ? (
+            <div className="mt-6 p-8 rounded-zine bg-zine-card text-center">
+              <div className="text-[44px] mb-3">🔍</div>
+              <h3 className="font-serif font-bold text-title text-zine-ink mb-2">Под фильтры никто не подходит</h3>
+              <p className="text-body text-zine-inkMuted mb-5">Попробуй ослабить фильтры — например, увеличить расстояние.</p>
+              <button onClick={() => setIsFiltersOpen(true)} className="h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer">
+                Изменить фильтры
+              </button>
+            </div>
+          ) : (
+            <EmptyState tab={tab} />
+          )
         ) : (
           filteredUsers.map((user) => {
             const goal = GOALS_CONFIG[user.goal] || GOALS_CONFIG.walk;
@@ -174,6 +222,15 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           })
         )}
       </main>
+
+      {isFiltersOpen && (
+        <PeopleFiltersSheet
+          value={filters}
+          onChange={setFilters}
+          resultCount={applyPeopleFilters(users, filters, myPrefs).filter((u) => matchesGoalFilter(u, selectedGoal)).length}
+          onClose={() => setIsFiltersOpen(false)}
+        />
+      )}
     </div>
   );
 };

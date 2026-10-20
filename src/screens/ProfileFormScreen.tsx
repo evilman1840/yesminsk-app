@@ -82,7 +82,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     initialData?.preferredAgeRange?.min || 18
   );
   const [maxAge, setMaxAge] = useState<number>(
-    initialData?.preferredAgeRange?.max || 45
+    initialData?.preferredAgeRange?.max || 99
   );
 
   const [bio, setBio] = useState<string>(
@@ -516,6 +516,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
             {showAdvanced && (
               <div className="mt-4 space-y-4">
+                <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">
+                  🛡 Тебя увидят только те, кто подходит под «С кем комфортно» и «Возраст компании». Остальным твоя анкета не покажется.
+                </p>
                 <Label text="Я">
                   <Segmented
                     value={gender}
