@@ -79,7 +79,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
         {isTourist && tab === 'all' && selectedGoal !== 'guides' && guidesCount > 0 && (
           <section className="p-4 rounded-zine bg-zine-sky/10 border border-zine-sky/25">
             <p className="text-lead font-bold text-zine-ink">🧳 Впервые в Минске?</p>
-            <p className="mt-1 text-body text-zine-inkMuted">Местные жители готовы показать тебе город — бесплатно, просто из любви к Минску.</p>
+            <p className="mt-1 text-body text-zine-inkMuted">Местные жители готовы показать тебе город — бесплатно, просто из любви к Минску. Обо всех условиях договаривайтесь лично.</p>
             <button
               onClick={() => {
                 telegramService.haptic('selection');
@@ -94,7 +94,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
 
         {selectedGoal === 'guides' && (
           <p className="px-1 text-sm2 text-zine-inkMuted">
-            🧭 Местные, которые с радостью покажут город. Нажми 👋 «Пообщаться», чтобы договориться о прогулке.
+            🧭 Местные, которые с радостью покажут город — бесплатно. Нажми 👋 «Пообщаться», а обо всех условиях договаривайтесь лично.
           </p>
         )}
 

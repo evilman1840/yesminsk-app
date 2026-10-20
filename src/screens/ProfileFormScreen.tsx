@@ -455,6 +455,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
               {isGuide && (
                 <div className="mt-4">
+                  <p className="mb-3 p-3 rounded-zine-sm bg-zine-sky/10 text-sm2 text-zine-ink">
+                    Это бесплатно, по желанию. Обо всех условиях прогулки договаривайтесь лично.
+                  </p>
                   <Label text="Что можешь показать?" hint={`${guideAbout.length}/140`}>
                     <textarea
                       rows={2}

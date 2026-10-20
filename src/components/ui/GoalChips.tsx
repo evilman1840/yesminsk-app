@@ -12,12 +12,12 @@ export const GoalChips: React.FC<{
 }> = ({ value, onChange, floating = false }) => {
   const items: { id: GoalFilter; label: string; emoji?: string }[] = [
     { id: 'all', label: 'Все' },
-    { id: 'guides', label: 'Покажут город', emoji: '🧭' },
     ...(Object.keys(GOALS_CONFIG) as ActivityGoal[]).map((id) => ({
       id,
       label: GOALS_CONFIG[id].label,
       emoji: GOALS_CONFIG[id].emoji
-    }))
+    })),
+    { id: 'guides', label: 'Покажут город', emoji: '🧭' }
   ];
 
   return (

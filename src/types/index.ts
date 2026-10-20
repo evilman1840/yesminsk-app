@@ -30,8 +30,8 @@ const BADGES = {
 const badge = (color: keyof typeof BADGES) => BADGES[color];
 
 export const GOALS_CONFIG: Record<ActivityGoal, GoalConfig> = {
-  walk: { id: 'walk', label: 'Погулять по городу', emoji: '🚶', ...badge('terracotta') },
   cafe_bar: { id: 'cafe_bar', label: 'Кафе или бар', emoji: '☕️', ...badge('mustard') },
+  walk: { id: 'walk', label: 'Погулять по городу', emoji: '🚶', ...badge('terracotta') },
   expo_cinema: { id: 'expo_cinema', label: 'Выставка или кино', emoji: '🎨', ...badge('plum') },
   trip_outdoors: { id: 'trip_outdoors', label: 'За город, природа', emoji: '🌲', ...badge('sage') }
 };

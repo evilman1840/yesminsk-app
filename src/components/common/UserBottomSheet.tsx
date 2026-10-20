@@ -57,6 +57,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
           <p className="mt-1 text-body text-zine-ink">
             {user.guideAbout || 'С радостью покажу Минск гостям города.'}
           </p>
+          <p className="mt-2 text-sm2 text-zine-inkMuted">Бесплатно. Обо всех условиях договаривайтесь лично.</p>
         </div>
       )}
 
