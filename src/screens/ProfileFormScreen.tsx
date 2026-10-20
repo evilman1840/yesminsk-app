@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Check, Sparkles, MapPin, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation } from 'lucide-react';
+import { Camera, Check, Sparkles, MapPin, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff } from 'lucide-react';
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender } from '../types';
 import { telegramService } from '../services/telegram';
 
@@ -16,6 +16,7 @@ interface ProfileFormScreenProps {
     avatarUrl?: string;
     area?: string;
     isTourist?: boolean;
+    isProfileActive?: boolean;
     coordinates?: [number, number];
   };
   onSave: (data: {
@@ -30,6 +31,7 @@ interface ProfileFormScreenProps {
     avatarUrl: string;
     area: string;
     isTourist: boolean;
+    isProfileActive: boolean;
     coordinates?: [number, number];
   }) => Promise<void> | void;
   onBack?: () => void;
@@ -97,6 +99,10 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   );
   const [coordinates, setCoordinates] = useState<[number, number] | undefined>(
     initialData?.coordinates
+  );
+
+  const [isProfileActive, setIsProfileActive] = useState<boolean>(
+    initialData?.isProfileActive !== false
   );
 
   const [isLocating, setIsLocating] = useState(false);
@@ -226,6 +232,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         avatarUrl,
         area,
         isTourist,
+        isProfileActive,
         coordinates
       });
       telegramService.haptic('success');
@@ -587,6 +594,50 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             <span>Напиши, о чем любишь говорить или куда хочешь сходить в городе.</span>
           </p>
         </div>
+
+        {/* Видимость анкеты (режим невидимки) */}
+        {!isFirstTime && (
+          <div
+            onClick={() => {
+              telegramService.haptic('selection');
+              setIsProfileActive((v) => !v);
+            }}
+            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 shadow-zine-sm active:scale-[0.99] ${
+              isProfileActive
+                ? 'bg-zine-cardElevated border-zine-border'
+                : 'bg-[#F0EBF8] border-[#D9CFEA]'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              {isProfileActive ? (
+                <Eye size={18} className="text-zine-sage shrink-0" />
+              ) : (
+                <EyeOff size={18} className="text-[#6A4E9E] shrink-0" />
+              )}
+              <div className="flex flex-col">
+                <span className="text-[12px] font-bold text-zine-ink">
+                  {isProfileActive ? 'Меня видно на карте' : 'Режим невидимки'}
+                </span>
+                <span className="text-[10px] text-zine-inkMuted leading-tight">
+                  {isProfileActive
+                    ? 'Другие видят твою анкету и могут написать'
+                    : 'Анкета скрыта с карты и из ленты. Ты по-прежнему видишь других и можешь писать им'}
+                </span>
+              </div>
+            </div>
+            <div
+              className={`w-10 h-6 rounded-full p-0.5 transition-colors shrink-0 ${
+                isProfileActive ? 'bg-zine-sage' : 'bg-zinc-300'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  isProfileActive ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </div>
+          </div>
+        )}
 
       </div>
 

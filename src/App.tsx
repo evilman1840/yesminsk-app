@@ -58,6 +58,7 @@ export const App: React.FC = () => {
     avatarUrl: tgUser?.photo_url || '',
     area: 'Немига / Центр',
     isTourist: false,
+    isProfileActive: true,
     coordinates: getSavedCoordinates()
   });
 
@@ -141,6 +142,7 @@ export const App: React.FC = () => {
             avatarUrl: me.avatarUrl || tgUser?.photo_url || prev.avatarUrl,
             area: me.areaName || prev.area,
             isTourist: Boolean(me.isTourist),
+            isProfileActive: me.isProfileActive !== false,
             coordinates: userCoords
           }));
 
@@ -175,6 +177,7 @@ export const App: React.FC = () => {
     avatarUrl: string;
     area: string;
     isTourist?: boolean;
+    isProfileActive?: boolean;
     coordinates?: [number, number];
     customCoordinates?: [number, number];
   }) => {
@@ -200,6 +203,7 @@ export const App: React.FC = () => {
       avatarUrl: formData.avatarUrl,
       areaName: formData.area,
       isTourist: formData.isTourist,
+      isProfileActive: formData.isProfileActive,
       coordinates: coords
     });
 
