@@ -8,6 +8,7 @@ import { EventsScreen } from './screens/EventsScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
+import { MatchModal, ReactionType } from './components/common/Reactions';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, AgeRange, EventCategory } from './types';
 
 // Примерные координаты районов Минска
@@ -67,6 +68,9 @@ export const App: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<ActivityGoal | 'all'>('all');
   const [apiError, setApiError] = useState<string | null>(null);
+  const [likedMe, setLikedMe] = useState<UserProfile[]>([]);
+  const [matches, setMatches] = useState<UserProfile[]>([]);
+  const [matchPopupUser, setMatchPopupUser] = useState<UserProfile | null>(null);
 
   const currentUserCoordsRef = useRef(currentUser.coordinates);
   useEffect(() => {
@@ -101,6 +105,29 @@ export const App: React.FC = () => {
       setEvents(data || []);
     } catch (err: any) {
       console.warn('Ошибка загрузки событий:', err);
+    }
+  }, []);
+
+  // Симпатии и мэтчи. При новом мэтче (например, человек ответил, пока нас не было) показываем окно
+  const fetchInbox = useCallback(async (showNewMatch = false) => {
+    try {
+      const data = await api.getInbox();
+      setLikedMe(data.likedMe || []);
+      setMatches(data.matches || []);
+
+      if (showNewMatch && data.matches?.length) {
+        let seen: number[] = [];
+        try {
+          seen = JSON.parse(localStorage.getItem('yesminsk_seen_matches') || '[]');
+        } catch (e) {}
+        const fresh = data.matches.find((m) => !seen.includes(m.telegramId));
+        if (fresh) setMatchPopupUser(fresh);
+        try {
+          localStorage.setItem('yesminsk_seen_matches', JSON.stringify(data.matches.map((m) => m.telegramId)));
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.warn('Ошибка загрузки симпатий:', err);
     }
   }, []);
 
@@ -154,7 +181,7 @@ export const App: React.FC = () => {
         console.warn('Профиль me не получен (новый пользователь):', err);
       }
 
-      await Promise.all([fetchNearbyUsers(), fetchEvents()]);
+      await Promise.all([fetchNearbyUsers(), fetchEvents(), fetchInbox(true)]);
     };
 
     initUserData();
@@ -217,9 +244,40 @@ export const App: React.FC = () => {
     await fetchNearbyUsers();
   };
 
-  const handleUserBlocked = (blockedId: number) => {
-    setUsers(prev => prev.filter(u => u.telegramId !== blockedId));
-    setSelectedUser(null);
+  // 👍 / 👎 на анкете
+  const handleReact = async (user: UserProfile, type: ReactionType) => {
+    try {
+      const result = await api.reactToUser(user.telegramId, type);
+      const id = user.telegramId;
+
+      if (type === 'dislike') {
+        // Человек скрыт навсегда — убираем отовсюду
+        setUsers(prev => prev.filter(u => u.telegramId !== id));
+        setLikedMe(prev => prev.filter(u => u.telegramId !== id));
+        setMatches(prev => prev.filter(u => u.telegramId !== id));
+        setSelectedUser(null);
+        return;
+      }
+
+      const updated: UserProfile = { ...user, ...(result.user || {}), iLiked: true, isMatch: result.isMatch };
+      const patch = (list: UserProfile[]) => list.map(u => (u.telegramId === id ? { ...u, ...updated } : u));
+      setUsers(patch);
+      setSelectedUser(prev => (prev?.telegramId === id ? { ...prev, ...updated } : prev));
+      setLikedMe(prev => prev.filter(u => u.telegramId !== id));
+
+      if (result.isMatch) {
+        setMatches(prev => [updated, ...prev.filter(u => u.telegramId !== id)]);
+        try {
+          const seen = JSON.parse(localStorage.getItem('yesminsk_seen_matches') || '[]');
+          localStorage.setItem('yesminsk_seen_matches', JSON.stringify([...seen, id]));
+        } catch (e) {}
+        telegramService.haptic('success');
+        setMatchPopupUser(updated);
+      }
+    } catch (err: any) {
+      telegramService.haptic('error');
+      alert(err.message || 'Не удалось сохранить реакцию');
+    }
   };
 
   const handleCreateEvent = async (eventData: {
@@ -376,6 +434,7 @@ export const App: React.FC = () => {
               onOpenFeed={() => {
                 telegramService.haptic('selection');
                 setCurrentScreen('feed');
+                fetchInbox();
               }}
               onOpenEvents={() => {
                 telegramService.haptic('selection');
@@ -384,6 +443,8 @@ export const App: React.FC = () => {
               onToggleJoinEvent={handleToggleJoinEvent}
               onUpdateLocation={handleUpdateLocation}
               onUpdateUserCoordinates={handleUpdateLocation}
+              onReact={handleReact}
+              inboxCount={likedMe.length}
             />
           )}
 
@@ -393,6 +454,9 @@ export const App: React.FC = () => {
               eventsCount={events.length}
               currentArea={currentUser.area}
               onSelectUser={(u) => setSelectedUser(u)}
+              likedMe={likedMe}
+              matches={matches}
+              onReact={handleReact}
               onOpenMap={() => {
                 telegramService.haptic('selection');
                 setCurrentScreen('main');
@@ -437,7 +501,15 @@ export const App: React.FC = () => {
             <UserBottomSheet
               user={selectedUser}
               onClose={() => setSelectedUser(null)}
-              onUserBlocked={handleUserBlocked}
+              onReact={handleReact}
+            />
+          )}
+
+          {matchPopupUser && (
+            <MatchModal
+              user={matchPopupUser}
+              myAvatarUrl={currentUser.avatarUrl}
+              onClose={() => setMatchPopupUser(null)}
             />
           )}
 

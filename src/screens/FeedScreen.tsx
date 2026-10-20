@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Compass, Users, User, Calendar, Send } from 'lucide-react';
 import { UserProfile, GOALS_CONFIG, ActivityGoal } from '../types';
 import { telegramService } from '../services/telegram';
+import { ReactionButtons, ReactionType } from '../components/common/Reactions';
 
 export interface FeedScreenProps {
   users: UserProfile[];
@@ -12,7 +13,12 @@ export interface FeedScreenProps {
   onOpenEvents?: () => void;
   onOpenProfile: () => void;
   currentArea?: string;
+  likedMe?: UserProfile[];
+  matches?: UserProfile[];
+  onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
 }
+
+type FeedTab = 'all' | 'likes' | 'matches';
 
 export const FeedScreen: React.FC<FeedScreenProps> = ({
   users,
@@ -21,13 +27,24 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   onOpenMap,
   onOpenEvents,
   onOpenProfile,
-  currentArea = 'Минск'
+  currentArea = 'Минск',
+  likedMe = [],
+  matches = [],
+  onReact
 }) => {
   const [selectedGoal, setSelectedGoal] = useState<ActivityGoal | 'all'>('all');
+  const [tab, setTab] = useState<FeedTab>('all');
 
+  const tabUsers = tab === 'likes' ? likedMe : tab === 'matches' ? matches : users;
   const filteredUsers = selectedGoal === 'all'
-    ? users
-    : users.filter((u) => u.goal === selectedGoal);
+    ? tabUsers
+    : tabUsers.filter((u) => u.goal === selectedGoal);
+
+  const tabs: { id: FeedTab; label: string; count: number }[] = [
+    { id: 'all', label: 'Все рядом', count: users.length },
+    { id: 'likes', label: '👍 Симпатии', count: likedMe.length },
+    { id: 'matches', label: '🎉 Мэтчи', count: matches.length }
+  ];
 
   const handleGoalFilter = (goal: ActivityGoal | 'all') => {
     telegramService.haptic('selection');
@@ -70,6 +87,35 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
         </div>
       </header>
 
+      {/* Вкладки: все / кто лайкнул меня / взаимные */}
+      <div className="px-3 pt-2 pb-1 bg-zine-paper/90 flex gap-1.5 shrink-0">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => {
+              telegramService.haptic('selection');
+              setTab(t.id);
+            }}
+            className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition-all border flex items-center justify-center gap-1 ${
+              tab === t.id
+                ? 'bg-zine-ink text-white border-zine-ink'
+                : 'bg-zine-cardElevated text-zine-ink border-zine-border'
+            }`}
+          >
+            <span>{t.label}</span>
+            {t.count > 0 && (
+              <span
+                className={`min-w-[16px] h-4 px-1 rounded-full text-[9px] flex items-center justify-center ${
+                  t.id !== 'all' && tab !== t.id ? 'bg-zine-terracotta text-white' : 'opacity-70'
+                }`}
+              >
+                {t.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Фильтр целей */}
       <div className="px-3 py-2 bg-zine-paper/90 border-b border-zine-border flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <button
@@ -80,13 +126,13 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               : 'bg-zine-cardElevated text-zine-ink border-zine-border'
           }`}
         >
-          Все ({users.length})
+          Все ({tabUsers.length})
         </button>
 
         {(Object.keys(GOALS_CONFIG) as ActivityGoal[]).map((key) => {
           const item = GOALS_CONFIG[key];
           const isActive = selectedGoal === key;
-          const count = users.filter((u) => u.goal === key).length;
+          const count = tabUsers.filter((u) => u.goal === key).length;
 
           return (
             <button
@@ -112,8 +158,22 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       <main className="flex-1 overflow-y-auto p-3.5 space-y-3 pb-20">
         {filteredUsers.length === 0 ? (
           <div className="p-8 text-center text-zine-inkMuted">
-            <p className="font-serif text-sm">В этой категории пока никого нет.</p>
-            <p className="text-xs mt-1">Попробуй переключить цель выше!</p>
+            {tab === 'likes' ? (
+              <>
+                <p className="font-serif text-sm">Пока никто не поставил тебе 👍</p>
+                <p className="text-xs mt-1">Когда кто-то лайкнет анкету, он появится здесь, а бот пришлёт уведомление.</p>
+              </>
+            ) : tab === 'matches' ? (
+              <>
+                <p className="font-serif text-sm">Мэтчей пока нет</p>
+                <p className="text-xs mt-1">Лайкай анкеты — при взаимной симпатии здесь появится кнопка «Написать».</p>
+              </>
+            ) : (
+              <>
+                <p className="font-serif text-sm">В этой категории пока никого нет.</p>
+                <p className="text-xs mt-1">Попробуй переключить цель выше!</p>
+              </>
+            )}
           </div>
         ) : (
           filteredUsers.map((user) => {
@@ -140,9 +200,10 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                       alt={user.firstName}
                       className="w-14 h-14 rounded-2xl object-cover border border-zine-border shadow-sm"
                     />
-                    <span className="absolute -bottom-1 -right-1 text-xs bg-white rounded-full p-0.5 border border-zine-border shadow-sm">
+                    <span className="absolute top-10 -right-1 text-xs bg-white rounded-full p-0.5 border border-zine-border shadow-sm">
                       {goalConfig.emoji}
                     </span>
+                    <ReactionButtons user={user} onReact={onReact} />
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -173,9 +234,15 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
 
                     <div className="flex items-center justify-between pt-1 border-t border-zine-border/50">
                       <span className="text-[10px] text-zine-inkMuted">
-                        Нажми, чтобы открыть анкету
+                        {user.isMatch
+                          ? '🎉 Взаимная симпатия'
+                          : user.iLiked
+                          ? 'Лайк отправлен'
+                          : user.likedMe
+                          ? 'Ты понравился(ась)! Ответь 👍'
+                          : 'Нажми, чтобы открыть анкету'}
                       </span>
-                      {user.username && (
+                      {user.isMatch && user.username && (
                         <button
                           onClick={(e) => handleQuickTelegram(e, user.username)}
                           className="py-1 px-2.5 rounded-lg bg-zine-terracotta/10 hover:bg-zine-terracotta text-zine-terracotta hover:text-white font-semibold text-[10.5px] flex items-center gap-1 transition-colors cursor-pointer"

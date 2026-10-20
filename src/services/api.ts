@@ -126,8 +126,26 @@ class ApiService {
   async blockUser(targetTelegramId: number): Promise<{ success: boolean; message: string }> {
     return this.request<{ success: boolean; message: string }>('/users/block', {
       method: 'POST',
-      body: JSON.stringify({ targetTelegramId })
+      body: JSON.stringify({ blockedTelegramId: targetTelegramId, targetTelegramId })
     });
+  }
+
+  // ==========================================
+  // ЛАЙКИ / ДИЗЛАЙКИ / МЭТЧИ
+  // ==========================================
+
+  async reactToUser(
+    targetTelegramId: number,
+    type: 'like' | 'dislike'
+  ): Promise<{ success: boolean; isMatch: boolean; user?: UserProfile }> {
+    return this.request('/reactions', {
+      method: 'POST',
+      body: JSON.stringify({ targetTelegramId, type })
+    });
+  }
+
+  async getInbox(): Promise<{ likedMe: UserProfile[]; matches: UserProfile[] }> {
+    return this.request('/reactions/inbox');
   }
 
   async unblockUser(targetTelegramId: number): Promise<{ success: boolean; message: string }> {

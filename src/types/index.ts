@@ -82,6 +82,9 @@ export interface UserProfile {
   blockedUsers?: number[];
   distanceMeters?: number;
   lastActiveAt?: string;
+  iLiked?: boolean;   // я поставил 👍
+  likedMe?: boolean;  // мне поставили 👍
+  isMatch?: boolean;  // взаимная симпатия — можно писать
 }
 
 export interface AppEvent {

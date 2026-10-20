@@ -3,6 +3,7 @@ import { Compass, Users, User, Calendar, Send, ShieldCheck, Clock, MapPin, X, Ch
 import { GOALS_CONFIG, ActivityGoal, UserProfile, AppEvent, EVENT_CATEGORIES_CONFIG } from '../types';
 import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
+import { ReactionButtons, ChatButton, ReactionType } from '../components/common/Reactions';
 
 export interface MapScreenProps {
   users: UserProfile[];
@@ -29,6 +30,8 @@ export interface MapScreenProps {
   currentArea: string;
   onUpdateLocation?: (coords: [number, number]) => void;
   onUpdateUserCoordinates?: (coords: [number, number]) => void;
+  onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
+  inboxCount?: number;
 }
 
 export const MapScreen: React.FC<MapScreenProps> = ({
@@ -45,7 +48,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onToggleJoinEvent,
   currentArea,
   onUpdateLocation,
-  onUpdateUserCoordinates
+  onUpdateUserCoordinates,
+  onReact,
+  inboxCount = 0
 }) => {
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
   const [isCurrentUserSheetOpen, setIsCurrentUserSheetOpen] = useState(false);
@@ -265,9 +270,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                   alt={selectedUser.firstName}
                   className="w-14 h-14 rounded-2xl object-cover border border-zine-border/80"
                 />
-                <span className="absolute -bottom-1 -right-1 text-xs bg-white rounded-full p-0.5 border border-zine-border shadow-sm">
+                <span className="absolute top-10 -right-1 text-xs bg-white rounded-full p-0.5 border border-zine-border shadow-sm">
                   {GOALS_CONFIG[selectedUser.goal]?.emoji || '☕️'}
                 </span>
+                <ReactionButtons user={selectedUser} onReact={onReact} />
               </div>
 
               <div className="flex-1 min-w-0">
@@ -297,13 +303,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 </p>
 
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => handleOpenTelegram(selectedUser.username)}
-                    className="flex-1 py-2 px-3 rounded-xl bg-zine-terracotta hover:bg-zine-terracottaHover text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
-                  >
-                    <Send size={13} />
-                    <span>Написать (@{selectedUser.username || 'user'})</span>
-                  </button>
+                  <ChatButton user={selectedUser} className="flex-1 min-w-0" />
                   <button
                     onClick={() => onSelectUser(null)}
                     className="p-2 rounded-xl bg-zine-card border border-zine-border text-zine-inkMuted hover:text-zine-ink"
@@ -404,10 +404,15 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
         <button
           onClick={onOpenFeed}
-          className="flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
+          className="relative flex flex-col items-center gap-0.5 text-zine-inkMuted hover:text-zine-ink cursor-pointer"
         >
           <Users size={18} strokeWidth={1.8} />
           <span className="text-[9px] font-medium">Люди ({users.length})</span>
+          {inboxCount > 0 && (
+            <span className="absolute -top-1 right-0 min-w-[16px] h-4 px-1 rounded-full bg-zine-terracotta text-white text-[9px] font-bold flex items-center justify-center">
+              {inboxCount}
+            </span>
+          )}
         </button>
 
         <button

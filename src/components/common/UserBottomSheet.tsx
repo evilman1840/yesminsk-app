@@ -1,43 +1,16 @@
-import React, { useState } from 'react';
-import { Send, ShieldCheck, X, MapPin, Ban, AlertTriangle, Loader2 } from 'lucide-react';
+import React from 'react';
+import { ShieldCheck, X, MapPin } from 'lucide-react';
 import { UserProfile, GOALS_CONFIG } from '../../types';
-import { telegramService } from '../../services/telegram';
-import { api } from '../../services/api';
+import { ReactionButtons, ChatButton, ReactionType } from './Reactions';
 
 interface UserBottomSheetProps {
   user: UserProfile;
   onClose: () => void;
-  onUserBlocked?: (telegramId: number) => void;
+  onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
 }
 
-export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose, onUserBlocked }) => {
+export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose, onReact }) => {
   const goalConfig = GOALS_CONFIG[user.goal] || GOALS_CONFIG.walk;
-
-  const [isConfirmingBlock, setIsConfirmingBlock] = useState(false);
-  const [isBlocking, setIsBlocking] = useState(false);
-
-  const handleOpenChat = () => {
-    telegramService.haptic('medium');
-    telegramService.openChat(user.username);
-  };
-
-  const handleBlockUser = async () => {
-    telegramService.haptic('warning');
-    setIsBlocking(true);
-
-    try {
-      await api.blockUser(user.telegramId);
-      telegramService.haptic('success');
-      if (onUserBlocked) {
-        onUserBlocked(user.telegramId);
-      }
-      onClose();
-    } catch (err: any) {
-      alert(err.message || 'Ошибка блокировки пользователя');
-    } finally {
-      setIsBlocking(false);
-    }
-  };
 
   const getGenderLabel = () => {
     if (user.gender === 'male') return 'Парень';
@@ -68,16 +41,17 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
         </button>
 
         <div className="flex gap-3.5 items-start">
-          {/* Аватарка с бейджем цели */}
-          <div className="relative shrink-0">
+          {/* Аватарка с бейджем цели и реакциями */}
+          <div className="relative shrink-0 w-16">
             <img
               src={user.avatarUrl}
               alt={user.firstName}
               className="w-16 h-16 rounded-2xl object-cover border border-zine-border shadow-sm"
             />
-            <span className="absolute -bottom-1 -right-1 text-xs bg-white rounded-full p-0.5 border border-zine-border shadow-sm">
+            <span className="absolute top-12 -right-1 text-xs bg-white rounded-full p-0.5 border border-zine-border shadow-sm">
               {goalConfig.emoji}
             </span>
+            <ReactionButtons user={user} onReact={onReact} size="md" />
           </div>
 
           <div className="flex-1 min-w-0 pr-3">
@@ -122,54 +96,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
               {user.bio || 'Пока нет описания о себе.'}
             </p>
 
-            {/* Блок подтверждения блокировки */}
-            {isConfirmingBlock ? (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 mb-3 animate-in fade-in">
-                <div className="flex items-center gap-1.5 text-red-800 text-xs font-semibold mb-1">
-                  <AlertTriangle size={13} />
-                  <span>Заблокировать пользователя?</span>
-                </div>
-                <p className="text-[10.5px] text-red-700 leading-tight mb-2.5">
-                  Вы больше не увидите анкету друг друга на карте, в ленте и в событиях.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleBlockUser}
-                    disabled={isBlocking}
-                    className="flex-1 py-1.5 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-xs flex items-center justify-center gap-1"
-                  >
-                    {isBlocking ? <Loader2 size={12} className="animate-spin" /> : 'Да, заблокировать'}
-                  </button>
-                  <button
-                    onClick={() => setIsConfirmingBlock(false)}
-                    disabled={isBlocking}
-                    className="py-1.5 px-3 rounded-lg bg-white border border-gray-300 text-gray-700 font-medium text-xs"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {/* Кнопка диалога в Telegram */}
-                <button
-                  onClick={handleOpenChat}
-                  className="w-full py-2.5 px-4 rounded-xl bg-zine-terracotta hover:bg-zine-terracottaHover text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-zine active:scale-[0.98] transition-all cursor-pointer"
-                >
-                  <Send size={14} />
-                  <span>Написать в Telegram (@{user.username || 'user'})</span>
-                </button>
-
-                {/* Кнопка Заблокировать */}
-                <button
-                  onClick={() => setIsConfirmingBlock(true)}
-                  className="w-full py-1.5 text-center text-[10.5px] font-medium text-zine-inkMuted hover:text-red-600 flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                >
-                  <Ban size={11} />
-                  <span>Заблокировать / Не хочу общаться</span>
-                </button>
-              </div>
-            )}
+            <ChatButton user={user} className="w-full" />
 
             {/* Плашка безопасности */}
             <div className="flex items-center justify-center gap-1 text-[9.5px] text-zine-inkMuted mt-2.5 pt-2 border-t border-zine-border/50">
