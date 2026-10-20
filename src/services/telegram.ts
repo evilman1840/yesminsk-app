@@ -11,6 +11,17 @@ const tg = () => {
   return typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined;
 };
 
+const BOT = import.meta.env.VITE_BOT_USERNAME || 'yesminsk_app_bot';
+
+// Что показать в окне «Поделиться» (его рисует App, слушая это событие)
+export interface ShareData {
+  title: string;
+  text: string;
+  link: string;
+}
+export const SHARE_EVENT = 'yesminsk:share';
+const openShare = (data: ShareData) => window.dispatchEvent(new CustomEvent<ShareData>(SHARE_EVENT, { detail: data }));
+
 // Цвет фона приложения для светлой и тёмной темы (совпадает с --c-paper в index.css)
 const PAPER = { light: '#FAF7F2', dark: '#1C1917' };
 
@@ -135,24 +146,16 @@ export const telegramService = {
   },
 
   /**
-   * «Позвать друзей»: открывает выбор чата в Telegram со ссылкой-приглашением на сходку.
+   * «Позвать на сходку»: открывает окно «Поделиться» со ссылкой-приглашением.
    * Ссылка ведёт в бота, он присылает карточку сходки с кнопкой «Открыть сходку»
    */
   shareEvent(event: { id: string; title: string; dateTime: string }) {
-    const bot = import.meta.env.VITE_BOT_USERNAME || 'yesminsk_app_bot';
-    const link = `https://t.me/${bot}?start=event_${event.id}`;
     const when = new Date(event.dateTime).toLocaleString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-    const text = `Пойдём вместе? «${event.title}», ${when} 👋`;
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
-
-    const webapp = tg();
-    if (webapp?.initData && webapp.openTelegramLink) {
-      webapp.openTelegramLink(shareUrl);
-    } else if (navigator.share) {
-      navigator.share({ title: event.title, text, url: link }).catch(() => {});
-    } else {
-      window.open(shareUrl, '_blank');
-    }
+    openShare({
+      title: 'Позвать на сходку',
+      text: `Пойдём вместе? «${event.title}», ${when} 👋`,
+      link: `https://t.me/${BOT}?start=event_${event.id}`
+    });
   },
 
   /**
@@ -161,19 +164,19 @@ export const telegramService = {
    */
   shareApp() {
     const me = this.getUser();
-    const bot = import.meta.env.VITE_BOT_USERNAME || 'yesminsk_app_bot';
-    const link = me?.id ? `https://t.me/${bot}?start=invite_${me.id}` : `https://t.me/${bot}`;
-    const text = 'Пошли со мной в ДА! МИНСК — там легко найти компанию для прогулок, кофе и выставок в Минске 👋';
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+    openShare({
+      title: 'Позвать друзей',
+      text: 'Пошли со мной в ДА! МИНСК — там легко найти компанию для прогулок, кофе и выставок в Минске 👋',
+      link: me?.id ? `https://t.me/${BOT}?start=invite_${me.id}` : `https://t.me/${BOT}`
+    });
+  },
 
+  // Отправить ссылку в чат Telegram (выбор чата)
+  shareToTelegram(link: string, text: string) {
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
     const webapp = tg();
-    if (webapp?.initData && webapp.openTelegramLink) {
-      webapp.openTelegramLink(shareUrl);
-    } else if (navigator.share) {
-      navigator.share({ title: 'ДА! МИНСК', text, url: link }).catch(() => {});
-    } else {
-      window.open(shareUrl, '_blank');
-    }
+    if (webapp?.initData && webapp.openTelegramLink) webapp.openTelegramLink(shareUrl);
+    else window.open(shareUrl, '_blank');
   },
 
   /**

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { YMaps } from '@pbe/react-yandex-maps';
-import { telegramService } from './services/telegram';
+import { telegramService, ShareData, SHARE_EVENT } from './services/telegram';
 import { api } from './services/api';
 import { MapScreen } from './screens/MapScreen';
 import { FeedScreen } from './screens/FeedScreen';
@@ -16,6 +16,7 @@ import { EventDetails } from './components/common/EventDetails';
 import { DonateSheet } from './components/common/DonateSheet';
 import { NewsScreen } from './screens/NewsScreen';
 import { FirstStepsCard } from './components/people/FirstSteps';
+import { ShareSheet } from './components/common/ShareSheet';
 import type { MapMode } from './screens/MapScreen';
 import { NewsItem } from './services/api';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory } from './types';
@@ -105,6 +106,14 @@ export const App: React.FC = () => {
     }
   });
   const [isDonateOpen, setIsDonateOpen] = useState(false);
+
+  // Окно «Поделиться» (позвать друзей, позвать на сходку)
+  const [shareData, setShareData] = useState<ShareData | null>(null);
+  useEffect(() => {
+    const onShare = (e: Event) => setShareData((e as CustomEvent<ShareData>).detail);
+    window.addEventListener(SHARE_EVENT, onShare);
+    return () => window.removeEventListener(SHARE_EVENT, onShare);
+  }, []);
 
   // Места по вайбу
   const [places, setPlaces] = useState<PlaceItem[]>([]);
@@ -719,6 +728,8 @@ export const App: React.FC = () => {
               }}
             />
           )}
+
+          {shareData && <ShareSheet data={shareData} onClose={() => setShareData(null)} />}
 
           {matchPopupUser && (
             <MatchModal
