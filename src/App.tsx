@@ -625,6 +625,12 @@ export const App: React.FC = () => {
                 mapMode={mapMode}
                 onChangeMapMode={setMapMode}
                 onOpenEvents={() => handleNavigate('events')}
+                onToggleSavePlace={async (p) => {
+                  const { saved } = await api.toggleSavePlace(p.id);
+                  const updated = { ...p, isSaved: saved };
+                  setPlaces(prev => prev.map(x => (x.id === p.id ? updated : x)));
+                  return updated;
+                }}
                 initialPlaceId={initialPlaceId}
                 onCreateEventAtPlace={(p) => {
                   setPendingEventPlace({

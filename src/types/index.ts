@@ -145,6 +145,8 @@ export interface PlaceItem {
   coordinates: [number, number]; // [lat, lng]
   mishaTip: string;
   blogUrl: string;
+  mapUrl: string;   // ссылка на Яндекс Карты (отзывы и фото)
+  isSaved: boolean; // 🔖 в моём списке «хочу сходить»
   price: 'free' | 'cheap' | 'mid' | null;
   rainOk: boolean;
   evening: boolean;

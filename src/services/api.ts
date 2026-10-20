@@ -190,6 +190,11 @@ class ApiService {
     return this.request('/places');
   }
 
+  // 🔖 Сохранить место / убрать из сохранённых
+  async toggleSavePlace(placeId: string): Promise<{ saved: boolean }> {
+    return this.request(`/places/${placeId}/save`, { method: 'POST' });
+  }
+
   async getPlaceTips(placeId: string): Promise<PlaceTipItem[]> {
     return this.request(`/places/${placeId}/tips`);
   }

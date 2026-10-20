@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pencil, Eye, EyeOff, Sun, Moon, Loader2, X, Layers, Users, CalendarDays, MapPin, Info } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
-import { MoodChips, MoodPicker } from '../components/places/MoodPicker';
+import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
 import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
@@ -42,6 +42,7 @@ export interface MapScreenProps {
   onChangeMapMode: (mode: MapMode) => void;
   onOpenEvents: () => void;
   onCreateEventAtPlace: (place: PlaceItem) => void;
+  onToggleSavePlace: (place: PlaceItem) => Promise<PlaceItem>;
   initialPlaceId?: string | null;
 }
 
@@ -125,19 +126,22 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onChangeMapMode,
   onCreateEventAtPlace,
   initialPlaceId,
-  onOpenEvents
+  onOpenEvents,
+  onToggleSavePlace
 }) => {
   // Сходки на карте: фильтр по времени
   const [eventWhen, setEventWhen] = useState<EventWhen>('all');
   const filteredEvents = events.filter((e) => matchesWhen(e.dateTime, eventWhen));
   // Места по вайбу
-  const [mood, setMood] = useState<PlaceMood | 'all'>('all');
+  const [mood, setMood] = useState<MoodFilter>('all');
   const [isMoodPickerOpen, setIsMoodPickerOpen] = useState(true);
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
   const isPlaces = mapMode === 'places';
   // Во вкладке «Всё» нет строки фильтров — подсказки поднимаем выше
   const overlayTop = mapMode === 'all' ? 'top-[140px]' : 'top-[196px]';
-  const filteredPlaces = mood === 'all' ? places : places.filter((p) => p.moods.includes(mood));
+  const filteredPlaces =
+    mood === 'all' ? places : mood === 'saved' ? places.filter((p) => p.isSaved) : places.filter((p) => p.moods.includes(mood));
+  const savedCount = places.filter((p) => p.isSaved).length;
   const moodCounts = places.reduce<Partial<Record<PlaceMood, number>>>((acc, p) => {
     p.moods.forEach((m) => (acc[m] = (acc[m] || 0) + 1));
     return acc;
@@ -300,6 +304,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           {isPlaces && (
             <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
               <MoodChips
+                savedCount={savedCount}
                 value={mood}
                 onChange={(m) => {
                   setMood(m);
@@ -353,6 +358,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             setSelectedPlace(null);
             onCreateEventAtPlace(p);
           }}
+          onToggleSave={async (p) => setSelectedPlace(await onToggleSavePlace(p))}
         />
       )}
 

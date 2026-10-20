@@ -3,14 +3,18 @@ import { X } from 'lucide-react';
 import { PlaceMood, PLACE_MOODS } from '../../types';
 import { telegramService } from '../../services/telegram';
 
-type MoodFilter = PlaceMood | 'all';
+export type MoodFilter = PlaceMood | 'all' | 'saved';
 
 /**
  * Чипсы настроений над картой в режиме «Места»
  */
-export const MoodChips: React.FC<{ value: MoodFilter; onChange: (m: MoodFilter) => void }> = ({ value, onChange }) => (
+export const MoodChips: React.FC<{ value: MoodFilter; onChange: (m: MoodFilter) => void; savedCount: number }> = ({ value, onChange, savedCount }) => (
   <>
-    {([['all', 'Все', ''], ...(Object.keys(PLACE_MOODS) as PlaceMood[]).map((m) => [m, PLACE_MOODS[m].label, PLACE_MOODS[m].emoji])] as [
+    {([
+      ['all', 'Все', ''],
+      ...(savedCount > 0 ? [['saved', `Сохранённые · ${savedCount}`, '🔖']] : []),
+      ...(Object.keys(PLACE_MOODS) as PlaceMood[]).map((m) => [m, PLACE_MOODS[m].label, PLACE_MOODS[m].emoji])
+    ] as [
       MoodFilter,
       string,
       string

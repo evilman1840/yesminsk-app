@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Navigation, CalendarPlus, BookOpen, Loader2, Trash2 } from 'lucide-react';
+import { MapPin, Navigation, CalendarPlus, BookOpen, Loader2, Trash2, Bookmark, BookmarkCheck, Star } from 'lucide-react';
 import { PlaceItem, PlaceTipItem, PLACE_MOODS, PLACE_PRICES } from '../../types';
 import { api, serverUrl } from '../../services/api';
 import { telegramService } from '../../services/telegram';
@@ -12,7 +12,9 @@ export const PlaceSheet: React.FC<{
   place: PlaceItem;
   onClose: () => void;
   onCreateEvent: (place: PlaceItem) => void;
-}> = ({ place, onClose, onCreateEvent }) => {
+  onToggleSave: (place: PlaceItem) => Promise<void>;
+}> = ({ place, onClose, onCreateEvent, onToggleSave }) => {
+  const [isSaving, setIsSaving] = useState(false);
   const [tips, setTips] = useState<PlaceTipItem[]>([]);
   const [isTipsLoading, setIsTipsLoading] = useState(true);
   const [tipText, setTipText] = useState('');
@@ -101,7 +103,27 @@ export const PlaceSheet: React.FC<{
 
       {marks.length > 0 && <p className="mt-3 text-sm2 text-zine-inkMuted">{marks.join(' · ')}</p>}
 
-      {place.address && (
+      {/* 🔖 Сохранить в свой список «хочу сходить» */}
+      <button
+        onClick={async () => {
+          if (isSaving) return;
+          telegramService.haptic(place.isSaved ? 'light' : 'success');
+          setIsSaving(true);
+          try {
+            await onToggleSave(place);
+          } finally {
+            setIsSaving(false);
+          }
+        }}
+        className={`mt-4 w-full h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 border-2 transition-colors cursor-pointer ${
+          place.isSaved ? 'bg-zine-sage/15 border-zine-sage text-zine-sage' : 'bg-zine-cardElevated border-zine-border text-zine-ink'
+        }`}
+      >
+        {isSaving ? <Loader2 size={20} className="animate-spin" /> : place.isSaved ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
+        <span>{place.isSaved ? 'Сохранено — в моём списке' : 'Сохранить — хочу сходить'}</span>
+      </button>
+
+      {place.address && place.address !== place.name && (
         <p className="mt-3 flex items-center gap-2 text-body text-zine-ink">
           <MapPin size={20} className="text-zine-terracotta shrink-0" />
           <span>{place.address}</span>
@@ -133,6 +155,15 @@ export const PlaceSheet: React.FC<{
           <span>Сходка сюда</span>
         </button>
       </div>
+      {place.mapUrl && (
+        <button
+          onClick={() => telegramService.openLink(place.mapUrl)}
+          className="mt-2 w-full h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <Star size={20} />
+          <span>Отзывы и фото на Яндекс Картах</span>
+        </button>
+      )}
       {place.blogUrl && (
         <button
           onClick={() => telegramService.openLink(place.blogUrl)}
