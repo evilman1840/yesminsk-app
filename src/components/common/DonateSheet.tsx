@@ -52,7 +52,7 @@ export const DonateSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     return (
       <BottomSheet title="Спасибо! 💛" onClose={onClose}>
         <p className="text-body text-zine-ink">
-          Твоя поддержка помогает ДА! МИНСК оставаться бесплатным и становиться лучше. Это очень ценно.
+          Твоя поддержка помогает ДА! МИНСК оставаться бесплатным, а больше половины суммы вернётся людям — подарками и приятными сюрпризами. Это очень ценно.
         </p>
         <button onClick={onClose} className="mt-5 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer">
           Пожалуйста!
@@ -64,9 +64,29 @@ export const DonateSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   return (
     <BottomSheet title="Поддержать проект" onClose={onClose}>
       <p className="text-lead font-bold text-zine-ink">🔥 Поддержи проект 1 рублём или больше</p>
-      <p className="mt-1 text-body text-zine-inkMuted">
-        ДА! МИНСК — бесплатный и без рекламы. Любая сумма помогает оплачивать серверы и делать новое 💛
+      <p className="mt-2 text-body text-zine-ink">
+        Привет! Я — Миша Спасатель Позднев, автор ДА! МИНСК. Приложение бесплатное и без рекламы, и я хочу, чтобы донаты возвращались к людям.
       </p>
+
+      {/* Куда идут деньги: 51% — людям, 49% — на проект */}
+      <div className="mt-4 p-4 rounded-zine bg-zine-card">
+        <div className="flex h-3 rounded-full overflow-hidden">
+          <span className="bg-zine-terracotta" style={{ width: '51%' }} />
+          <span className="bg-zine-border" style={{ width: '49%' }} />
+        </div>
+        <div className="mt-3 space-y-2.5">
+          <p className="flex gap-3">
+            <span className="shrink-0 w-14 text-lead font-bold text-zine-terracotta">51%</span>
+            <span className="text-sm2 text-zine-ink">
+              <b>Обещаю — на вас.</b> Бесплатные подарки пользователям приложения: кофе на сходках, билеты в кино и на выставки и другие приятные сюрпризы 🎁
+            </span>
+          </p>
+          <p className="flex gap-3">
+            <span className="shrink-0 w-14 text-lead font-bold text-zine-inkMuted">49%</span>
+            <span className="text-sm2 text-zine-inkMuted">Серверы, развитие приложения и зарплата людям, которые его ведут.</span>
+          </p>
+        </div>
+      </div>
 
       {DONATE_LINKS.length > 0 && (
         <div className="mt-5 space-y-2">

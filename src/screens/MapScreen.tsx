@@ -126,48 +126,53 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
       {/* Шапка поверх карты: логотип и фильтры */}
       <div className="absolute top-0 inset-x-0 z-20 pt-3 space-y-3 pointer-events-none">
-        <div className="px-4 flex items-center gap-2">
-          <div className="pointer-events-auto shrink-0 px-4 h-12 flex items-center rounded-full bg-zine-cardElevated shadow-zine">
-            <Logo />
-          </div>
+        {/* Одна панель: маленький логотип │ бегущая строка │ тема */}
+        <div className="px-4">
+          <div className="pointer-events-auto h-12 flex items-center rounded-full bg-zine-cardElevated shadow-zine overflow-hidden">
+            <div className="shrink-0 pl-4 pr-3 flex items-center">
+              <Logo size="sm" />
+            </div>
+            <span className="shrink-0 w-px h-6 bg-zine-border" />
 
-          {isVisible ? (
-            // Бегущая строка с подсказками; по нажатию — инструкция целиком
+            {isVisible ? (
+              // Подсказки для новичков; по нажатию — инструкция целиком
+              <button
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  setIsHelpOpen(true);
+                }}
+                aria-label="Как это работает"
+                className="flex-1 min-w-0 h-full overflow-hidden flex items-center cursor-pointer"
+              >
+                <span className="marquee-track text-sm2 font-semibold text-zine-ink">
+                  <span className="px-3">{TIPS_LINE}</span>
+                  <span className="px-3" aria-hidden="true">{TIPS_LINE}</span>
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={onOpenProfile}
+                className="flex-1 min-w-0 h-full px-3 text-zine-plum text-sm2 font-bold flex items-center gap-2 cursor-pointer"
+              >
+                <EyeOff size={18} className="shrink-0" />
+                <span className="truncate">Тебя не видно · включить</span>
+              </button>
+            )}
+
+            <span className="shrink-0 w-px h-6 bg-zine-border" />
             <button
               onClick={() => {
                 telegramService.haptic('selection');
-                setIsHelpOpen(true);
+                const next = isDark ? 'light' : 'dark';
+                telegramService.setTheme(next);
+                setIsDark(next === 'dark');
               }}
-              aria-label="Как это работает"
-              className="pointer-events-auto flex-1 min-w-0 h-12 rounded-full bg-zine-cardElevated shadow-zine overflow-hidden flex items-center cursor-pointer"
+              aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
+              className="shrink-0 w-12 h-full text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
             >
-              <span className="marquee-track text-sm2 font-semibold text-zine-ink">
-                <span className="px-4">{TIPS_LINE}</span>
-                <span className="px-4" aria-hidden="true">{TIPS_LINE}</span>
-              </span>
+              {isDark ? <Sun size={22} /> : <Moon size={20} />}
             </button>
-          ) : (
-            <button
-              onClick={onOpenProfile}
-              className="pointer-events-auto flex-1 min-w-0 h-12 px-4 rounded-full bg-zine-plum text-white text-sm2 font-bold flex items-center justify-center gap-2 shadow-zine cursor-pointer"
-            >
-              <EyeOff size={18} className="shrink-0" />
-              <span className="truncate">Тебя не видно</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => {
-              telegramService.haptic('selection');
-              const next = isDark ? 'light' : 'dark';
-              telegramService.setTheme(next);
-              setIsDark(next === 'dark');
-            }}
-            aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
-            className="pointer-events-auto shrink-0 w-12 h-12 rounded-full bg-zine-cardElevated shadow-zine text-zine-ink flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
-          >
-            {isDark ? <Sun size={24} /> : <Moon size={22} />}
-          </button>
+          </div>
         </div>
         <div className="pointer-events-auto">
           <GoalChips value={selectedGoal} onChange={onSelectGoal} floating />
