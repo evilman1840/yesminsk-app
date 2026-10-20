@@ -237,7 +237,7 @@ const MinskMapContent: React.FC<{
           options={{
             iconLayout: currentUserLayout,
             iconOffset: [-27, -68],
-            iconShape: { type: 'Rectangle', coordinates: [[-30, -74], [30, 6]] } as any,
+            iconShape: { type: 'Rectangle', coordinates: [[-27, -68], [27, 0]] } as any,
             interactivityModel: 'default#opaque',
             cursor: 'pointer',
             zIndex: 1000,
@@ -293,7 +293,7 @@ const MinskMapContent: React.FC<{
             }
           }
 
-          // Обработка клика по одиночному маркеру (если он внутри Clusterer, Яндекс перехватывает клик сюда)
+          // Обработка клика по одиночному маркеру
           const userId = target.properties?.get('userId');
           if (userId) {
             const found = users.find((u: UserProfile) => String(u.id || (u as any).telegramId || (u as any)._id) === String(userId));
@@ -327,13 +327,12 @@ const MinskMapContent: React.FC<{
               options={{
                 iconLayout: avatarLayout,
                 iconOffset: [-23, -52],
-                iconShape: { type: 'Rectangle', coordinates: [[-26, -58], [26, 6]] } as any,
+                iconShape: { type: 'Rectangle', coordinates: [[-23, -52], [23, 0]] } as any,
                 interactivityModel: 'default#opaque',
                 cursor: 'pointer',
                 hasBalloon: false
               } as any}
               onClick={() => {
-                // Прямой клик (на случай если Clusterer не перехватит)
                 telegramService.haptic('selection');
                 onSelectUser(user);
                 if (mapInstance) mapInstance.panTo(coords, { flying: true, duration: 400 });
@@ -364,7 +363,7 @@ const MinskMapContent: React.FC<{
             options={{
               iconLayout: eventLayout,
               iconOffset: [-50, -45],
-              iconShape: { type: 'Rectangle', coordinates: [[-85, -50], [85, 8]] } as any,
+              iconShape: { type: 'Rectangle', coordinates: [[-75, -38], [75, 0]] } as any,
               interactivityModel: 'default#opaque',
               cursor: 'pointer',
               zIndex: 850,
