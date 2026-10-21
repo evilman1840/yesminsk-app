@@ -772,7 +772,7 @@ const EventReel: React.FC<{
       <div className="absolute inset-x-0 top-[30%] flex justify-center text-[110px] leading-none select-none pointer-events-none">{cat.emoji}</div>
 
       {/* Кнопки справа, как в Reels */}
-      <div className="absolute right-3 bottom-48 z-20 flex flex-col items-center gap-5 text-white">
+      <div className="absolute right-3 bottom-48 z-20 flex flex-col items-center gap-4 text-white">
         <button
           onClick={() => {
             telegramService.haptic('selection');
@@ -798,22 +798,8 @@ const EventReel: React.FC<{
             <span className="text-cap font-semibold drop-shadow">Маршрут</span>
           </button>
         )}
-        {isCreator ? (
-          <>
-            <button onClick={onEdit} aria-label="Изменить сходку" className="flex flex-col items-center gap-1 cursor-pointer">
-              <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
-                <Edit2 size={21} />
-              </span>
-              <span className="text-cap font-semibold drop-shadow">Изменить</span>
-            </button>
-            <button onClick={onDelete} disabled={isDeleting} aria-label="Удалить сходку" className="flex flex-col items-center gap-1 cursor-pointer">
-              <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
-                {isDeleting ? <Loader2 size={21} className="animate-spin" /> : <Trash2 size={21} />}
-              </span>
-              <span className="text-cap font-semibold drop-shadow">Удалить</span>
-            </button>
-          </>
-        ) : (
+        {/* Организатору «Изменить» и «Удалить» — внизу, у главной кнопки: справа столбец не помещался */}
+        {!isCreator && (
           <button onClick={onReport} aria-label="Пожаловаться" className="flex flex-col items-center gap-1 cursor-pointer">
             <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
               <Flag size={20} />
@@ -825,7 +811,7 @@ const EventReel: React.FC<{
 
       {/* Текст внизу на затемнении */}
       <div className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white">
-        {ev.isOfficial && <p className="mb-1 text-sm2 font-bold text-[#FFD9A8]">⭐ От ДА! МИНСК — тут рады новичкам</p>}
+        {ev.isOfficial && <p className="mb-1 pr-16 text-sm2 font-bold text-[#FFD9A8]">⭐ От ДА! МИНСК — тут рады новичкам</p>}
         <p className="text-cap font-bold uppercase tracking-wider text-white/75">
           {cat.emoji} {cat.label}
         </p>
@@ -859,26 +845,47 @@ const EventReel: React.FC<{
           </p>
         </div>
 
-        <button
-          onClick={onJoin}
-          disabled={isJoining || isFull}
-          className={`mt-3 h-12 px-6 rounded-full text-body font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-            ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/25 text-white/80 cursor-default' : 'bg-white text-[#2B2623]'
-          }`}
-        >
-          {isFull ? (
-            'Мест нет'
-          ) : isJoining ? (
-            <Loader2 size={20} className="animate-spin" />
-          ) : ev.isJoined ? (
-            <>
-              <Check size={20} strokeWidth={3} />
-              <span>Я иду</span>
-            </>
-          ) : (
-            'Пойду!'
-          )}
-        </button>
+        {isCreator ? (
+          // Своя сходка: организатор и так идёт — вместо «Я иду» управление
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={onEdit}
+              className="h-12 px-5 rounded-full bg-white text-[#2B2623] text-body font-bold inline-flex items-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+            >
+              <Edit2 size={19} />
+              <span>Изменить</span>
+            </button>
+            <button
+              onClick={onDelete}
+              disabled={isDeleting}
+              aria-label="Удалить сходку"
+              className="w-12 h-12 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+            >
+              {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onJoin}
+            disabled={isJoining || isFull}
+            className={`mt-3 h-12 px-6 rounded-full text-body font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
+              ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/25 text-white/80 cursor-default' : 'bg-white text-[#2B2623]'
+            }`}
+          >
+            {isFull ? (
+              'Мест нет'
+            ) : isJoining ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : ev.isJoined ? (
+              <>
+                <Check size={20} strokeWidth={3} />
+                <span>Я иду</span>
+              </>
+            ) : (
+              'Пойду!'
+            )}
+          </button>
+        )}
         {ev.isJoined && !isCreator && <p className="mt-1.5 text-cap text-white/65">Планы изменились? Нажми «Я иду» ещё раз</p>}
       </div>
 
