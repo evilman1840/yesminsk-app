@@ -432,6 +432,7 @@ export const App: React.FC = () => {
     title: string;
     description: string;
     category: string;
+    customCategory?: string;
     locationName: string;
     coordinates: [number, number];
     dateTime: string;
@@ -659,7 +660,7 @@ export const App: React.FC = () => {
                 matches={matches}
                 isTourist={currentUser.isTourist}
                 myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange }}
-                topSlot={!isFirstStepsHidden && <FirstStepsCard steps={firstSteps} onDismiss={hideFirstSteps} />}
+                topSlot={!isFirstStepsHidden && firstSteps.some((s) => !s.done) && <FirstStepsCard steps={firstSteps} onDismiss={hideFirstSteps} />}
                 selectedGoal={selectedGoal}
                 onSelectGoal={setSelectedGoal}
                 onSelectUser={(u) => setSelectedUser(u)}

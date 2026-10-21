@@ -1,7 +1,7 @@
 export type ActivityGoal = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors';
 export type Gender = 'male' | 'female' | 'not_specified';
 export type PreferredGender = 'all' | 'male' | 'female';
-export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport';
+export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'other';
 
 export interface AgeRange {
   min: number;
@@ -42,7 +42,14 @@ export const EVENT_CATEGORIES_CONFIG: Record<EventCategory, { label: string; emo
   expo_cinema: { label: 'Арт, кино', emoji: '🎨', ...badge('plum') },
   trip_outdoors: { label: 'За город', emoji: '🌲', ...badge('sage') },
   boardgames: { label: 'Настолки', emoji: '🎲', ...badge('sky') },
-  sport: { label: 'Спорт, вело', emoji: '🚴', ...badge('sky') }
+  sport: { label: 'Спорт, вело', emoji: '🚴', ...badge('sky') },
+  other: { label: 'Своя идея', emoji: '✨', ...badge('blush') }
+};
+
+// Категория сходки для показа: у «Своей идеи» подпись берём ту, что вписал автор
+export const eventCategoryOf = (ev: { category: EventCategory; customCategory?: string }) => {
+  const cfg = EVENT_CATEGORIES_CONFIG[ev.category] || EVENT_CATEGORIES_CONFIG.walk;
+  return ev.category === 'other' && ev.customCategory?.trim() ? { ...cfg, label: ev.customCategory.trim() } : cfg;
 };
 
 export interface UserProfile {
@@ -93,6 +100,7 @@ export interface AppEvent {
   title: string;
   description: string;
   category: EventCategory;
+  customCategory?: string; // своя идея, когда category = 'other'
   locationName: string;
   coordinates: [number, number]; // [lat, lng]
   dateTime: string;

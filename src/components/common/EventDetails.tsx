@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Clock, MapPin, Users, Send, Share2 } from 'lucide-react';
-import { AppEvent, EVENT_CATEGORIES_CONFIG } from '../../types';
+import { AppEvent, eventCategoryOf } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
 import { ReportSheet } from './ReportSheet';
@@ -13,7 +13,7 @@ export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void;
   onToggleJoin,
   onReported
 }) => {
-  const cat = EVENT_CATEGORIES_CONFIG[event.category];
+  const cat = eventCategoryOf(event);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
   const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, Search, Share2 } from 'lucide-react';
-import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG } from '../types';
+import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, Search, Share2, ChevronUp, Flag } from 'lucide-react';
+import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -124,6 +124,7 @@ export interface EventsScreenProps {
     title: string;
     description: string;
     category: string;
+    customCategory?: string;
     locationName: string;
     coordinates: [number, number];
     dateTime: string;
@@ -133,6 +134,7 @@ export interface EventsScreenProps {
     title: string;
     description: string;
     category: string;
+    customCategory?: string;
     locationName: string;
     coordinates: [number, number];
     dateTime: string;
@@ -170,6 +172,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<EventCategory>('walk');
+  const [customCategory, setCustomCategory] = useState('');
   const [locationName, setLocationName] = useState('');
   const [customCoords, setCustomCoords] = useState<[number, number] | null>(null);
   // Что нашли по адресу: подпись для проверки или «не нашли»
@@ -193,6 +196,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setDescription('');
     const startCategory = presetCategory || 'walk';
     setCategory(startCategory);
+    setCustomCategory('');
     setLocationName(place?.name || '');
     setCustomCoords(place?.coordinates || null);
     setPlaceLabel(place?.name || null);
@@ -220,6 +224,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setTitle(ev.title || '');
     setDescription(ev.description || '');
     setCategory(ev.category || 'walk');
+    setCustomCategory(ev.customCategory || '');
     setLocationName(ev.locationName || '');
     setCustomCoords(ev.coordinates || null);
     setPlaceLabel(ev.coordinates ? ev.locationName : null);
@@ -320,6 +325,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setFormError('Заполните все обязательные поля');
       return;
     }
+    if (category === 'other' && !customCategory.trim()) {
+      setFormError('Напиши, что будете делать — например, «Караоке»');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -338,6 +347,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         title: title.trim(),
         description: description.trim(),
         category,
+        customCategory: category === 'other' ? customCategory.trim() : '',
         locationName: locationName.trim(),
         coordinates: resolvedCoords,
         dateTime: new Date(dateTime).toISOString(),
@@ -368,179 +378,84 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
   };
 
-  return (
-    <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden">
-      <header className="shrink-0 px-5 pt-5 pb-3 flex items-center justify-between gap-3">
-        <h1 className="font-serif font-bold text-display text-zine-ink">Сходки</h1>
-        <button
-          onClick={() => handleOpenCreateModal()}
-          className="h-12 px-5 rounded-full bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-body font-bold flex items-center gap-2 shadow-zine-sm active:scale-95 transition-transform cursor-pointer"
-        >
-          <Plus size={22} strokeWidth={2.5} />
-          <span>Создать</span>
-        </button>
-      </header>
+  const categoryIds = (Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).filter(
+    (c) => c !== 'other' || events.some((e) => e.category === 'other')
+  );
 
-      {/* Фильтры категорий */}
-      <div className="shrink-0 pb-3 flex gap-2 overflow-x-auto no-scrollbar px-4">
-        {([['all', 'Все', ''], ...(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji])] as [EventCategory | 'all', string, string][]).map(([id, label, emoji]) => {
-          const isActive = selectedCategory === id;
-          return (
-            <button
-              key={id}
-              onClick={() => {
-                telegramService.haptic('selection');
-                setSelectedCategory(id);
-              }}
-              className={`h-11 px-4 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap flex items-center gap-2 border transition-colors cursor-pointer ${
-                isActive ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-zine-cardElevated text-zine-ink border-zine-border'
-              }`}
-            >
-              {emoji && <span className="text-[18px] leading-none">{emoji}</span>}
-              <span>{label}</span>
-            </button>
-          );
-        })}
+  return (
+    <div className="relative h-full w-full bg-[#141210] overflow-hidden">
+      {/* Заголовок и фильтры поверх карточек */}
+      <div className="absolute top-0 inset-x-0 z-20 pt-3 pb-6 bg-gradient-to-b from-black/60 to-transparent">
+        <div className="px-4 mb-2 flex items-center justify-between gap-3">
+          <h1 className="font-serif font-bold text-title text-white">Сходки</h1>
+          <button
+            onClick={() => handleOpenCreateModal()}
+            className="h-11 px-4 rounded-full bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-body font-bold flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
+          >
+            <Plus size={20} strokeWidth={2.5} />
+            <span>Создать</span>
+          </button>
+        </div>
+        <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
+          {([['all', 'Все', ''], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji])] as [EventCategory | 'all', string, string][]).map(([id, label, emoji]) => {
+            const isActive = selectedCategory === id;
+            return (
+              <button
+                key={id}
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  setSelectedCategory(id);
+                }}
+                className={`h-11 px-4 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap flex items-center gap-2 border transition-colors cursor-pointer ${
+                  isActive ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-zine-cardElevated text-zine-ink border-zine-border shadow-zine'
+                }`}
+              >
+                {emoji && <span className="text-[18px] leading-none">{emoji}</span>}
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Список сходок */}
-      <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">
-        {filteredEvents.length === 0 ? (
-          <div className="mt-6 p-8 rounded-zine bg-zine-card text-center">
-            <div className="text-[44px] mb-3">🗓</div>
-            <h3 className="font-serif font-bold text-title text-zine-ink mb-2">Сходок пока нет</h3>
-            <p className="text-body text-zine-inkMuted mb-5">Собери компанию на прогулку, в кафе или в музей — это займёт минуту.</p>
-            <button
-              onClick={() => handleOpenCreateModal()}
-              className="h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer"
-            >
-              Создать сходку
-            </button>
-          </div>
-        ) : (
-          filteredEvents.map((ev) => {
-            const cat = EVENT_CATEGORIES_CONFIG[ev.category] || EVENT_CATEGORIES_CONFIG.walk;
+      {filteredEvents.length === 0 ? (
+        <div className="h-full flex flex-col items-center justify-center text-center px-8 text-white">
+          <div className="text-[48px] mb-3">🗓</div>
+          <p className="font-serif font-bold text-title">Сходок пока нет</p>
+          <p className="mt-2 text-body text-white/70">Собери компанию на прогулку, в кафе или за настолки — это займёт минуту.</p>
+          <button
+            onClick={() => handleOpenCreateModal(selectedCategory === 'all' ? undefined : selectedCategory)}
+            className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer"
+          >
+            Создать сходку
+          </button>
+        </div>
+      ) : (
+        <div key={selectedCategory} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
+          {filteredEvents.map((ev, index) => {
             const isCreator = Boolean(
               currentUserId && (
                 Number(ev.creator?.telegramId) === Number(currentUserId) ||
                 (ev as any).creatorId === String(currentUserId)
               )
             );
-            const isJoining = joiningId === String(ev.id);
-            const isFull = !ev.isJoined && Boolean(ev.maxParticipants) && (ev.participantsCount || 1) >= ev.maxParticipants;
-            const isDeleting = deletingId === String(ev.id);
-
             return (
-              <article
+              <EventReel
                 key={ev.id}
-                className={`p-4 rounded-zine bg-zine-cardElevated shadow-zine-sm ${ev.isOfficial ? 'border-2 border-zine-terracotta' : 'border border-zine-border'}`}
-              >
-                {ev.isOfficial && (
-                  <p className="mb-2 text-sm2 font-bold text-zine-terracotta">⭐ От ДА! МИНСК — приходи, тут рады новичкам</p>
-                )}
-                <div className="flex items-center justify-between gap-2">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold ${cat.badgeBg} ${cat.badgeText}`}>
-                    <span>{cat.emoji}</span>
-                    <span>{cat.label}</span>
-                  </span>
-                  {isCreator && (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => handleOpenEditModal(ev)}
-                        aria-label="Изменить сходку"
-                        className="w-11 h-11 rounded-full bg-zine-card text-zine-ink flex items-center justify-center cursor-pointer active:scale-95"
-                      >
-                        <Edit2 size={19} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEvent(ev)}
-                        disabled={isDeleting}
-                        aria-label="Удалить сходку"
-                        className="w-11 h-11 rounded-full bg-zine-danger/10 text-zine-danger flex items-center justify-center cursor-pointer active:scale-95"
-                      >
-                        {isDeleting ? <Loader2 size={19} className="animate-spin" /> : <Trash2 size={19} />}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <h3 className="mt-3 font-serif font-bold text-title text-zine-ink">{ev.title}</h3>
-
-                <div className="mt-2 space-y-1.5 text-body text-zine-ink">
-                  <p className="flex items-center gap-2.5">
-                    <Clock size={20} className="text-zine-terracotta shrink-0" />
-                    <span className="font-semibold">{formatEventDate(ev.dateTime)}</span>
-                  </p>
-                  <p className="flex items-center gap-2.5">
-                    <MapPin size={20} className="text-zine-terracotta shrink-0" />
-                    <span className="truncate">{ev.locationName}</span>
-                  </p>
-                </div>
-
-                {ev.description && <p className="mt-3 text-body text-zine-inkMuted line-clamp-3 whitespace-pre-wrap">{ev.description}</p>}
-
-                <div className="mt-4 flex items-center gap-3">
-                  <img
-                    src={ev.creator?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-                    alt={ev.creator?.name || 'Организатор'}
-                    className="w-10 h-10 rounded-full object-cover shrink-0"
-                  />
-                  <div className="min-w-0 text-sm2">
-                    <p className="text-zine-ink font-semibold truncate">{isCreator ? 'Ты собираешь' : `Собирает ${ev.creator?.name || 'организатор'}`}</p>
-                    <p className="text-zine-inkMuted">
-                      Идут: {ev.participantsCount || 1}
-                      {ev.maxParticipants ? ` из ${ev.maxParticipants}` : ''}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex gap-2">
-                  <button
-                    onClick={() => handleToggleJoin(ev)}
-                    disabled={isJoining || isFull}
-                    className={`flex-1 h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-                      ev.isJoined
-                        ? 'bg-zine-sage/15 text-zine-sage'
-                        : isFull
-                        ? 'bg-zine-card text-zine-inkMuted cursor-default'
-                        : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
-                    }`}
-                  >
-                    {isFull ? (
-                      <span>Мест нет</span>
-                    ) : isJoining ? (
-                      <Loader2 size={20} className="animate-spin" />
-                    ) : ev.isJoined ? (
-                      <>
-                        <Check size={20} strokeWidth={3} />
-                        <span>Я иду</span>
-                      </>
-                    ) : (
-                      <span>Пойду!</span>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => {
-                      telegramService.haptic('selection');
-                      telegramService.shareEvent(ev);
-                    }}
-                    className="h-12 px-4 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
-                  >
-                    <Share2 size={20} />
-                    <span>Позвать</span>
-                  </button>
-                </div>
-                {ev.isJoined && !isCreator && <p className="mt-2 text-cap text-zine-inkMuted text-center">Планы изменились? Нажми «Я иду» ещё раз</p>}
-                {!isCreator && (
-                  <button onClick={() => setReportEvent(ev)} className="mt-1 w-full h-10 text-cap font-semibold text-zine-inkMuted cursor-pointer">
-                    ⚠️ Пожаловаться
-                  </button>
-                )}
-              </article>
+                event={ev}
+                isFirst={index === 0}
+                isCreator={isCreator}
+                isJoining={joiningId === String(ev.id)}
+                isDeleting={deletingId === String(ev.id)}
+                onJoin={() => handleToggleJoin(ev)}
+                onEdit={() => handleOpenEditModal(ev)}
+                onDelete={() => handleDeleteEvent(ev)}
+                onReport={() => setReportEvent(ev)}
+              />
             );
-          })
-        )}
-      </main>
+          })}
+        </div>
+      )}
 
       {reportEvent && (
         <ReportSheet
@@ -573,7 +488,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
             <Field label="Что будем делать?">
               <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).map((cat) => {
+                {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).filter((c) => c !== 'other').map((cat) => {
                   const cfg = EVENT_CATEGORIES_CONFIG[cat];
                   const isSelected = category === cat;
                   return (
@@ -594,6 +509,32 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   );
                 })}
               </div>
+              {/* Своя идея: автор сам пишет, что за сходка */}
+              <button
+                type="button"
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  setCategory('other');
+                }}
+                className={`mt-2 w-full h-14 px-4 rounded-zine-sm border-2 flex items-center gap-3 text-left transition-colors cursor-pointer ${
+                  category === 'other' ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-dashed border-zine-border bg-zine-cardElevated'
+                }`}
+              >
+                <span className="text-[24px] leading-none">✨</span>
+                <span className={`text-sm2 font-semibold ${category === 'other' ? 'text-zine-terracotta' : 'text-zine-ink'}`}>
+                  Своя идея — впиши сам
+                </span>
+              </button>
+              {category === 'other' && (
+                <input
+                  type="text"
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value.slice(0, 30))}
+                  placeholder="Караоке, йога в парке, квиз…"
+                  className="field mt-2"
+                  autoFocus
+                />
+              )}
             </Field>
 
             <Field label="Где встречаемся?">
@@ -704,6 +645,163 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </BottomSheet>
       )}
     </div>
+  );
+};
+
+// Фон карточки по категории — у сходок нет фото
+const REEL_BG: Record<EventCategory, string> = {
+  walk: 'from-[#C2603F] to-[#3A2620]',
+  cafe_bar: 'from-[#C9973A] to-[#3B2C1A]',
+  expo_cinema: 'from-[#7C4A6E] to-[#2A1D27]',
+  trip_outdoors: 'from-[#5B7B68] to-[#1F2A23]',
+  boardgames: 'from-[#4A7396] to-[#1C2732]',
+  sport: 'from-[#3F8A8C] to-[#1A2B2C]',
+  other: 'from-[#C77D86] to-[#33222A]'
+};
+
+/**
+ * Сходка как Reels: на весь экран, кнопки справа, текст внизу
+ */
+const EventReel: React.FC<{
+  event: AppEvent;
+  isFirst: boolean;
+  isCreator: boolean;
+  isJoining: boolean;
+  isDeleting: boolean;
+  onJoin: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onReport: () => void;
+}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onEdit, onDelete, onReport }) => {
+  const cat = eventCategoryOf(ev);
+  const isFull = !ev.isJoined && Boolean(ev.maxParticipants) && (ev.participantsCount || 1) >= ev.maxParticipants;
+  const [lat, lng] = ev.coordinates || [0, 0];
+  const people = (ev.participants || []).slice(0, 4);
+
+  return (
+    <section className={`relative h-full w-full snap-start snap-always overflow-hidden bg-gradient-to-br ${REEL_BG[ev.category] || REEL_BG.walk}`}>
+      {/* Большой значок категории вместо фото */}
+      <div className="absolute inset-x-0 top-[30%] flex justify-center text-[110px] leading-none select-none pointer-events-none">{cat.emoji}</div>
+
+      {/* Кнопки справа, как в Reels */}
+      <div className="absolute right-3 bottom-48 z-20 flex flex-col items-center gap-5 text-white">
+        <button
+          onClick={() => {
+            telegramService.haptic('selection');
+            telegramService.shareEvent(ev);
+          }}
+          aria-label="Позвать друзей"
+          className="flex flex-col items-center gap-1 cursor-pointer"
+        >
+          <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
+            <Share2 size={22} />
+          </span>
+          <span className="text-cap font-semibold drop-shadow">Позвать</span>
+        </button>
+        {lat !== 0 && (
+          <button
+            onClick={() => telegramService.openLink(`https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`)}
+            aria-label="Как добраться"
+            className="flex flex-col items-center gap-1 cursor-pointer"
+          >
+            <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
+              <Navigation size={22} />
+            </span>
+            <span className="text-cap font-semibold drop-shadow">Маршрут</span>
+          </button>
+        )}
+        {isCreator ? (
+          <>
+            <button onClick={onEdit} aria-label="Изменить сходку" className="flex flex-col items-center gap-1 cursor-pointer">
+              <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
+                <Edit2 size={21} />
+              </span>
+              <span className="text-cap font-semibold drop-shadow">Изменить</span>
+            </button>
+            <button onClick={onDelete} disabled={isDeleting} aria-label="Удалить сходку" className="flex flex-col items-center gap-1 cursor-pointer">
+              <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
+                {isDeleting ? <Loader2 size={21} className="animate-spin" /> : <Trash2 size={21} />}
+              </span>
+              <span className="text-cap font-semibold drop-shadow">Удалить</span>
+            </button>
+          </>
+        ) : (
+          <button onClick={onReport} aria-label="Пожаловаться" className="flex flex-col items-center gap-1 cursor-pointer">
+            <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
+              <Flag size={20} />
+            </span>
+            <span className="text-cap font-semibold drop-shadow">Жалоба</span>
+          </button>
+        )}
+      </div>
+
+      {/* Текст внизу на затемнении */}
+      <div className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white">
+        {ev.isOfficial && <p className="mb-1 text-sm2 font-bold text-[#FFD9A8]">⭐ От ДА! МИНСК — тут рады новичкам</p>}
+        <p className="text-cap font-bold uppercase tracking-wider text-white/75">
+          {cat.emoji} {cat.label}
+        </p>
+        <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight line-clamp-2">{ev.title}</h2>
+        <div className="mt-2 pr-16 space-y-1 text-body">
+          <p className="flex items-center gap-2">
+            <Clock size={18} className="shrink-0 text-white/80" />
+            <span className="font-semibold">{formatEventDate(ev.dateTime)}</span>
+          </p>
+          <p className="flex items-center gap-2">
+            <MapPin size={18} className="shrink-0 text-white/80" />
+            <span className="truncate">{ev.locationName}</span>
+          </p>
+        </div>
+        {ev.description && <p className="mt-2 pr-16 text-body text-white/90 line-clamp-2 whitespace-pre-wrap">{ev.description}</p>}
+
+        <div className="mt-3 flex items-center gap-2.5">
+          <div className="flex -space-x-2.5 shrink-0">
+            {(people.length ? people : [ev.creator]).map((p, i) => (
+              <img
+                key={`${p?.telegramId}-${i}`}
+                src={p?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                alt={p?.name || ''}
+                className="w-9 h-9 rounded-full object-cover border-2 border-black/40"
+              />
+            ))}
+          </div>
+          <p className="min-w-0 text-sm2 text-white/85 truncate">
+            {isCreator ? 'Ты собираешь' : `Собирает ${ev.creator?.name || 'организатор'}`} · идут {ev.participantsCount || 1}
+            {ev.maxParticipants ? ` из ${ev.maxParticipants}` : ''}
+          </p>
+        </div>
+
+        <button
+          onClick={onJoin}
+          disabled={isJoining || isFull}
+          className={`mt-3 h-12 px-6 rounded-full text-body font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
+            ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/25 text-white/80 cursor-default' : 'bg-white text-[#2B2623]'
+          }`}
+        >
+          {isFull ? (
+            'Мест нет'
+          ) : isJoining ? (
+            <Loader2 size={20} className="animate-spin" />
+          ) : ev.isJoined ? (
+            <>
+              <Check size={20} strokeWidth={3} />
+              <span>Я иду</span>
+            </>
+          ) : (
+            'Пойду!'
+          )}
+        </button>
+        {ev.isJoined && !isCreator && <p className="mt-1.5 text-cap text-white/65">Планы изменились? Нажми «Я иду» ещё раз</p>}
+      </div>
+
+      {/* Подсказка листать — только на первой карточке */}
+      {isFirst && (
+        <div className="absolute top-36 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center text-white/80 animate-bounce pointer-events-none">
+          <ChevronUp size={22} />
+          <span className="text-cap font-semibold">листай</span>
+        </div>
+      )}
+    </section>
   );
 };
 

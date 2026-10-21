@@ -271,6 +271,7 @@ class ApiService {
     title: string;
     description: string;
     category: string;
+    customCategory?: string;
     locationName: string;
     coordinates: [number, number];
     dateTime: string;
@@ -289,6 +290,7 @@ class ApiService {
     title?: string;
     description?: string;
     category?: string;
+    customCategory?: string;
     locationName?: string;
     coordinates?: [number, number];
     dateTime?: string;

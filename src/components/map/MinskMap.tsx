@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 import { LocateFixed } from 'lucide-react';
-import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, isAvailableNow, PlaceItem, PLACE_MOODS } from '../../types';
+import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, eventCategoryOf, isAvailableNow, PlaceItem, PLACE_MOODS } from '../../types';
 import { serverUrl } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
 import { telegramService } from '../../services/telegram';
@@ -469,7 +469,7 @@ const MinskMapContent: React.FC<{
 
         {/* 3. Маркеры событий (Сходок) */}
         {eventsWithSeparatedCoords.map((ev: AppEvent & { separatedCoords: [number, number] }) => {
-          const catConfig = EVENT_CATEGORIES_CONFIG[ev.category] || { emoji: '⭐️', label: 'Сходка' };
+          const catConfig = eventCategoryOf(ev);
           const rawTitle = ev.title || 'Сходка';
           const displayTitle = rawTitle.length > 20 ? rawTitle.slice(0, 19).trim() + '…' : rawTitle;
           const displayWhen = formatMarkerDate(ev.dateTime);
