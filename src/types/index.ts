@@ -199,6 +199,35 @@ export const PLACE_PRICES: Record<'free' | 'cheap' | 'mid', string> = {
   mid: '💸💸 Средне'
 };
 
+// Типы мест — те же, что автор выбирает в боте
+export const PLACE_TYPES: Record<string, string> = {
+  Архитектура: '🏛',
+  Галерея: '🖼',
+  Достопримечательность: '📸',
+  Зоопарк: '🦒',
+  Исторический: '🏰',
+  Культурный: '🎨',
+  Мемориал: '🕯',
+  Музей: '🏺',
+  Памятник: '🗿',
+  Парк: '🌳',
+  Площадь: '⛲',
+  Развлечения: '🎡',
+  Скульптура: '🗽',
+  Смотровая: '🔭',
+  Театр: '🎭',
+  Храм: '⛪'
+};
+export const placeTypeEmoji = (category?: string) => (category && PLACE_TYPES[category]) || '📍';
+
+// «3 442 оценки» — с пробелом в тысячах и правильным окончанием
+export const formatRatingCount = (n: number) => {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  const word = mod10 === 1 && mod100 !== 11 ? 'оценка' : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'оценки' : 'оценок';
+  return `${n.toLocaleString('ru-RU')} ${word}`;
+};
+
 export interface PlaceItem {
   id: string;
   name: string;
@@ -217,6 +246,13 @@ export interface PlaceItem {
   evening: boolean;
   oneDay: boolean;
   tipsCount: number;
+  // Из Яндекс Карт
+  rating?: number | null;
+  ratingCount?: number | null;
+  hours?: string;
+  phone?: string;
+  website?: string;
+  amenities?: string[];
 }
 
 export interface PlaceTipItem {
