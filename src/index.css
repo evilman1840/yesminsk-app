@@ -77,20 +77,6 @@ textarea.field {
   scrollbar-width: none;
 }
 
-/* Бегущая строка с подсказками на карте */
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-.marquee-track {
-  display: inline-flex;
-  white-space: nowrap;
-  animation: marquee 38s linear infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .marquee-track { animation: none; }
-}
-
 /* Отступ снизу под «полоску» iPhone */
 .pb-safe {
   padding-bottom: max(8px, env(safe-area-inset-bottom));
@@ -101,3 +87,4 @@ textarea.field {
   -webkit-mask-image: linear-gradient(to right, #000 80%, transparent);
   mask-image: linear-gradient(to right, #000 80%, transparent);
 }
+

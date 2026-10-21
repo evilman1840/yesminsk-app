@@ -30,7 +30,7 @@ const RULES = [
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onAgree }) => (
   <div className="flex flex-col h-full w-full bg-zine-paper overflow-y-auto px-6 pt-10 pb-6">
-    <Logo size="lg" />
+    <Logo size="lg" withTagline />
 
     <h1 className="mt-8 font-serif font-bold text-display text-zine-ink">
       Компания для прогулок и&nbsp;общения в&nbsp;Минске

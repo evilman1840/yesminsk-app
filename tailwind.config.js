@@ -35,6 +35,7 @@ export default {
       },
       fontFamily: {
         serif: ['"Lora"', 'Georgia', 'serif'],
+        hand: ['"Caveat"', 'cursive'], // рукописные подписи: «выходи гулять!»
         sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif']
       },
       // Крупная шкала шрифтов — читается в любом возрасте

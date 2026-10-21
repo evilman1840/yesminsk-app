@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, ChevronRight } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
@@ -46,10 +46,6 @@ export interface MapScreenProps {
   onToggleSavePlace: (place: PlaceItem) => Promise<PlaceItem>;
   initialPlaceId?: string | null;
 }
-
-// Подсказки для новичков: коротко — в бегущей строке, подробно — в шторке «Как это работает»
-const TIPS_LINE =
-  '👋 Впервые здесь? Нажми, чтобы узнать, как всё устроено  ·  Нажми на фото на карте — откроется анкета  ·  «Пообщаться» — передай привет  ·  «Сходки» — найди компанию или собери свою  ·  Заполни анкету во вкладке «Я»';
 
 const HELP_STEPS = [
   { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото — откроется анкета.' },
@@ -140,7 +136,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
   const isPlaces = mapMode === 'places';
   // Во вкладке «Всё» нет строки фильтров — подсказки поднимаем выше
-  const overlayTop = mapMode === 'all' ? 'top-[140px]' : 'top-[196px]';
+  const overlayTop = mapMode === 'all' ? 'top-[150px]' : 'top-[210px]';
   const filteredPlaces =
     mood === 'all' ? places : mood === 'saved' ? places.filter((p) => p.isSaved) : places.filter((p) => p.moods.includes(mood));
   const savedCount = places.filter((p) => p.isSaved).length;
@@ -218,39 +214,32 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
       {/* Шапка поверх карты: логотип и фильтры */}
       <div className="absolute top-0 inset-x-0 z-20 pt-3 space-y-3 pointer-events-none">
-        {/* Одна панель: маленький логотип │ бегущая строка */}
+        {/* Шапка в одну строку: логотип с подписью │ «как это работает?» */}
         <div className="px-4">
-          <div className="pointer-events-auto h-12 flex items-center rounded-full bg-zine-cardElevated shadow-zine overflow-hidden">
-            <div className="shrink-0 pl-4 pr-3 flex items-center">
-              <Logo size="sm" />
-            </div>
-            <span className="shrink-0 w-px h-6 bg-zine-border" />
-
+          <div className="pointer-events-auto h-[52px] pl-4 pr-2 rounded-full bg-zine-cardElevated/95 backdrop-blur shadow-zine flex items-center justify-between gap-2">
+            <Logo size="sm" withTagline />
             {isVisible ? (
-              // Подсказки для новичков; по нажатию — инструкция целиком
               <button
                 onClick={() => {
                   telegramService.haptic('selection');
                   setIsHelpOpen(true);
                 }}
-                aria-label="Как это работает"
-                className="flex-1 min-w-0 h-full overflow-hidden flex items-center cursor-pointer"
+                className="shrink-0 h-10 pl-3 pr-2 rounded-full font-hand font-semibold text-[19px] leading-none text-zine-inkMuted flex items-center gap-1.5 active:bg-zine-card cursor-pointer"
               >
-                <span className="marquee-track text-sm2 font-semibold text-zine-ink">
-                  <span className="px-3">{TIPS_LINE}</span>
-                  <span className="px-3" aria-hidden="true">{TIPS_LINE}</span>
+                как это работает?
+                <span className="w-7 h-7 rounded-full bg-zine-terracotta/10 text-zine-terracotta flex items-center justify-center">
+                  <ChevronRight size={16} strokeWidth={2.5} />
                 </span>
               </button>
             ) : (
               <button
                 onClick={onOpenProfile}
-                className="flex-1 min-w-0 h-full px-3 text-zine-plum text-sm2 font-bold flex items-center gap-2 cursor-pointer"
+                className="shrink-0 h-10 px-3 rounded-full bg-zine-plum/10 text-zine-plum text-cap font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <EyeOff size={18} className="shrink-0" />
-                <span className="truncate">Тебя не видно · включить</span>
+                <EyeOff size={16} className="shrink-0" />
+                <span>Тебя не видно · включить</span>
               </button>
             )}
-
           </div>
         </div>
         {/* Вкладки карты: Всё / Люди / Сходки / Места */}

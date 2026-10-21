@@ -596,7 +596,7 @@ export const App: React.FC = () => {
           <ServerWakingBanner />
 
           {apiError && (
-            <div className="absolute top-20 inset-x-3 z-50 p-3.5 rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-float flex items-center justify-between gap-3">
+            <div className="absolute top-[152px] inset-x-3 z-50 p-3.5 rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-float flex items-center justify-between gap-3">
               <span className="text-sm2 text-zine-ink">{apiError}</span>
               <button
                 onClick={() => {
