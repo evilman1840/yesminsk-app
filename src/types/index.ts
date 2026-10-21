@@ -228,6 +228,18 @@ export const formatRatingCount = (n: number) => {
   return `${n.toLocaleString('ru-RU')} ${word}`;
 };
 
+// Куда с детьми
+export type KidsLevel = 'top' | 'age' | 'nearby';
+export const KIDS_LEVELS: Record<KidsLevel, { label: string; short: string; order: number }> = {
+  top: { label: 'Отлично с детьми — стоит ехать специально', short: 'Отлично с детьми', order: 0 },
+  age: { label: 'С детьми — смотря какой возраст', short: 'С детьми постарше', order: 1 },
+  nearby: { label: 'Можно с детьми, если живёшь рядом', short: 'Можно с детьми', order: 2 }
+};
+
+// Места для фильтра «👶 С детьми»: сначала лучшие
+export const placesForKids = <T extends { kidsLevel?: KidsLevel | null }>(places: T[]) =>
+  places.filter((p) => p.kidsLevel).sort((a, b) => KIDS_LEVELS[a.kidsLevel!].order - KIDS_LEVELS[b.kidsLevel!].order);
+
 export interface PlaceItem {
   id: string;
   name: string;
@@ -254,6 +266,8 @@ export interface PlaceItem {
   website?: string;
   amenities?: string[];
   reviews?: { rating: number | null; text: string; source: string }[]; // отзывы с Яндекс Карт из таблиц автора
+  kidsLevel?: KidsLevel | null;
+  kidsNote?: string;
 }
 
 export interface PlaceTipItem {

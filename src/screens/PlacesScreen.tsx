@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Bookmark, BookmarkCheck, Navigation, CalendarPlus } from 'lucide-react';
-import { PlaceItem, PLACE_MOODS, PLACE_TYPES, placeTypeEmoji } from '../types';
+import { PlaceItem, PLACE_MOODS, PLACE_TYPES, placeTypeEmoji, placesForKids, KIDS_LEVELS } from '../types';
 import { api, serverUrl } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { MoodChips, MoodFilter } from '../components/places/MoodPicker';
@@ -31,7 +31,15 @@ export const PlacesScreen: React.FC<{
   const [justHidden, setJustHidden] = useState<PlaceItem | null>(null);
 
   const savedCount = places.filter((p) => p.isSaved).length;
-  const shown = (mood === 'all' ? places : mood === 'saved' ? places.filter((p) => p.isSaved) : places.filter((p) => p.moods.includes(mood))).filter(
+  const shown = (
+    mood === 'all'
+      ? places
+      : mood === 'saved'
+      ? places.filter((p) => p.isSaved)
+      : mood === 'kids'
+      ? placesForKids(places)
+      : places.filter((p) => p.moods.includes(mood))
+  ).filter(
     (p) => !notInterestedPlaces.has(p.id) && (!placeType || p.category === placeType)
   );
   // Типы, которые есть среди мест, — с количеством
@@ -82,7 +90,7 @@ export const PlacesScreen: React.FC<{
             ))}
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
-          <MoodChips value={mood} onChange={setMood} savedCount={savedCount} />
+          <MoodChips value={mood} onChange={setMood} savedCount={savedCount} kidsCount={places.filter((p) => p.kidsLevel).length} />
         </div>
       </div>
 
@@ -205,7 +213,7 @@ const PlaceReel: React.FC<{
       leftBehavior="remove"
       onSwipe={(dir) => (dir === 'right' ? onOpen() : onNotInterested())}
     >
-      {/* Фото: тап по левой половине — назад, по правой — вперёд (как в сторис) */}
+      {/* Фото: тап по центру — карточка места; если фото несколько, по краям — листать (как в сторис) */}
       {place.photos.length > 0 ? (
         <div className="absolute inset-0">
           {place.photos.map((photo, i) => (
@@ -218,19 +226,25 @@ const PlaceReel: React.FC<{
               loading={i === 0 ? 'eager' : 'lazy'}
             />
           ))}
-          {place.photos.length > 1 && (
-            <div className="absolute inset-0 flex">
-              <button aria-label="Предыдущее фото" className="w-1/2 h-full cursor-pointer" onClick={() => setPhotoIndex((i) => Math.max(0, i - 1))} />
+          <div className="absolute inset-0 flex">
+            {place.photos.length > 1 && (
+              <button aria-label="Предыдущее фото" className="w-[22%] h-full cursor-pointer" onClick={() => setPhotoIndex((i) => Math.max(0, i - 1))} />
+            )}
+            <button aria-label="Открыть карточку места" className="flex-1 h-full cursor-pointer" onClick={onOpen} />
+            {place.photos.length > 1 && (
               <button
                 aria-label="Следующее фото"
-                className="w-1/2 h-full cursor-pointer"
+                className="w-[22%] h-full cursor-pointer"
                 onClick={() => setPhotoIndex((i) => (i + 1) % place.photos.length)}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#5B7B68] to-[#2B2623] flex items-start justify-center pt-[38%] text-[96px]">
+        <div
+          onClick={onOpen}
+          className="absolute inset-0 bg-gradient-to-br from-[#5B7B68] to-[#2B2623] flex items-start justify-center pt-[38%] text-[96px] cursor-pointer"
+        >
           {PLACE_MOODS[place.moods[0]]?.emoji || '📍'}
         </div>
       )}
@@ -271,7 +285,13 @@ const PlaceReel: React.FC<{
       </div>
 
       {/* Текст внизу на затемнении */}
-      <div className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white">
+      <div
+        onClick={(e) => {
+          // Нажатие на название, описание или фото под затемнением — открыть карточку; кнопки работают сами
+          if (!(e.target as HTMLElement).closest('button')) onOpen();
+        }}
+        className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white cursor-pointer"
+      >
         {(place.category || place.rating) && (
           <p className="pr-16 text-cap font-bold uppercase tracking-wider text-white/75 flex items-center gap-2">
             {place.category && (
@@ -283,6 +303,11 @@ const PlaceReel: React.FC<{
           </p>
         )}
         <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight">{place.name}</h2>
+        {place.kidsLevel && KIDS_LEVELS[place.kidsLevel] && (
+          <span className="mt-2 inline-flex h-7 px-2.5 rounded-full bg-white/20 backdrop-blur text-cap font-semibold items-center gap-1">
+            👶 {KIDS_LEVELS[place.kidsLevel].short}
+          </span>
+        )}
         {/* Настроения: компактные, правый край растворяется — видно, что можно листать */}
         <div data-no-swipe className="mt-2 -mx-4 pl-4 pr-10 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
           {place.moods.map((m) => (

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, HelpCircle } from 'lucide-react';
-import { ActivityGoal, UserProfile, AppEvent, JoinOptions, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
+import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
 import { telegramService } from '../services/telegram';
@@ -140,7 +140,14 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   // Во вкладке «Всё» нет строки фильтров — подсказки поднимаем выше
   const overlayTop = mapMode === 'all' ? 'top-[150px]' : 'top-[210px]';
   const filteredPlaces =
-    mood === 'all' ? places : mood === 'saved' ? places.filter((p) => p.isSaved) : places.filter((p) => p.moods.includes(mood));
+    mood === 'all'
+      ? places
+      : mood === 'saved'
+      ? places.filter((p) => p.isSaved)
+      : mood === 'kids'
+      ? placesForKids(places)
+      : places.filter((p) => p.moods.includes(mood));
+  const kidsCount = places.filter((p) => p.kidsLevel).length;
   const savedCount = places.filter((p) => p.isSaved).length;
   const moodCounts = places.reduce<Partial<Record<PlaceMood, number>>>((acc, p) => {
     p.moods.forEach((m) => (acc[m] = (acc[m] || 0) + 1));
@@ -332,6 +339,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
               <MoodChips
                 savedCount={savedCount}
+                kidsCount={kidsCount}
                 value={mood}
                 onChange={(m) => {
                   setMood(m);

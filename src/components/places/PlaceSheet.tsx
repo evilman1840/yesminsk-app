@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, Navigation, CalendarPlus, BookOpen, Loader2, Trash2, Bookmark, BookmarkCheck, Star, Clock, Phone, Globe } from 'lucide-react';
-import { PlaceItem, PlaceTipItem, PLACE_MOODS, PLACE_PRICES, placeTypeEmoji, formatRatingCount } from '../../types';
+import { PlaceItem, PlaceTipItem, PLACE_MOODS, PLACE_PRICES, placeTypeEmoji, formatRatingCount, KIDS_LEVELS } from '../../types';
 import { api, serverUrl } from '../../services/api';
 import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
@@ -107,6 +107,14 @@ export const PlaceSheet: React.FC<{
       </div>
 
       {marks.length > 0 && <p className="mt-3 text-sm2 text-zine-inkMuted">{marks.join(' · ')}</p>}
+
+      {/* Куда с детьми */}
+      {place.kidsLevel && KIDS_LEVELS[place.kidsLevel] && (
+        <div className="mt-4 p-4 rounded-zine bg-zine-sky/10 border border-zine-sky/25">
+          <p className="text-body font-bold text-zine-ink">👶 {KIDS_LEVELS[place.kidsLevel].label}</p>
+          {place.kidsNote && <p className="mt-1 text-body text-zine-ink">{place.kidsNote}</p>}
+        </div>
+      )}
 
       {/* Рейтинг на Яндекс Картах — ведёт к отзывам */}
       {place.rating ? (
