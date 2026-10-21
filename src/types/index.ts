@@ -253,6 +253,7 @@ export interface PlaceItem {
   phone?: string;
   website?: string;
   amenities?: string[];
+  reviews?: { rating: number | null; text: string; source: string }[]; // отзывы с Яндекс Карт из таблиц автора
 }
 
 export interface PlaceTipItem {

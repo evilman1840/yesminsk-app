@@ -219,6 +219,30 @@ export const PlaceSheet: React.FC<{
         </button>
       )}
 
+      {/* Что пишут на Яндекс Картах — отзывы из таблиц автора */}
+      {place.reviews && place.reviews.length > 0 && (
+        <div className="mt-6">
+          <h4 className="text-lead font-bold text-zine-ink">
+            Что пишут <span className="text-zine-inkMuted font-medium">· {place.reviews.length}</span>
+          </h4>
+          <div className="mt-3 -mx-5 px-5 scroll-px-5 flex gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory">
+            {place.reviews.map((r, i) => (
+              <figure key={i} className="w-[82%] shrink-0 snap-start p-4 rounded-zine bg-zine-card flex flex-col">
+                {r.rating ? (
+                  <span className="flex gap-0.5 text-zine-mustard" aria-label={`Оценка ${r.rating} из 5`}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star key={n} size={15} className={n <= r.rating! ? 'fill-current' : 'opacity-25'} />
+                    ))}
+                  </span>
+                ) : null}
+                <blockquote className="mt-2 text-body text-zine-ink">«{r.text}»</blockquote>
+                <figcaption className="mt-auto pt-3 text-cap text-zine-inkMuted">Отзыв с {r.source === 'Яндекс Карты' ? 'Яндекс Карт' : r.source}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Советы людей */}
       <div className="mt-6">
         <h4 className="text-lead font-bold text-zine-ink">Советы людей {tips.length > 0 && <span className="text-zine-inkMuted font-medium">· {tips.length}</span>}</h4>

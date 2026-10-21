@@ -300,7 +300,7 @@ const PlaceReel: React.FC<{
           onClick={onOpen}
           className="mt-3 h-12 px-5 rounded-full bg-white text-[#2B2623] text-body font-bold cursor-pointer active:scale-[0.98] transition-transform"
         >
-          Подробнее {place.tipsCount > 0 ? `· 💬 ${place.tipsCount}` : ''}
+          Подробнее {place.tipsCount + (place.reviews?.length || 0) > 0 ? `· 💬 ${place.tipsCount + (place.reviews?.length || 0)}` : ''}
         </button>
       </div>
 
