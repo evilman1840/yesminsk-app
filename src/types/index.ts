@@ -230,10 +230,10 @@ export const formatRatingCount = (n: number) => {
 
 // Куда с детьми
 export type KidsLevel = 'top' | 'age' | 'nearby';
-export const KIDS_LEVELS: Record<KidsLevel, { label: string; short: string; order: number }> = {
-  top: { label: 'Отлично с детьми — стоит ехать специально', short: 'Отлично с детьми', order: 0 },
-  age: { label: 'С детьми — смотря какой возраст', short: 'С детьми постарше', order: 1 },
-  nearby: { label: 'Можно с детьми, если живёшь рядом', short: 'Можно с детьми', order: 2 }
+export const KIDS_LEVELS: Record<KidsLevel, { label: string; short: string; tiny: string; order: number }> = {
+  top: { label: 'Отлично с детьми — стоит ехать специально', short: 'Отлично с детьми', tiny: 'топ для детей', order: 0 },
+  age: { label: 'С детьми — смотря какой возраст', short: 'С детьми постарше', tiny: 'детям постарше', order: 1 },
+  nearby: { label: 'Можно с детьми, если живёшь рядом', short: 'Можно с детьми', tiny: 'можно с детьми', order: 2 }
 };
 
 // Места для фильтра «👶 С детьми»: сначала лучшие

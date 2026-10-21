@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Navigation, CalendarPlus, BookOpen, Loader2, Trash2, Bookmark, BookmarkCheck, Star, Clock, Phone, Globe } from 'lucide-react';
+import { MapPin, Navigation, CalendarPlus, BookOpen, Loader2, Trash2, Bookmark, BookmarkCheck, Star, Clock, Phone, Globe, ChevronRight, Sparkles } from 'lucide-react';
 import { PlaceItem, PlaceTipItem, PLACE_MOODS, PLACE_PRICES, placeTypeEmoji, formatRatingCount, KIDS_LEVELS } from '../../types';
 import { api, serverUrl } from '../../services/api';
 import { telegramService } from '../../services/telegram';
@@ -86,60 +86,74 @@ export const PlaceSheet: React.FC<{
         </div>
       )}
 
-      {place.category && (
-        <p className="mt-4 text-cap font-bold uppercase tracking-wider text-zine-inkMuted">
-          {placeTypeEmoji(place.category)} {place.category}
-        </p>
+      {/* Тип · рейтинг (ведёт к отзывам на Яндекс Картах) */}
+      {(place.category || place.rating) && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm2">
+          {place.category && (
+            <span className="font-semibold text-zine-inkMuted">
+              {placeTypeEmoji(place.category)} {place.category}
+            </span>
+          )}
+          {place.category && place.rating ? <span className="text-zine-border">·</span> : null}
+          {place.rating ? (
+            <button
+              onClick={() => place.mapUrl && telegramService.openLink(place.mapUrl)}
+              className="inline-flex items-center gap-1 font-semibold text-zine-ink cursor-pointer"
+            >
+              <Star size={16} className="text-zine-mustard fill-current" />
+              {place.rating.toFixed(1).replace('.', ',')}
+              {place.ratingCount ? <span className="font-normal text-zine-inkMuted">· {formatRatingCount(place.ratingCount)} на Яндекс Картах</span> : null}
+              {place.mapUrl && <ChevronRight size={16} className="text-zine-inkMuted" />}
+            </button>
+          ) : null}
+        </div>
       )}
-      {place.description && <p className={`${place.category ? 'mt-1' : 'mt-4'} text-lead text-zine-ink`}>{place.description}</p>}
+      {place.description && <p className="mt-2 text-lead text-zine-ink">{place.description}</p>}
 
-      {/* Настроения — ведут в рубрики блога */}
-      <div className="mt-3 -mx-5 pl-5 pr-10 flex gap-2 overflow-x-auto no-scrollbar fade-right">
-        {place.moods.map((m) => (
-          <button
-            key={m}
-            onClick={() => telegramService.openLink(PLACE_MOODS[m].blog)}
-            className="h-10 px-3.5 shrink-0 whitespace-nowrap rounded-full bg-zine-sage/15 text-zine-ink text-sm2 font-semibold cursor-pointer"
-          >
-            {PLACE_MOODS[m].emoji} {PLACE_MOODS[m].label}
-          </button>
-        ))}
+      {/* Главные действия — одним рядом */}
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <ActionButton
+          onClick={async () => {
+            if (isSaving) return;
+            telegramService.haptic(place.isSaved ? 'light' : 'success');
+            setIsSaving(true);
+            try {
+              await onToggleSave(place);
+            } finally {
+              setIsSaving(false);
+            }
+          }}
+          active={place.isSaved}
+          icon={isSaving ? <Loader2 size={22} className="animate-spin" /> : place.isSaved ? <BookmarkCheck size={22} /> : <Bookmark size={22} />}
+          label={place.isSaved ? 'Сохранено' : 'Сохранить'}
+        />
+        <ActionButton
+          onClick={() => telegramService.openLink(`https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`)}
+          icon={<Navigation size={22} />}
+          label="Маршрут"
+        />
+        <ActionButton onClick={() => onCreateEvent(place)} primary icon={<CalendarPlus size={22} />} label="Сходка сюда" />
       </div>
-
-      {marks.length > 0 && <p className="mt-3 text-sm2 text-zine-inkMuted">{marks.join(' · ')}</p>}
 
       {/* Куда с детьми */}
       {place.kidsLevel && KIDS_LEVELS[place.kidsLevel] && (
-        <div className="mt-4 p-4 rounded-zine bg-zine-sky/10 border border-zine-sky/25">
-          <p className="text-body font-bold text-zine-ink">👶 {KIDS_LEVELS[place.kidsLevel].label}</p>
-          {place.kidsNote && <p className="mt-1 text-body text-zine-ink">{place.kidsNote}</p>}
+        <div className="mt-5 p-4 rounded-zine bg-zine-sky/10">
+          <p className="text-body font-bold text-zine-ink">👶 {KIDS_LEVELS[place.kidsLevel].short}</p>
+          {place.kidsNote && <p className="mt-1 text-sm2 text-zine-ink">{place.kidsNote}</p>}
         </div>
       )}
 
-      {/* Рейтинг на Яндекс Картах — ведёт к отзывам */}
-      {place.rating ? (
-        <button
-          onClick={() => place.mapUrl && telegramService.openLink(place.mapUrl)}
-          className="mt-4 w-full p-4 rounded-zine bg-zine-mustard/15 border border-zine-mustard/30 flex items-center gap-4 text-left cursor-pointer active:scale-[0.99] transition-transform"
-        >
-          <span className="shrink-0 font-serif font-bold text-[34px] leading-none text-zine-ink">{place.rating.toFixed(1).replace('.', ',')}</span>
-          <span className="min-w-0">
-            <span className="flex gap-0.5 text-zine-mustard">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Star key={i} size={16} className={i <= Math.round(place.rating!) ? 'fill-current' : 'opacity-30'} />
-              ))}
-            </span>
-            <span className="block mt-1 text-sm2 text-zine-inkMuted">
-              {place.ratingCount ? `${formatRatingCount(place.ratingCount)} на Яндекс Картах` : 'на Яндекс Картах'}
-            </span>
-          </span>
-          {place.mapUrl && <span className="ml-auto shrink-0 text-sm2 font-bold text-zine-terracotta">Отзывы →</span>}
-        </button>
-      ) : null}
+      {/* Совет автора */}
+      {place.mishaTip && (
+        <div className="mt-3 p-4 rounded-zine bg-zine-mustard/15">
+          <p className="text-sm2 font-bold text-zine-ink">💡 Совет от Миши</p>
+          <p className="mt-1 text-sm2 text-zine-ink">{place.mishaTip}</p>
+        </div>
+      )}
 
-      {/* Адрес, часы, телефон, сайт */}
-      {(place.hours || place.phone || place.website || (place.address && place.address !== place.name)) && (
-        <div className="mt-3 rounded-zine border border-zine-border divide-y divide-zine-border">
+      {/* Адрес, часы, телефон, сайт, цена — одним списком */}
+      {(place.hours || place.phone || place.website || marks.length > 0 || (place.address && place.address !== place.name)) && (
+        <div className="mt-5 rounded-zine border border-zine-border divide-y divide-zine-border">
           {place.address && place.address !== place.name && (
             <InfoRow icon={<MapPin size={19} />} text={place.address} onClick={() => telegramService.openLink(`https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`)} />
           )}
@@ -148,83 +162,43 @@ export const PlaceSheet: React.FC<{
           {place.website && (
             <InfoRow icon={<Globe size={19} />} text={place.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')} onClick={() => telegramService.openLink(place.website!)} />
           )}
+          {marks.length > 0 && <InfoRow icon={<Sparkles size={19} />} text={marks.join(' · ')} />}
         </div>
       )}
 
-      {/* Удобства */}
-      {place.amenities && place.amenities.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {place.amenities.map((a) => (
-            <span key={a} className="px-3 py-1.5 rounded-full bg-zine-card text-sm2 text-zine-ink">
-              {amenityEmoji(a)} {a}
-            </span>
+      {/* Настроения и удобства — лёгкой строкой */}
+      {place.moods.length > 0 && (
+        <div className="mt-4 -mx-5 pl-5 pr-10 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
+          {place.moods.map((m) => (
+            <button
+              key={m}
+              onClick={() => telegramService.openLink(PLACE_MOODS[m].blog)}
+              className="h-9 px-3 shrink-0 whitespace-nowrap rounded-full bg-zine-sage/15 text-zine-ink text-sm2 font-semibold cursor-pointer"
+            >
+              {PLACE_MOODS[m].emoji} {PLACE_MOODS[m].label}
+            </button>
           ))}
         </div>
       )}
+      {place.amenities && place.amenities.length > 0 && (
+        <p className="mt-3 text-sm2 text-zine-inkMuted">{place.amenities.map((a) => `${amenityEmoji(a)} ${a}`).join('  ·  ')}</p>
+      )}
 
-      {/* 🔖 Сохранить в свой список «хочу сходить» */}
-      <button
-        onClick={async () => {
-          if (isSaving) return;
-          telegramService.haptic(place.isSaved ? 'light' : 'success');
-          setIsSaving(true);
-          try {
-            await onToggleSave(place);
-          } finally {
-            setIsSaving(false);
-          }
-        }}
-        className={`mt-4 w-full h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 border-2 transition-colors cursor-pointer ${
-          place.isSaved ? 'bg-zine-sage/15 border-zine-sage text-zine-sage' : 'bg-zine-cardElevated border-zine-border text-zine-ink'
-        }`}
-      >
-        {isSaving ? <Loader2 size={20} className="animate-spin" /> : place.isSaved ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
-        <span>{place.isSaved ? 'Сохранено — в моём списке' : 'Сохранить — хочу сходить'}</span>
-      </button>
-
-
-      {/* Совет автора */}
-      {place.mishaTip && (
-        <div className="mt-4 p-4 rounded-zine bg-zine-mustard/15 border border-zine-mustard/30">
-          <p className="text-sm2 font-bold text-zine-ink">💡 Совет от Миши</p>
-          <p className="mt-1 text-body text-zine-ink">{place.mishaTip}</p>
+      {(place.blogUrl || (!place.rating && place.mapUrl)) && (
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+          {place.blogUrl && (
+            <button onClick={() => telegramService.openLink(place.blogUrl)} className="inline-flex items-center gap-2 text-body font-semibold text-zine-terracotta cursor-pointer">
+              <BookOpen size={19} />
+              <span>Читать в блоге</span>
+            </button>
+          )}
+          {!place.rating && place.mapUrl && (
+            <button onClick={() => telegramService.openLink(place.mapUrl)} className="inline-flex items-center gap-2 text-body font-semibold text-zine-terracotta cursor-pointer">
+              <Star size={19} />
+              <span>Отзывы и фото на Яндекс Картах</span>
+            </button>
+          )}
         </div>
-      )}
-
-      {/* Кнопки */}
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button
-          onClick={() => telegramService.openLink(`https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`)}
-          className="h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <Navigation size={20} />
-          <span>Как добраться</span>
-        </button>
-        <button
-          onClick={() => onCreateEvent(place)}
-          className="h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <CalendarPlus size={20} />
-          <span>Сходка сюда</span>
-        </button>
-      </div>
-      {place.mapUrl && (
-        <button
-          onClick={() => telegramService.openLink(place.mapUrl)}
-          className="mt-2 w-full h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <Star size={20} />
-          <span>Отзывы и фото на Яндекс Картах</span>
-        </button>
-      )}
-      {place.blogUrl && (
-        <button
-          onClick={() => telegramService.openLink(place.blogUrl)}
-          className="mt-2 w-full h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <BookOpen size={20} />
-          <span>Читать в блоге</span>
-        </button>
       )}
 
       {/* Что пишут на Яндекс Картах — отзывы из таблиц автора */}
@@ -280,7 +254,7 @@ export const PlaceSheet: React.FC<{
           {isTipsLoading ? (
             <p className="text-sm2 text-zine-inkMuted">Загружаем…</p>
           ) : tips.length === 0 ? (
-            <p className="text-sm2 text-zine-inkMuted">Пока никто не поделился советом. Будь первым 🙂</p>
+            <p className="text-sm2 text-zine-inkMuted">Пока никто не поделился советом — твой будет первым 🙂</p>
           ) : (
             tips.map((tip) => (
               <div key={tip.id} className="flex gap-3">
@@ -338,3 +312,22 @@ const amenityEmoji = (a: string) => {
   if (t.includes('wi-fi') || t.includes('wifi')) return '📶';
   return '✓';
 };
+
+// Кнопка из ряда главных действий: значок над подписью
+const ActionButton: React.FC<{ onClick: () => void; icon: React.ReactNode; label: string; active?: boolean; primary?: boolean }> = ({
+  onClick,
+  icon,
+  label,
+  active,
+  primary
+}) => (
+  <button
+    onClick={onClick}
+    className={`h-[68px] rounded-zine-sm flex flex-col items-center justify-center gap-1 text-sm2 font-bold active:scale-[0.97] transition-transform cursor-pointer ${
+      primary ? 'bg-zine-terracotta text-white' : active ? 'bg-zine-sage/15 text-zine-sage' : 'bg-zine-card text-zine-ink'
+    }`}
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);

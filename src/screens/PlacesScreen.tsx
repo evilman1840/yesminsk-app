@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { Bookmark, BookmarkCheck, Navigation, CalendarPlus } from 'lucide-react';
+import { Bookmark, BookmarkCheck, CalendarPlus } from 'lucide-react';
 import { PlaceItem, PLACE_MOODS, PLACE_TYPES, placeTypeEmoji, placesForKids, KIDS_LEVELS } from '../types';
 import { api, serverUrl } from '../services/api';
 import { telegramService } from '../services/telegram';
@@ -8,7 +8,7 @@ import { PlaceSheet } from '../components/places/PlaceSheet';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { UndoToast } from '../components/ui/UndoToast';
 import { BottomSheet } from '../components/ui/BottomSheet';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, X } from 'lucide-react';
 
 // Места, смахнутые влево («Неинтересно»). На сервере тоже сохраняются —
 // при следующем запуске сервер их уже не пришлёт
@@ -114,7 +114,6 @@ export const PlacesScreen: React.FC<{
               onOpen={() => setOpenedPlace(place)}
               onToggleSave={onToggleSave}
               onCreateEvent={onCreateEvent}
-              onMood={setMood}
               onNotInterested={() => {
                 notInterestedPlaces.add(place.id);
                 setHiddenVersion((v) => v + 1);
@@ -187,12 +186,10 @@ const PlaceReel: React.FC<{
   onOpen: () => void;
   onToggleSave: (place: PlaceItem) => Promise<PlaceItem>;
   onCreateEvent: (place: PlaceItem) => void;
-  onMood: (m: MoodFilter) => void;
   onNotInterested: () => void;
-}> = ({ place, isFirst, onOpen, onToggleSave, onCreateEvent, onMood, onNotInterested }) => {
+}> = ({ place, isFirst, onOpen, onToggleSave, onCreateEvent, onNotInterested }) => {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
-  const [lat, lng] = place.coordinates;
 
   const save = async () => {
     if (isSaving) return;
@@ -258,23 +255,13 @@ const PlaceReel: React.FC<{
         </div>
       )}
 
-      {/* Кнопки справа, как в Reels */}
-      <div className="absolute right-3 bottom-48 z-20 flex flex-col items-center gap-5 text-white">
+      {/* Кнопки справа, как в Reels: только главное, маршрут — в подробностях */}
+      <div className="absolute right-3 bottom-40 z-20 flex flex-col items-center gap-5 text-white">
         <button onClick={save} aria-label={place.isSaved ? 'Убрать из сохранённых' : 'Сохранить'} className="flex flex-col items-center gap-1 cursor-pointer">
           <span className={`w-12 h-12 rounded-full flex items-center justify-center backdrop-blur ${place.isSaved ? 'bg-zine-sage' : 'bg-black/35'}`}>
             {place.isSaved ? <BookmarkCheck size={24} /> : <Bookmark size={24} />}
           </span>
           <span className="text-cap font-semibold drop-shadow">{place.isSaved ? 'Сохранено' : 'Сохранить'}</span>
-        </button>
-        <button
-          onClick={() => telegramService.openLink(`https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`)}
-          aria-label="Как добраться"
-          className="flex flex-col items-center gap-1 cursor-pointer"
-        >
-          <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
-            <Navigation size={22} />
-          </span>
-          <span className="text-cap font-semibold drop-shadow">Маршрут</span>
         </button>
         <button onClick={() => onCreateEvent(place)} aria-label="Собрать сходку сюда" className="flex flex-col items-center gap-1 cursor-pointer">
           <span className="w-12 h-12 rounded-full bg-zine-terracotta flex items-center justify-center">
@@ -292,41 +279,32 @@ const PlaceReel: React.FC<{
         }}
         className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white cursor-pointer"
       >
-        {(place.category || place.rating) && (
-          <p className="pr-16 text-cap font-bold uppercase tracking-wider text-white/75 flex items-center gap-2">
-            {place.category && (
-              <span>
-                {placeTypeEmoji(place.category)} {place.category}
-              </span>
-            )}
-            {place.rating ? <span className="normal-case tracking-normal text-[#FFD36B]">★ {place.rating.toFixed(1).replace('.', ',')}</span> : null}
+        {/* Одна строка-подпись: тип · рейтинг · с детьми */}
+        {(place.category || place.rating || place.kidsLevel) && (
+          <p className="pr-16 text-sm2 font-semibold text-white/85 flex items-center gap-x-2 whitespace-nowrap overflow-hidden">
+            {[
+              place.category ? `${placeTypeEmoji(place.category)} ${place.category}` : '',
+              place.rating ? `★ ${place.rating.toFixed(1).replace('.', ',')}` : '',
+              place.kidsLevel && KIDS_LEVELS[place.kidsLevel] ? `👶 ${KIDS_LEVELS[place.kidsLevel].tiny}` : ''
+            ]
+              .filter(Boolean)
+              .map((part, i) => (
+                <span key={part} className={part.startsWith('★') ? 'text-[#FFD36B]' : ''}>
+                  {i > 0 && <span className="mr-2 text-white/40">·</span>}
+                  {part}
+                </span>
+              ))}
           </p>
         )}
         <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight">{place.name}</h2>
-        {place.kidsLevel && KIDS_LEVELS[place.kidsLevel] && (
-          <span className="mt-2 inline-flex h-7 px-2.5 rounded-full bg-white/20 backdrop-blur text-cap font-semibold items-center gap-1">
-            👶 {KIDS_LEVELS[place.kidsLevel].short}
-          </span>
-        )}
-        {/* Настроения: компактные, правый край растворяется — видно, что можно листать */}
-        <div data-no-swipe className="mt-2 -mx-4 pl-4 pr-10 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
-          {place.moods.map((m) => (
-            <button
-              key={m}
-              onClick={() => onMood(m)}
-              className="h-7 px-2.5 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-cap font-semibold text-white cursor-pointer"
-            >
-              {PLACE_MOODS[m].emoji} {PLACE_MOODS[m].label}
-            </button>
-          ))}
-        </div>
-        {place.description && <p className="mt-2 pr-16 text-body text-white/90 line-clamp-2">{place.description}</p>}
-        <button
-          onClick={onOpen}
-          className="mt-3 h-12 px-5 rounded-full bg-white text-[#2B2623] text-body font-bold cursor-pointer active:scale-[0.98] transition-transform"
-        >
-          Подробнее {place.tipsCount + (place.reviews?.length || 0) > 0 ? `· 💬 ${place.tipsCount + (place.reviews?.length || 0)}` : ''}
-        </button>
+        {place.description && <p className="mt-1.5 pr-16 text-body text-white/85 line-clamp-2">{place.description}</p>}
+        <span className="mt-3 inline-flex items-center gap-1 text-sm2 font-bold text-white">
+          Подробнее
+          {place.tipsCount + (place.reviews?.length || 0) > 0 && (
+            <span className="font-semibold text-white/70">· 💬 {place.tipsCount + (place.reviews?.length || 0)}</span>
+          )}
+          <ChevronRight size={18} />
+        </span>
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
