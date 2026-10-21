@@ -140,6 +140,7 @@ class ApiService {
     bio?: string;
     goal?: ActivityGoal;
     goals?: ActivityGoal[];
+    customGoal?: string;
     avatarUrl?: string;
     areaName?: string;
     isTourist?: boolean;

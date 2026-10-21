@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Bookmark, BookmarkCheck, Navigation, CalendarPlus, ChevronUp } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Navigation, CalendarPlus } from 'lucide-react';
 import { PlaceItem, PLACE_MOODS } from '../types';
 import { serverUrl } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { MoodChips, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
+import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 
 /**
- * «Места» как Reels: полноэкранные карточки, листаются вверх-вниз, фото — вбок
+ * «Места» как Reels: полноэкранные карточки, листаются вверх-вниз; свайп вправо — сохранить, влево — дальше; фото — тапом
  */
 export const PlacesScreen: React.FC<{
   places: PlaceItem[];
@@ -97,16 +98,30 @@ const PlaceReel: React.FC<{
   };
 
   return (
-    <section className="relative h-full w-full snap-start snap-always overflow-hidden">
-      {/* Фото листаются вбок */}
+    <SwipeReel rightLabel={place.isSaved ? undefined : '🔖 Сохранить'} onSwipe={(dir) => dir === 'right' && save()}>
+      {/* Фото: тап по левой половине — назад, по правой — вперёд (как в сторис) */}
       {place.photos.length > 0 ? (
-        <div
-          className="absolute inset-0 flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
-          onScroll={(e) => setPhotoIndex(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
-        >
-          {place.photos.map((photo) => (
-            <img key={photo} src={serverUrl(photo)} alt={place.name} className="h-full w-full shrink-0 snap-center object-cover" loading="lazy" />
+        <div className="absolute inset-0">
+          {place.photos.map((photo, i) => (
+            <img
+              key={photo}
+              src={serverUrl(photo)}
+              alt={place.name}
+              draggable={false}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${i === photoIndex ? 'opacity-100' : 'opacity-0'}`}
+              loading={i === 0 ? 'eager' : 'lazy'}
+            />
           ))}
+          {place.photos.length > 1 && (
+            <div className="absolute inset-0 flex">
+              <button aria-label="Предыдущее фото" className="w-1/2 h-full cursor-pointer" onClick={() => setPhotoIndex((i) => Math.max(0, i - 1))} />
+              <button
+                aria-label="Следующее фото"
+                className="w-1/2 h-full cursor-pointer"
+                onClick={() => setPhotoIndex((i) => (i + 1) % place.photos.length)}
+              />
+            </div>
+          )}
         </div>
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-[#5B7B68] to-[#2B2623] flex items-start justify-center pt-[38%] text-[96px]">
@@ -153,12 +168,13 @@ const PlaceReel: React.FC<{
       <div className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white">
         {place.category && <p className="text-cap font-bold uppercase tracking-wider text-white/75">{place.category}</p>}
         <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight">{place.name}</h2>
-        <div className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar">
+        {/* Настроения: компактные, правый край растворяется — видно, что можно листать */}
+        <div data-no-swipe className="mt-2 -mx-4 pl-4 pr-10 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
           {place.moods.map((m) => (
             <button
               key={m}
               onClick={() => onMood(m)}
-              className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold text-white cursor-pointer"
+              className="h-7 px-2.5 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-cap font-semibold text-white cursor-pointer"
             >
               {PLACE_MOODS[m].emoji} {PLACE_MOODS[m].label}
             </button>
@@ -173,14 +189,9 @@ const PlaceReel: React.FC<{
         </button>
       </div>
 
-      {/* Подсказка листать — только на первой карточке */}
-      {isFirst && (
-        <div className="absolute top-36 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center text-white/80 animate-bounce pointer-events-none">
-          <ChevronUp size={22} />
-          <span className="text-cap font-semibold">листай</span>
-        </div>
-      )}
-    </section>
+      {/* Подсказка про свайпы — только на первой карточке */}
+      {isFirst && <SwipeHint right={place.isSaved ? undefined : '🔖'} />}
+    </SwipeReel>
   );
 };
 

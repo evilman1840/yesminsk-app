@@ -13,7 +13,7 @@ export const GoalChips: React.FC<{
 }> = ({ value, onChange, floating = false, wrapperClassName = 'flex gap-2 overflow-x-auto no-scrollbar px-4' }) => {
   const items: { id: GoalFilter; label: string; emoji?: string }[] = [
     { id: 'all', label: 'Все' },
-    ...(Object.keys(GOALS_CONFIG) as ActivityGoal[]).map((id) => ({
+    ...(Object.keys(GOALS_CONFIG) as ActivityGoal[]).filter((id) => id !== 'other').map((id) => ({
       id,
       label: GOALS_CONFIG[id].label,
       emoji: GOALS_CONFIG[id].emoji

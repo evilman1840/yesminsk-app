@@ -1,4 +1,4 @@
-export type ActivityGoal = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors';
+export type ActivityGoal = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'other';
 export type Gender = 'male' | 'female' | 'not_specified';
 export type PreferredGender = 'all' | 'male' | 'female';
 export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'other';
@@ -33,8 +33,21 @@ export const GOALS_CONFIG: Record<ActivityGoal, GoalConfig> = {
   cafe_bar: { id: 'cafe_bar', label: 'Кафе или бар', emoji: '☕️', ...badge('mustard') },
   walk: { id: 'walk', label: 'Погулять по городу', emoji: '🚶', ...badge('terracotta') },
   expo_cinema: { id: 'expo_cinema', label: 'Выставка или кино', emoji: '🎨', ...badge('plum') },
-  trip_outdoors: { id: 'trip_outdoors', label: 'За город, природа', emoji: '🌲', ...badge('sage') }
+  trip_outdoors: { id: 'trip_outdoors', label: 'За город, природа', emoji: '🌲', ...badge('sage') },
+  boardgames: { id: 'boardgames', label: 'Настолки', emoji: '🎲', ...badge('sky') },
+  sport: { id: 'sport', label: 'Спорт, вело', emoji: '🚴', ...badge('sky') },
+  other: { id: 'other', label: 'Своя идея', emoji: '✨', ...badge('blush') }
 };
+
+// Цель для показа: у «Своей идеи» подпись берём ту, что вписал человек
+export const goalOf = (goal: ActivityGoal, customGoal?: string): GoalConfig => {
+  const cfg = GOALS_CONFIG[goal] || GOALS_CONFIG.walk;
+  return goal === 'other' && customGoal?.trim() ? { ...cfg, label: customGoal.trim() } : cfg;
+};
+
+// Все цели человека (старые анкеты хранят только одну)
+export const goalsOf = (u: { goal: ActivityGoal; goals?: ActivityGoal[]; customGoal?: string }) =>
+  (u.goals?.length ? u.goals : [u.goal]).filter((g) => GOALS_CONFIG[g]).map((g) => goalOf(g, u.customGoal));
 
 export const EVENT_CATEGORIES_CONFIG: Record<EventCategory, { label: string; emoji: string; badgeBg: string; badgeText: string }> = {
   walk: { label: 'Прогулка', emoji: '🚶', ...badge('terracotta') },
@@ -62,6 +75,7 @@ export interface UserProfile {
   bio: string;
   goal: ActivityGoal;
   goals?: ActivityGoal[];
+  customGoal?: string; // своя идея, когда среди целей есть 'other'
   age: number;
   gender: Gender;
   preferredGender: PreferredGender;
@@ -86,7 +100,7 @@ export interface UserProfile {
 export type GoalFilter = ActivityGoal | 'all' | 'guides';
 
 export const matchesGoalFilter = (u: UserProfile, filter: GoalFilter) =>
-  filter === 'all' ? true : filter === 'guides' ? Boolean(u.isGuide) : u.goal === filter;
+  filter === 'all' ? true : filter === 'guides' ? Boolean(u.isGuide) : (u.goals?.length ? u.goals : [u.goal]).includes(filter);
 
 // «⚡ Свободен сейчас» ещё действует?
 export const isAvailableNow = (u?: { availableUntil?: string | null } | null) =>

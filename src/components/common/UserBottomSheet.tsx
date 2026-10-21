@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
-import { UserProfile, GOALS_CONFIG, isAvailableNow, formatTime } from '../../types';
+import { UserProfile, goalsOf, isAvailableNow, formatTime } from '../../types';
 import { ReactionButtons, ChatButton, ReactionType } from './Reactions';
 import { BottomSheet } from '../ui/BottomSheet';
 import { ReportSheet, SafetyTipsSheet } from './ReportSheet';
@@ -24,7 +24,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTipsOpen, setIsTipsOpen] = useState(false);
 
-  const goal = GOALS_CONFIG[user.goal] || GOALS_CONFIG.walk;
+  const goals = goalsOf(user);
   const distance = formatDistance(user.distanceMeters);
 
   return (
@@ -49,10 +49,14 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
         </span>
       </div>
 
-      <span className={`inline-flex items-center gap-2 mt-3 px-3.5 py-1.5 rounded-full text-sm2 font-semibold border ${goal.badgeBg} ${goal.badgeBorder} ${goal.badgeText}`}>
-        <span>{goal.emoji}</span>
-        <span>{goal.label}</span>
-      </span>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {goals.map((goal) => (
+          <span key={goal.id} className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm2 font-semibold border ${goal.badgeBg} ${goal.badgeBorder} ${goal.badgeText}`}>
+            <span>{goal.emoji}</span>
+            <span>{goal.label}</span>
+          </span>
+        ))}
+      </div>
 
       {user.bio && <p className="mt-4 text-body text-zine-ink whitespace-pre-line">{user.bio}</p>}
 

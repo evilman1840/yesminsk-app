@@ -95,3 +95,9 @@ textarea.field {
 .pb-safe {
   padding-bottom: max(8px, env(safe-area-inset-bottom));
 }
+
+/* Ряд чипсов, который листается вбок: правый край растворяется — видно, что дальше есть ещё */
+.fade-right {
+  -webkit-mask-image: linear-gradient(to right, #000 80%, transparent);
+  mask-image: linear-gradient(to right, #000 80%, transparent);
+}

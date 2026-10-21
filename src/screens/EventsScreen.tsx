@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, Search, Share2, ChevronUp, Flag } from 'lucide-react';
+import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, Flag } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { formatEventDate } from './MapScreen';
 import { ReportSheet } from '../components/common/ReportSheet';
+import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
+import { MapPicker } from '../components/common/MapPicker';
 
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
   { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'ул. ленина 5', 'ленина'], coords: [53.8998, 27.5585] },
@@ -178,6 +180,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   // Что нашли по адресу: подпись для проверки или «не нашли»
   const [placeLabel, setPlaceLabel] = useState<string | null>(null);
   const [placeNotFound, setPlaceNotFound] = useState(false);
+  // Точку поставили на карте — правка текста адреса её не сбрасывает («у входа» и т.п.)
+  const [isPickedOnMap, setIsPickedOnMap] = useState(false);
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [dateTime, setDateTime] = useState('');
@@ -201,6 +206,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setCustomCoords(place?.coordinates || null);
     setPlaceLabel(place?.name || null);
     setPlaceNotFound(false);
+    setIsPickedOnMap(Boolean(place));
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
     tomorrow.setMinutes(0, 0, 0);
     setDateTime(tomorrow.toISOString().slice(0, 16));
@@ -229,6 +235,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setCustomCoords(ev.coordinates || null);
     setPlaceLabel(ev.coordinates ? ev.locationName : null);
     setPlaceNotFound(false);
+    setIsPickedOnMap(Boolean(ev.coordinates));
     try {
       const d = new Date(ev.dateTime);
       setDateTime(d.toISOString().slice(0, 16));
@@ -270,6 +277,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         setCustomCoords([lat, lng]);
         setPlaceLabel('Твоё текущее место (по GPS)');
         setPlaceNotFound(false);
+        setIsPickedOnMap(true);
         telegramService.haptic('success');
       },
       (err) => {
@@ -543,13 +551,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 value={locationName}
                 onChange={(e) => {
                   setLocationName(e.target.value);
+                  if (isPickedOnMap) return; // точка уже стоит — текст лишь уточняет её
                   // Сбрасываем старую точку, чтобы адрес определился заново
                   setCustomCoords(null);
                   setPlaceLabel(null);
                   setPlaceNotFound(false);
                 }}
                 onBlur={() => {
-                  if (locationName.trim()) {
+                  if (locationName.trim() && !customCoords) {
                     handleGeocodeAddress(locationName.trim());
                   }
                 }}
@@ -561,12 +570,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               <div className="grid grid-cols-2 gap-2 mt-2">
                 <button
                   type="button"
-                  onClick={() => handleGeocodeAddress(locationName)}
-                  disabled={isGeocoding || !locationName.trim()}
-                  className="h-11 rounded-zine-sm bg-zine-card text-zine-ink text-sm2 font-semibold flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setIsMapPickerOpen(true);
+                  }}
+                  className="h-11 rounded-zine-sm bg-zine-card text-zine-ink text-sm2 font-semibold flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  {isGeocoding ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
-                  <span>Найти на карте</span>
+                  {isGeocoding ? <Loader2 size={18} className="animate-spin" /> : <MapPinned size={18} />}
+                  <span>Указать на карте</span>
                 </button>
                 <button
                   type="button"
@@ -583,13 +594,13 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 <p className="mt-2 p-3 rounded-zine-sm bg-zine-sage/15 flex items-start gap-2 text-sm2 text-zine-ink">
                   <Check size={18} strokeWidth={3} className="text-zine-sage shrink-0 mt-0.5" />
                   <span>
-                    Нашли: <b>{placeLabel}</b>
+                    {isPickedOnMap ? 'Точка на карте' : 'Нашли'}: <b>{placeLabel}</b>
                   </span>
                 </p>
               )}
               {placeNotFound && !isGeocoding && (
                 <p className="mt-2 p-3 rounded-zine-sm bg-zine-danger/10 text-sm2 text-zine-ink">
-                  Не нашли такой адрес. Напиши улицу и номер дома, например «Юрово-Завальная 15». Уточнения вроде «у входа» можно оставить — мы их учтём.
+                  Не нашли такой адрес. Напиши улицу и номер дома, например «Юрово-Завальная 15», или нажми «Указать на карте» и тапни нужное место.
                 </p>
               )}
 
@@ -604,6 +615,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                       setCustomCoords(spot.coords);
                       setPlaceLabel(spot.name);
                       setPlaceNotFound(false);
+                      setIsPickedOnMap(false);
                     }}
                     className="h-10 px-3.5 shrink-0 rounded-full border border-zine-border bg-zine-cardElevated text-zine-ink text-sm2 whitespace-nowrap cursor-pointer"
                   >
@@ -644,6 +656,23 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </form>
         </BottomSheet>
       )}
+
+      {isMapPickerOpen && (
+        <MapPicker
+          initial={customCoords}
+          onClose={() => setIsMapPickerOpen(false)}
+          onPick={(coords, address) => {
+            setIsMapPickerOpen(false);
+            setCustomCoords(coords);
+            setPlaceLabel(address || 'точка отмечена');
+            setPlaceNotFound(false);
+            setIsPickedOnMap(true);
+            setFormError(null);
+            // Пустое поле заполняем найденным адресом; своё описание места не трогаем
+            if (!locationName.trim() || !isPickedOnMap) setLocationName(address || 'Точка на карте');
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -679,7 +708,11 @@ const EventReel: React.FC<{
   const people = (ev.participants || []).slice(0, 4);
 
   return (
-    <section className={`relative h-full w-full snap-start snap-always overflow-hidden bg-gradient-to-br ${REEL_BG[ev.category] || REEL_BG.walk}`}>
+    <SwipeReel
+      className={`bg-gradient-to-br ${REEL_BG[ev.category] || REEL_BG.walk}`}
+      rightLabel={!ev.isJoined && !isFull && !isJoining ? '🙌 Пойду' : undefined}
+      onSwipe={(dir) => dir === 'right' && onJoin()}
+    >
       {/* Большой значок категории вместо фото */}
       <div className="absolute inset-x-0 top-[30%] flex justify-center text-[110px] leading-none select-none pointer-events-none">{cat.emoji}</div>
 
@@ -794,14 +827,9 @@ const EventReel: React.FC<{
         {ev.isJoined && !isCreator && <p className="mt-1.5 text-cap text-white/65">Планы изменились? Нажми «Я иду» ещё раз</p>}
       </div>
 
-      {/* Подсказка листать — только на первой карточке */}
-      {isFirst && (
-        <div className="absolute top-36 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center text-white/80 animate-bounce pointer-events-none">
-          <ChevronUp size={22} />
-          <span className="text-cap font-semibold">листай</span>
-        </div>
-      )}
-    </section>
+      {/* Подсказка про свайпы — только на первой карточке */}
+      {isFirst && <SwipeHint right={!ev.isJoined && !isFull ? 'пойду' : undefined} />}
+    </SwipeReel>
   );
 };
 

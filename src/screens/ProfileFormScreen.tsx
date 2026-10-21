@@ -14,6 +14,7 @@ interface ProfileFormScreenProps {
     bio?: string;
     goals?: ActivityGoal[];
     goal?: ActivityGoal;
+    customGoal?: string;
     avatarUrl?: string;
     area?: string;
     isTourist?: boolean;
@@ -31,6 +32,7 @@ interface ProfileFormScreenProps {
     bio: string;
     goals: ActivityGoal[];
     goal: ActivityGoal;
+    customGoal: string;
     avatarUrl: string;
     area: string;
     isTourist: boolean;
@@ -96,6 +98,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       ? [initialData.goal]
       : ['walk']
   );
+  const [customGoal, setCustomGoal] = useState<string>(initialData?.customGoal || '');
   const [avatarUrl, setAvatarUrl] = useState<string>(
     initialData?.avatarUrl || tgUser?.photo_url || DEFAULT_AVATAR
   );
@@ -219,6 +222,12 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       return;
     }
 
+    if (selectedGoals.includes('other') && !customGoal.trim()) {
+      setErrorText('Напиши свою идею — например, «Караоке»');
+      telegramService.haptic('warning');
+      return;
+    }
+
     telegramService.haptic('medium');
     setIsSaving(true);
 
@@ -237,6 +246,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         bio: bio.trim(),
         goals: selectedGoals,
         goal: selectedGoals[0],
+        customGoal: selectedGoals.includes('other') ? customGoal.trim() : '',
         avatarUrl,
         area,
         isTourist,
@@ -397,7 +407,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           {/* Цели */}
           <Section title="Что тебе интересно?" subtitle="Можно выбрать несколько">
             <div className="grid grid-cols-2 gap-2">
-              {(Object.keys(GOALS_CONFIG) as ActivityGoal[]).map((key) => {
+              {(Object.keys(GOALS_CONFIG) as ActivityGoal[]).filter((key) => key !== 'other').map((key) => {
                 const item = GOALS_CONFIG[key];
                 const isSelected = selectedGoals.includes(key);
                 return (
@@ -420,6 +430,31 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 );
               })}
             </div>
+            {/* Своя идея: человек сам пишет, что ему интересно */}
+            <button
+              type="button"
+              onClick={() => toggleGoal('other')}
+              className={`relative mt-2 w-full h-14 px-3 rounded-zine-sm border-2 flex items-center gap-3 text-left transition-colors cursor-pointer ${
+                selectedGoals.includes('other') ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-dashed border-zine-border bg-zine-cardElevated'
+              }`}
+            >
+              <span className="text-[24px] leading-none">✨</span>
+              <span className="text-sm2 font-semibold text-zine-ink">Своя идея — впиши сам</span>
+              {selectedGoals.includes('other') && (
+                <span className="absolute top-1/2 -translate-y-1/2 right-3 w-6 h-6 rounded-full bg-zine-terracotta text-white flex items-center justify-center">
+                  <Check size={14} strokeWidth={3} />
+                </span>
+              )}
+            </button>
+            {selectedGoals.includes('other') && (
+              <input
+                type="text"
+                value={customGoal}
+                onChange={(e) => setCustomGoal(e.target.value.slice(0, 30))}
+                placeholder="Караоке, йога, квизы…"
+                className="field mt-2"
+              />
+            )}
           </Section>
 
           {/* Район */}

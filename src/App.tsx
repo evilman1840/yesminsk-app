@@ -67,6 +67,7 @@ export const App: React.FC = () => {
     preferredAgeRange: { min: 18, max: 99 } as AgeRange,
     goals: ['walk'] as ActivityGoal[],
     goal: 'walk' as ActivityGoal,
+    customGoal: '',
     avatarUrl: tgUser?.photo_url || '',
     area: 'Немига / Центр',
     isTourist: false,
@@ -268,6 +269,7 @@ export const App: React.FC = () => {
             preferredAgeRange: me.preferredAgeRange || prev.preferredAgeRange,
             goals: me.goals || (me.goal ? [me.goal] : prev.goals),
             goal: me.goal || prev.goal,
+            customGoal: me.customGoal || '',
             avatarUrl: me.avatarUrl || tgUser?.photo_url || prev.avatarUrl,
             area: me.areaName || prev.area,
             isTourist: Boolean(me.isTourist),
@@ -335,6 +337,7 @@ export const App: React.FC = () => {
     preferredAgeRange?: AgeRange;
     goals: ActivityGoal[];
     goal: ActivityGoal;
+    customGoal?: string;
     avatarUrl: string;
     area: string;
     isTourist?: boolean;
@@ -363,6 +366,7 @@ export const App: React.FC = () => {
       preferredAgeRange: formData.preferredAgeRange || { min: 18, max: 99 },
       goal: formData.goal,
       goals: formData.goals,
+      customGoal: formData.customGoal,
       avatarUrl: formData.avatarUrl,
       areaName: formData.area,
       isTourist: formData.isTourist,

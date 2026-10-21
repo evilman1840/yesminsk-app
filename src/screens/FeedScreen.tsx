@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, Send, Loader2 } from 'lucide-react';
-import { UserProfile, GOALS_CONFIG, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
+import { UserProfile, goalsOf, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType } from '../components/common/Reactions';
 import { formatDistance } from '../components/common/UserBottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
+import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import {
   PeopleFiltersSheet,
   PeopleFilters,
@@ -209,7 +210,8 @@ const PersonReel: React.FC<{
 }> = ({ user, isFirst, onOpen, onReact }) => {
   const [busy, setBusy] = useState<ReactionType | null>(null);
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
-  const goal = GOALS_CONFIG[user.goal] || GOALS_CONFIG.walk;
+  const goals = goalsOf(user);
+  const canLike = !user.isMatch && !user.iLiked;
   const distance = formatDistance(user.distanceMeters);
 
   // «Скрыть» убирает человека навсегда — сначала спрашиваем
@@ -231,7 +233,7 @@ const PersonReel: React.FC<{
   };
 
   return (
-    <section className="relative h-full w-full snap-start snap-always overflow-hidden bg-[#2B2623]">
+    <SwipeReel className="bg-[#2B2623]" rightLabel={canLike ? '👋 Привет' : undefined} onSwipe={(dir) => dir === 'right' && react('like')}>
       <img src={user.avatarUrl} alt={user.firstName} onClick={onOpen} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
 
       {/* Кнопки справа, как в Reels */}
@@ -295,9 +297,13 @@ const PersonReel: React.FC<{
             {distance && ` · ${distance}`}
           </span>
         </p>
-        <span className="inline-flex items-center gap-1.5 mt-2 h-8 px-3 rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold">
-          {goal.emoji} {goal.label}
-        </span>
+        <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
+          {goals.map((goal) => (
+            <span key={goal.id} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold flex items-center gap-1.5">
+              {goal.emoji} {goal.label}
+            </span>
+          ))}
+        </div>
         {user.bio && <p className="mt-2 pr-16 text-body text-white/90 line-clamp-2">{user.bio}</p>}
 
         {isConfirmingHide ? (
@@ -326,14 +332,9 @@ const PersonReel: React.FC<{
         {user.isMatch && !user.username && <p className="mt-2 text-cap text-white/70">🤝 У человека нет @username — ссылку прислал бот в чате.</p>}
       </div>
 
-      {/* Подсказка листать — только на первой карточке */}
-      {isFirst && (
-        <div className="absolute top-52 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center text-white/80 animate-bounce pointer-events-none">
-          <ChevronUp size={22} />
-          <span className="text-cap font-semibold">листай</span>
-        </div>
-      )}
-    </section>
+      {/* Подсказка про свайпы — только на первой карточке */}
+      {isFirst && <SwipeHint right={canLike ? '👋' : undefined} className="top-52" />}
+    </SwipeReel>
   );
 };
 
