@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, Flag } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf } from '../types';
 import { telegramService } from '../services/telegram';
@@ -8,6 +8,8 @@ import { formatEventDate } from './MapScreen';
 import { ReportSheet } from '../components/common/ReportSheet';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { MapPicker } from '../components/common/MapPicker';
+import { EventDetails } from '../components/common/EventDetails';
+import { UndoToast } from '../components/ui/UndoToast';
 
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
   { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'ул. ленина 5', 'ленина'], coords: [53.8998, 27.5585] },
@@ -119,6 +121,10 @@ export const findEventPlace = async (address: string): Promise<FoundPlace | null
   return null;
 };
 
+// Сходки, смахнутые влево («Неинтересно»). На сервере тоже сохраняются —
+// при следующем запуске сервер их уже не пришлёт
+const notInterestedEvents = new Set<string>();
+
 export interface EventsScreenProps {
   events: AppEvent[];
   currentUserId?: number;
@@ -170,6 +176,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [reportEvent, setReportEvent] = useState<AppEvent | null>(null);
+  const [detailsEventId, setDetailsEventId] = useState<string | null>(null);
+  const [, setHiddenVersion] = useState(0); // перерисовать после «Неинтересно»
+  const [justHidden, setJustHidden] = useState<AppEvent | null>(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -190,9 +199,22 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const filteredEvents = selectedCategory === 'all'
+  const filteredEvents = (selectedCategory === 'all'
     ? events
-    : events.filter((e) => e.category === selectedCategory);
+    : events.filter((e) => e.category === selectedCategory)
+  ).filter((e) => !notInterestedEvents.has(String(e.id)));
+  const detailsEvent = detailsEventId ? events.find((e) => String(e.id) === detailsEventId) || null : null;
+  // После «Вернуть» — сразу показываем возвращённую карточку
+  const listRef = useRef<HTMLDivElement>(null);
+  const [scrollToId, setScrollToId] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    if (!scrollToId) return;
+    const index = filteredEvents.findIndex((item) => String(item.id) === scrollToId);
+    const list = listRef.current;
+    if (list && index >= 0) list.scrollTo({ top: index * list.clientHeight });
+    setScrollToId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollToId]);
 
   const handleOpenCreateModal = (presetCategory?: EventCategory, place?: { name: string; coordinates: [number, number] }) => {
     telegramService.haptic('selection');
@@ -439,7 +461,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </button>
         </div>
       ) : (
-        <div key={selectedCategory} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
+        <div key={selectedCategory} ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
           {filteredEvents.map((ev, index) => {
             const isCreator = Boolean(
               currentUserId && (
@@ -459,10 +481,38 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 onEdit={() => handleOpenEditModal(ev)}
                 onDelete={() => handleDeleteEvent(ev)}
                 onReport={() => setReportEvent(ev)}
+                onOpenDetails={() => setDetailsEventId(String(ev.id))}
+                onNotInterested={() => {
+                  notInterestedEvents.add(String(ev.id));
+                  setHiddenVersion((v) => v + 1);
+                  setJustHidden(ev);
+                  api.hideEvent(String(ev.id)).catch(() => {});
+                }}
               />
             );
           })}
         </div>
+      )}
+
+      {justHidden && (
+        <UndoToast
+          text={`Скрыто: ${justHidden.title}`}
+          onDone={() => setJustHidden(null)}
+          onUndo={() => {
+            notInterestedEvents.delete(String(justHidden.id));
+            api.hideEvent(String(justHidden.id), false).catch(() => {});
+            setScrollToId(String(justHidden.id));
+            setJustHidden(null);
+            setHiddenVersion((v) => v + 1);
+          }}
+        />
+      )}
+
+      {/* Подробности сходки — открываются свайпом вправо; там же «Пойду!» */}
+      {detailsEvent && (
+        <BottomSheet title={detailsEvent.title} onClose={() => setDetailsEventId(null)}>
+          <EventDetails event={detailsEvent} onToggleJoin={() => handleToggleJoin(detailsEvent)} onReported={() => setDetailsEventId(null)} />
+        </BottomSheet>
       )}
 
       {reportEvent && (
@@ -701,7 +751,9 @@ const EventReel: React.FC<{
   onEdit: () => void;
   onDelete: () => void;
   onReport: () => void;
-}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onEdit, onDelete, onReport }) => {
+  onOpenDetails: () => void;
+  onNotInterested: () => void;
+}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onEdit, onDelete, onReport, onOpenDetails, onNotInterested }) => {
   const cat = eventCategoryOf(ev);
   const isFull = !ev.isJoined && Boolean(ev.maxParticipants) && (ev.participantsCount || 1) >= ev.maxParticipants;
   const [lat, lng] = ev.coordinates || [0, 0];
@@ -710,8 +762,11 @@ const EventReel: React.FC<{
   return (
     <SwipeReel
       className={`bg-gradient-to-br ${REEL_BG[ev.category] || REEL_BG.walk}`}
-      rightLabel={!ev.isJoined && !isFull && !isJoining ? '🙌 Пойду' : undefined}
-      onSwipe={(dir) => dir === 'right' && onJoin()}
+      rightLabel="Подробнее"
+      rightBehavior="stay"
+      leftLabel={isCreator || ev.isJoined ? undefined : 'Неинтересно'}
+      leftBehavior="remove"
+      onSwipe={(dir) => (dir === 'right' ? onOpenDetails() : onNotInterested())}
     >
       {/* Большой значок категории вместо фото */}
       <div className="absolute inset-x-0 top-[30%] flex justify-center text-[110px] leading-none select-none pointer-events-none">{cat.emoji}</div>
@@ -828,7 +883,7 @@ const EventReel: React.FC<{
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
-      {isFirst && <SwipeHint right={!ev.isJoined && !isFull ? 'пойду' : undefined} />}
+      {isFirst && <SwipeHint left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" />}
     </SwipeReel>
   );
 };

@@ -1,28 +1,45 @@
-import React, { useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { telegramService } from '../../services/telegram';
 
 export type SwipeDirection = 'left' | 'right';
+// Что происходит с карточкой после свайпа:
+// next — улетает, лента листает к следующей; remove — улетает насовсем (её убирают из списка);
+// stay — возвращается на место (например, открываем подробности)
+export type SwipeBehavior = 'next' | 'remove' | 'stay';
 
 const THRESHOLD = 90; // насколько протянуть пальцем, чтобы свайп сработал
 
 /**
- * Карточка-Reels со свайпами, как в приложениях знакомств:
- * вправо — главное действие (👋, «Пойду!», «Сохранить»), влево — дальше.
- * После свайпа лента сама листает к следующей карточке. Вверх-вниз листается как обычно.
+ * Карточка-Reels со свайпами, как в приложениях знакомств.
+ * Что делает каждая сторона, задаёт экран: подпись штампа и поведение карточки.
+ * Вверх-вниз лента листается как обычно.
  */
 export const SwipeReel: React.FC<{
   children: React.ReactNode;
   rightLabel?: string; // штамп при свайпе вправо; нет — вправо не свайпается
   leftLabel?: string;
+  rightBehavior?: SwipeBehavior;
+  leftBehavior?: SwipeBehavior;
   onSwipe?: (direction: SwipeDirection) => void;
   className?: string;
-}> = ({ children, rightLabel, leftLabel = 'Дальше', onSwipe, className = '' }) => {
+}> = ({ children, rightLabel, leftLabel, rightBehavior = 'next', leftBehavior = 'next', onSwipe, className = '' }) => {
   const ref = useRef<HTMLElement>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const isDragging = useRef(false);
   const justDragged = useRef(false);
   const [dx, setDx] = useState(0);
   const [isAnimated, setIsAnimated] = useState(true);
+  // Для «remove»: лента и где она стояла — чтобы после удаления карточки
+  // браузер не отпрыгнул к другой (scroll-snap ищет новую опору)
+  const removal = useRef<{ list: HTMLElement; top: number } | null>(null);
+
+  useLayoutEffect(
+    () => () => {
+      const saved = removal.current;
+      if (saved) queueMicrotask(() => (saved.list.scrollTop = saved.top));
+    },
+    []
+  );
 
   const canSwipe = (dir: SwipeDirection) => (dir === 'right' ? Boolean(rightLabel) : Boolean(leftLabel));
 
@@ -33,8 +50,29 @@ export const SwipeReel: React.FC<{
 
   const finish = (dir: SwipeDirection) => {
     telegramService.haptic(dir === 'right' ? 'success' : 'light');
+    const behavior = dir === 'right' ? rightBehavior : leftBehavior;
     setIsAnimated(true);
+    if (behavior === 'stay') {
+      reset(true);
+      onSwipe?.(dir);
+      return;
+    }
     setDx((dir === 'right' ? 1 : -1) * window.innerWidth * 1.2);
+    if (behavior === 'remove') {
+      // Карточку убирают из списка — следующая сама встаёт на её место.
+      // Если так и не убрали (например, ошибка сети), возвращаем
+      const list = ref.current?.closest('.snap-y') as HTMLElement | null;
+      if (list) removal.current = { list, top: list.scrollTop };
+      window.setTimeout(() => {
+        onSwipe?.(dir);
+        window.setTimeout(() => {
+          if (!ref.current) return;
+          removal.current = null;
+          reset(true);
+        }, 1500);
+      }, 200);
+      return;
+    }
     window.setTimeout(() => {
       const list = ref.current?.closest('.snap-y') as HTMLElement | null;
       const hasNext = Boolean(ref.current?.nextElementSibling);
@@ -130,7 +168,7 @@ export const SwipeReel: React.FC<{
         {/* Штампы, как в приложениях знакомств */}
         {dx > 0 && rightLabel && (
           <div
-            className="absolute top-48 left-6 z-30 px-4 py-2 rounded-zine-sm border-4 border-[#2FA36B] text-[#2FA36B] bg-black/30 font-bold text-title uppercase -rotate-12 pointer-events-none"
+            className="absolute top-48 left-6 z-30 px-4 py-2 rounded-zine-sm border-[3px] border-[#5FD39A] text-white bg-[#2FA36B]/30 backdrop-blur-md font-bold text-title uppercase -rotate-12 pointer-events-none"
             style={{ opacity: progress }}
           >
             {rightLabel}
@@ -138,7 +176,7 @@ export const SwipeReel: React.FC<{
         )}
         {dx < 0 && leftLabel && (
           <div
-            className="absolute top-48 right-6 z-30 px-4 py-2 rounded-zine-sm border-4 border-white text-white bg-black/30 font-bold text-title uppercase rotate-12 pointer-events-none"
+            className="absolute top-48 right-6 z-30 px-4 py-2 rounded-zine-sm border-[3px] border-white/80 text-white bg-white/15 backdrop-blur-md font-bold text-title uppercase rotate-12 pointer-events-none"
             style={{ opacity: progress }}
           >
             {leftLabel}
@@ -150,8 +188,10 @@ export const SwipeReel: React.FC<{
 };
 
 // Подсказка на первой карточке: что делают свайпы
-export const SwipeHint: React.FC<{ right?: string; className?: string }> = ({ right, className = 'top-36' }) => (
-  <div className={`absolute left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 rounded-full bg-black/45 backdrop-blur text-cap font-semibold text-white whitespace-nowrap pointer-events-none ${className}`}>
-    ← дальше{right ? ` · ${right} →` : ''} · ↑ листай
+export const SwipeHint: React.FC<{ left?: string; right?: string; className?: string }> = ({ left, right, className = 'top-36' }) => (
+  <div
+    className={`absolute left-1/2 -translate-x-1/2 z-10 px-3.5 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/25 text-cap font-semibold text-white whitespace-nowrap pointer-events-none [text-shadow:0_1px_2px_rgba(0,0,0,0.35)] ${className}`}
+  >
+    {[left && `← ${left}`, right && `${right} →`, '↑ листай'].filter(Boolean).join(' · ')}
   </div>
 );

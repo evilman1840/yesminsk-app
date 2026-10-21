@@ -233,7 +233,17 @@ const PersonReel: React.FC<{
   };
 
   return (
-    <SwipeReel className="bg-[#2B2623]" rightLabel={canLike ? '👋 Привет' : undefined} onSwipe={(dir) => dir === 'right' && react('like')}>
+    <SwipeReel
+      className="bg-[#2B2623]"
+      rightLabel={canLike ? '👋 Привет' : undefined}
+      leftLabel={user.isMatch ? undefined : '🙈 Скрыть'}
+      leftBehavior="remove"
+      onSwipe={(dir) => {
+        if (dir === 'right') react('like');
+        // Свайп влево — уже осознанное действие, без лишнего подтверждения
+        else onReact(user, 'dislike');
+      }}
+    >
       <img src={user.avatarUrl} alt={user.firstName} onClick={onOpen} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
 
       {/* Кнопки справа, как в Reels */}
@@ -333,7 +343,7 @@ const PersonReel: React.FC<{
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
-      {isFirst && <SwipeHint right={canLike ? '👋' : undefined} className="top-52" />}
+      {isFirst && <SwipeHint left={user.isMatch ? undefined : 'скрыть'} right={canLike ? '👋' : undefined} className="top-52" />}
     </SwipeReel>
   );
 };

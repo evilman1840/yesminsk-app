@@ -628,7 +628,7 @@ export const App: React.FC = () => {
             )}
 
             {currentScreen === 'profile_edit' && (
-              <ProfileFormScreen isFirstTime={false} initialData={currentUser} onSave={handleSaveProfile} />
+              <ProfileFormScreen isFirstTime={false} initialData={currentUser} onSave={handleSaveProfile} onPlacesChanged={fetchPlaces} />
             )}
 
             {currentScreen === 'main' && (

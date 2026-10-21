@@ -90,12 +90,12 @@ export const PlaceSheet: React.FC<{
       {place.description && <p className={`${place.category ? 'mt-1' : 'mt-4'} text-lead text-zine-ink`}>{place.description}</p>}
 
       {/* Настроения — ведут в рубрики блога */}
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 -mx-5 pl-5 pr-10 flex gap-2 overflow-x-auto no-scrollbar fade-right">
         {place.moods.map((m) => (
           <button
             key={m}
             onClick={() => telegramService.openLink(PLACE_MOODS[m].blog)}
-            className="h-10 px-3.5 rounded-full bg-zine-sage/15 text-zine-ink text-sm2 font-semibold cursor-pointer"
+            className="h-10 px-3.5 shrink-0 whitespace-nowrap rounded-full bg-zine-sage/15 text-zine-ink text-sm2 font-semibold cursor-pointer"
           >
             {PLACE_MOODS[m].emoji} {PLACE_MOODS[m].label}
           </button>

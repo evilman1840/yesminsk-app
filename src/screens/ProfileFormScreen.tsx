@@ -3,6 +3,7 @@ import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender } from '../types';
 import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage } from '../utils/compressImage';
+import { HiddenPlaces } from '../components/places/HiddenPlaces';
 
 interface ProfileFormScreenProps {
   initialData?: {
@@ -43,6 +44,7 @@ interface ProfileFormScreenProps {
   }) => Promise<void> | void;
   onBack?: () => void;
   isFirstTime?: boolean;
+  onPlacesChanged?: () => void; // вернули скрытое место — обновить список мест
 }
 
 const MINSK_AREAS = [
@@ -65,7 +67,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   initialData,
   onSave,
   onBack,
-  isFirstTime = false
+  isFirstTime = false,
+  onPlacesChanged
 }) => {
   const tgUser = telegramService.getUser();
 
@@ -550,6 +553,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               </div>
             </button>
           )}
+
+          {/* Скрытые места — можно вернуть в ленту */}
+          {!isFirstTime && <HiddenPlaces onRestored={() => onPlacesChanged?.()} />}
 
           {/* Тема оформления — применяется сразу */}
           {!isFirstTime && (

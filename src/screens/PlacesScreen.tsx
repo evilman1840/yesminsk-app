@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Bookmark, BookmarkCheck, Navigation, CalendarPlus } from 'lucide-react';
 import { PlaceItem, PLACE_MOODS } from '../types';
-import { serverUrl } from '../services/api';
+import { api, serverUrl } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { MoodChips, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
+import { UndoToast } from '../components/ui/UndoToast';
+
+// Места, смахнутые влево («Неинтересно»). На сервере тоже сохраняются —
+// при следующем запуске сервер их уже не пришлёт
+const notInterestedPlaces = new Set<string>();
+export const forgetNotInterestedPlace = (id: string) => notInterestedPlaces.delete(id);
 
 /**
- * «Места» как Reels: полноэкранные карточки, листаются вверх-вниз; свайп вправо — сохранить, влево — дальше; фото — тапом
+ * «Места» как Reels: полноэкранные карточки, листаются вверх-вниз; свайп вправо — подробнее, влево — неинтересно; фото — тапом
  */
 export const PlacesScreen: React.FC<{
   places: PlaceItem[];
@@ -17,9 +23,24 @@ export const PlacesScreen: React.FC<{
 }> = ({ places, onToggleSave, onCreateEvent }) => {
   const [mood, setMood] = useState<MoodFilter>('all');
   const [openedPlace, setOpenedPlace] = useState<PlaceItem | null>(null);
+  const [, setHiddenVersion] = useState(0); // перерисовать после «Неинтересно»
+  const [justHidden, setJustHidden] = useState<PlaceItem | null>(null);
 
   const savedCount = places.filter((p) => p.isSaved).length;
-  const shown = mood === 'all' ? places : mood === 'saved' ? places.filter((p) => p.isSaved) : places.filter((p) => p.moods.includes(mood));
+  const shown = (mood === 'all' ? places : mood === 'saved' ? places.filter((p) => p.isSaved) : places.filter((p) => p.moods.includes(mood))).filter(
+    (p) => !notInterestedPlaces.has(p.id)
+  );
+  // После «Вернуть» — сразу показываем возвращённую карточку
+  const listRef = useRef<HTMLDivElement>(null);
+  const [scrollToId, setScrollToId] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    if (!scrollToId) return;
+    const index = shown.findIndex((item) => item.id === scrollToId);
+    const list = listRef.current;
+    if (list && index >= 0) list.scrollTo({ top: index * list.clientHeight });
+    setScrollToId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollToId]);
 
   return (
     <div className="relative h-full w-full bg-[#141210] overflow-hidden">
@@ -42,7 +63,7 @@ export const PlacesScreen: React.FC<{
           </p>
         </div>
       ) : (
-        <div className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
+        <div ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
           {shown.map((place, index) => (
             <PlaceReel
               key={place.id}
@@ -52,9 +73,29 @@ export const PlacesScreen: React.FC<{
               onToggleSave={onToggleSave}
               onCreateEvent={onCreateEvent}
               onMood={setMood}
+              onNotInterested={() => {
+                notInterestedPlaces.add(place.id);
+                setHiddenVersion((v) => v + 1);
+                setJustHidden(place);
+                api.hidePlace(place.id).catch(() => {});
+              }}
             />
           ))}
         </div>
+      )}
+
+      {justHidden && (
+        <UndoToast
+          text={`Скрыто: ${justHidden.name}`}
+          onDone={() => setJustHidden(null)}
+          onUndo={() => {
+            notInterestedPlaces.delete(justHidden.id);
+            api.hidePlace(justHidden.id, false).catch(() => {});
+            setScrollToId(justHidden.id);
+            setJustHidden(null);
+            setHiddenVersion((v) => v + 1);
+          }}
+        />
       )}
 
       {openedPlace && (
@@ -81,7 +122,8 @@ const PlaceReel: React.FC<{
   onToggleSave: (place: PlaceItem) => Promise<PlaceItem>;
   onCreateEvent: (place: PlaceItem) => void;
   onMood: (m: MoodFilter) => void;
-}> = ({ place, isFirst, onOpen, onToggleSave, onCreateEvent, onMood }) => {
+  onNotInterested: () => void;
+}> = ({ place, isFirst, onOpen, onToggleSave, onCreateEvent, onMood, onNotInterested }) => {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [lat, lng] = place.coordinates;
@@ -98,7 +140,13 @@ const PlaceReel: React.FC<{
   };
 
   return (
-    <SwipeReel rightLabel={place.isSaved ? undefined : '🔖 Сохранить'} onSwipe={(dir) => dir === 'right' && save()}>
+    <SwipeReel
+      rightLabel="Подробнее"
+      rightBehavior="stay"
+      leftLabel={place.isSaved ? undefined : 'Неинтересно'}
+      leftBehavior="remove"
+      onSwipe={(dir) => (dir === 'right' ? onOpen() : onNotInterested())}
+    >
       {/* Фото: тап по левой половине — назад, по правой — вперёд (как в сторис) */}
       {place.photos.length > 0 ? (
         <div className="absolute inset-0">
@@ -190,7 +238,7 @@ const PlaceReel: React.FC<{
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
-      {isFirst && <SwipeHint right={place.isSaved ? undefined : '🔖'} />}
+      {isFirst && <SwipeHint left={place.isSaved ? undefined : 'неинтересно'} right="подробнее" />}
     </SwipeReel>
   );
 };

@@ -418,9 +418,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           onOpenNews();
         }}
         aria-label="Новости проекта"
-        className={`absolute right-4 ${overlayTop} z-20 w-12 h-12 rounded-full bg-zine-cardElevated shadow-zine text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer`}
+        className={`absolute right-4 ${overlayTop} z-20 w-12 h-[54px] rounded-[18px] bg-zine-cardElevated border-2 border-zine-terracotta/45 shadow-zine text-zine-terracotta flex flex-col items-center justify-center gap-0.5 active:scale-90 transition-transform cursor-pointer`}
       >
-        <Newspaper size={22} />
+        <Newspaper size={20} strokeWidth={2.2} />
+        <span className="font-hand font-bold text-[15px] leading-none">ньюс</span>
         {unreadNews > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1.5 rounded-full bg-zine-terracotta text-white text-cap font-bold flex items-center justify-center border-2 border-zine-cardElevated">
             {unreadNews}
