@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, ChevronRight } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, HelpCircle } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
@@ -42,6 +42,7 @@ export interface MapScreenProps {
   mapMode: MapMode;
   onChangeMapMode: (mode: MapMode) => void;
   onOpenEvents: () => void;
+  onOpenPeople: () => void;
   onCreateEventAtPlace: (place: PlaceItem) => void;
   onToggleSavePlace: (place: PlaceItem) => Promise<PlaceItem>;
   initialPlaceId?: string | null;
@@ -106,6 +107,7 @@ export const formatEventDate = (isoString: string) => {
 
 export const MapScreen: React.FC<MapScreenProps> = ({
   users,
+  onOpenPeople,
   events,
   currentUser,
   selectedUser,
@@ -180,6 +182,12 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   };
 
   const filteredUsers = users.filter((u) => matchesGoalFilter(u, selectedGoal));
+  // Для шапки: «⚡ могут сейчас» — первыми, лица с фото
+  const freeNowCount = users.filter((u) => isAvailableNow(u)).length;
+  const nearbyFaces = [...users]
+    .filter((u) => u.avatarUrl)
+    .sort((a, b) => Number(isAvailableNow(b)) - Number(isAvailableNow(a)))
+    .slice(0, 3);
   const isVisible = currentUser?.isProfileActive !== false;
 
   return (
@@ -214,27 +222,56 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
       {/* Шапка поверх карты: логотип и фильтры */}
       <div className="absolute top-0 inset-x-0 z-20 pt-3 space-y-3 pointer-events-none">
-        {/* Шапка в одну строку: логотип с подписью │ «как это работает?» */}
+        {/* Шапка в одну строку: логотип с подписью │ кто рядом │ «?» */}
         <div className="px-4">
-          <div className="pointer-events-auto h-[52px] pl-4 pr-2 rounded-full bg-zine-cardElevated/95 backdrop-blur shadow-zine flex items-center justify-between gap-2">
+          <div className="pointer-events-auto h-[52px] pl-4 pr-2 rounded-full bg-zine-cardElevated/95 backdrop-blur shadow-zine flex items-center gap-2">
             <Logo size="sm" withTagline />
             {isVisible ? (
-              <button
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setIsHelpOpen(true);
-                }}
-                className="shrink-0 h-10 pl-3 pr-2 rounded-full font-hand font-semibold text-[19px] leading-none text-zine-inkMuted flex items-center gap-1.5 active:bg-zine-card cursor-pointer"
-              >
-                как это работает?
-                <span className="w-7 h-7 rounded-full bg-zine-terracotta/10 text-zine-terracotta flex items-center justify-center">
-                  <ChevronRight size={16} strokeWidth={2.5} />
-                </span>
-              </button>
+              <>
+                {users.length > 0 ? (
+                  // Кто рядом: лица и сколько их — сразу видно, что тут живые люди
+                  <button
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      onOpenPeople();
+                    }}
+                    className="flex-1 min-w-0 h-10 pl-2 pr-1 rounded-full flex items-center justify-end gap-2 active:bg-zine-card cursor-pointer"
+                  >
+                    <span className="flex shrink-0 pl-2">
+                      {nearbyFaces.map((u) => (
+                        <img key={u.id} src={u.avatarUrl} alt="" className="-ml-2 w-7 h-7 rounded-full object-cover border-2 border-zine-cardElevated bg-zine-card" />
+                      ))}
+                    </span>
+                    <span className="min-w-0 text-left leading-tight">
+                      <span className="block text-cap font-bold text-zine-ink whitespace-nowrap">{users.length} рядом</span>
+                      <span className="block text-[11px] text-zine-inkMuted whitespace-nowrap">
+                        {freeNowCount > 0 ? `⚡ ${freeNowCount} ${freeNowCount === 1 ? 'может' : 'могут'} сейчас` : 'загляни к ним'}
+                      </span>
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => telegramService.shareApp()}
+                    className="flex-1 min-w-0 h-10 px-2 text-right font-hand font-semibold text-[18px] leading-none text-zine-inkMuted cursor-pointer"
+                  >
+                    позови друзей →
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setIsHelpOpen(true);
+                  }}
+                  aria-label="Как это работает"
+                  className="shrink-0 w-9 h-9 rounded-full bg-zine-terracotta/10 text-zine-terracotta flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+                >
+                  <HelpCircle size={20} strokeWidth={2.2} />
+                </button>
+              </>
             ) : (
               <button
                 onClick={onOpenProfile}
-                className="shrink-0 h-10 px-3 rounded-full bg-zine-plum/10 text-zine-plum text-cap font-bold flex items-center gap-1.5 cursor-pointer"
+                className="ml-auto shrink-0 h-10 px-3 rounded-full bg-zine-plum/10 text-zine-plum text-cap font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <EyeOff size={16} className="shrink-0" />
                 <span>Тебя не видно · включить</span>

@@ -650,6 +650,7 @@ export const App: React.FC = () => {
                 mapMode={mapMode}
                 onChangeMapMode={setMapMode}
                 onOpenEvents={() => handleNavigate('events')}
+                onOpenPeople={() => handleNavigate('feed')}
                 onToggleSavePlace={toggleSavePlace}
                 unreadNews={unreadNews}
                 initialPlaceId={initialPlaceId}
