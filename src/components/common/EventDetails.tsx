@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Clock, MapPin, Users, Send, Share2 } from 'lucide-react';
+import { Check, Clock, MapPin, Users, Send, Share2, Navigation } from 'lucide-react';
 import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
@@ -33,14 +33,19 @@ export const EventDetails: React.FC<{
   const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
   const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;
 
+  const [lat, lng] = event.coordinates || [0, 0];
+  const routeUrl = `https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`;
+  const myNote = companyNote(event.myGuests, event.myWithKids);
+
   return (
-    <div className="space-y-3">
-      {event.isOfficial && <p className="text-sm2 font-bold text-zine-terracotta">⭐ От ДА! МИНСК — приходи, тут рады новичкам</p>}
-      <div className="flex flex-wrap gap-1.5">
+    <div>
+      {event.isOfficial && <p className="text-sm2 font-bold text-zine-terracotta">⭐ От ДА! МИНСК — тут рады новичкам</p>}
+
+      {/* Категория и пометки */}
+      <div className={`${event.isOfficial ? 'mt-2' : ''} flex flex-wrap gap-1.5`}>
         {cat && (
           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold ${cat.badgeBg} ${cat.badgeText}`}>
-            <span>{cat.emoji}</span>
-            <span>{cat.label}</span>
+            {cat.emoji} {cat.label}
           </span>
         )}
         {(event.tags || []).map((t) => (
@@ -50,77 +55,81 @@ export const EventDetails: React.FC<{
         ))}
       </div>
 
-      <div className="space-y-2 text-body text-zine-ink">
-        <p className="flex items-center gap-2.5">
-          <Clock size={20} className="text-zine-terracotta shrink-0" />
-          <span className="font-semibold">{formatEventDate(event.dateTime)}</span>
-        </p>
-        <p className="flex items-center gap-2.5">
-          <MapPin size={20} className="text-zine-terracotta shrink-0" />
-          <span>{event.locationName}</span>
-        </p>
-        <p className="flex items-center gap-2.5 text-zine-inkMuted">
-          <Users size={20} className="shrink-0" />
-          <span>{eventPeopleLine(event)}</span>
-        </p>
-      </div>
-
-      {event.description && <p className="text-body text-zine-ink whitespace-pre-line">{event.description}</p>}
-
-      <div className="space-y-2 pt-2">
-        <button
-          onClick={() => {
-            telegramService.haptic('medium');
-            setIsJoinOpen(true);
-          }}
-          disabled={isFull}
-          className={`w-full h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-            event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : isFull ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'bg-zine-terracotta text-white'
-          }`}
-        >
-          {isFull ? (
-            <span>Мест нет — все {event.maxParticipants} заняты</span>
-          ) : event.isJoined ? (
-            <>
-              <Check size={20} strokeWidth={3} />
-              <span>
-                Я иду{companyNote(event.myGuests, event.myWithKids) ? ` (${companyNote(event.myGuests, event.myWithKids)})` : ''} · изменить
-              </span>
-            </>
-          ) : (
-            <span>Пойду!</span>
-          )}
+      {/* Когда, где, кто идёт — одним списком */}
+      <div className="mt-4 rounded-zine border border-zine-border divide-y divide-zine-border">
+        <div className="px-4 py-3 flex items-center gap-3">
+          <Clock size={19} className="shrink-0 text-zine-terracotta" />
+          <span className="text-body font-semibold text-zine-ink">{formatEventDate(event.dateTime)}</span>
+        </div>
+        <button onClick={() => lat && telegramService.openLink(routeUrl)} className="w-full px-4 py-3 flex items-center gap-3 text-left cursor-pointer">
+          <MapPin size={19} className="shrink-0 text-zine-terracotta" />
+          <span className="min-w-0 text-body text-zine-ink underline decoration-zine-border underline-offset-4">{event.locationName}</span>
         </button>
-
-        <div className={`grid gap-2 ${event.creator?.username ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          <button
-            onClick={() => {
-              telegramService.haptic('selection');
-              telegramService.shareEvent(event);
-            }}
-            className="h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
-          >
-            <Share2 size={20} />
-            <span>Позвать друзей</span>
-          </button>
-          {event.creator?.username && (
-            <button
-              onClick={() => {
-                telegramService.haptic('medium');
-                telegramService.openChat(event.creator.username);
-              }}
-              className="h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
-            >
-              <Send size={20} />
-              <span>Организатору</span>
-            </button>
-          )}
+        <div className="px-4 py-3 flex items-center gap-3">
+          <Users size={19} className="shrink-0 text-zine-terracotta" />
+          <span className="text-body text-zine-ink">{eventPeopleLine(event)}</span>
         </div>
       </div>
 
+      {event.description && <p className="mt-4 text-body text-zine-ink whitespace-pre-line">{event.description}</p>}
+
+      {/* Главное действие */}
+      <button
+        onClick={() => {
+          telegramService.haptic('medium');
+          setIsJoinOpen(true);
+        }}
+        disabled={isFull || isCreator}
+        className={`mt-5 w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
+          isCreator
+            ? 'bg-zine-card text-zine-inkMuted cursor-default'
+            : event.isJoined
+            ? 'bg-zine-sage/15 text-zine-sage'
+            : isFull
+            ? 'bg-zine-card text-zine-inkMuted cursor-default'
+            : 'bg-zine-terracotta text-white'
+        }`}
+      >
+        {isCreator ? (
+          <span>Ты собираешь эту сходку</span>
+        ) : isFull ? (
+          <span>Мест нет — все {event.maxParticipants} заняты</span>
+        ) : event.isJoined ? (
+          <>
+            <Check size={22} strokeWidth={3} />
+            <span>Я иду{myNote ? ` (${myNote})` : ''} · изменить</span>
+          </>
+        ) : (
+          <span>Пойду!</span>
+        )}
+      </button>
+
+      {/* Остальное — одним рядом */}
+      <div className={`mt-2 grid gap-2 ${event.creator?.username ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <SmallAction
+          onClick={() => {
+            telegramService.haptic('selection');
+            telegramService.shareEvent(event);
+          }}
+          icon={<Share2 size={20} />}
+          label="Позвать"
+        />
+        <SmallAction onClick={() => telegramService.openLink(routeUrl)} icon={<Navigation size={20} />} label="Маршрут" />
+        {event.creator?.username && (
+          <SmallAction
+            onClick={() => {
+              telegramService.haptic('medium');
+              telegramService.openChat(event.creator.username);
+            }}
+            icon={<Send size={20} />}
+            label="Организатору"
+          />
+        )}
+      </div>
+
       {!isCreator && (
-        <button onClick={() => setIsReportOpen(true)} className="w-full h-11 text-sm2 font-semibold text-zine-danger cursor-pointer">
-          ⚠️ Пожаловаться на сходку
+        <button onClick={() => setIsReportOpen(true)} className="mt-3 w-full h-10 text-sm2 text-zine-inkMuted cursor-pointer">
+          Пожаловаться на сходку
         </button>
       )}
       {isJoinOpen && (
@@ -138,3 +147,13 @@ export const EventDetails: React.FC<{
     </div>
   );
 };
+
+const SmallAction: React.FC<{ onClick: () => void; icon: React.ReactNode; label: string }> = ({ onClick, icon, label }) => (
+  <button
+    onClick={onClick}
+    className="h-[64px] rounded-zine-sm bg-zine-card text-zine-ink text-sm2 font-semibold flex flex-col items-center justify-center gap-1 active:scale-[0.97] transition-transform cursor-pointer"
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);

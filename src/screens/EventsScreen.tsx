@@ -1,14 +1,13 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, Flag } from 'lucide-react';
-import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, companyNote } from '../types';
+import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2 } from 'lucide-react';
+import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { formatEventDate } from './MapScreen';
-import { ReportSheet } from '../components/common/ReportSheet';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { MapPicker } from '../components/common/MapPicker';
-import { EventDetails, eventPeopleLine } from '../components/common/EventDetails';
+import { EventDetails } from '../components/common/EventDetails';
 import { JoinSheet } from '../components/common/JoinSheet';
 import { UndoToast } from '../components/ui/UndoToast';
 
@@ -180,7 +179,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [reportEvent, setReportEvent] = useState<AppEvent | null>(null);
   const [detailsEventId, setDetailsEventId] = useState<string | null>(null);
   const [, setHiddenVersion] = useState(0); // перерисовать после «Неинтересно»
   const [justHidden, setJustHidden] = useState<AppEvent | null>(null);
@@ -498,7 +496,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 onJoin={() => setJoinEventId(String(ev.id))}
                 onEdit={() => handleOpenEditModal(ev)}
                 onDelete={() => handleDeleteEvent(ev)}
-                onReport={() => setReportEvent(ev)}
                 onOpenDetails={() => setDetailsEventId(String(ev.id))}
                 onNotInterested={() => {
                   notInterestedEvents.add(String(ev.id));
@@ -541,16 +538,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         <BottomSheet title={detailsEvent.title} onClose={() => setDetailsEventId(null)}>
           <EventDetails event={detailsEvent} onJoin={(o) => handleJoin(detailsEvent, o)} onReported={() => setDetailsEventId(null)} />
         </BottomSheet>
-      )}
-
-      {reportEvent && (
-        <ReportSheet
-          targetType="event"
-          targetId={reportEvent.id}
-          targetName={reportEvent.title}
-          onClose={() => setReportEvent(null)}
-          onReported={() => setReportEvent(null)}
-        />
       )}
 
       {/* Создание / редактирование сходки */}
@@ -816,13 +803,11 @@ const EventReel: React.FC<{
   onJoin: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onReport: () => void;
   onOpenDetails: () => void;
   onNotInterested: () => void;
-}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onEdit, onDelete, onReport, onOpenDetails, onNotInterested }) => {
+}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onEdit, onDelete, onOpenDetails, onNotInterested }) => {
   const cat = eventCategoryOf(ev);
   const isFull = !ev.isJoined && Boolean(ev.maxParticipants) && (ev.participantsCount || 1) >= ev.maxParticipants;
-  const [lat, lng] = ev.coordinates || [0, 0];
   const people = (ev.participants || []).slice(0, 4);
 
   return (
@@ -837,8 +822,8 @@ const EventReel: React.FC<{
       {/* Большой значок категории вместо фото */}
       <div className="absolute inset-x-0 top-[30%] flex justify-center text-[110px] leading-none select-none pointer-events-none">{cat.emoji}</div>
 
-      {/* Кнопки справа, как в Reels */}
-      <div className="absolute right-3 bottom-48 z-20 flex flex-col items-center gap-4 text-white">
+      {/* Справа — только «Позвать»; маршрут и жалоба — в подробностях */}
+      <div className="absolute right-3 bottom-40 z-20 flex flex-col items-center gap-4 text-white">
         <button
           onClick={() => {
             telegramService.haptic('selection');
@@ -852,115 +837,97 @@ const EventReel: React.FC<{
           </span>
           <span className="text-cap font-semibold drop-shadow">Позвать</span>
         </button>
-        {lat !== 0 && (
-          <button
-            onClick={() => telegramService.openLink(`https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`)}
-            aria-label="Как добраться"
-            className="flex flex-col items-center gap-1 cursor-pointer"
-          >
-            <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
-              <Navigation size={22} />
-            </span>
-            <span className="text-cap font-semibold drop-shadow">Маршрут</span>
-          </button>
-        )}
-        {/* Организатору «Изменить» и «Удалить» — внизу, у главной кнопки: справа столбец не помещался */}
-        {!isCreator && (
-          <button onClick={onReport} aria-label="Пожаловаться" className="flex flex-col items-center gap-1 cursor-pointer">
-            <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
-              <Flag size={20} />
-            </span>
-            <span className="text-cap font-semibold drop-shadow">Жалоба</span>
-          </button>
-        )}
       </div>
 
-      {/* Текст внизу на затемнении */}
-      <div className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white">
-        {ev.isOfficial && <p className="mb-1 pr-16 text-sm2 font-bold text-[#FFD9A8]">⭐ От ДА! МИНСК — тут рады новичкам</p>}
-        <p className="pr-16 text-cap font-bold uppercase tracking-wider text-white/75">
-          {cat.emoji} {cat.label}
+      {/* Текст внизу на затемнении; нажатие мимо кнопок — подробности */}
+      <div
+        onClick={(e) => {
+          if (!(e.target as HTMLElement).closest('button')) onOpenDetails();
+        }}
+        className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white cursor-pointer"
+      >
+        {/* Одна строка-подпись: от ДА! МИНСК · категория · пометки значками */}
+        <p className="pr-16 text-sm2 font-semibold text-white/85 flex items-center gap-x-2 whitespace-nowrap overflow-hidden">
+          {ev.isOfficial && (
+            <>
+              <span className="text-[#FFD9A8]">⭐ ДА! МИНСК</span>
+              <span className="text-white/40">·</span>
+            </>
+          )}
+          <span className="truncate">
+            {cat.emoji} {cat.label}
+          </span>
+          {(ev.tags || []).length > 0 && (
+            <>
+              <span className="text-white/40">·</span>
+              <span aria-label={(ev.tags || []).map((t) => EVENT_TAGS[t].label).join(', ')}>{(ev.tags || []).map((t) => EVENT_TAGS[t].emoji).join(' ')}</span>
+            </>
+          )}
         </p>
-        {(ev.tags || []).length > 0 && (
-          <div className="mt-1.5 pr-16 flex flex-wrap gap-1.5">
-            {(ev.tags || []).map((t) => (
-              <span key={t} className="h-7 px-2.5 rounded-full bg-white/20 backdrop-blur text-cap font-semibold flex items-center gap-1">
-                {EVENT_TAGS[t].emoji} {EVENT_TAGS[t].label}
-              </span>
-            ))}
-          </div>
-        )}
         <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight line-clamp-2">{ev.title}</h2>
-        <div className="mt-2 pr-16 space-y-1 text-body">
-          <p className="flex items-center gap-2">
-            <Clock size={18} className="shrink-0 text-white/80" />
-            <span className="font-semibold">{formatEventDate(ev.dateTime)}</span>
-          </p>
-          <p className="flex items-center gap-2">
-            <MapPin size={18} className="shrink-0 text-white/80" />
-            <span className="truncate">{ev.locationName}</span>
-          </p>
-        </div>
-        {ev.description && <p className="mt-2 pr-16 text-body text-white/90 line-clamp-2 whitespace-pre-wrap">{ev.description}</p>}
+        <p className="mt-1.5 pr-16 text-body font-semibold">{formatEventDate(ev.dateTime)}</p>
+        <p className="pr-16 text-sm2 text-white/80 truncate">📍 {ev.locationName}</p>
 
-        <div className="mt-3 flex items-center gap-2.5">
-          <div className="flex -space-x-2.5 shrink-0">
-            {(people.length ? people : [ev.creator]).map((p, i) => (
-              <img
-                key={`${p?.telegramId}-${i}`}
-                src={p?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-                alt={p?.name || ''}
-                className="w-9 h-9 rounded-full object-cover border-2 border-black/40"
-              />
-            ))}
-          </div>
-          <p className="min-w-0 text-sm2 text-white/85 line-clamp-2">
-            {isCreator ? 'Ты собираешь' : `Собирает ${ev.creator?.name || 'организатор'}`} · {eventPeopleLine(ev).replace(/^Идут: /, 'идут ')}
-          </p>
+        <div className="mt-3 flex items-center gap-3">
+          {isCreator ? (
+            // Своя сходка: организатор и так идёт — вместо «Я иду» управление
+            <>
+              <button
+                onClick={onEdit}
+                className="h-12 px-5 rounded-full bg-white text-[#2B2623] text-body font-bold inline-flex items-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                <Edit2 size={19} />
+                <span>Изменить</span>
+              </button>
+              <button
+                onClick={onDelete}
+                disabled={isDeleting}
+                aria-label="Удалить сходку"
+                className="w-12 h-12 shrink-0 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+              >
+                {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={onJoin}
+              disabled={isJoining || isFull}
+              className={`h-12 px-6 shrink-0 rounded-full text-body font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
+                ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/25 text-white/80 cursor-default' : 'bg-white text-[#2B2623]'
+              }`}
+            >
+              {isFull ? (
+                'Мест нет'
+              ) : isJoining ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : ev.isJoined ? (
+                <>
+                  <Check size={20} strokeWidth={3} />
+                  <span>Я иду{ev.myGuests ? ` +${ev.myGuests}` : ''}{ev.myWithKids ? ' 👶' : ''}</span>
+                </>
+              ) : (
+                'Пойду!'
+              )}
+            </button>
+          )}
+          {/* Кто идёт: лица и сколько */}
+          <span className="min-w-0 flex items-center gap-2">
+            <span className="flex -space-x-2 shrink-0">
+              {(people.length ? people.slice(0, 3) : [ev.creator]).map((p, i) => (
+                <img
+                  key={`${p?.telegramId}-${i}`}
+                  src={p?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                  alt=""
+                  className="w-8 h-8 rounded-full object-cover border-2 border-black/40"
+                />
+              ))}
+            </span>
+            <span className="text-sm2 text-white/85 whitespace-nowrap">
+              {ev.participantsCount || 1}
+              {ev.maxParticipants ? ` из ${ev.maxParticipants}` : ''}
+            </span>
+          </span>
         </div>
-
-        {isCreator ? (
-          // Своя сходка: организатор и так идёт — вместо «Я иду» управление
-          <div className="mt-3 flex items-center gap-2">
-            <button
-              onClick={onEdit}
-              className="h-12 px-5 rounded-full bg-white text-[#2B2623] text-body font-bold inline-flex items-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
-            >
-              <Edit2 size={19} />
-              <span>Изменить</span>
-            </button>
-            <button
-              onClick={onDelete}
-              disabled={isDeleting}
-              aria-label="Удалить сходку"
-              className="w-12 h-12 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
-            >
-              {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={onJoin}
-            disabled={isJoining || isFull}
-            className={`mt-3 h-12 px-6 rounded-full text-body font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-              ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/25 text-white/80 cursor-default' : 'bg-white text-[#2B2623]'
-            }`}
-          >
-            {isFull ? (
-              'Мест нет'
-            ) : isJoining ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : ev.isJoined ? (
-              <>
-                <Check size={20} strokeWidth={3} />
-                <span>Я иду{companyNote(ev.myGuests, ev.myWithKids) ? ` (${companyNote(ev.myGuests, ev.myWithKids)})` : ''}</span>
-              </>
-            ) : (
-              'Пойду!'
-            )}
-          </button>
-        )}
-        {ev.isJoined && !isCreator && <p className="mt-1.5 text-cap text-white/65">Нажми «Я иду», чтобы поменять, с кем идёшь, или отказаться</p>}
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
