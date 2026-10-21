@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MapPin, Plus, Clock, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, Flag } from 'lucide-react';
-import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf } from '../types';
+import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, companyNote } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -8,7 +8,8 @@ import { formatEventDate } from './MapScreen';
 import { ReportSheet } from '../components/common/ReportSheet';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { MapPicker } from '../components/common/MapPicker';
-import { EventDetails } from '../components/common/EventDetails';
+import { EventDetails, eventPeopleLine } from '../components/common/EventDetails';
+import { JoinSheet } from '../components/common/JoinSheet';
 import { UndoToast } from '../components/ui/UndoToast';
 
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
@@ -133,6 +134,7 @@ export interface EventsScreenProps {
     description: string;
     category: string;
     customCategory?: string;
+    tags?: EventTag[];
     locationName: string;
     coordinates: [number, number];
     dateTime: string;
@@ -143,13 +145,15 @@ export interface EventsScreenProps {
     description: string;
     category: string;
     customCategory?: string;
+    tags?: EventTag[];
     locationName: string;
     coordinates: [number, number];
     dateTime: string;
     maxParticipants?: number;
   }) => Promise<any>;
   onDeleteEvent?: (eventId: string) => Promise<any> | void;
-  onToggleJoin?: (event: AppEvent) => Promise<boolean> | void;
+  // options — с кем идёшь; null — «Не пойду». Вернёт обновлённую сходку или null
+  onJoin?: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
   onRefreshEvents?: () => void;
   // «Сходка сюда» из карточки места: открыть форму с уже заполненным местом
   initialPlace?: { name: string; coordinates: [number, number]; category: EventCategory } | null;
@@ -162,7 +166,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   onCreateEvent,
   onUpdateEvent,
   onDeleteEvent,
-  onToggleJoin,
+  onJoin,
   onRefreshEvents,
   initialPlace,
   onInitialPlaceUsed
@@ -170,7 +174,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const currentTgUser = telegramService.getUser();
   const currentUserId = propUserId || currentTgUser?.id;
 
-  const [selectedCategory, setSelectedCategory] = useState<EventCategory | 'all'>('all');
+  // 'kids' — «👶 С детьми»: сходки, куда можно с детьми
+  const [selectedCategory, setSelectedCategory] = useState<EventCategory | 'all' | 'kids'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -196,14 +201,19 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [dateTime, setDateTime] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('0');
+  const [tags, setTags] = useState<EventTag[]>([]);
+  const [joinEventId, setJoinEventId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const filteredEvents = (selectedCategory === 'all'
     ? events
+    : selectedCategory === 'kids'
+    ? events.filter((e) => e.tags?.includes('kids'))
     : events.filter((e) => e.category === selectedCategory)
   ).filter((e) => !notInterestedEvents.has(String(e.id)));
   const detailsEvent = detailsEventId ? events.find((e) => String(e.id) === detailsEventId) || null : null;
+  const joinEvent = joinEventId ? events.find((e) => String(e.id) === joinEventId) || null : null;
   // После «Вернуть» — сразу показываем возвращённую карточку
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollToId, setScrollToId] = useState<string | null>(null);
@@ -233,6 +243,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     tomorrow.setMinutes(0, 0, 0);
     setDateTime(tomorrow.toISOString().slice(0, 16));
     setMaxParticipants('0');
+    setTags([]);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -265,6 +276,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setDateTime('');
     }
     setMaxParticipants(String(ev.maxParticipants || 0));
+    setTags(ev.tags || []);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -331,16 +343,18 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
   };
 
-  const handleToggleJoin = async (event: AppEvent) => {
-    const targetId = event.id || (event as any)._id;
-    setJoiningId(String(targetId));
+  // Записаться / поменять, с кем идёшь / «Не пойду» (options = null)
+  const handleJoin = async (event: AppEvent, options: JoinOptions | null) => {
+    const targetId = String(event.id || (event as any)._id);
+    setJoiningId(targetId);
     try {
-      if (onToggleJoin) {
-        await onToggleJoin(event);
+      if (onJoin) {
+        if (!(await onJoin(event, options))) return;
+      } else if (options) {
+        await api.joinEvent(targetId, options);
       } else {
-        await api.toggleJoinEvent(String(targetId), Boolean(event.isJoined));
+        await api.leaveEvent(targetId);
       }
-      telegramService.haptic('success');
       onRefreshEvents?.();
     } catch (err: any) {
       alert(err.message || 'Ошибка обновления участия');
@@ -381,7 +395,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         locationName: locationName.trim(),
         coordinates: resolvedCoords,
         dateTime: new Date(dateTime).toISOString(),
-        maxParticipants: Number(maxParticipants) || 0
+        maxParticipants: Number(maxParticipants) || 0,
+        tags
       };
 
       if (editingEventId) {
@@ -427,7 +442,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </button>
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
-          {([['all', 'Все', ''], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji])] as [EventCategory | 'all', string, string][]).map(([id, label, emoji]) => {
+          {([['all', 'Все', ''], ['kids', 'С детьми', '👶'], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji])] as [EventCategory | 'all' | 'kids', string, string][]).map(([id, label, emoji]) => {
             const isActive = selectedCategory === id;
             return (
               <button
@@ -454,7 +469,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           <p className="font-serif font-bold text-title">Сходок пока нет</p>
           <p className="mt-2 text-body text-white/70">Собери компанию на прогулку, в кафе или за настолки — это займёт минуту.</p>
           <button
-            onClick={() => handleOpenCreateModal(selectedCategory === 'all' ? undefined : selectedCategory)}
+            onClick={() => {
+              handleOpenCreateModal(selectedCategory === 'all' || selectedCategory === 'kids' ? undefined : selectedCategory);
+              if (selectedCategory === 'kids') setTags(['kids']);
+            }}
             className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer"
           >
             Создать сходку
@@ -477,7 +495,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 isCreator={isCreator}
                 isJoining={joiningId === String(ev.id)}
                 isDeleting={deletingId === String(ev.id)}
-                onJoin={() => handleToggleJoin(ev)}
+                onJoin={() => setJoinEventId(String(ev.id))}
                 onEdit={() => handleOpenEditModal(ev)}
                 onDelete={() => handleDeleteEvent(ev)}
                 onReport={() => setReportEvent(ev)}
@@ -508,10 +526,20 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         />
       )}
 
+      {/* «Пойду!» — сколько вас и с детьми ли */}
+      {joinEvent && (
+        <JoinSheet
+          event={joinEvent}
+          onConfirm={(o) => handleJoin(joinEvent, o)}
+          onLeave={() => handleJoin(joinEvent, null)}
+          onClose={() => setJoinEventId(null)}
+        />
+      )}
+
       {/* Подробности сходки — открываются свайпом вправо; там же «Пойду!» */}
       {detailsEvent && (
         <BottomSheet title={detailsEvent.title} onClose={() => setDetailsEventId(null)}>
-          <EventDetails event={detailsEvent} onToggleJoin={() => handleToggleJoin(detailsEvent)} onReported={() => setDetailsEventId(null)} />
+          <EventDetails event={detailsEvent} onJoin={(o) => handleJoin(detailsEvent, o)} onReported={() => setDetailsEventId(null)} />
         </BottomSheet>
       )}
 
@@ -593,6 +621,44 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   autoFocus
                 />
               )}
+            </Field>
+
+            <Field label="Для кого?">
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(EVENT_TAGS) as EventTag[]).map((t) => {
+                  const isOn = tags.includes(t);
+                  return (
+                    <button
+                      type="button"
+                      key={t}
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        setTags(isOn ? tags.filter((x) => x !== t) : [...tags, t]);
+                      }}
+                      className={`h-11 px-4 rounded-full border-2 text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                        isOn ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                      }`}
+                    >
+                      {EVENT_TAGS[t].emoji} {EVENT_TAGS[t].label}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+
+            <Field label="Сколько мест?">
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={maxParticipants === '0' ? '' : maxParticipants}
+                  onChange={(e) => setMaxParticipants(String(Math.max(0, Math.floor(Number(e.target.value) || 0))))}
+                  placeholder="Без ограничений"
+                  className="field flex-1"
+                />
+              </div>
+              <p className="mt-1.5 text-cap text-zine-inkMuted">Вместе с тобой и гостями участников. Пусто — сколько угодно</p>
             </Field>
 
             <Field label="Где встречаемся?">
@@ -812,9 +878,18 @@ const EventReel: React.FC<{
       {/* Текст внизу на затемнении */}
       <div className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white">
         {ev.isOfficial && <p className="mb-1 pr-16 text-sm2 font-bold text-[#FFD9A8]">⭐ От ДА! МИНСК — тут рады новичкам</p>}
-        <p className="text-cap font-bold uppercase tracking-wider text-white/75">
+        <p className="pr-16 text-cap font-bold uppercase tracking-wider text-white/75">
           {cat.emoji} {cat.label}
         </p>
+        {(ev.tags || []).length > 0 && (
+          <div className="mt-1.5 pr-16 flex flex-wrap gap-1.5">
+            {(ev.tags || []).map((t) => (
+              <span key={t} className="h-7 px-2.5 rounded-full bg-white/20 backdrop-blur text-cap font-semibold flex items-center gap-1">
+                {EVENT_TAGS[t].emoji} {EVENT_TAGS[t].label}
+              </span>
+            ))}
+          </div>
+        )}
         <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight line-clamp-2">{ev.title}</h2>
         <div className="mt-2 pr-16 space-y-1 text-body">
           <p className="flex items-center gap-2">
@@ -839,9 +914,8 @@ const EventReel: React.FC<{
               />
             ))}
           </div>
-          <p className="min-w-0 text-sm2 text-white/85 truncate">
-            {isCreator ? 'Ты собираешь' : `Собирает ${ev.creator?.name || 'организатор'}`} · идут {ev.participantsCount || 1}
-            {ev.maxParticipants ? ` из ${ev.maxParticipants}` : ''}
+          <p className="min-w-0 text-sm2 text-white/85 line-clamp-2">
+            {isCreator ? 'Ты собираешь' : `Собирает ${ev.creator?.name || 'организатор'}`} · {eventPeopleLine(ev).replace(/^Идут: /, 'идут ')}
           </p>
         </div>
 
@@ -879,14 +953,14 @@ const EventReel: React.FC<{
             ) : ev.isJoined ? (
               <>
                 <Check size={20} strokeWidth={3} />
-                <span>Я иду</span>
+                <span>Я иду{companyNote(ev.myGuests, ev.myWithKids) ? ` (${companyNote(ev.myGuests, ev.myWithKids)})` : ''}</span>
               </>
             ) : (
               'Пойду!'
             )}
           </button>
         )}
-        {ev.isJoined && !isCreator && <p className="mt-1.5 text-cap text-white/65">Планы изменились? Нажми «Я иду» ещё раз</p>}
+        {ev.isJoined && !isCreator && <p className="mt-1.5 text-cap text-white/65">Нажми «Я иду», чтобы поменять, с кем идёшь, или отказаться</p>}
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}

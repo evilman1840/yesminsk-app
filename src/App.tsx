@@ -20,7 +20,7 @@ import { FirstStepsCard } from './components/people/FirstSteps';
 import { ShareSheet } from './components/common/ShareSheet';
 import type { MapMode } from './screens/MapScreen';
 import { NewsItem } from './services/api';
-import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory } from './types';
+import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith } from './types';
 
 // Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
@@ -68,6 +68,7 @@ export const App: React.FC = () => {
     goals: ['walk'] as ActivityGoal[],
     goal: 'walk' as ActivityGoal,
     customGoal: '',
+    goesWith: undefined as GoesWith | undefined,
     avatarUrl: tgUser?.photo_url || '',
     area: 'Немига / Центр',
     isTourist: false,
@@ -270,6 +271,7 @@ export const App: React.FC = () => {
             goals: me.goals || (me.goal ? [me.goal] : prev.goals),
             goal: me.goal || prev.goal,
             customGoal: me.customGoal || '',
+            goesWith: me.goesWith || undefined,
             avatarUrl: me.avatarUrl || tgUser?.photo_url || prev.avatarUrl,
             area: me.areaName || prev.area,
             isTourist: Boolean(me.isTourist),
@@ -338,6 +340,7 @@ export const App: React.FC = () => {
     goals: ActivityGoal[];
     goal: ActivityGoal;
     customGoal?: string;
+    goesWith?: GoesWith;
     avatarUrl: string;
     area: string;
     isTourist?: boolean;
@@ -367,6 +370,7 @@ export const App: React.FC = () => {
       goal: formData.goal,
       goals: formData.goals,
       customGoal: formData.customGoal,
+      goesWith: formData.goesWith,
       avatarUrl: formData.avatarUrl,
       areaName: formData.area,
       isTourist: formData.isTourist,
@@ -477,29 +481,43 @@ export const App: React.FC = () => {
     setEvents(prev => prev.filter(e => e.id !== eventId && (e as any)._id !== eventId));
   };
 
-  // Возвращает true, если получилось (на сходке с ограничением мест они могут закончиться)
-  const handleToggleJoinEvent = async (event: AppEvent): Promise<boolean> => {
+  // Записаться на сходку (options — с кем идёшь; повторно — поменять) или отказаться (options = null).
+  // Возвращает обновлённую сходку или null, если не получилось (например, закончились места)
+  const handleJoinEvent = async (event: AppEvent, options: JoinOptions | null): Promise<AppEvent | null> => {
     try {
-      const isJoined = Boolean(event.isJoined);
-      await api.toggleJoinEvent(event.id, isJoined);
-      setEvents(prev =>
-        prev.map(e =>
-          e.id === event.id
-            ? {
-                ...e,
-                isJoined: !isJoined,
-                participantsCount: !isJoined
-                  ? (e.participantsCount || 0) + 1
-                  : Math.max(0, (e.participantsCount || 1) - 1)
-              }
-            : e
-        )
-      );
-      return true;
+      const mySeats = event.isJoined ? 1 + (event.myGuests || 0) : 0;
+      let updated: AppEvent;
+      if (options) {
+        const res = await api.joinEvent(event.id, options);
+        updated = {
+          ...event,
+          participantsCount: event.participantsCount - mySeats + 1 + options.guests,
+          groupsCount: (event.groupsCount ?? event.participantsCount) + (event.isJoined ? 0 : 1),
+          ...(res.event?.id ? res.event : {}),
+          id: event.id,
+          isJoined: true,
+          myGuests: options.guests,
+          myWithKids: options.withKids
+        };
+      } else {
+        await api.leaveEvent(event.id);
+        updated = {
+          ...event,
+          isJoined: false,
+          participantsCount: Math.max(0, event.participantsCount - mySeats),
+          groupsCount: Math.max(0, (event.groupsCount ?? event.participantsCount) - 1),
+          withKidsCount: Math.max(0, (event.withKidsCount || 0) - (event.myWithKids ? 1 : 0)),
+          myGuests: 0,
+          myWithKids: false
+        };
+      }
+      setEvents(prev => prev.map(e => (e.id === event.id ? updated : e)));
+      telegramService.haptic('success');
+      return updated;
     } catch (e: any) {
       telegramService.haptic('error');
       alert(e?.message || 'Не получилось изменить участие');
-      return false;
+      return null;
     }
   };
 
@@ -641,7 +659,7 @@ export const App: React.FC = () => {
                 selectedGoal={selectedGoal}
                 onSelectGoal={(g) => setSelectedGoal(g)}
                 onOpenProfile={() => handleNavigate('profile_edit')}
-                onToggleJoinEvent={handleToggleJoinEvent}
+                onJoinEvent={handleJoinEvent}
                 onUpdateLocation={handleUpdateLocation}
                 onSetAvailable={handleSetAvailable}
                 onOpenNews={() => handleNavigate('news')}
@@ -688,7 +706,7 @@ export const App: React.FC = () => {
                 onCreateEvent={handleCreateEvent}
                 onUpdateEvent={handleUpdateEvent}
                 onDeleteEvent={handleDeleteEvent}
-                onToggleJoin={handleToggleJoinEvent}
+                onJoin={handleJoinEvent}
                 onRefreshEvents={fetchEvents}
                 initialPlace={pendingEventPlace}
                 onInitialPlaceUsed={() => setPendingEventPlace(null)}
@@ -717,13 +735,9 @@ export const App: React.FC = () => {
             <BottomSheet title={sharedEvent.title} onClose={() => setSharedEvent(null)}>
               <EventDetails
                 event={sharedEvent}
-                onToggleJoin={async () => {
-                  if (!(await handleToggleJoinEvent(sharedEvent))) return;
-                  setSharedEvent({
-                    ...sharedEvent,
-                    isJoined: !sharedEvent.isJoined,
-                    participantsCount: (sharedEvent.participantsCount || 1) + (sharedEvent.isJoined ? -1 : 1)
-                  });
+                onJoin={async (options) => {
+                  const updated = await handleJoinEvent(sharedEvent, options);
+                  if (updated) setSharedEvent(updated);
                 }}
               />
             </BottomSheet>

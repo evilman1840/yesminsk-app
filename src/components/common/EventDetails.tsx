@@ -1,18 +1,33 @@
 import React, { useState } from 'react';
 import { Check, Clock, MapPin, Users, Send, Share2 } from 'lucide-react';
-import { AppEvent, eventCategoryOf } from '../../types';
+import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
 import { ReportSheet } from './ReportSheet';
+import { JoinSheet } from './JoinSheet';
 
 /**
  * Подробности сходки: когда, где, сколько идёт, кнопки «Пойду!», «Позвать друзей» и «Организатору»
  */
-export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void; onReported?: () => void }> = ({
-  event,
-  onToggleJoin,
-  onReported
-}) => {
+// Строка «Идут: 7 из 10 · 3 компании · 👶 2»
+export const eventPeopleLine = (ev: AppEvent) => {
+  const groups = ev.groupsCount ?? ev.participantsCount;
+  return [
+    `Идут: ${ev.participantsCount || 1}${ev.maxParticipants ? ` из ${ev.maxParticipants}` : ''}`,
+    groups && groups < ev.participantsCount ? `${groups} ${groups === 1 ? 'компания' : groups < 5 ? 'компании' : 'компаний'}` : '',
+    ev.withKidsCount ? `👶 ${ev.withKidsCount}` : ''
+  ]
+    .filter(Boolean)
+    .join(' · ');
+};
+
+export const EventDetails: React.FC<{
+  event: AppEvent;
+  // options — с кем идёшь; null — «Не пойду»
+  onJoin: (options: JoinOptions | null) => Promise<unknown> | void;
+  onReported?: () => void;
+}> = ({ event, onJoin, onReported }) => {
+  const [isJoinOpen, setIsJoinOpen] = useState(false);
   const cat = eventCategoryOf(event);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
@@ -21,12 +36,19 @@ export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void;
   return (
     <div className="space-y-3">
       {event.isOfficial && <p className="text-sm2 font-bold text-zine-terracotta">⭐ От ДА! МИНСК — приходи, тут рады новичкам</p>}
-      {cat && (
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold ${cat.badgeBg} ${cat.badgeText}`}>
-          <span>{cat.emoji}</span>
-          <span>{cat.label}</span>
-        </span>
-      )}
+      <div className="flex flex-wrap gap-1.5">
+        {cat && (
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold ${cat.badgeBg} ${cat.badgeText}`}>
+            <span>{cat.emoji}</span>
+            <span>{cat.label}</span>
+          </span>
+        )}
+        {(event.tags || []).map((t) => (
+          <span key={t} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-card text-zine-ink">
+            {EVENT_TAGS[t].emoji} {EVENT_TAGS[t].label}
+          </span>
+        ))}
+      </div>
 
       <div className="space-y-2 text-body text-zine-ink">
         <p className="flex items-center gap-2.5">
@@ -39,10 +61,7 @@ export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void;
         </p>
         <p className="flex items-center gap-2.5 text-zine-inkMuted">
           <Users size={20} className="shrink-0" />
-          <span>
-            Идут: {event.participantsCount || 1}
-            {event.maxParticipants ? ` из ${event.maxParticipants}` : ''}
-          </span>
+          <span>{eventPeopleLine(event)}</span>
         </p>
       </div>
 
@@ -52,7 +71,7 @@ export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void;
         <button
           onClick={() => {
             telegramService.haptic('medium');
-            onToggleJoin();
+            setIsJoinOpen(true);
           }}
           disabled={isFull}
           className={`w-full h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
@@ -64,7 +83,9 @@ export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void;
           ) : event.isJoined ? (
             <>
               <Check size={20} strokeWidth={3} />
-              <span>Я иду · нажми, чтобы отменить</span>
+              <span>
+                Я иду{companyNote(event.myGuests, event.myWithKids) ? ` (${companyNote(event.myGuests, event.myWithKids)})` : ''} · изменить
+              </span>
             </>
           ) : (
             <span>Пойду!</span>
@@ -101,6 +122,9 @@ export const EventDetails: React.FC<{ event: AppEvent; onToggleJoin: () => void;
         <button onClick={() => setIsReportOpen(true)} className="w-full h-11 text-sm2 font-semibold text-zine-danger cursor-pointer">
           ⚠️ Пожаловаться на сходку
         </button>
+      )}
+      {isJoinOpen && (
+        <JoinSheet event={event} onConfirm={async (o) => onJoin(o)} onLeave={async () => onJoin(null)} onClose={() => setIsJoinOpen(false)} />
       )}
       {isReportOpen && (
         <ReportSheet

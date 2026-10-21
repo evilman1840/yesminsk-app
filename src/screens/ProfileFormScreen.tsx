@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
-import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender } from '../types';
+import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH } from '../types';
 import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage } from '../utils/compressImage';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
@@ -16,6 +16,7 @@ interface ProfileFormScreenProps {
     goals?: ActivityGoal[];
     goal?: ActivityGoal;
     customGoal?: string;
+    goesWith?: GoesWith;
     avatarUrl?: string;
     area?: string;
     isTourist?: boolean;
@@ -34,6 +35,7 @@ interface ProfileFormScreenProps {
     goals: ActivityGoal[];
     goal: ActivityGoal;
     customGoal: string;
+    goesWith?: GoesWith;
     avatarUrl: string;
     area: string;
     isTourist: boolean;
@@ -102,6 +104,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       : ['walk']
   );
   const [customGoal, setCustomGoal] = useState<string>(initialData?.customGoal || '');
+  const [goesWith, setGoesWith] = useState<GoesWith | undefined>(initialData?.goesWith);
   const [avatarUrl, setAvatarUrl] = useState<string>(
     initialData?.avatarUrl || tgUser?.photo_url || DEFAULT_AVATAR
   );
@@ -250,6 +253,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         goals: selectedGoals,
         goal: selectedGoals[0],
         customGoal: selectedGoals.includes('other') ? customGoal.trim() : '',
+        goesWith,
         avatarUrl,
         area,
         isTourist,
@@ -458,6 +462,31 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 className="field mt-2"
               />
             )}
+          </Section>
+
+          {/* Обычно хожу: без компании, парой, компанией, с детьми */}
+          <Section title="Обычно хожу" subtitle="Так проще найти тех, кто ходит так же">
+            <div className="grid grid-cols-2 gap-2">
+              {(Object.keys(GOES_WITH) as GoesWith[]).map((g) => {
+                const isSelected = goesWith === g;
+                return (
+                  <button
+                    type="button"
+                    key={g}
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      setGoesWith(isSelected ? undefined : g);
+                    }}
+                    className={`min-h-[56px] px-3 rounded-zine-sm border-2 flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                      isSelected ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
+                    }`}
+                  >
+                    <span className="text-[22px] leading-none">{GOES_WITH[g].emoji}</span>
+                    <span className="text-sm2 font-semibold text-zine-ink leading-tight">{GOES_WITH[g].label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </Section>
 
           {/* Район */}

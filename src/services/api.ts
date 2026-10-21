@@ -141,6 +141,7 @@ class ApiService {
     goal?: ActivityGoal;
     goals?: ActivityGoal[];
     customGoal?: string;
+    goesWith?: string;
     avatarUrl?: string;
     areaName?: string;
     isTourist?: boolean;
@@ -288,6 +289,7 @@ class ApiService {
     description: string;
     category: string;
     customCategory?: string;
+    tags?: string[];
     locationName: string;
     coordinates: [number, number];
     dateTime: string;
@@ -307,6 +309,7 @@ class ApiService {
     description?: string;
     category?: string;
     customCategory?: string;
+    tags?: string[];
     locationName?: string;
     coordinates?: [number, number];
     dateTime?: string;
@@ -347,9 +350,11 @@ class ApiService {
     }
   }
 
-  async joinEvent(eventId: string): Promise<{ success: boolean; event: AppEvent }> {
+  // Записаться или поменять, с кем идёшь (повторный вызов обновляет запись)
+  async joinEvent(eventId: string, options: { guests: number; withKids: boolean } = { guests: 0, withKids: false }): Promise<{ success: boolean; event: AppEvent }> {
     return this.request<{ success: boolean; event: AppEvent }>(`/events/${eventId}/join`, {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify(options)
     });
   }
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, Send, Loader2 } from 'lucide-react';
-import { UserProfile, goalsOf, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
+import { UserProfile, goalsOf, GOES_WITH, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType } from '../components/common/Reactions';
 import { formatDistance } from '../components/common/UserBottomSheet';
@@ -308,6 +308,11 @@ const PersonReel: React.FC<{
           </span>
         </p>
         <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
+          {user.goesWith && GOES_WITH[user.goesWith] && (
+            <span className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white text-[#2B2623] text-sm2 font-semibold flex items-center gap-1.5">
+              {GOES_WITH[user.goesWith].emoji} {GOES_WITH[user.goesWith].label}
+            </span>
+          )}
           {goals.map((goal) => (
             <span key={goal.id} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold flex items-center gap-1.5">
               {goal.emoji} {goal.label}

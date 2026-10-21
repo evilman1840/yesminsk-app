@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserProfile, PreferredGender, AgeRange, isAvailableNow } from '../../types';
+import { UserProfile, PreferredGender, AgeRange, isAvailableNow, GoesWith, GOES_WITH } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
 
@@ -17,6 +17,7 @@ export interface PeopleFilters {
   availableOnly: boolean;
   who: 'all' | 'locals' | 'tourists';
   recentOnly: boolean;
+  goesWith: GoesWith[];       // «Обычно ходит»; пусто — любые
   useMyPrefs: boolean;
 }
 
@@ -27,6 +28,7 @@ export const DEFAULT_FILTERS: PeopleFilters = {
   availableOnly: false,
   who: 'all',
   recentOnly: false,
+  goesWith: [],
   useMyPrefs: true
 };
 
@@ -57,6 +59,7 @@ export const countActiveFilters = (f: PeopleFilters) =>
   Number(f.availableOnly) +
   Number(f.who !== 'all') +
   Number(f.recentOnly) +
+  Number(f.goesWith.length > 0) +
   Number(!f.useMyPrefs);
 
 const AGE_BUCKETS: { id: AgeBucket; min: number; max: number }[] = [
@@ -86,6 +89,7 @@ export const applyPeopleFilters = (users: UserProfile[], f: PeopleFilters, my: M
     if (f.who === 'locals' && u.isTourist) return false;
     if (f.who === 'tourists' && !u.isTourist) return false;
     if (f.recentOnly && !u.activeRecently) return false;
+    if (f.goesWith.length > 0 && (!u.goesWith || !f.goesWith.includes(u.goesWith))) return false;
     if (f.useMyPrefs) {
       if (my.preferredGender && my.preferredGender !== 'all' && u.gender !== my.preferredGender) return false;
       const r = my.preferredAgeRange;
@@ -168,6 +172,19 @@ export const PeopleFiltersSheet: React.FC<{
           {([1, 3, 10, 0] as const).map((km) => (
             <Chip key={km} active={f.maxKm === km} onClick={() => set({ maxKm: km })}>
               {km ? `До ${km} км` : 'Весь Минск'}
+            </Chip>
+          ))}
+        </Section>
+
+        <Section title="Обычно ходит">
+          <Chip active={f.goesWith.length === 0} onClick={() => set({ goesWith: [] })}>Любые</Chip>
+          {(Object.keys(GOES_WITH) as GoesWith[]).map((g) => (
+            <Chip
+              key={g}
+              active={f.goesWith.includes(g)}
+              onClick={() => set({ goesWith: f.goesWith.includes(g) ? f.goesWith.filter((x) => x !== g) : [...f.goesWith, g] })}
+            >
+              {GOES_WITH[g].emoji} {GOES_WITH[g].label}
             </Chip>
           ))}
         </Section>

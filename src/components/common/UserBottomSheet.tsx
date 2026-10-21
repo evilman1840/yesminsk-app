@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
-import { UserProfile, goalsOf, isAvailableNow, formatTime } from '../../types';
+import { UserProfile, goalsOf, GOES_WITH, isAvailableNow, formatTime } from '../../types';
 import { ReactionButtons, ChatButton, ReactionType } from './Reactions';
 import { BottomSheet } from '../ui/BottomSheet';
 import { ReportSheet, SafetyTipsSheet } from './ReportSheet';
@@ -50,6 +50,12 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
+        {user.goesWith && GOES_WITH[user.goesWith] && (
+          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm2 font-semibold bg-zine-card text-zine-ink">
+            <span>{GOES_WITH[user.goesWith].emoji}</span>
+            <span>Обычно хожу: {GOES_WITH[user.goesWith].label.toLowerCase()}</span>
+          </span>
+        )}
         {goals.map((goal) => (
           <span key={goal.id} className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm2 font-semibold border ${goal.badgeBg} ${goal.badgeBorder} ${goal.badgeText}`}>
             <span>{goal.emoji}</span>

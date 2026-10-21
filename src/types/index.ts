@@ -76,6 +76,7 @@ export interface UserProfile {
   goal: ActivityGoal;
   goals?: ActivityGoal[];
   customGoal?: string; // своя идея, когда среди целей есть 'other'
+  goesWith?: GoesWith; // «Обычно хожу»
   age: number;
   gender: Gender;
   preferredGender: PreferredGender;
@@ -109,12 +110,36 @@ export const isAvailableNow = (u?: { availableUntil?: string | null } | null) =>
 export const formatTime = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
 
+// Пометки организатора: для кого сходка
+export type EventTag = 'kids' | 'couples' | 'dogs';
+export const EVENT_TAGS: Record<EventTag, { label: string; emoji: string }> = {
+  kids: { label: 'Можно с детьми', emoji: '👶' },
+  couples: { label: 'Удобно парами', emoji: '💑' },
+  dogs: { label: 'Можно с собакой', emoji: '🐕' }
+};
+
+// Как человек идёт на сходку: сколько ведёт с собой и есть ли дети
+export interface JoinOptions {
+  guests: number;
+  withKids: boolean;
+}
+
+// «Обычно хожу» в анкете
+export type GoesWith = 'solo' | 'couple' | 'friends' | 'kids';
+export const GOES_WITH: Record<GoesWith, { label: string; emoji: string }> = {
+  solo: { label: 'Без компании', emoji: '🙂' },
+  couple: { label: 'Парой', emoji: '💑' },
+  friends: { label: 'Компанией', emoji: '👯' },
+  kids: { label: 'С детьми', emoji: '👨‍👩‍👧' }
+};
+
 export interface AppEvent {
   id: string;
   title: string;
   description: string;
   category: EventCategory;
   customCategory?: string; // своя идея, когда category = 'other'
+  tags?: EventTag[];
   locationName: string;
   coordinates: [number, number]; // [lat, lng]
   dateTime: string;
@@ -124,17 +149,34 @@ export interface AppEvent {
     username?: string;
     avatarUrl: string;
   };
-  participantsCount: number;
+  participantsCount: number; // занятые места — вместе с гостями
+  groupsCount?: number;      // сколько записей (человек со своими гостями — одна)
+  withKidsCount?: number;    // сколько записей с детьми
   maxParticipants: number;
   isJoined: boolean;
+  myGuests?: number;         // сколько я веду с собой
+  myWithKids?: boolean;
   isOfficial?: boolean; // «⭐ От ДА! МИНСК» — сходка автора проекта
   participants?: Array<{
     telegramId: number;
     name: string;
     username?: string;
     avatarUrl: string;
+    guests?: number;
+    withKids?: boolean;
   }>;
 }
+
+// Сколько ещё можно взять с собой: свободные места минус я сам (моя прошлая запись не в счёт)
+export const maxGuestsFor = (ev: AppEvent) => {
+  if (!ev.maxParticipants) return Infinity;
+  const mySeats = ev.isJoined ? 1 + (ev.myGuests || 0) : 0;
+  return Math.max(0, ev.maxParticipants - (ev.participantsCount - mySeats) - 1);
+};
+
+// «+1, с детьми» — как я иду
+export const companyNote = (guests = 0, withKids = false) =>
+  [guests > 0 ? `+${guests}` : '', withKids ? 'с детьми' : ''].filter(Boolean).join(', ');
 
 /* ---------- Места по вайбу ---------- */
 

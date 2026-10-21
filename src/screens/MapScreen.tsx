@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, HelpCircle } from 'lucide-react';
-import { ActivityGoal, UserProfile, AppEvent, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
+import { ActivityGoal, UserProfile, AppEvent, JoinOptions, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
 import { telegramService } from '../services/telegram';
@@ -32,7 +32,7 @@ export interface MapScreenProps {
   selectedGoal: GoalFilter;
   onSelectGoal: (goal: GoalFilter) => void;
   onOpenProfile: () => void;
-  onToggleJoinEvent: (event: AppEvent) => Promise<boolean>;
+  onJoinEvent: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
   onUpdateLocation?: (coords: [number, number]) => void;
   onSetAvailable: (hours: number) => Promise<void>;
   onOpenNews: () => void;
@@ -115,7 +115,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   selectedGoal,
   onSelectGoal,
   onOpenProfile,
-  onToggleJoinEvent,
+  onJoinEvent,
   onUpdateLocation,
   onSetAvailable,
   onOpenNews,
@@ -631,13 +631,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         <BottomSheet title={selectedEvent.title} onClose={() => setSelectedEvent(null)}>
           <EventDetails
             event={selectedEvent}
-            onToggleJoin={async () => {
-              if (!(await onToggleJoinEvent(selectedEvent))) return;
-              setSelectedEvent({
-                ...selectedEvent,
-                isJoined: !selectedEvent.isJoined,
-                participantsCount: (selectedEvent.participantsCount || 1) + (selectedEvent.isJoined ? -1 : 1)
-              });
+            onJoin={async (options) => {
+              const updated = await onJoinEvent(selectedEvent, options);
+              if (updated) setSelectedEvent(updated);
             }}
           />
         </BottomSheet>
