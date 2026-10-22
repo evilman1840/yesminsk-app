@@ -314,6 +314,10 @@ export const App: React.FC = () => {
       if (target.tab === 'places') {
         setCurrentScreen(prev => (prev === 'main' ? 'places' : prev));
       }
+      if (target.tab === 'feed') {
+        setCurrentScreen(prev => (prev === 'main' ? 'feed' : prev));
+        fetchInbox();
+      }
       if (target.placeId) {
         setMapModeState('places');
         setInitialPlaceId(target.placeId);
