@@ -22,6 +22,35 @@ export const eventPeopleLine = (ev: AppEvent) => {
     .join(' · ');
 };
 
+// 1 место, 2 места, 5 мест
+export const plural = (n: number, one: string, few: string, many: string) => {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? few : many;
+};
+
+// «сегодня», «завтра», «через 3 дня» — по календарным дням
+export const relativeDay = (iso: string) => {
+  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((day(new Date(iso)) - day(new Date())) / 86400000);
+  if (diff < 0) return 'уже прошла';
+  if (diff === 0) return 'сегодня';
+  if (diff === 1) return 'завтра';
+  if (diff === 2) return 'послезавтра';
+  return `через ${diff} ${plural(diff, 'день', 'дня', 'дней')}`;
+};
+
+const Avatar: React.FC<{ src?: string; name: string; size?: string }> = ({ src, name, size = 'w-12 h-12' }) =>
+  src ? (
+    <img src={src} alt={name} className={`${size} rounded-full object-cover bg-zine-card shrink-0`} loading="lazy" />
+  ) : (
+    <span className={`${size} rounded-full bg-zine-card text-zine-inkMuted font-bold flex items-center justify-center shrink-0`}>{name.slice(0, 1)}</span>
+  );
+
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h4 className="mb-2 text-cap font-bold uppercase tracking-wide text-zine-inkMuted">{children}</h4>
+);
+
 export const EventDetails: React.FC<{
   event: AppEvent;
   // options — с кем идёшь; null — «Не пойду»
@@ -37,6 +66,11 @@ export const EventDetails: React.FC<{
   const [lat, lng] = event.coordinates || [0, 0];
   const routeUrl = `https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`;
   const myNote = companyNote(event.myGuests, event.myWithKids);
+  const taken = event.participantsCount || 1;
+  const left = event.maxParticipants ? Math.max(0, event.maxParticipants - taken) : null;
+  // Кто идёт, кроме организатора (сервер присылает первых нескольких)
+  const others = (event.participants || []).filter((p) => Number(p.telegramId) !== Number(event.creator?.telegramId));
+  const moreGroups = Math.max(0, (event.groupsCount ?? event.participantsCount) - 1 - others.length);
 
   return (
     <div>
@@ -60,19 +94,86 @@ export const EventDetails: React.FC<{
       <div className="mt-4 rounded-zine border border-zine-border divide-y divide-zine-border">
         <div className="px-4 py-3 flex items-center gap-3">
           <Clock size={19} className="shrink-0 text-zine-terracotta" />
-          <span className="text-body font-semibold text-zine-ink">{formatEventDate(event.dateTime)}</span>
+          <span className="text-body text-zine-ink">
+            <b>{formatEventDate(event.dateTime)}</b>
+            <span className="text-zine-inkMuted"> · {relativeDay(event.dateTime)}</span>
+          </span>
         </div>
         <button onClick={() => lat && telegramService.openLink(routeUrl)} className="w-full px-4 py-3 flex items-center gap-3 text-left cursor-pointer">
           <MapPin size={19} className="shrink-0 text-zine-terracotta" />
           <span className="min-w-0 text-body text-zine-ink underline decoration-zine-border underline-offset-4">{event.locationName}</span>
         </button>
-        <div className="px-4 py-3 flex items-center gap-3">
-          <Users size={19} className="shrink-0 text-zine-terracotta" />
-          <span className="text-body text-zine-ink">{eventPeopleLine(event)}</span>
-        </div>
       </div>
 
-      {event.description && <p className="mt-4 text-body text-zine-ink whitespace-pre-line">{event.description}</p>}
+      {event.description && (
+        <section className="mt-5">
+          <SectionTitle>О сходке</SectionTitle>
+          <p className="text-body text-zine-ink whitespace-pre-line">{event.description}</p>
+        </section>
+      )}
+
+      {/* Кто идёт: организатор, участники и свободные места */}
+      <section className="mt-5">
+        <SectionTitle>Кто идёт</SectionTitle>
+        <div className="flex items-center gap-3">
+          <Avatar src={event.creator?.avatarUrl} name={event.creator?.name || '?'} />
+          <div className="min-w-0 flex-1">
+            <p className="text-body font-bold text-zine-ink truncate">{isCreator ? 'Ты' : event.creator?.name}</p>
+            <p className="text-sm2 text-zine-inkMuted">собирает сходку</p>
+          </div>
+          {event.creator?.username && !isCreator && (
+            <button
+              onClick={() => {
+                telegramService.haptic('medium');
+                telegramService.openChat(event.creator.username);
+              }}
+              className="h-10 px-4 shrink-0 rounded-full bg-zine-card text-zine-ink text-sm2 font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
+            >
+              <Send size={16} /> Написать
+            </button>
+          )}
+        </div>
+
+        {others.length > 0 && (
+          <div className="mt-3 -mx-5 px-5 flex gap-3 overflow-x-auto no-scrollbar">
+            {others.map((p) => (
+              <div key={p.telegramId} className="w-14 shrink-0 flex flex-col items-center gap-1">
+                <div className="relative">
+                  <Avatar src={p.avatarUrl} name={p.name} size="w-12 h-12" />
+                  {(p.guests || p.withKids) && (
+                    <span className="absolute -bottom-1 -right-1 px-1 rounded-full bg-zine-cardElevated text-[11px] font-bold text-zine-ink shadow">
+                      {p.withKids ? '👶' : ''}
+                      {p.guests ? `+${p.guests}` : ''}
+                    </span>
+                  )}
+                </div>
+                <span className="w-full text-center text-cap text-zine-ink truncate">{p.name}</span>
+              </div>
+            ))}
+            {moreGroups > 0 && (
+              <div className="w-14 shrink-0 flex flex-col items-center gap-1">
+                <span className="w-12 h-12 rounded-full bg-zine-card text-zine-inkMuted text-sm2 font-bold flex items-center justify-center">+{moreGroups}</span>
+                <span className="text-cap text-zine-inkMuted">ещё</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-3 flex items-center gap-2 text-sm2 text-zine-inkMuted">
+          <Users size={17} className="shrink-0 text-zine-terracotta" />
+          <span>{eventPeopleLine(event)}</span>
+        </div>
+        {event.maxParticipants ? (
+          <div className="mt-2">
+            <div className="h-2 rounded-full bg-zine-card overflow-hidden">
+              <div className="h-full rounded-full bg-zine-terracotta" style={{ width: `${Math.min(100, (taken / event.maxParticipants) * 100)}%` }} />
+            </div>
+            <p className={`mt-1 text-cap font-semibold ${left ? 'text-zine-inkMuted' : 'text-zine-danger'}`}>
+              {left ? `Свободно ${left} ${plural(left, 'место', 'места', 'мест')}` : 'Мест больше нет'}
+            </p>
+          </div>
+        ) : null}
+      </section>
 
       {/* «Поныть» — правила встречи и куда обращаться, если совсем тяжело */}
       {event.category === 'support' && (
@@ -92,58 +193,17 @@ export const EventDetails: React.FC<{
         <p className="mt-3 text-sm2 text-zine-inkMuted">🫶 Записаться могут только те, кто отметил «Эмпат» в анкете.</p>
       )}
 
-      {/* Главное действие */}
-      <button
-        onClick={() => {
-          telegramService.haptic('medium');
-          setIsJoinOpen(true);
-        }}
-        disabled={isFull || isCreator}
-        className={`mt-5 w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-          isCreator
-            ? 'bg-zine-card text-zine-inkMuted cursor-default'
-            : event.isJoined
-            ? 'bg-zine-sage/15 text-zine-sage'
-            : isFull
-            ? 'bg-zine-card text-zine-inkMuted cursor-default'
-            : 'bg-zine-terracotta text-white'
-        }`}
-      >
-        {isCreator ? (
-          <span>Ты собираешь эту сходку</span>
-        ) : isFull ? (
-          <span>Мест нет — все {event.maxParticipants} заняты</span>
-        ) : event.isJoined ? (
-          <>
-            <Check size={22} strokeWidth={3} />
-            <span>Я иду{myNote ? ` (${myNote})` : ''} · изменить</span>
-          </>
-        ) : (
-          <span>Пойду!</span>
-        )}
-      </button>
-
-      {/* Остальное — одним рядом */}
-      <div className={`mt-2 grid gap-2 ${event.creator?.username ? 'grid-cols-3' : 'grid-cols-2'}`}>
+      {/* Позвать и маршрут */}
+      <div className="mt-5 grid grid-cols-2 gap-2">
         <SmallAction
           onClick={() => {
             telegramService.haptic('selection');
             telegramService.shareEvent(event);
           }}
           icon={<Share2 size={20} />}
-          label="Позвать"
+          label="Позвать друзей"
         />
         <SmallAction onClick={() => telegramService.openLink(routeUrl)} icon={<Navigation size={20} />} label="Маршрут" />
-        {event.creator?.username && (
-          <SmallAction
-            onClick={() => {
-              telegramService.haptic('medium');
-              telegramService.openChat(event.creator.username);
-            }}
-            icon={<Send size={20} />}
-            label="Организатору"
-          />
-        )}
       </div>
 
       {!isCreator && (
@@ -151,6 +211,43 @@ export const EventDetails: React.FC<{
           Пожаловаться на сходку
         </button>
       )}
+      {/* Заходит и на нижний отступ шторки — чтобы под кнопкой не просвечивал текст */}
+      <div
+        className="sticky z-10 -mx-5 -mb-4 mt-3 px-5 pt-3 bg-zine-cardElevated border-t border-zine-border"
+        style={{ bottom: 'calc(-1 * max(8px, env(safe-area-inset-bottom)))', paddingBottom: 'calc(12px + max(8px, env(safe-area-inset-bottom)))' }}
+      >
+        {/* Главное действие — закреплено внизу шторки */}
+        <button
+          onClick={() => {
+            telegramService.haptic('medium');
+            setIsJoinOpen(true);
+          }}
+          disabled={isFull || isCreator}
+          className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
+            isCreator
+              ? 'bg-zine-card text-zine-inkMuted cursor-default'
+              : event.isJoined
+              ? 'bg-zine-sage/15 text-zine-sage'
+              : isFull
+              ? 'bg-zine-card text-zine-inkMuted cursor-default'
+              : 'bg-zine-terracotta text-white'
+          }`}
+        >
+          {isCreator ? (
+            <span>Ты собираешь эту сходку</span>
+          ) : isFull ? (
+            <span>Мест нет — все {event.maxParticipants} заняты</span>
+          ) : event.isJoined ? (
+            <>
+              <Check size={22} strokeWidth={3} />
+              <span>Я иду{myNote ? ` (${myNote})` : ''} · изменить</span>
+            </>
+          ) : (
+            <span>Пойду!</span>
+          )}
+        </button>
+      </div>
+
       {isJoinOpen && (
         <JoinSheet event={event} onConfirm={async (o) => onJoin(o)} onLeave={async () => onJoin(null)} onClose={() => setIsJoinOpen(false)} />
       )}

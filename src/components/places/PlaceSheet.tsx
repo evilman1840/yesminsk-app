@@ -1,9 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, Navigation, CalendarPlus, BookOpen, Loader2, Trash2, Bookmark, BookmarkCheck, Star, Clock, Phone, Globe, ChevronRight, Sparkles } from 'lucide-react';
-import { PlaceItem, PlaceTipItem, PLACE_MOODS, PLACE_PRICES, placeTypeEmoji, formatRatingCount, KIDS_LEVELS } from '../../types';
+import { PlaceItem, PlaceTipItem, PLACE_MOODS, PLACE_PRICES, placeTypeEmoji, formatRatingCount, KIDS_LEVELS, AppEvent, JoinOptions, eventCategoryOf } from '../../types';
 import { api, serverUrl } from '../../services/api';
 import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
+import { EventDetails, relativeDay } from '../common/EventDetails';
+import { formatEventDate } from '../../screens/MapScreen';
+
+// Сходки в этом месте: привязанные к нему или собранные в паре десятков метров
+const eventsAtPlace = (place: PlaceItem, events: AppEvent[]) => {
+  const [lat, lng] = place.coordinates;
+  const near = (ev: AppEvent) => {
+    const [eLat, eLng] = ev.coordinates || [0, 0];
+    const dy = (eLat - lat) * 111000;
+    const dx = (eLng - lng) * 111000 * Math.cos((lat * Math.PI) / 180);
+    return Math.hypot(dx, dy) < 60;
+  };
+  return events
+    .filter((ev) => new Date(ev.dateTime).getTime() > Date.now() - 2 * 3600 * 1000 && (ev.placeId === place.id || near(ev)))
+    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+};
+
+// «завтра, 19:00» для ближайших дней, иначе «сб, 24 октября, 19:00»
+const shortWhen = (iso: string) => {
+  const rel = relativeDay(iso);
+  if (rel.startsWith('через') || rel === 'уже прошла') return formatEventDate(iso);
+  return `${rel[0].toUpperCase()}${rel.slice(1)}, ${new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+};
+
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h4 className="mb-2 text-cap font-bold uppercase tracking-wide text-zine-inkMuted">{children}</h4>
+);
 
 /**
  * Карточка места: фото, настроения, совет Миши, советы людей, «Как добраться», «Собрать сходку сюда»
@@ -13,7 +40,12 @@ export const PlaceSheet: React.FC<{
   onClose: () => void;
   onCreateEvent: (place: PlaceItem) => void;
   onToggleSave: (place: PlaceItem) => Promise<void>;
-}> = ({ place, onClose, onCreateEvent, onToggleSave }) => {
+  events?: AppEvent[];
+  onJoinEvent?: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
+}> = ({ place, onClose, onCreateEvent, onToggleSave, events = [], onJoinEvent }) => {
+  const placeEvents = eventsAtPlace(place, events);
+  const [openedEventId, setOpenedEventId] = useState<string | null>(null);
+  const openedEvent = placeEvents.find((ev) => ev.id === openedEventId) || null;
   const [isSaving, setIsSaving] = useState(false);
   const [tips, setTips] = useState<PlaceTipItem[]>([]);
   const [isTipsLoading, setIsTipsLoading] = useState(true);
@@ -59,7 +91,36 @@ export const PlaceSheet: React.FC<{
   const marks = [place.price ? PLACE_PRICES[place.price] : '', place.rainOk ? '☔ Ок в дождь' : '', place.evening ? '🌙 Лучше вечером' : '', place.oneDay ? '🧳 Туристам за один день' : ''].filter(Boolean);
 
   return (
-    <BottomSheet title={place.name} onClose={onClose}>
+    <BottomSheet
+      title={place.name}
+      onClose={onClose}
+      // Главные действия закреплены внизу — всегда под рукой
+      footer={
+        <div className="grid grid-cols-3 gap-2">
+          <ActionButton
+            onClick={async () => {
+              if (isSaving) return;
+              telegramService.haptic(place.isSaved ? 'light' : 'success');
+              setIsSaving(true);
+              try {
+                await onToggleSave(place);
+              } finally {
+                setIsSaving(false);
+              }
+            }}
+            active={place.isSaved}
+            icon={isSaving ? <Loader2 size={22} className="animate-spin" /> : place.isSaved ? <BookmarkCheck size={22} /> : <Bookmark size={22} />}
+            label={place.isSaved ? 'Сохранено' : 'Сохранить'}
+          />
+          <ActionButton
+            onClick={() => telegramService.openLink(`https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`)}
+            icon={<Navigation size={22} />}
+            label="Маршрут"
+          />
+          <ActionButton onClick={() => onCreateEvent(place)} primary icon={<CalendarPlus size={22} />} label="Сходка сюда" />
+        </div>
+      }
+    >
       {/* Фото: листаются пальцем */}
       {place.photos.length > 0 && (
         <div className="relative -mx-5">
@@ -110,31 +171,6 @@ export const PlaceSheet: React.FC<{
       )}
       {place.description && <p className="mt-2 text-lead text-zine-ink">{place.description}</p>}
 
-      {/* Главные действия — одним рядом */}
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <ActionButton
-          onClick={async () => {
-            if (isSaving) return;
-            telegramService.haptic(place.isSaved ? 'light' : 'success');
-            setIsSaving(true);
-            try {
-              await onToggleSave(place);
-            } finally {
-              setIsSaving(false);
-            }
-          }}
-          active={place.isSaved}
-          icon={isSaving ? <Loader2 size={22} className="animate-spin" /> : place.isSaved ? <BookmarkCheck size={22} /> : <Bookmark size={22} />}
-          label={place.isSaved ? 'Сохранено' : 'Сохранить'}
-        />
-        <ActionButton
-          onClick={() => telegramService.openLink(`https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`)}
-          icon={<Navigation size={22} />}
-          label="Маршрут"
-        />
-        <ActionButton onClick={() => onCreateEvent(place)} primary icon={<CalendarPlus size={22} />} label="Сходка сюда" />
-      </div>
-
       {/* Это место хотят посетить и другие — повод собрать сходку */}
       {place.savedByOthers ? (
         <button
@@ -145,6 +181,41 @@ export const PlaceSheet: React.FC<{
           <b className="text-zine-terracotta">Собери сходку</b> — мы им напишем.
         </button>
       ) : null}
+
+      {/* Ближайшие сходки здесь — можно сразу присоединиться */}
+      {placeEvents.length > 0 && (
+        <section className="mt-5">
+          <SectionTitle>Сходки здесь · {placeEvents.length}</SectionTitle>
+          <div className="space-y-2">
+            {placeEvents.slice(0, 3).map((ev) => {
+              const cat = eventCategoryOf(ev);
+              return (
+                <button
+                  key={ev.id}
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setOpenedEventId(ev.id);
+                  }}
+                  className="w-full p-3 rounded-zine-sm bg-zine-card flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform"
+                >
+                  <span className="w-11 h-11 shrink-0 rounded-full bg-zine-cardElevated flex items-center justify-center text-[22px]">{cat?.emoji || '📅'}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-body font-bold text-zine-ink truncate">{ev.title}</span>
+                    <span className="block text-sm2 text-zine-inkMuted truncate">
+                      {shortWhen(ev.dateTime)}
+                    </span>
+                  </span>
+                  {ev.isJoined ? (
+                    <span className="shrink-0 text-sm2 font-bold text-zine-sage">✓ иду</span>
+                  ) : (
+                    <ChevronRight size={20} className="shrink-0 text-zine-inkMuted" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Куда с детьми */}
       {place.kidsLevel && KIDS_LEVELS[place.kidsLevel] && (
@@ -164,17 +235,20 @@ export const PlaceSheet: React.FC<{
 
       {/* Адрес, часы, телефон, сайт, цена — одним списком */}
       {(place.hours || place.phone || place.website || marks.length > 0 || (place.address && place.address !== place.name)) && (
-        <div className="mt-5 rounded-zine border border-zine-border divide-y divide-zine-border">
-          {place.address && place.address !== place.name && (
-            <InfoRow icon={<MapPin size={19} />} text={place.address} onClick={() => telegramService.openLink(`https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`)} />
-          )}
-          {place.hours && <InfoRow icon={<Clock size={19} />} text={place.hours === '24/7' ? 'Круглосуточно' : place.hours} />}
-          {place.phone && <InfoRow icon={<Phone size={19} />} text={place.phone} onClick={() => telegramService.openLink(`tel:${place.phone!.replace(/[^\d+]/g, '')}`)} />}
-          {place.website && (
-            <InfoRow icon={<Globe size={19} />} text={place.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')} onClick={() => telegramService.openLink(place.website!)} />
-          )}
-          {marks.length > 0 && <InfoRow icon={<Sparkles size={19} />} text={marks.join(' · ')} />}
-        </div>
+        <section className="mt-5">
+          <SectionTitle>Адрес и контакты</SectionTitle>
+          <div className="rounded-zine border border-zine-border divide-y divide-zine-border">
+            {place.address && place.address !== place.name && (
+              <InfoRow icon={<MapPin size={19} />} text={place.address} onClick={() => telegramService.openLink(`https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`)} />
+            )}
+            {place.hours && <InfoRow icon={<Clock size={19} />} text={place.hours === '24/7' ? 'Круглосуточно' : place.hours} />}
+            {place.phone && <InfoRow icon={<Phone size={19} />} text={place.phone} onClick={() => telegramService.openLink(`tel:${place.phone!.replace(/[^\d+]/g, '')}`)} />}
+            {place.website && (
+              <InfoRow icon={<Globe size={19} />} text={place.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')} onClick={() => telegramService.openLink(place.website!)} />
+            )}
+            {marks.length > 0 && <InfoRow icon={<Sparkles size={19} />} text={marks.join(' · ')} />}
+          </div>
+        </section>
       )}
 
       {/* Настроения и удобства — лёгкой строкой */}
@@ -215,10 +289,8 @@ export const PlaceSheet: React.FC<{
       {/* Что пишут на Яндекс Картах — отзывы из таблиц автора */}
       {place.reviews && place.reviews.length > 0 && (
         <div className="mt-6">
-          <h4 className="text-lead font-bold text-zine-ink">
-            Что пишут <span className="text-zine-inkMuted font-medium">· {place.reviews.length}</span>
-          </h4>
-          <div className="mt-3 -mx-5 px-5 scroll-px-5 flex gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory">
+          <SectionTitle>Что пишут · {place.reviews.length}</SectionTitle>
+          <div className="-mx-5 px-5 scroll-px-5 flex gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory">
             {place.reviews.map((r, i) => (
               <figure key={i} className="w-[82%] shrink-0 snap-start p-4 rounded-zine bg-zine-card flex flex-col">
                 {r.rating ? (
@@ -238,30 +310,8 @@ export const PlaceSheet: React.FC<{
 
       {/* Советы людей */}
       <div className="mt-6">
-        <h4 className="text-lead font-bold text-zine-ink">Советы людей {tips.length > 0 && <span className="text-zine-inkMuted font-medium">· {tips.length}</span>}</h4>
-
-        <div className="mt-3 flex gap-2">
-          <textarea
-            rows={2}
-            maxLength={300}
-            value={tipText}
-            onChange={(e) => setTipText(e.target.value)}
-            placeholder="Твой совет: что заказать, когда лучше прийти…"
-            className="field flex-1"
-          />
-        </div>
-        {tipText.trim() && (
-          <button
-            onClick={sendTip}
-            disabled={isSending}
-            className="mt-2 w-full h-12 rounded-zine-sm bg-zine-ink text-zine-paper text-body font-bold flex items-center justify-center cursor-pointer"
-          >
-            {isSending ? <Loader2 size={20} className="animate-spin" /> : 'Поделиться советом'}
-          </button>
-        )}
-        {error && <p className="mt-2 text-sm2 font-semibold text-zine-danger">{error}</p>}
-
-        <div className="mt-4 space-y-3">
+        <SectionTitle>Советы людей{tips.length > 0 ? ` · ${tips.length}` : ''}</SectionTitle>
+        <div className="space-y-3">
           {isTipsLoading ? (
             <p className="text-sm2 text-zine-inkMuted">Загружаем…</p>
           ) : tips.length === 0 ? (
@@ -289,7 +339,33 @@ export const PlaceSheet: React.FC<{
             ))
           )}
         </div>
+        <div className="mt-4 flex gap-2">
+          <textarea
+            rows={2}
+            maxLength={300}
+            value={tipText}
+            onChange={(e) => setTipText(e.target.value)}
+            placeholder="Твой совет: что заказать, когда лучше прийти…"
+            className="field flex-1"
+          />
+        </div>
+        {tipText.trim() && (
+          <button
+            onClick={sendTip}
+            disabled={isSending}
+            className="mt-2 w-full h-12 rounded-zine-sm bg-zine-ink text-zine-paper text-body font-bold flex items-center justify-center cursor-pointer"
+          >
+            {isSending ? <Loader2 size={20} className="animate-spin" /> : 'Поделиться советом'}
+          </button>
+        )}
+        {error && <p className="mt-2 text-sm2 font-semibold text-zine-danger">{error}</p>}
       </div>
+
+      {openedEvent && (
+        <BottomSheet title={openedEvent.title} onClose={() => setOpenedEventId(null)}>
+          <EventDetails event={openedEvent} onJoin={async (o) => onJoinEvent?.(openedEvent, o)} onReported={() => setOpenedEventId(null)} />
+        </BottomSheet>
+      )}
     </BottomSheet>
   );
 };
@@ -334,7 +410,7 @@ const ActionButton: React.FC<{ onClick: () => void; icon: React.ReactNode; label
 }) => (
   <button
     onClick={onClick}
-    className={`h-[68px] rounded-zine-sm flex flex-col items-center justify-center gap-1 text-sm2 font-bold active:scale-[0.97] transition-transform cursor-pointer ${
+    className={`h-[60px] rounded-zine-sm flex flex-col items-center justify-center gap-1 text-sm2 font-bold active:scale-[0.97] transition-transform cursor-pointer ${
       primary ? 'bg-zine-terracotta text-white' : active ? 'bg-zine-sage/15 text-zine-sage' : 'bg-zine-card text-zine-ink'
     }`}
   >

@@ -223,6 +223,7 @@ export interface AppEvent {
   myGuests?: number;         // сколько я веду с собой
   myWithKids?: boolean;
   isOfficial?: boolean; // «⭐ От ДА! МИНСК» — сходка автора проекта
+  placeId?: string;     // сходка в месте из «Мест»
   participants?: Array<{
     telegramId: number;
     name: string;

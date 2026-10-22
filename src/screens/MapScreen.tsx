@@ -375,6 +375,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             onCreateEventAtPlace(p);
           }}
           onToggleSave={async (p) => setSelectedPlace(await onToggleSavePlace(p))}
+          events={events}
+          onJoinEvent={onJoinEvent}
         />
       )}
 

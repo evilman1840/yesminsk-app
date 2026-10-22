@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Bookmark, BookmarkCheck, CalendarPlus } from 'lucide-react';
-import { PlaceItem, PLACE_MOODS, placeTypeEmoji, placesForKids, KIDS_LEVELS } from '../types';
+import { PlaceItem, AppEvent, JoinOptions, PLACE_MOODS, placeTypeEmoji, placesForKids, KIDS_LEVELS } from '../types';
 import { api, serverUrl } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { MoodChips, MoodFilter } from '../components/places/MoodPicker';
@@ -22,7 +22,9 @@ export const PlacesScreen: React.FC<{
   places: PlaceItem[];
   onToggleSave: (place: PlaceItem) => Promise<PlaceItem>;
   onCreateEvent: (place: PlaceItem) => void;
-}> = ({ places, onToggleSave, onCreateEvent }) => {
+  events?: AppEvent[];
+  onJoinEvent?: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
+}> = ({ places, onToggleSave, onCreateEvent, events, onJoinEvent }) => {
   const [mood, setMood] = useState<MoodFilter>('all');
   const [placeType, setPlaceType] = useState<string | null>(null); // фильтр по типу: «Парк», «Музей»…
   const [openedPlace, setOpenedPlace] = useState<PlaceItem | null>(null);
@@ -120,6 +122,8 @@ export const PlacesScreen: React.FC<{
             setOpenedPlace(null);
             onCreateEvent(p);
           }}
+          events={events}
+          onJoinEvent={onJoinEvent}
           onToggleSave={async (p) => {
             setOpenedPlace(await onToggleSave(p));
           }}

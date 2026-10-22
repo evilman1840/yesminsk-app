@@ -741,7 +741,7 @@ export const App: React.FC = () => {
             )}
 
             {currentScreen === 'places' && (
-              <PlacesScreen places={places} onToggleSave={toggleSavePlace} onCreateEvent={createEventAtPlace} />
+              <PlacesScreen places={places} onToggleSave={toggleSavePlace} onCreateEvent={createEventAtPlace} events={events} onJoinEvent={handleJoinEvent} />
             )}
 
             {currentScreen === 'news' && (
