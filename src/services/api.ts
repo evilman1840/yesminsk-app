@@ -143,6 +143,7 @@ class ApiService {
     customGoal?: string;
     goesWith?: string;
     digest?: string;
+    isEmpath?: boolean;
     avatarUrl?: string;
     areaName?: string;
     isTourist?: boolean;
@@ -252,6 +253,11 @@ class ApiService {
   }
 
   // «⚡ Хочу сейчас»: hours > 0 — включить на столько часов, 0 — выключить
+  // «🫂 Хочется поныть» на несколько часов (0 — выключить)
+  async setVent(hours: number): Promise<{ success: boolean; ventUntil: string | null }> {
+    return this.request('/users/vent', { method: 'POST', body: JSON.stringify({ hours }) });
+  }
+
   async setAvailable(hours: number): Promise<{ success: boolean; availableUntil: string | null }> {
     return this.request('/users/available', {
       method: 'POST',

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Clock, MapPin, Users, Send, Share2, Navigation } from 'lucide-react';
-import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote } from '../../types';
+import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES } from '../../types';
+import { HelpLine } from './HelpLine';
 import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
 import { ReportSheet } from './ReportSheet';
@@ -72,6 +73,24 @@ export const EventDetails: React.FC<{
       </div>
 
       {event.description && <p className="mt-4 text-body text-zine-ink whitespace-pre-line">{event.description}</p>}
+
+      {/* «Поныть» — правила встречи и куда обращаться, если совсем тяжело */}
+      {event.category === 'support' && (
+        <div className="mt-4 p-4 rounded-zine bg-zine-blush/15">
+          <p className="text-body font-bold text-zine-ink">🫂 Правила встречи</p>
+          <ul className="mt-1.5 space-y-1">
+            {SUPPORT_RULES.map((r) => (
+              <li key={r} className="text-sm2 text-zine-ink">
+                • {r}
+              </li>
+            ))}
+          </ul>
+          <HelpLine className="mt-3" />
+        </div>
+      )}
+      {(event.tags || []).includes('empaths') && (
+        <p className="mt-3 text-sm2 text-zine-inkMuted">🫶 Записаться могут только те, кто отметил «Эмпат» в анкете.</p>
+      )}
 
       {/* Главное действие */}
       <button

@@ -441,7 +441,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </button>
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
-          {([['all', 'Все', ''], ['kids', 'С детьми', '👶'], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji])] as [EventCategory | 'all' | 'kids', string, string][]).map(([id, label, emoji]) => {
+          {([['all', 'Все', ''], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji]), ['kids', 'С детьми', '👶']] as [EventCategory | 'all' | 'kids', string, string][]).map(([id, label, emoji]) => {
             const isActive = selectedCategory === id;
             return (
               <button
@@ -572,6 +572,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                       onClick={() => {
                         telegramService.haptic('selection');
                         setCategory(cat);
+                        // «Поныть» — маленькой группой, чтобы каждый успел выговориться
+                        if (cat === 'support' && (maxParticipants === '0' || !maxParticipants)) setMaxParticipants('6');
                       }}
                       className={`h-[72px] rounded-zine-sm border-2 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
                         isSelected ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
@@ -789,6 +791,7 @@ const REEL_BG: Record<EventCategory, string> = {
   trip_outdoors: 'from-[#5B7B68] to-[#1F2A23]',
   boardgames: 'from-[#4A7396] to-[#1C2732]',
   sport: 'from-[#3F8A8C] to-[#1A2B2C]',
+  support: 'from-[#9A7BA8] to-[#2A2230]',
   other: 'from-[#C77D86] to-[#33222A]'
 };
 

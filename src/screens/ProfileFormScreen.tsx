@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
-import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea } from '../types';
+import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea, EMPATH, formatTime } from '../types';
+import { HelpLine } from '../components/common/HelpLine';
 import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage } from '../utils/compressImage';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
@@ -18,6 +19,8 @@ interface ProfileFormScreenProps {
     customGoal?: string;
     goesWith?: GoesWith;
     digest?: DigestFrequency;
+    isEmpath?: boolean;
+    ventUntil?: string | null;
     avatarUrl?: string;
     area?: string;
     isTourist?: boolean;
@@ -38,6 +41,7 @@ interface ProfileFormScreenProps {
     customGoal: string;
     goesWith?: GoesWith;
     digest: DigestFrequency;
+    isEmpath: boolean;
     avatarUrl: string;
     area: string;
     isTourist: boolean;
@@ -47,6 +51,7 @@ interface ProfileFormScreenProps {
     coordinates?: [number, number];
   }) => Promise<void> | void;
   onBack?: () => void;
+  onSetVent?: (hours: number) => Promise<void>; // «🫂 Хочется поныть» — включается сразу, без «Сохранить»
   isFirstTime?: boolean;
   onPlacesChanged?: () => void; // вернули скрытое место — обновить список мест
   onEventsChanged?: () => void; // вернули скрытую сходку — обновить список сходок
@@ -74,7 +79,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   onBack,
   isFirstTime = false,
   onPlacesChanged,
-  onEventsChanged
+  onEventsChanged,
+  onSetVent
 }) => {
   const tgUser = telegramService.getUser();
 
@@ -110,6 +116,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [customGoal, setCustomGoal] = useState<string>(initialData?.customGoal || '');
   const [goesWith, setGoesWith] = useState<GoesWith | undefined>(initialData?.goesWith);
   const [digest, setDigest] = useState<DigestFrequency>(initialData?.digest || 'weekend');
+  const [isEmpath, setIsEmpath] = useState<boolean>(Boolean(initialData?.isEmpath));
+  const [isVentBusy, setIsVentBusy] = useState(false);
+  const isVenting = Boolean(initialData?.ventUntil && new Date(initialData.ventUntil).getTime() > Date.now());
   const [avatarUrl, setAvatarUrl] = useState<string>(
     initialData?.avatarUrl || tgUser?.photo_url || DEFAULT_AVATAR
   );
@@ -233,6 +242,12 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       return;
     }
 
+    if (Number(age) < 18) {
+      setErrorText('ДА! МИНСК — только для тех, кому 18+');
+      telegramService.haptic('warning');
+      return;
+    }
+
     if (selectedGoals.includes('other') && !customGoal.trim()) {
       setErrorText('Напиши свою идею — например, «Караоке»');
       telegramService.haptic('warning');
@@ -260,6 +275,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         customGoal: selectedGoals.includes('other') ? customGoal.trim() : '',
         goesWith,
         digest,
+        isEmpath,
         avatarUrl,
         area,
         isTourist,
@@ -393,7 +409,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 <input
                   type="number"
                   inputMode="numeric"
-                  min="16"
+                  min="18"
                   max="99"
                   value={age}
                   onChange={(e) => setAge(e.target.value)}
@@ -522,6 +538,59 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             </button>
           </Section>
 
+          {/* «🫶 Эмпат» — отмечает сам человек; бейдж видно на карточке */}
+          <Section>
+            <button
+              type="button"
+              onClick={() => {
+                telegramService.haptic('selection');
+                setIsEmpath((v) => !v);
+              }}
+              className="w-full flex items-center justify-between gap-3 text-left cursor-pointer"
+            >
+              <span>
+                <span className="block text-body font-bold text-zine-ink">
+                  {EMPATH.emoji} Я {EMPATH.label.toLowerCase()}
+                </span>
+                <span className="block text-sm2 text-zine-inkMuted">Умею слушать и поддерживать. Это увидят на твоей карточке</span>
+              </span>
+              <span className={`w-14 h-8 rounded-full p-1 transition-colors shrink-0 ${isEmpath ? 'bg-zine-terracotta' : 'bg-zine-border'}`}>
+                <span className={`block w-6 h-6 rounded-full bg-white shadow transition-transform ${isEmpath ? 'translate-x-6' : 'translate-x-0'}`} />
+              </span>
+            </button>
+          </Section>
+
+          {/* «🫂 Хочется поныть» — статус на 3 часа, видят только эмпаты */}
+          {!isFirstTime && onSetVent && (
+            <Section>
+              <p className="text-body font-bold text-zine-ink">🫂 Хочется поныть</p>
+              <p className="mt-0.5 text-sm2 text-zine-inkMuted">
+                {isVenting
+                  ? `Включено до ${formatTime(initialData?.ventUntil)}. Эмпаты рядом видят это и могут передать тебе 👋`
+                  : 'Эмпаты рядом увидят и смогут передать тебе 👋. Статус выключится сам через 3 часа'}
+              </p>
+              <button
+                type="button"
+                disabled={isVentBusy}
+                onClick={async () => {
+                  telegramService.haptic('medium');
+                  setIsVentBusy(true);
+                  try {
+                    await onSetVent(isVenting ? 0 : 3);
+                  } finally {
+                    setIsVentBusy(false);
+                  }
+                }}
+                className={`mt-3 w-full h-12 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform ${
+                  isVenting ? 'bg-zine-card text-zine-ink' : 'bg-zine-blush/25 text-zine-ink'
+                }`}
+              >
+                {isVentBusy ? <Loader2 size={20} className="animate-spin" /> : isVenting ? 'Выключить' : '🫂 Включить на 3 часа'}
+              </button>
+              <HelpLine className="mt-3 !text-cap !text-zine-inkMuted" />
+            </Section>
+          )}
+
           {/* «🧭 Покажу город» — только для местных */}
           {!isTouristArea(area) && (
             <Section>
@@ -629,6 +698,14 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           {/* Скрытые места и сходки — можно вернуть в ленту */}
           {!isFirstTime && <HiddenPlaces onRestored={() => onPlacesChanged?.()} onEventsRestored={() => onEventsChanged?.()} />}
 
+          {/* Безопасность: 18+ и куда обращаться */}
+          {!isFirstTime && (
+            <Section title="🔞 Только 18+">
+              <p className="text-sm2 text-zine-ink">Если замечаешь человека младше 18 — пожалуйся на анкету, администрация проверит.</p>
+              <HelpLine className="mt-2" />
+            </Section>
+          )}
+
           {/* Тема оформления — применяется сразу */}
           {!isFirstTime && (
             <Section title="Тема оформления" subtitle="«Авто» — как в Telegram">
@@ -693,10 +770,10 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                     <input
                       type="number"
                       inputMode="numeric"
-                      min="16"
+                      min="18"
                       max={maxAge}
                       value={minAge}
-                      onChange={(e) => setMinAge(Number(e.target.value) || 16)}
+                      onChange={(e) => setMinAge(Number(e.target.value) || 18)}
                       className="field text-center"
                     />
                     <span className="text-body text-zine-inkMuted">—</span>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { GOALS_CONFIG, ActivityGoal, GoalFilter } from '../../types';
+import { GOALS_CONFIG, ActivityGoal, GoalFilter, EMPATH } from '../../types';
 import { telegramService } from '../../services/telegram';
 
 /**
@@ -18,7 +18,8 @@ export const GoalChips: React.FC<{
       label: GOALS_CONFIG[id].label,
       emoji: GOALS_CONFIG[id].emoji
     })),
-    { id: 'guides', label: 'Покажут город', emoji: '🧭' }
+    { id: 'guides', label: 'Покажут город', emoji: '🧭' },
+    { id: 'empaths', label: 'Эмпаты', emoji: EMPATH.emoji }
   ];
 
   return (

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
-import { UserProfile, goalsOf, GOES_WITH, isAvailableNow, formatTime } from '../../types';
+import { UserProfile, goalsOf, GOES_WITH, EMPATH, isVentingNow, isAvailableNow, formatTime } from '../../types';
 import { ReactionButtons, ChatButton, ReactionType } from './Reactions';
 import { BottomSheet } from '../ui/BottomSheet';
 import { ReportSheet, SafetyTipsSheet } from './ReportSheet';
@@ -28,12 +28,21 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
   const distance = formatDistance(user.distanceMeters);
 
   return (
-    <BottomSheet onClose={onClose} title={user.age ? `${user.firstName}, ${user.age}` : user.firstName}>
+    <BottomSheet
+      onClose={onClose}
+      title={`${user.age ? `${user.firstName}, ${user.age}` : user.firstName}${user.isEmpath ? ` · ${EMPATH.emoji} ${EMPATH.label.toLowerCase()}` : ''}`}
+    >
       <img
         src={user.avatarUrl}
         alt={user.firstName}
         className="w-full aspect-[4/3] rounded-zine object-cover bg-zine-card"
       />
+
+      {isVentingNow(user) && (
+        <p className="mt-4 p-3 rounded-zine-sm bg-zine-blush/20 text-body text-zine-ink">
+          <b>🫂 Хочется поныть</b> · до {formatTime(user.ventUntil)}. Передай 👋 — можно поддержать без советов и оценок.
+        </p>
+      )}
 
       {isAvailableNow(user) && (
         <p className="mt-4 p-3 rounded-zine-sm bg-[#2FA36B]/15 text-body font-semibold text-zine-ink">

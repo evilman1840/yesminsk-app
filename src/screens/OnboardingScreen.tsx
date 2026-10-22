@@ -1,5 +1,5 @@
 import React from 'react';
-import { HeartHandshake, ShieldCheck } from 'lucide-react';
+import { HeartHandshake, ShieldCheck, Cake } from 'lucide-react';
 import { telegramService } from '../services/telegram';
 import { Logo } from '../components/ui/Logo';
 
@@ -31,6 +31,7 @@ const FEATURES = [
 
 // Правила — коротко, но обязательно
 const RULES = [
+  { Icon: Cake, text: 'Только 18+. Заметили кого-то младше — пожалуйтесь на анкету' },
   { Icon: HeartHandshake, text: 'Только дружба: без флирта и свиданий' },
   { Icon: ShieldCheck, text: 'Метка на карте смещена на 300–500 м — где ты живёшь, никто не узнает' }
 ];

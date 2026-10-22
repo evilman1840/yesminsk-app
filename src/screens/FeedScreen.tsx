@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, Send, Loader2 } from 'lucide-react';
-import { UserProfile, goalsOf, GOES_WITH, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
+import { UserProfile, goalsOf, GOES_WITH, EMPATH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType } from '../components/common/Reactions';
 import { formatDistance } from '../components/common/UserBottomSheet';
@@ -67,6 +67,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   const hint =
     selectedGoal === 'guides'
       ? '🧭 Покажут город бесплатно. Об условиях договаривайтесь лично.'
+      : selectedGoal === 'empaths'
+      ? '🫶 Те, кто отметил: умею слушать и поддерживать.'
       : tab === 'likes' && filteredUsers.length > 0
       ? 'Хотят пообщаться — нажми 👋 в ответ, и сможете написать.'
       : '';
@@ -291,6 +293,9 @@ const PersonReel: React.FC<{
           {user.isMatch && <span className="px-3 py-1 rounded-full bg-zine-sage text-white text-sm2 font-bold">🤝 На связи</span>}
           {user.likedMe && !user.isMatch && <span className="px-3 py-1 rounded-full bg-white text-[#2B2623] text-sm2 font-bold">👋 Хочет пообщаться</span>}
           {user.isGuide && <span className="px-3 py-1 rounded-full bg-zine-sky text-white text-sm2 font-bold">🧭 Покажу город</span>}
+          {isVentingNow(user) && (
+            <span className="px-3 py-1 rounded-full bg-[#C77D86] text-white text-sm2 font-bold">🫂 Хочется поныть · до {formatTime(user.ventUntil)}</span>
+          )}
           {isAvailableNow(user) && (
             <span className="px-3 py-1 rounded-full bg-[#2FA36B] text-white text-sm2 font-bold">⚡ Могу сейчас · до {formatTime(user.availableUntil)}</span>
           )}
@@ -299,6 +304,13 @@ const PersonReel: React.FC<{
         <h2 className="mt-2 pr-16 font-serif font-bold text-display leading-tight">
           {user.firstName}
           {user.age ? <span className="font-sans font-medium text-white/80">, {user.age}</span> : null}
+          {/* «Эмпат» — подписью рядом с возрастом, без лишней плашки */}
+          {user.isEmpath && (
+            <span className="font-sans font-medium text-white/80 whitespace-nowrap">
+              {' · '}
+              {EMPATH.emoji} {EMPATH.label.toLowerCase()}
+            </span>
+          )}
         </h2>
         <p className="mt-1 pr-16 flex items-center gap-1.5 text-sm2 text-white/85">
           <MapPin size={16} className="shrink-0" />

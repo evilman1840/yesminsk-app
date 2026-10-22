@@ -1,7 +1,7 @@
 export type ActivityGoal = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'other';
 export type Gender = 'male' | 'female' | 'not_specified';
 export type PreferredGender = 'all' | 'male' | 'female';
-export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'other';
+export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'support' | 'other';
 
 export interface AgeRange {
   min: number;
@@ -50,12 +50,13 @@ export const goalsOf = (u: { goal: ActivityGoal; goals?: ActivityGoal[]; customG
   (u.goals?.length ? u.goals : [u.goal]).filter((g) => GOALS_CONFIG[g]).map((g) => goalOf(g, u.customGoal));
 
 export const EVENT_CATEGORIES_CONFIG: Record<EventCategory, { label: string; emoji: string; badgeBg: string; badgeText: string }> = {
-  walk: { label: 'Прогулка', emoji: '🚶', ...badge('terracotta') },
   cafe_bar: { label: 'Кофе, бар', emoji: '☕️', ...badge('mustard') },
+  walk: { label: 'Прогулка', emoji: '🚶', ...badge('terracotta') },
   expo_cinema: { label: 'Арт, кино', emoji: '🎨', ...badge('plum') },
   trip_outdoors: { label: 'За город', emoji: '🌲', ...badge('sage') },
   boardgames: { label: 'Настолки', emoji: '🎲', ...badge('sky') },
   sport: { label: 'Спорт, вело', emoji: '🚴', ...badge('sky') },
+  support: { label: 'Поныть', emoji: '🫂', ...badge('blush') },
   other: { label: 'Своя идея', emoji: '✨', ...badge('blush') }
 };
 
@@ -77,6 +78,8 @@ export interface UserProfile {
   goals?: ActivityGoal[];
   customGoal?: string; // своя идея, когда среди целей есть 'other'
   goesWith?: GoesWith; // «Обычно хожу»
+  isEmpath?: boolean;  // «🫶 Эмпат» — отметил(а) сам(а) в анкете
+  ventUntil?: string;  // «🫂 Хочется поныть» — до этого времени (приходит только эмпатам)
   age: number;
   gender: Gender;
   preferredGender: PreferredGender;
@@ -98,10 +101,16 @@ export interface UserProfile {
 }
 
 // Фильтр людей: по цели, все или «🧭 Покажут город»
-export type GoalFilter = ActivityGoal | 'all' | 'guides';
+export type GoalFilter = ActivityGoal | 'all' | 'guides' | 'empaths';
 
 export const matchesGoalFilter = (u: UserProfile, filter: GoalFilter) =>
-  filter === 'all' ? true : filter === 'guides' ? Boolean(u.isGuide) : (u.goals?.length ? u.goals : [u.goal]).includes(filter);
+  filter === 'all'
+    ? true
+    : filter === 'guides'
+    ? Boolean(u.isGuide)
+    : filter === 'empaths'
+    ? Boolean(u.isEmpath)
+    : (u.goals?.length ? u.goals : [u.goal]).includes(filter);
 
 // «⚡ Свободен сейчас» ещё действует?
 export const isAvailableNow = (u?: { availableUntil?: string | null } | null) =>
@@ -111,11 +120,12 @@ export const formatTime = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
 
 // Пометки организатора: для кого сходка
-export type EventTag = 'kids' | 'couples' | 'dogs';
+export type EventTag = 'kids' | 'couples' | 'dogs' | 'empaths';
 export const EVENT_TAGS: Record<EventTag, { label: string; emoji: string }> = {
-  kids: { label: 'Можно с детьми', emoji: '👶' },
   couples: { label: 'Удобно парами', emoji: '💑' },
-  dogs: { label: 'Можно с собакой', emoji: '🐕' }
+  dogs: { label: 'Можно с собакой', emoji: '🐕' },
+  empaths: { label: 'Только эмпаты', emoji: '🫶' },
+  kids: { label: 'Можно с детьми', emoji: '👶' }
 };
 
 // Как человек идёт на сходку: сколько ведёт с собой и есть ли дети
@@ -123,6 +133,20 @@ export interface JoinOptions {
   guests: number;
   withKids: boolean;
 }
+
+// «Эмпат»: значок и подпись — в одном месте, чтобы легко поменять
+export const EMPATH = { emoji: '🫶', label: 'Эмпат' };
+
+// «🫂 Хочется поныть» ещё действует?
+export const isVentingNow = (u?: { ventUntil?: string | null } | null) =>
+  Boolean(u?.ventUntil && new Date(u.ventUntil).getTime() > Date.now());
+
+// Правила сходки «🫂 Поныть» — показываем на карточке и подтверждаем при записи
+export const SUPPORT_RULES = ['Не осуждаем и не даём советов, если не просят', 'Слушаем по очереди', 'Что сказано здесь — остаётся здесь'];
+
+// Куда обращаться, если совсем тяжело
+export const HELP_PHONE = '133';
+export const HELP_URL = 'https://clck.ru/3MuBz2';
 
 // Подборки от бота: как часто присылать
 export type DigestFrequency = 'daily' | 'weekend' | 'weekly' | 'off';

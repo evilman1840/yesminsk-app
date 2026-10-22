@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Minus, Plus, Loader2 } from 'lucide-react';
-import { AppEvent, JoinOptions, maxGuestsFor } from '../../types';
+import { AppEvent, JoinOptions, maxGuestsFor, SUPPORT_RULES } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
 
@@ -19,6 +19,9 @@ export const JoinSheet: React.FC<{
   const [guests, setGuests] = useState(Math.min(event.myGuests || 0, maxGuests));
   const [withKids, setWithKids] = useState(Boolean(event.myWithKids));
   const [busy, setBusy] = useState<'join' | 'leave' | null>(null);
+  // «Поныть»: перед записью — согласие с правилами встречи
+  const needsRules = event.category === 'support' && !event.isJoined;
+  const [rulesAccepted, setRulesAccepted] = useState(false);
   const total = 1 + guests;
 
   const run = async (kind: 'join' | 'leave') => {
@@ -107,10 +110,42 @@ export const JoinSheet: React.FC<{
           </span>
         </button>
 
+        {needsRules && (
+          <button
+            type="button"
+            onClick={() => {
+              telegramService.haptic('selection');
+              setRulesAccepted((v) => !v);
+            }}
+            className={`w-full p-4 rounded-zine border-2 text-left transition-colors cursor-pointer ${
+              rulesAccepted ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
+            }`}
+          >
+            <span className="flex items-start gap-3">
+              <span
+                className={`mt-0.5 w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center text-white text-sm2 font-bold ${
+                  rulesAccepted ? 'bg-zine-terracotta border-zine-terracotta' : 'border-zine-border'
+                }`}
+              >
+                {rulesAccepted ? '✓' : ''}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-body font-bold text-zine-ink">🫂 Принимаю правила встречи</span>
+                {SUPPORT_RULES.map((r) => (
+                  <span key={r} className="block text-sm2 text-zine-inkMuted">
+                    • {r}
+                  </span>
+                ))}
+              </span>
+            </span>
+          </button>
+        )}
+
         <button
           type="button"
+          disabled={needsRules && !rulesAccepted}
           onClick={() => run('join')}
-          className="w-full h-14 rounded-zine-sm bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-lead font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform"
+          className="w-full h-14 rounded-zine-sm bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-lead font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform disabled:opacity-40 disabled:cursor-default"
         >
           {busy === 'join' ? <Loader2 size={22} className="animate-spin" /> : event.isJoined ? 'Сохранить' : guests > 0 ? `Пойдём! Нас ${total}` : 'Пойду!'}
         </button>

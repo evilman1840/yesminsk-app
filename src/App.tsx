@@ -71,6 +71,8 @@ export const App: React.FC = () => {
     customGoal: '',
     goesWith: undefined as GoesWith | undefined,
     digest: 'weekend' as DigestFrequency,
+    isEmpath: false,
+    ventUntil: null as string | null,
     avatarUrl: tgUser?.photo_url || '',
     area: 'Немига / Центр',
     isTourist: false,
@@ -275,6 +277,8 @@ export const App: React.FC = () => {
             customGoal: me.customGoal || '',
             goesWith: me.goesWith || undefined,
             digest: me.digest || 'weekend',
+            isEmpath: Boolean(me.isEmpath),
+            ventUntil: me.ventUntil || null,
             avatarUrl: me.avatarUrl || tgUser?.photo_url || prev.avatarUrl,
             area: me.areaName || prev.area,
             isTourist: Boolean(me.isTourist),
@@ -349,6 +353,7 @@ export const App: React.FC = () => {
     customGoal?: string;
     goesWith?: GoesWith;
     digest?: DigestFrequency;
+    isEmpath?: boolean;
     avatarUrl: string;
     area: string;
     isTourist?: boolean;
@@ -380,6 +385,7 @@ export const App: React.FC = () => {
       customGoal: formData.customGoal,
       goesWith: formData.goesWith,
       digest: formData.digest,
+      isEmpath: formData.isEmpath,
       avatarUrl: formData.avatarUrl,
       areaName: formData.area,
       isTourist: formData.isTourist,
@@ -531,6 +537,17 @@ export const App: React.FC = () => {
   };
 
   // «⚡ Свободен сейчас»
+  // «🫂 Хочется поныть»
+  const handleSetVent = async (hours: number) => {
+    try {
+      const res = await api.setVent(hours);
+      setCurrentUser(prev => ({ ...prev, ventUntil: res.ventUntil || null }));
+      telegramService.haptic('success');
+    } catch (e: any) {
+      alert(e?.message || 'Не получилось изменить статус');
+    }
+  };
+
   const handleSetAvailable = async (hours: number) => {
     const res = await api.setAvailable(hours);
     setCurrentUser(prev => ({ ...prev, availableUntil: res.availableUntil || null }));
@@ -655,7 +672,7 @@ export const App: React.FC = () => {
             )}
 
             {currentScreen === 'profile_edit' && (
-              <ProfileFormScreen isFirstTime={false} initialData={currentUser} onSave={handleSaveProfile} onPlacesChanged={fetchPlaces} onEventsChanged={fetchEvents} />
+              <ProfileFormScreen isFirstTime={false} initialData={currentUser} onSave={handleSaveProfile} onPlacesChanged={fetchPlaces} onEventsChanged={fetchEvents} onSetVent={handleSetVent} />
             )}
 
             {currentScreen === 'main' && (

@@ -17,9 +17,9 @@ export const MoodChips: React.FC<{ value: MoodFilter; onChange: (m: MoodFilter) 
   <>
     {([
       ['all', 'Все', ''],
-      ...(kidsCount > 0 ? [['kids', 'С детьми', '👶']] : []),
       ...(savedCount > 0 ? [['saved', `Сохранённые · ${savedCount}`, '🔖']] : []),
-      ...(Object.keys(PLACE_MOODS) as PlaceMood[]).map((m) => [m, PLACE_MOODS[m].label, PLACE_MOODS[m].emoji])
+      ...(Object.keys(PLACE_MOODS) as PlaceMood[]).map((m) => [m, PLACE_MOODS[m].label, PLACE_MOODS[m].emoji]),
+      ...(kidsCount > 0 ? [['kids', 'С детьми', '👶']] : [])
     ] as [
       MoodFilter,
       string,

@@ -10,6 +10,7 @@ const REASONS = [
   { id: 'spam', label: '📢 Спам или реклама' },
   { id: 'fake', label: '🎭 Фейк, чужие фото' },
   { id: 'danger', label: '⚠️ Опасное поведение' },
+  { id: 'minor', label: '🔞 Похоже, младше 18' },
   { id: 'other', label: '❓ Другое' }
 ];
 
