@@ -142,7 +142,7 @@ export const App: React.FC = () => {
     }
   };
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
-  const [pendingEventPlace, setPendingEventPlace] = useState<{ name: string; coordinates: [number, number]; category: EventCategory } | null>(null);
+  const [pendingEventPlace, setPendingEventPlace] = useState<{ name: string; coordinates: [number, number]; category: EventCategory; placeId?: string } | null>(null);
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
     try {
@@ -456,6 +456,7 @@ export const App: React.FC = () => {
     description: string;
     category: string;
     customCategory?: string;
+    placeId?: string;
     locationName: string;
     coordinates: [number, number];
     dateTime: string;
@@ -591,7 +592,8 @@ export const App: React.FC = () => {
     setPendingEventPlace({
       name: p.address && p.address !== p.name ? `${p.name}, ${p.address}` : p.name,
       coordinates: p.coordinates,
-      category: p.moods.includes('food') || p.moods.includes('party') ? 'cafe_bar' : 'walk'
+      category: p.moods.includes('food') || p.moods.includes('party') ? 'cafe_bar' : 'walk',
+      placeId: p.id
     });
     handleNavigate('events');
   };

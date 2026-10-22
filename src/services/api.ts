@@ -302,6 +302,7 @@ class ApiService {
     category: string;
     customCategory?: string;
     tags?: string[];
+    placeId?: string;
     locationName: string;
     coordinates: [number, number];
     dateTime: string;

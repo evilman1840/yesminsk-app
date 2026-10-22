@@ -135,6 +135,17 @@ export const PlaceSheet: React.FC<{
         <ActionButton onClick={() => onCreateEvent(place)} primary icon={<CalendarPlus size={22} />} label="Сходка сюда" />
       </div>
 
+      {/* Это место хотят посетить и другие — повод собрать сходку */}
+      {place.savedByOthers ? (
+        <button
+          onClick={() => onCreateEvent(place)}
+          className="mt-3 w-full p-3 rounded-zine-sm bg-zine-terracotta/10 text-left text-sm2 text-zine-ink cursor-pointer active:scale-[0.99] transition-transform"
+        >
+          🔖 Это место хотят посетить ещё {place.savedByOthers} {place.savedByOthers === 1 ? 'человек' : place.savedByOthers < 5 ? 'человека' : 'человек'}.{' '}
+          <b className="text-zine-terracotta">Собери сходку</b> — мы им напишем.
+        </button>
+      ) : null}
+
       {/* Куда с детьми */}
       {place.kidsLevel && KIDS_LEVELS[place.kidsLevel] && (
         <div className="mt-5 p-4 rounded-zine bg-zine-sky/10">

@@ -135,6 +135,7 @@ export interface EventsScreenProps {
     category: string;
     customCategory?: string;
     tags?: EventTag[];
+    placeId?: string;
     locationName: string;
     coordinates: [number, number];
     dateTime: string;
@@ -146,6 +147,7 @@ export interface EventsScreenProps {
     category: string;
     customCategory?: string;
     tags?: EventTag[];
+    placeId?: string;
     locationName: string;
     coordinates: [number, number];
     dateTime: string;
@@ -156,7 +158,7 @@ export interface EventsScreenProps {
   onJoin?: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
   onRefreshEvents?: () => void;
   // «Сходка сюда» из карточки места: открыть форму с уже заполненным местом
-  initialPlace?: { name: string; coordinates: [number, number]; category: EventCategory } | null;
+  initialPlace?: { name: string; coordinates: [number, number]; category: EventCategory; placeId?: string } | null;
   onInitialPlaceUsed?: () => void;
 }
 
@@ -201,6 +203,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [dateTime, setDateTime] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('0');
   const [tags, setTags] = useState<EventTag[]>([]);
+  // Сходка из карточки места — тогда напишем тем, кто его сохранил
+  const [placeId, setPlaceId] = useState<string | null>(null);
   const [joinEventId, setJoinEventId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -225,7 +229,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToId]);
 
-  const handleOpenCreateModal = (presetCategory?: EventCategory, place?: { name: string; coordinates: [number, number] }) => {
+  const handleOpenCreateModal = (presetCategory?: EventCategory, place?: { name: string; coordinates: [number, number]; placeId?: string }) => {
+    setPlaceId(place?.placeId || null);
     telegramService.haptic('selection');
     setEditingEventId(null);
     setTitle('');
@@ -395,7 +400,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         coordinates: resolvedCoords,
         dateTime: new Date(dateTime).toISOString(),
         maxParticipants: Number(maxParticipants) || 0,
-        tags
+        tags,
+        ...(placeId && !editingEventId ? { placeId } : {})
       };
 
       if (editingEventId) {

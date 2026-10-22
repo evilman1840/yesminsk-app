@@ -305,6 +305,7 @@ export interface PlaceItem {
   reviews?: { rating: number | null; text: string; source: string }[]; // отзывы с Яндекс Карт из таблиц автора
   kidsLevel?: KidsLevel | null;
   kidsNote?: string;
+  savedByOthers?: number; // сколько ещё людей сохранили место
 }
 
 export interface PlaceTipItem {
