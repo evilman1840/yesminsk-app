@@ -124,6 +124,15 @@ export interface JoinOptions {
   withKids: boolean;
 }
 
+// Подборки от бота: как часто присылать
+export type DigestFrequency = 'daily' | 'weekend' | 'weekly' | 'off';
+export const DIGEST_OPTIONS: Record<DigestFrequency, { label: string; hint: string; emoji: string }> = {
+  daily: { label: 'Каждый день', hint: 'утром — что сегодня и завтра', emoji: '📅' },
+  weekend: { label: 'На выходные', hint: 'в четверг вечером', emoji: '🎉' },
+  weekly: { label: 'Раз в неделю', hint: 'в понедельник утром', emoji: '🗓' },
+  off: { label: 'Не присылать', hint: 'загляну в приложение', emoji: '🔕' }
+};
+
 // «Обычно хожу» в анкете
 export type GoesWith = 'solo' | 'couple' | 'friends' | 'kids';
 export const GOES_WITH: Record<GoesWith, { label: string; emoji: string }> = {

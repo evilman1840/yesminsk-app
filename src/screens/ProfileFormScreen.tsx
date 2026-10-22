@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
-import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH } from '../types';
+import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS } from '../types';
 import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage } from '../utils/compressImage';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
@@ -17,6 +17,7 @@ interface ProfileFormScreenProps {
     goal?: ActivityGoal;
     customGoal?: string;
     goesWith?: GoesWith;
+    digest?: DigestFrequency;
     avatarUrl?: string;
     area?: string;
     isTourist?: boolean;
@@ -36,6 +37,7 @@ interface ProfileFormScreenProps {
     goal: ActivityGoal;
     customGoal: string;
     goesWith?: GoesWith;
+    digest: DigestFrequency;
     avatarUrl: string;
     area: string;
     isTourist: boolean;
@@ -105,6 +107,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   );
   const [customGoal, setCustomGoal] = useState<string>(initialData?.customGoal || '');
   const [goesWith, setGoesWith] = useState<GoesWith | undefined>(initialData?.goesWith);
+  const [digest, setDigest] = useState<DigestFrequency>(initialData?.digest || 'weekend');
   const [avatarUrl, setAvatarUrl] = useState<string>(
     initialData?.avatarUrl || tgUser?.photo_url || DEFAULT_AVATAR
   );
@@ -254,6 +257,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         goal: selectedGoals[0],
         customGoal: selectedGoals.includes('other') ? customGoal.trim() : '',
         goesWith,
+        digest,
         avatarUrl,
         area,
         isTourist,
@@ -581,6 +585,43 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 <div className={`w-6 h-6 rounded-full bg-white shadow transition-transform ${isProfileActive ? 'translate-x-6' : 'translate-x-0'}`} />
               </div>
             </button>
+          )}
+
+          {/* Подборки от бота */}
+          {!isFirstTime && (
+            <Section title="Подборки" subtitle="Бот пришлёт сходки и места — как часто?">
+              <div className="space-y-2">
+                {(Object.keys(DIGEST_OPTIONS) as DigestFrequency[]).map((d) => {
+                  const isSelected = digest === d;
+                  return (
+                    <button
+                      type="button"
+                      key={d}
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        setDigest(d);
+                      }}
+                      className={`w-full min-h-[52px] px-3.5 rounded-zine-sm border-2 flex items-center gap-3 text-left transition-colors cursor-pointer ${
+                        isSelected ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
+                      }`}
+                    >
+                      <span className="text-[22px] leading-none">{DIGEST_OPTIONS[d].emoji}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="text-body font-semibold text-zine-ink">{DIGEST_OPTIONS[d].label}</span>
+                        <span className="text-sm2 text-zine-inkMuted"> · {DIGEST_OPTIONS[d].hint}</span>
+                      </span>
+                      <span
+                        className={`w-6 h-6 shrink-0 rounded-full border-2 flex items-center justify-center ${
+                          isSelected ? 'border-zine-terracotta bg-zine-terracotta' : 'border-zine-border'
+                        }`}
+                      >
+                        {isSelected && <span className="w-2 h-2 rounded-full bg-white" />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Section>
           )}
 
           {/* Скрытые места — можно вернуть в ленту */}

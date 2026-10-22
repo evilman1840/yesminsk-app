@@ -142,6 +142,7 @@ class ApiService {
     goals?: ActivityGoal[];
     customGoal?: string;
     goesWith?: string;
+    digest?: string;
     avatarUrl?: string;
     areaName?: string;
     isTourist?: boolean;

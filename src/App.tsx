@@ -20,7 +20,7 @@ import { FirstStepsCard } from './components/people/FirstSteps';
 import { ShareSheet } from './components/common/ShareSheet';
 import type { MapMode } from './screens/MapScreen';
 import { NewsItem } from './services/api';
-import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith } from './types';
+import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency } from './types';
 
 // Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
@@ -69,6 +69,7 @@ export const App: React.FC = () => {
     goal: 'walk' as ActivityGoal,
     customGoal: '',
     goesWith: undefined as GoesWith | undefined,
+    digest: 'weekend' as DigestFrequency,
     avatarUrl: tgUser?.photo_url || '',
     area: 'Немига / Центр',
     isTourist: false,
@@ -272,6 +273,7 @@ export const App: React.FC = () => {
             goal: me.goal || prev.goal,
             customGoal: me.customGoal || '',
             goesWith: me.goesWith || undefined,
+            digest: me.digest || 'weekend',
             avatarUrl: me.avatarUrl || tgUser?.photo_url || prev.avatarUrl,
             area: me.areaName || prev.area,
             isTourist: Boolean(me.isTourist),
@@ -341,6 +343,7 @@ export const App: React.FC = () => {
     goal: ActivityGoal;
     customGoal?: string;
     goesWith?: GoesWith;
+    digest?: DigestFrequency;
     avatarUrl: string;
     area: string;
     isTourist?: boolean;
@@ -371,6 +374,7 @@ export const App: React.FC = () => {
       goals: formData.goals,
       customGoal: formData.customGoal,
       goesWith: formData.goesWith,
+      digest: formData.digest,
       avatarUrl: formData.avatarUrl,
       areaName: formData.area,
       isTourist: formData.isTourist,
