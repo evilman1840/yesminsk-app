@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea, EMPATH, formatTime } from '../types';
 import { HelpLine } from '../components/common/HelpLine';
@@ -186,6 +186,19 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     }
   };
 
+  // Переключатели и выбор района сохраняются сразу — как «Хочется поныть» и тема. Текст — по кнопке
+  const settingsSnapshot = JSON.stringify([isEmpath, goesWith, area, digest, isGuide, isProfileActive]);
+  const lastSavedSettings = useRef(settingsSnapshot);
+  useEffect(() => {
+    if (isFirstTime || settingsSnapshot === lastSavedSettings.current) return;
+    const timer = setTimeout(() => {
+      lastSavedSettings.current = settingsSnapshot;
+      handleSave(true);
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsSnapshot]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // чтобы можно было выбрать то же фото ещё раз
@@ -227,7 +240,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     }
   };
 
-  const handleSave = async () => {
+  // silent — автосохранение переключателей: без вибрации «успеха», но ошибки показываем
+  const handleSave = async (silent = false) => {
     setErrorText(null);
 
     if (!name.trim()) {
@@ -254,7 +268,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       return;
     }
 
-    telegramService.haptic('medium');
+    if (!silent) telegramService.haptic('medium');
     setIsSaving(true);
 
     try {
@@ -284,7 +298,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         guideAbout: guideAbout.trim(),
         coordinates
       });
-      telegramService.haptic('success');
+      telegramService.haptic(silent ? 'light' : 'success');
       if (!isFirstTime) {
         setJustSaved(true);
         setTimeout(() => setJustSaved(false), 2500);
@@ -338,9 +352,6 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           </button>
         )}
 
-        {errorText && (
-          <div className="mt-4 p-3.5 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">⚠️ {errorText}</div>
-        )}
 
         <div className="mt-5 space-y-4">
           {/* Фото */}
@@ -796,8 +807,10 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
       {/* Кнопка «Сохранить» всегда под рукой */}
       <div className="shrink-0 px-5 pt-3 pb-3 bg-zine-paper border-t border-zine-border">
+        {/* Ошибка — прямо у кнопки, чтобы её было видно */}
+        {errorText && <p className="mb-2 p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">⚠️ {errorText}</p>}
         <button
-          onClick={handleSave}
+          onClick={() => handleSave()}
           disabled={isSaving}
           className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.99] transition-all cursor-pointer ${
             justSaved ? 'bg-zine-sage text-white' : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
