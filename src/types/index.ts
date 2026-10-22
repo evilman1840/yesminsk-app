@@ -49,6 +49,12 @@ export const goalOf = (goal: ActivityGoal, customGoal?: string): GoalConfig => {
 export const goalsOf = (u: { goal: ActivityGoal; goals?: ActivityGoal[]; customGoal?: string }) =>
   (u.goals?.length ? u.goals : [u.goal]).filter((g) => GOALS_CONFIG[g]).map((g) => goalOf(g, u.customGoal));
 
+// Общие интересы со мной («Своя идея» не в счёт — у каждого она своя)
+export const commonGoalIds = (u: { goal: ActivityGoal; goals?: ActivityGoal[] }, myGoals?: ActivityGoal[]) => {
+  const mine = new Set<ActivityGoal>((myGoals || []).filter((g) => g !== 'other'));
+  return (u.goals?.length ? u.goals : [u.goal]).filter((g) => mine.has(g));
+};
+
 export const EVENT_CATEGORIES_CONFIG: Record<EventCategory, { label: string; emoji: string; badgeBg: string; badgeText: string }> = {
   cafe_bar: { label: 'Кофе, бар', emoji: '☕️', ...badge('mustard') },
   walk: { label: 'Прогулка', emoji: '🚶', ...badge('terracotta') },

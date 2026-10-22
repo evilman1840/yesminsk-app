@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, Send, Loader2 } from 'lucide-react';
-import { UserProfile, goalsOf, GOES_WITH, EMPATH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
+import { UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, EMPATH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType } from '../components/common/Reactions';
 import { formatDistance } from '../components/common/UserBottomSheet';
@@ -26,6 +26,7 @@ export interface FeedScreenProps {
   selectedGoal: GoalFilter;
   onSelectGoal: (goal: GoalFilter) => void;
   myPrefs: MyPrefs;
+  myGoals?: ActivityGoal[]; // подсветить общие интересы
   topSlot?: React.ReactNode; // например, «Первые шаги» для новичков
 }
 
@@ -41,6 +42,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   selectedGoal,
   onSelectGoal,
   myPrefs,
+  myGoals,
   topSlot
 }) => {
   const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
@@ -179,6 +181,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               key={user.id}
               user={user}
               isFirst={index === 0 && !hasIntro}
+              myGoals={myGoals}
               onOpen={() => {
                 telegramService.haptic('selection');
                 onSelectUser(user);
@@ -207,11 +210,13 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
 const PersonReel: React.FC<{
   user: UserProfile;
   isFirst: boolean;
+  myGoals?: ActivityGoal[];
   onOpen: () => void;
   onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
-}> = ({ user, isFirst, onOpen, onReact }) => {
+}> = ({ user, isFirst, myGoals, onOpen, onReact }) => {
   const [busy, setBusy] = useState<ReactionType | null>(null);
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
+  const common = new Set(commonGoalIds(user, myGoals));
   const goals = goalsOf(user);
   const canLike = !user.isMatch && !user.iLiked;
   const distance = formatDistance(user.distanceMeters);
@@ -325,12 +330,18 @@ const PersonReel: React.FC<{
           </span>
         </p>
         <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
+          {/* Общие со мной интересы — первыми и ярче, затем «обычно хожу» и остальное */}
+          {goals.filter((g) => common.has(g.id)).map((goal) => (
+            <span key={goal.id} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-zine-mustard text-[#2B2623] text-sm2 font-bold flex items-center gap-1.5">
+              ✨ {goal.emoji} {goal.label}
+            </span>
+          ))}
           {user.goesWith && GOES_WITH[user.goesWith] && (
             <span className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white text-[#2B2623] text-sm2 font-semibold flex items-center gap-1.5">
               {GOES_WITH[user.goesWith].emoji} {GOES_WITH[user.goesWith].label}
             </span>
           )}
-          {goals.map((goal) => (
+          {goals.filter((g) => !common.has(g.id)).map((goal) => (
             <span key={goal.id} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold flex items-center gap-1.5">
               {goal.emoji} {goal.label}
             </span>

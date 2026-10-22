@@ -14,7 +14,8 @@ export const BottomSheet: React.FC<{
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
-}> = ({ onClose, title, children }) => {
+  footer?: React.ReactNode; // закреплено внизу шторки — главные кнопки всегда на виду
+}> = ({ onClose, title, children, footer }) => {
   const sheetRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -139,9 +140,10 @@ export const BottomSheet: React.FC<{
               <X size={22} />
             </button>
           </div>
-          <div ref={contentRef} className="overflow-y-auto overscroll-contain px-5 pb-safe">
+          <div ref={contentRef} className={`overflow-y-auto overscroll-contain px-5 ${footer ? '' : 'pb-safe'}`}>
             <div className="pb-4">{children}</div>
           </div>
+          {footer && <div className="shrink-0 px-5 pt-3 pb-safe border-t border-zine-border bg-zine-cardElevated">{footer}</div>}
         </div>
       </div>
     </div>,

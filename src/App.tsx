@@ -730,6 +730,7 @@ export const App: React.FC = () => {
                 likedMe={likedMe}
                 matches={matches}
                 isTourist={currentUser.isTourist}
+                myGoals={currentUser.goals}
                 myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange }}
                 topSlot={!isFirstStepsHidden && firstSteps.some((s) => !s.done) && <FirstStepsCard steps={firstSteps} onDismiss={hideFirstSteps} />}
                 selectedGoal={selectedGoal}
@@ -773,6 +774,7 @@ export const App: React.FC = () => {
           {selectedUser && (currentScreen === 'feed' || currentScreen === 'main') && (
             <UserBottomSheet
               user={selectedUser}
+              myGoals={currentUser.goals}
               onClose={() => setSelectedUser(null)}
               onReact={handleReact}
               onReported={handleUserReported}
