@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2 } from 'lucide-react';
-import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions } from '../types';
+import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -178,6 +178,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
   // 'kids' — «👶 С детьми»: сходки, куда можно с детьми
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | 'all' | 'kids'>('all');
+  const [eventWhen, setEventWhen] = useState<EventWhen>('all'); // сегодня / завтра / выходные
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -214,7 +215,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     : selectedCategory === 'kids'
     ? events.filter((e) => e.tags?.includes('kids'))
     : events.filter((e) => e.category === selectedCategory)
-  ).filter((e) => !notInterestedEvents.has(String(e.id)));
+  ).filter((e) => !notInterestedEvents.has(String(e.id)) && matchesWhen(e.dateTime, eventWhen));
   const detailsEvent = detailsEventId ? events.find((e) => String(e.id) === detailsEventId) || null : null;
   const joinEvent = joinEventId ? events.find((e) => String(e.id) === joinEventId) || null : null;
   // После «Вернуть» — сразу показываем возвращённую карточку
@@ -466,6 +467,23 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             );
           })}
         </div>
+        {/* Когда: сегодня / завтра / выходные — как на карте */}
+        <div className="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar px-4">
+          {EVENT_WHEN.map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => {
+                telegramService.haptic('selection');
+                setEventWhen(id);
+              }}
+              className={`h-9 px-3.5 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                eventWhen === id ? 'bg-white text-[#2B2623]' : 'bg-black/35 backdrop-blur text-white border border-white/20'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {filteredEvents.length === 0 ? (
@@ -484,7 +502,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </button>
         </div>
       ) : (
-        <div key={selectedCategory} ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
+        <div key={`${selectedCategory}-${eventWhen}`} ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
           {filteredEvents.map((ev, index) => {
             const isCreator = Boolean(
               currentUserId && (
@@ -518,6 +536,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
       {justHidden && (
         <UndoToast
+          topClass="top-[164px]"
           text={`Скрыто: ${justHidden.title}`}
           onDone={() => setJustHidden(null)}
           onUndo={() => {
@@ -954,7 +973,7 @@ const EventReel: React.FC<{
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
-      {isFirst && <SwipeHint left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" />}
+      {isFirst && <SwipeHint left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" className="top-44" />}
     </SwipeReel>
   );
 };

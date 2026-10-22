@@ -119,6 +119,29 @@ export const isAvailableNow = (u?: { availableUntil?: string | null } | null) =>
 export const formatTime = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
 
+// Сходки по времени: всё / сегодня / завтра / ближайшие выходные
+export type EventWhen = 'all' | 'today' | 'tomorrow' | 'weekend';
+export const EVENT_WHEN: [EventWhen, string][] = [
+  ['all', 'Все'],
+  ['today', 'Сегодня'],
+  ['tomorrow', 'Завтра'],
+  ['weekend', 'Выходные']
+];
+
+export const matchesWhen = (iso: string, when: EventWhen) => {
+  if (when === 'all') return true;
+  const d = new Date(iso);
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const dayDiff = Math.floor((d.getTime() - start.getTime()) / 86400000);
+  if (when === 'today') return dayDiff === 0;
+  if (when === 'tomorrow') return dayDiff === 1;
+  // Ближайшие суббота и воскресенье (если сегодня выходной — эти же)
+  const dow = start.getDay(); // 0 — воскресенье, 6 — суббота
+  const toSat = dow === 0 ? -1 : 6 - dow;
+  return dayDiff >= toSat && dayDiff <= toSat + 1 && dayDiff >= 0;
+};
+
 // Пометки организатора: для кого сходка
 export type EventTag = 'kids' | 'couples' | 'dogs' | 'empaths';
 export const EVENT_TAGS: Record<EventTag, { label: string; emoji: string }> = {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, HelpCircle } from 'lucide-react';
-import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
+import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
 import { PlaceTypeFilter } from '../components/places/PlaceTypeFilter';
@@ -68,29 +68,6 @@ const MAP_TABS: [MapMode, React.FC<any>, string][] = [
   ['events', CalendarDays, 'Сходки'],
   ['places', MapPin, 'Места']
 ];
-
-// Сходки по времени: всё / сегодня / завтра / ближайшие выходные
-type EventWhen = 'all' | 'today' | 'tomorrow' | 'weekend';
-const EVENT_WHEN: [EventWhen, string][] = [
-  ['all', 'Все'],
-  ['today', 'Сегодня'],
-  ['tomorrow', 'Завтра'],
-  ['weekend', 'Выходные']
-];
-
-const matchesWhen = (iso: string, when: EventWhen) => {
-  if (when === 'all') return true;
-  const d = new Date(iso);
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const dayDiff = Math.floor((d.getTime() - start.getTime()) / 86400000);
-  if (when === 'today') return dayDiff === 0;
-  if (when === 'tomorrow') return dayDiff === 1;
-  // Ближайшие суббота и воскресенье (если сегодня выходной — эти же)
-  const dow = start.getDay(); // 0 — воскресенье, 6 — суббота
-  const toSat = dow === 0 ? -1 : 6 - dow;
-  return dayDiff >= toSat && dayDiff <= toSat + 1 && dayDiff >= 0;
-};
 
 // На сколько часов включается «⚡ Хочу сейчас»
 const AVAILABLE_HOURS = 3;
