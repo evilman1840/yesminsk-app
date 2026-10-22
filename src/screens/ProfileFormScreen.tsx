@@ -3,7 +3,7 @@ import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea, EMPATH, formatTime } from '../types';
 import { HelpLine } from '../components/common/HelpLine';
 import { telegramService, ThemePreference } from '../services/telegram';
-import { compressImage } from '../utils/compressImage';
+import { compressImage, dataUrlBytes } from '../utils/compressImage';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
 
 interface ProfileFormScreenProps {
@@ -42,7 +42,7 @@ interface ProfileFormScreenProps {
     goesWith?: GoesWith;
     digest: DigestFrequency;
     isEmpath: boolean;
-    avatarUrl: string;
+    avatarUrl?: string;
     area: string;
     isTourist: boolean;
     isProfileActive: boolean;
@@ -122,6 +122,12 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [avatarUrl, setAvatarUrl] = useState<string>(
     initialData?.avatarUrl || tgUser?.photo_url || DEFAULT_AVATAR
   );
+  // Старое тяжёлое фото (загружено до сжатия) пережимаем — иначе анкета не сохранится
+  useEffect(() => {
+    if (!avatarUrl.startsWith('data:') || dataUrlBytes(avatarUrl) <= 400 * 1024) return;
+    compressImage(avatarUrl).then(setAvatarUrl).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [area, setArea] = useState<string>(
     isTouristArea(initialData?.area) ? TOURIST_AREA : initialData?.area || 'Немига / Центр'
   );
@@ -290,7 +296,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         goesWith,
         digest,
         isEmpath,
-        avatarUrl,
+        // Фото отправляем, только если оно новое — иначе каждое переключение настроек гоняло бы его на сервер
+        avatarUrl: avatarUrl !== initialData?.avatarUrl ? avatarUrl : undefined,
         area,
         isTourist,
         isProfileActive,

@@ -5,16 +5,17 @@
  */
 const MAX_BYTES = 300 * 1024; // запас под ограничение сервера
 
-const loadImage = (file: File) =>
+const loadImage = (src: File | string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
-    const url = URL.createObjectURL(file);
+    const url = typeof src === 'string' ? src : URL.createObjectURL(src);
+    const done = () => typeof src !== 'string' && URL.revokeObjectURL(url);
     const img = new Image();
     img.onload = () => {
-      URL.revokeObjectURL(url);
+      done();
       resolve(img);
     };
     img.onerror = () => {
-      URL.revokeObjectURL(url);
+      done();
       reject(new Error('Не получилось открыть фото'));
     };
     img.src = url;
@@ -34,9 +35,10 @@ const render = (img: HTMLImageElement, maxSide: number, quality: number) => {
 };
 
 // Размер data:-строки в байтах (base64 → примерно 3/4)
-const dataUrlBytes = (dataUrl: string) => Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
+export const dataUrlBytes = (dataUrl: string) => Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
 
-export async function compressImage(file: File): Promise<string> {
+// Принимает файл с телефона или уже сохранённое фото (data:-строку) — например, тяжёлое старое
+export async function compressImage(file: File | string): Promise<string> {
   const img = await loadImage(file);
   // Пробуем всё более сильное сжатие, пока фото не станет достаточно лёгким
   for (const [side, quality] of [[800, 0.82], [800, 0.7], [640, 0.7], [512, 0.65]] as const) {

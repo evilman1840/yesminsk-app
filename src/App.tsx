@@ -358,7 +358,7 @@ export const App: React.FC = () => {
     goesWith?: GoesWith;
     digest?: DigestFrequency;
     isEmpath?: boolean;
-    avatarUrl: string;
+    avatarUrl?: string;
     area: string;
     isTourist?: boolean;
     isProfileActive?: boolean;
@@ -415,6 +415,7 @@ export const App: React.FC = () => {
     setCurrentUser(prev => ({
       ...prev,
       ...formData,
+      avatarUrl: formData.avatarUrl || prev?.avatarUrl, // фото не меняли — оставляем прежнее
       coordinates: coords
     }));
 
