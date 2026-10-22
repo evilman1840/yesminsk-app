@@ -376,7 +376,7 @@ export const App: React.FC = () => {
       localStorage.setItem('yesminsk_user_coords', JSON.stringify(coords));
     } catch (e) {}
 
-    await api.updateProfile({
+    const res = await api.updateProfile({
       name: formData.name,
       firstName: formData.name,
       age: Number(formData.age) || 25,
@@ -398,6 +398,19 @@ export const App: React.FC = () => {
       guideAbout: formData.guideAbout,
       coordinates: coords
     });
+
+    // Сверяем: сервер действительно записал то, что отправили? Если нет — покажем, что именно
+    const saved = res?.user;
+    if (saved) {
+      const notSaved: string[] = [];
+      if (formData.isEmpath !== undefined && Boolean(saved.isEmpath) !== Boolean(formData.isEmpath)) notSaved.push('«Я эмпат»');
+      if (formData.goesWith && saved.goesWith !== formData.goesWith) notSaved.push('«Обычно хожу»');
+      if (formData.area && saved.areaName !== formData.area) notSaved.push('район');
+      if (notSaved.length) {
+        console.warn('Профиль: сервер не сохранил', notSaved, { sent: formData, saved });
+        throw new Error(`Сервер не сохранил: ${notSaved.join(', ')}. Сделай скриншот и напиши разработчику`);
+      }
+    }
 
     setCurrentUser(prev => ({
       ...prev,
@@ -638,7 +651,8 @@ export const App: React.FC = () => {
       query={{
         apikey: import.meta.env.VITE_YANDEX_MAPS_KEY || '',
         lang: 'ru_RU',
-        load: 'package.full'
+        // Только нужные модули, а не весь API: так карта не тормозит сразу после открытия
+        load: 'Map,Placemark,Clusterer,templateLayoutFactory,geocode'
       }}
     >
       <div className="flex justify-center min-h-screen bg-zine-card sm:items-center sm:p-4 font-sans text-zine-ink">
