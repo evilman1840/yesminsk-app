@@ -36,6 +36,8 @@ export interface MinskMapProps {
 }
 
 const MINSK_CENTER: [number, number] = [53.9045, 27.5615];
+// Минск в пределах МКАД — так карта открывается по умолчанию
+const MINSK_BOUNDS: [[number, number], [number, number]] = [[53.835, 27.405], [53.975, 27.705]];
 
 /**
  * Безопасное приведение координат к формату [lat, lng]
@@ -640,12 +642,15 @@ export const MinskMap: React.FC<MinskMapProps> = ({
       `}</style>
 
       <Map
-        defaultState={{ center: currentCoords, zoom: 13, controls: [] }}
+        defaultState={{ center: MINSK_CENTER, zoom: 11, controls: [] }}
         options={{ suppressMapOpenBlock: true }}
         className="w-full h-full"
         instanceRef={(ref: any) => {
           if (ref && mapRef.current !== ref) {
             mapRef.current = ref;
+            // Сразу весь Минск (в пределах МКАД) — чтобы была видна активность по всему городу.
+            // Отступы — под шапку сверху и кнопки снизу
+            ref.setBounds(MINSK_BOUNDS, { checkZoomRange: true, preciseZoom: true, zoomMargin: [170, 0, 110, 0] }).catch?.(() => {});
             setMapInstance(ref);
             setIsZoomedIn(ref.getZoom() >= 15);
             ref.events.add('boundschange', (e: any) => setIsZoomedIn(e.get('newZoom') >= 15));
