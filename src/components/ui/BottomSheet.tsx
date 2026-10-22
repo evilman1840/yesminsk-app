@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 const CLOSE_DISTANCE = 110; // протянуть вниз дальше — шторка закроется
@@ -6,7 +7,8 @@ const CLOSE_DISTANCE = 110; // протянуть вниз дальше — шт
 /**
  * Шторка снизу экрана с затемнением фона.
  * Закрывается кнопкой ✕, тапом по фону или смахиванием вниз
- * (за шапку — всегда, за содержимое — когда оно прокручено к началу)
+ * (за шапку — всегда, за содержимое — когда оно прокручено к началу).
+ * Рисуется поверх всего экрана (портал в body), чтобы ряды фильтров с прокруткой и т.п. её не обрезали
  */
 export const BottomSheet: React.FC<{
   onClose: () => void;
@@ -107,7 +109,7 @@ export const BottomSheet: React.FC<{
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div
         onClick={onClose}
@@ -142,6 +144,7 @@ export const BottomSheet: React.FC<{
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
