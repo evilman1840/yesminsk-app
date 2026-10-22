@@ -621,6 +621,19 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
             <Field label="Для кого?">
               <div className="flex flex-wrap gap-2">
+                {/* «Всех» — по умолчанию: без пометок */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setTags([]);
+                  }}
+                  className={`h-11 px-4 rounded-full border-2 text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                    tags.length === 0 ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                  }`}
+                >
+                  🙌 Всех
+                </button>
                 {(Object.keys(EVENT_TAGS) as EventTag[]).map((t) => {
                   const isOn = tags.includes(t);
                   return (

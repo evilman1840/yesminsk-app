@@ -246,7 +246,7 @@ const PersonReel: React.FC<{
         else onReact(user, 'dislike');
       }}
     >
-      <img src={user.avatarUrl} alt={user.firstName} onClick={onOpen} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
+      <img src={user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
 
       {/* Кнопки справа, как в Reels */}
       <div className="absolute right-3 bottom-48 z-20 flex flex-col items-center gap-5 text-white">
@@ -287,8 +287,13 @@ const PersonReel: React.FC<{
         )}
       </div>
 
-      {/* Текст внизу на затемнении */}
-      <div className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white">
+      {/* Текст внизу на затемнении; нажатие мимо кнопок — анкета */}
+      <div
+        onClick={(e) => {
+          if (!(e.target as HTMLElement).closest('button')) onOpen();
+        }}
+        className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white cursor-pointer"
+      >
         <div className="pr-16 flex flex-wrap gap-1.5">
           {user.isMatch && <span className="px-3 py-1 rounded-full bg-zine-sage text-white text-sm2 font-bold">🤝 На связи</span>}
           {user.likedMe && !user.isMatch && <span className="px-3 py-1 rounded-full bg-white text-[#2B2623] text-sm2 font-bold">👋 Хочет пообщаться</span>}

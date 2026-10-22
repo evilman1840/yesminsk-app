@@ -89,6 +89,8 @@ export const App: React.FC = () => {
   const [selectedGoal, setSelectedGoal] = useState<GoalFilter>('all');
   const [apiError, setApiError] = useState<string | null>(null);
   const [isUsersLoaded, setIsUsersLoaded] = useState(false);
+  // Анкета пришла с сервера? До этого форму не показываем — иначе она заполнится пустыми значениями и «Сохранить» их перезапишет
+  const [isMeLoaded, setIsMeLoaded] = useState(false);
   const [isFirstStepsHidden, setIsFirstStepsHidden] = useState(() => {
     try {
       return localStorage.getItem('yesminsk_first_steps_hidden') === '1';
@@ -188,7 +190,8 @@ export const App: React.FC = () => {
       setApiError(null);
       const coords = currentUserCoordsRef.current || getSavedCoordinates();
       const data = await api.getNearbyUsers({
-        goal: selectedGoal === 'guides' ? 'all' : selectedGoal,
+        // «Покажут город» и «Эмпаты» — не цели встречи: фильтруем на месте, с сервера берём всех
+        goal: selectedGoal === 'guides' || selectedGoal === 'empaths' ? 'all' : selectedGoal,
         lat: coords[0],
         lng: coords[1],
         radiusKm: 25
@@ -300,6 +303,7 @@ export const App: React.FC = () => {
       } catch (err) {
         console.warn('Профиль me не получен (новый пользователь):', err);
       }
+      setIsMeLoaded(true);
 
       const [, loadedEvents] = await Promise.all([
         fetchNearbyUsers(),
@@ -669,13 +673,14 @@ export const App: React.FC = () => {
               </div>
             )}
 
-            {currentScreen === 'profile_create' && (
-              <ProfileFormScreen isFirstTime={true} initialData={currentUser} onSave={handleSaveProfile} />
-            )}
+            {currentScreen === 'profile_create' && (isMeLoaded ? <ProfileFormScreen isFirstTime={true} initialData={currentUser} onSave={handleSaveProfile} /> : <ProfileLoading />)}
 
-            {currentScreen === 'profile_edit' && (
-              <ProfileFormScreen isFirstTime={false} initialData={currentUser} onSave={handleSaveProfile} onPlacesChanged={fetchPlaces} onEventsChanged={fetchEvents} onSetVent={handleSetVent} />
-            )}
+            {currentScreen === 'profile_edit' &&
+              (isMeLoaded ? (
+                <ProfileFormScreen isFirstTime={false} initialData={currentUser} onSave={handleSaveProfile} onPlacesChanged={fetchPlaces} onEventsChanged={fetchEvents} onSetVent={handleSetVent} />
+              ) : (
+                <ProfileLoading />
+              ))}
 
             {currentScreen === 'main' && (
               <MapScreen
@@ -812,3 +817,11 @@ export const App: React.FC = () => {
 };
 
 export default App;
+
+// Пока анкета грузится с сервера (он может просыпаться до минуты)
+const ProfileLoading: React.FC = () => (
+  <div className="h-full flex flex-col items-center justify-center gap-3 text-zine-inkMuted">
+    <span className="w-8 h-8 rounded-full border-[3px] border-zine-border border-t-zine-terracotta animate-spin" />
+    <p className="text-body">Загружаем анкету…</p>
+  </div>
+);

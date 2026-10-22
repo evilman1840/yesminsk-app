@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 import { LocateFixed } from 'lucide-react';
-import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, eventCategoryOf, isAvailableNow, PlaceItem, PLACE_MOODS } from '../../types';
+import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, eventCategoryOf, isAvailableNow, isVentingNow, PlaceItem, PLACE_MOODS } from '../../types';
 import { serverUrl } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
 import { telegramService } from '../../services/telegram';
@@ -177,6 +177,8 @@ const MinskMapContent: React.FC<{
           <span style="position: absolute; bottom: -3px; right: -3px; background: #FFFFFF; font-size: 13px; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 1px solid #E8DFD5; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">
             $[properties.goalEmoji]
           </span>
+          <span style="position: absolute; top: -4px; left: -4px; background: #FFFFFF; font-size: 11px; border-radius: 50%; width: 19px; height: 19px; display: $[properties.empathDisplay]; align-items: center; justify-content: center; border: 1px solid #E8DFD5; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">🫶</span>
+          <span style="position: absolute; top: -4px; right: -4px; background: #FBE3E6; font-size: 11px; border-radius: 50%; width: 19px; height: 19px; display: $[properties.ventDisplay]; align-items: center; justify-content: center; border: 1px solid #E8C4CA; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">🫂</span>
         </div>
         <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid $[properties.borderColor]; margin: -1px auto 0 auto; pointer-events: none;"></div>
       </div>`
@@ -419,6 +421,9 @@ const MinskMapContent: React.FC<{
                 name: user.firstName,
                 // «⚡ Свободен сейчас» — зелёная обводка и молния вместо значка цели
                 goalEmoji: available ? '⚡' : user.isGuide ? '🧭' : goalInfo.emoji,
+                // Маленькие значки сверху: 🫶 эмпат, 🫂 «хочется поныть» (видят только эмпаты)
+                empathDisplay: user.isEmpath ? 'flex' : 'none',
+                ventDisplay: isVentingNow(user) ? 'flex' : 'none',
                 borderColor: isSelected ? '#D95C3C' : available ? '#2FA36B' : '#FAF7F2'
               }}
               options={{
