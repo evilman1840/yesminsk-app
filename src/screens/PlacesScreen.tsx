@@ -16,7 +16,7 @@ const notInterestedPlaces = new Set<string>();
 export const forgetNotInterestedPlace = (id: string) => notInterestedPlaces.delete(id);
 
 /**
- * «Места» как Reels: полноэкранные карточки, листаются вверх-вниз; свайп вправо — подробнее, влево — неинтересно; фото — тапом
+ * «Места» как Reels: полноэкранные карточки, листаются вверх-вниз; свайп вправо — сохранить, влево — неинтересно; тап — подробнее
  */
 export const PlacesScreen: React.FC<{
   places: PlaceItem[];
@@ -153,11 +153,11 @@ const PlaceReel: React.FC<{
 
   return (
     <SwipeReel
-      rightLabel="Подробнее"
-      rightBehavior="stay"
+      rightLabel={place.isSaved ? undefined : '🔖 Сохранить'}
+      rightBehavior="next"
       leftLabel={place.isSaved ? undefined : 'Неинтересно'}
       leftBehavior="remove"
-      onSwipe={(dir) => (dir === 'right' ? onOpen() : onNotInterested())}
+      onSwipe={(dir) => (dir === 'right' ? save() : onNotInterested())}
     >
       {/* Фото: тап по центру — карточка места; если фото несколько, по краям — листать (как в сторис) */}
       {place.photos.length > 0 ? (
@@ -257,7 +257,7 @@ const PlaceReel: React.FC<{
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
-      {isFirst && <SwipeHint left={place.isSaved ? undefined : 'неинтересно'} right="подробнее" />}
+      {isFirst && <SwipeHint left={place.isSaved ? undefined : 'неинтересно'} right={place.isSaved ? undefined : 'сохранить'} />}
     </SwipeReel>
   );
 };
