@@ -133,6 +133,10 @@ export const DIGEST_OPTIONS: Record<DigestFrequency, { label: string; hint: stri
   off: { label: 'Не присылать', hint: 'загляну в приложение', emoji: '🔕' }
 };
 
+// Район «приезжий»: раньше был «Я турист(ка) / не знаю города» — такие анкеты тоже считаем приезжими
+export const TOURIST_AREA = 'В Минске проездом / не знаю города';
+export const isTouristArea = (area?: string) => /турист|проездом/i.test(area || '');
+
 // «Обычно хожу» в анкете
 export type GoesWith = 'solo' | 'couple' | 'friends' | 'kids';
 export const GOES_WITH: Record<GoesWith, { label: string; emoji: string }> = {

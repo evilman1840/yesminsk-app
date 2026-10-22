@@ -196,7 +196,7 @@ export const PeopleFiltersSheet: React.FC<{
         </Section>
 
         <div className="py-1">
-          <Toggle title="⚡ Только «Могу сейчас»" hint="Кто готов встретиться в ближайшие часы" value={f.availableOnly} onChange={(v) => set({ availableOnly: v })} />
+          <Toggle title="⚡ Только «Могу сейчас»" hint="Кому удобно встретиться в ближайшие часы" value={f.availableOnly} onChange={(v) => set({ availableOnly: v })} />
           <Toggle title="Были недавно" hint="Заходили в приложение за последние 3 дня" value={f.recentOnly} onChange={(v) => set({ recentOnly: v })} />
           <Toggle
             title="Учитывать мои предпочтения"

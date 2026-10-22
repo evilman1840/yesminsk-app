@@ -3,6 +3,7 @@ import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, I
 import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
+import { PlaceTypeFilter } from '../components/places/PlaceTypeFilter';
 import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -50,9 +51,9 @@ export interface MapScreenProps {
 
 const HELP_STEPS = [
   { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото — откроется анкета.' },
-  { emoji: '👋', title: '«Пообщаться»', text: 'Передай человеку привет. Если он ответит тем же, вы сможете написать друг другу в Telegram.' },
+  { emoji: '👋', title: '«Пообщаться»', text: 'Передай человеку привет. Если в ответ тоже нажмут 👋, вы сможете написать друг другу в Telegram.' },
   { emoji: '⚡', title: '«Хочу сейчас»', text: 'Включи переключатель, если можешь встретиться в ближайшие 3 часа — твою анкету покажут в начале списка.' },
-  { emoji: '🧭', title: '«Покажут город»', text: 'Ты турист? Местные жители с радостью покажут Минск. А если ты местный — включи «Покажу город» в анкете.' },
+  { emoji: '🧭', title: '«Покажут город»', text: 'Приехали в Минск? Местные жители с радостью покажут город. А если живёшь здесь — включи «Покажу город» в анкете.' },
   { emoji: '📍', title: '«Места»', text: 'Переключи карту на «Места» и выбери настроение — Миша подскажет, куда сходить. Оставляй свои советы!' },
   { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию — это займёт минуту.' },
   { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе — так тебя быстрее заметят.' },
@@ -134,19 +135,21 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const filteredEvents = events.filter((e) => matchesWhen(e.dateTime, eventWhen));
   // Места по вайбу
   const [mood, setMood] = useState<MoodFilter>('all');
+  const [placeType, setPlaceType] = useState<string | null>(null);
   const [isMoodPickerOpen, setIsMoodPickerOpen] = useState(true);
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
   const isPlaces = mapMode === 'places';
   // Во вкладке «Всё» нет строки фильтров — подсказки поднимаем выше
   const overlayTop = mapMode === 'all' ? 'top-[150px]' : 'top-[210px]';
-  const filteredPlaces =
+  const filteredPlaces = (
     mood === 'all'
       ? places
       : mood === 'saved'
       ? places.filter((p) => p.isSaved)
       : mood === 'kids'
       ? placesForKids(places)
-      : places.filter((p) => p.moods.includes(mood));
+      : places.filter((p) => p.moods.includes(mood))
+  ).filter((p) => !placeType || p.category === placeType);
   const kidsCount = places.filter((p) => p.kidsLevel).length;
   const savedCount = places.filter((p) => p.isSaved).length;
   const moodCounts = places.reduce<Partial<Record<PlaceMood, number>>>((acc, p) => {
@@ -336,7 +339,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             </div>
           )}
           {isPlaces && (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar px-4">
+              <PlaceTypeFilter places={places} value={placeType} onChange={setPlaceType} variant="light" />
               <MoodChips
                 savedCount={savedCount}
                 kidsCount={kidsCount}

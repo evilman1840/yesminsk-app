@@ -44,7 +44,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, onClose,
       <div className="flex items-center gap-2 mt-4 text-body text-zine-inkMuted">
         <MapPin size={20} className="text-zine-terracotta shrink-0" />
         <span className="truncate">
-          {user.isTourist ? 'Турист в Минске' : user.areaName || 'Минск'}
+          {user.isTourist ? 'В Минске проездом' : user.areaName || 'Минск'}
           {distance && ` · ${distance}`}
         </span>
       </div>

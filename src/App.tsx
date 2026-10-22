@@ -25,6 +25,7 @@ import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, Pre
 // Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
   'Я турист(ка) / не знаю города': [53.9045, 27.5615],
+  'В Минске проездом / не знаю города': [53.9045, 27.5615],
   'Немига / Центр': [53.9045, 27.5520],
   'Осмоловка': [53.9115, 27.5612],
   'Октябрьская': [53.8905, 27.5740],
@@ -650,7 +651,7 @@ export const App: React.FC = () => {
             )}
 
             {currentScreen === 'profile_edit' && (
-              <ProfileFormScreen isFirstTime={false} initialData={currentUser} onSave={handleSaveProfile} onPlacesChanged={fetchPlaces} />
+              <ProfileFormScreen isFirstTime={false} initialData={currentUser} onSave={handleSaveProfile} onPlacesChanged={fetchPlaces} onEventsChanged={fetchEvents} />
             )}
 
             {currentScreen === 'main' && (

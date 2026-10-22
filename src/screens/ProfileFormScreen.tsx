@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
-import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS } from '../types';
+import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea } from '../types';
 import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage } from '../utils/compressImage';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
@@ -49,10 +49,11 @@ interface ProfileFormScreenProps {
   onBack?: () => void;
   isFirstTime?: boolean;
   onPlacesChanged?: () => void; // вернули скрытое место — обновить список мест
+  onEventsChanged?: () => void; // вернули скрытую сходку — обновить список сходок
 }
 
 const MINSK_AREAS = [
-  'Я турист(ка) / не знаю города',
+  TOURIST_AREA,
   'Немига / Центр',
   'Осмоловка',
   'Октябрьская',
@@ -72,7 +73,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   onSave,
   onBack,
   isFirstTime = false,
-  onPlacesChanged
+  onPlacesChanged,
+  onEventsChanged
 }) => {
   const tgUser = telegramService.getUser();
 
@@ -112,7 +114,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     initialData?.avatarUrl || tgUser?.photo_url || DEFAULT_AVATAR
   );
   const [area, setArea] = useState<string>(
-    initialData?.area || 'Немига / Центр'
+    isTouristArea(initialData?.area) ? TOURIST_AREA : initialData?.area || 'Немига / Центр'
   );
   const [coordinates, setCoordinates] = useState<[number, number] | undefined>(
     initialData?.coordinates
@@ -241,7 +243,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     setIsSaving(true);
 
     try {
-      const isTourist = area.includes('турист');
+      const isTourist = isTouristArea(area);
 
       await onSave({
         name: name.trim(),
@@ -450,7 +452,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               }`}
             >
               <span className="text-[24px] leading-none">✨</span>
-              <span className="text-sm2 font-semibold text-zine-ink">Своя идея — впиши сам</span>
+              <span className="text-sm2 font-semibold text-zine-ink">Своя идея — впиши свою</span>
               {selectedGoals.includes('other') && (
                 <span className="absolute top-1/2 -translate-y-1/2 right-3 w-6 h-6 rounded-full bg-zine-terracotta text-white flex items-center justify-center">
                   <Check size={14} strokeWidth={3} />
@@ -521,7 +523,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           </Section>
 
           {/* «🧭 Покажу город» — только для местных */}
-          {!area.includes('турист') && (
+          {!isTouristArea(area) && (
             <Section>
               <button
                 type="button"
@@ -624,8 +626,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             </Section>
           )}
 
-          {/* Скрытые места — можно вернуть в ленту */}
-          {!isFirstTime && <HiddenPlaces onRestored={() => onPlacesChanged?.()} />}
+          {/* Скрытые места и сходки — можно вернуть в ленту */}
+          {!isFirstTime && <HiddenPlaces onRestored={() => onPlacesChanged?.()} onEventsRestored={() => onEventsChanged?.()} />}
 
           {/* Тема оформления — применяется сразу */}
           {!isFirstTime && (

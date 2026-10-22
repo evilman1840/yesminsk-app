@@ -124,6 +124,7 @@ export const findEventPlace = async (address: string): Promise<FoundPlace | null
 // Сходки, смахнутые влево («Неинтересно»). На сервере тоже сохраняются —
 // при следующем запуске сервер их уже не пришлёт
 const notInterestedEvents = new Set<string>();
+export const forgetNotInterestedEvent = (id: string) => notInterestedEvents.delete(id);
 
 export interface EventsScreenProps {
   events: AppEvent[];
@@ -595,7 +596,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               >
                 <span className="text-[24px] leading-none">✨</span>
                 <span className={`text-sm2 font-semibold ${category === 'other' ? 'text-zine-terracotta' : 'text-zine-ink'}`}>
-                  Своя идея — впиши сам
+                  Своя идея — впиши свою
                 </span>
               </button>
               {category === 'other' && (

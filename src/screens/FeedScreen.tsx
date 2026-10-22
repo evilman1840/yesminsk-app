@@ -303,7 +303,7 @@ const PersonReel: React.FC<{
         <p className="mt-1 pr-16 flex items-center gap-1.5 text-sm2 text-white/85">
           <MapPin size={16} className="shrink-0" />
           <span className="truncate">
-            {user.isTourist ? 'Турист в Минске' : user.areaName || 'Минск'}
+            {user.isTourist ? 'В Минске проездом' : user.areaName || 'Минск'}
             {distance && ` · ${distance}`}
           </span>
         </p>

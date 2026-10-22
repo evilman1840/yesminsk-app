@@ -208,6 +208,11 @@ class ApiService {
     return this.request(`/places/${placeId}/hide`, { method: 'POST', body: JSON.stringify({ hidden }) });
   }
 
+  // Сходки, скрытые «Неинтересно» — для списка в анкете
+  async getHiddenEvents(): Promise<AppEvent[]> {
+    return this.request('/events/hidden');
+  }
+
   // «Неинтересно»: скрыть сходку из ленты (hidden = false — вернуть)
   async hideEvent(eventId: string, hidden = true): Promise<{ hidden: boolean }> {
     return this.request(`/events/${eventId}/hide`, { method: 'POST', body: JSON.stringify({ hidden }) });

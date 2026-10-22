@@ -1,14 +1,14 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Bookmark, BookmarkCheck, CalendarPlus } from 'lucide-react';
-import { PlaceItem, PLACE_MOODS, PLACE_TYPES, placeTypeEmoji, placesForKids, KIDS_LEVELS } from '../types';
+import { PlaceItem, PLACE_MOODS, placeTypeEmoji, placesForKids, KIDS_LEVELS } from '../types';
 import { api, serverUrl } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { MoodChips, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
+import { PlaceTypeFilter } from '../components/places/PlaceTypeFilter';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { UndoToast } from '../components/ui/UndoToast';
-import { BottomSheet } from '../components/ui/BottomSheet';
-import { ChevronDown, ChevronRight, X } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 // Места, смахнутые влево («Неинтересно»). На сервере тоже сохраняются —
 // при следующем запуске сервер их уже не пришлёт
@@ -25,7 +25,6 @@ export const PlacesScreen: React.FC<{
 }> = ({ places, onToggleSave, onCreateEvent }) => {
   const [mood, setMood] = useState<MoodFilter>('all');
   const [placeType, setPlaceType] = useState<string | null>(null); // фильтр по типу: «Парк», «Музей»…
-  const [isTypesOpen, setIsTypesOpen] = useState(false);
   const [openedPlace, setOpenedPlace] = useState<PlaceItem | null>(null);
   const [, setHiddenVersion] = useState(0); // перерисовать после «Неинтересно»
   const [justHidden, setJustHidden] = useState<PlaceItem | null>(null);
@@ -42,10 +41,6 @@ export const PlacesScreen: React.FC<{
   ).filter(
     (p) => !notInterestedPlaces.has(p.id) && (!placeType || p.category === placeType)
   );
-  // Типы, которые есть среди мест, — с количеством
-  const typeCounts = Object.keys(PLACE_TYPES)
-    .map((t) => [t, places.filter((p) => p.category === t && !notInterestedPlaces.has(p.id)).length] as const)
-    .filter(([, n]) => n > 0);
   // После «Вернуть» — сразу показываем возвращённую карточку
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollToId, setScrollToId] = useState<string | null>(null);
@@ -64,30 +59,7 @@ export const PlacesScreen: React.FC<{
       <div className="absolute top-0 inset-x-0 z-20 pt-3 pb-6 bg-gradient-to-b from-black/60 to-transparent">
         <div className="px-4 mb-2 flex items-center justify-between gap-3">
           <h1 className="font-serif font-bold text-title text-white">Места</h1>
-          {typeCounts.length > 0 &&
-            (placeType ? (
-              <button
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setPlaceType(null);
-                }}
-                className="h-10 pl-3.5 pr-2.5 rounded-full bg-white text-[#2B2623] text-sm2 font-bold flex items-center gap-1.5 cursor-pointer"
-              >
-                {placeTypeEmoji(placeType)} {placeType}
-                <X size={16} />
-              </button>
-            ) : (
-              <button
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setIsTypesOpen(true);
-                }}
-                className="h-10 pl-3.5 pr-2.5 rounded-full bg-black/35 backdrop-blur border border-white/20 text-white text-sm2 font-bold flex items-center gap-1 cursor-pointer"
-              >
-                Все типы
-                <ChevronDown size={16} />
-              </button>
-            ))}
+          <PlaceTypeFilter places={places.filter((p) => !notInterestedPlaces.has(p.id))} value={placeType} onChange={setPlaceType} />
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
           <MoodChips value={mood} onChange={setMood} savedCount={savedCount} kidsCount={places.filter((p) => p.kidsLevel).length} />
@@ -125,29 +97,6 @@ export const PlacesScreen: React.FC<{
         </div>
       )}
 
-      {/* Выбор типа места */}
-      {isTypesOpen && (
-        <BottomSheet title="Какие места показать?" onClose={() => setIsTypesOpen(false)}>
-          <div className="grid grid-cols-2 gap-2">
-            {typeCounts.map(([t, n]) => (
-              <button
-                key={t}
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setPlaceType(t);
-                  setIsTypesOpen(false);
-                }}
-                className="min-h-[56px] px-3 rounded-zine-sm bg-zine-card text-left flex items-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
-              >
-                <span className="text-[22px] leading-none">{placeTypeEmoji(t)}</span>
-                <span className="text-sm2 font-semibold text-zine-ink leading-tight">
-                  {t} <span className="text-zine-inkMuted font-medium">· {n}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </BottomSheet>
-      )}
 
       {justHidden && (
         <UndoToast
