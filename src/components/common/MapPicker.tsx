@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Map, useYMaps } from '@pbe/react-yandex-maps';
 import { MapPin, X, Loader2, Check } from 'lucide-react';
 import { telegramService } from '../../services/telegram';
+import { useBackButton, useMainButton } from '../../hooks/useTelegram';
 
 const MINSK_CENTER: [number, number] = [53.9045, 27.5615];
 
@@ -42,12 +43,20 @@ export const MapPicker: React.FC<{
   onPick: (coords: [number, number], address: string | null) => void;
   onClose: () => void;
 }> = ({ initial, onPick, onClose }) => {
+  useBackButton(onClose);
   const ymaps = useYMaps(['geocode']);
   const mapRef = useRef<any>(null);
   const [center, setCenter] = useState<[number, number]>(initial || MINSK_CENTER);
   const [address, setAddress] = useState<string | null>(null);
   const [isLooking, setIsLooking] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+
+  const pick = () => {
+    telegramService.haptic('success');
+    const c = mapRef.current?.getCenter() || center;
+    onPick([Number(c[0].toFixed(6)), Number(c[1].toFixed(6))], address);
+  };
+  const hasNativePick = useMainButton({ text: 'Встречаемся здесь', onClick: pick, enabled: !isMoving });
 
   // Адрес под меткой — ищем, когда карта остановилась
   useEffect(() => {
@@ -115,18 +124,16 @@ export const MapPicker: React.FC<{
             <p className="mt-0.5 min-h-[24px] text-body font-bold text-zine-ink flex items-center gap-2">
               {isLooking || isMoving ? <Loader2 size={18} className="animate-spin text-zine-inkMuted" /> : address || 'Точка на карте'}
             </p>
-            <button
-              onClick={() => {
-                telegramService.haptic('success');
-                const c = mapRef.current?.getCenter() || center;
-                onPick([Number(c[0].toFixed(6)), Number(c[1].toFixed(6))], address);
-              }}
-              disabled={isMoving}
-              className="mt-3 w-full h-14 rounded-zine-sm bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-lead font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform"
-            >
-              <Check size={22} strokeWidth={3} />
-              Встречаемся здесь
-            </button>
+            {!hasNativePick && (
+              <button
+                onClick={pick}
+                disabled={isMoving}
+                className="mt-3 w-full h-14 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-lead font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform"
+              >
+                <Check size={22} strokeWidth={3} />
+                Встречаемся здесь
+              </button>
+            )}
           </div>
         </div>
       </div>

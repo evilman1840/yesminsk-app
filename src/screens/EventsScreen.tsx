@@ -10,6 +10,7 @@ import { MapPicker } from '../components/common/MapPicker';
 import { EventDetails } from '../components/common/EventDetails';
 import { JoinSheet } from '../components/common/JoinSheet';
 import { UndoToast } from '../components/ui/UndoToast';
+import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
   { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'ул. ленина 5', 'ленина'], coords: [53.8998, 27.5585] },
@@ -209,6 +210,24 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [joinEventId, setJoinEventId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const formErrorRef = useRef<HTMLDivElement>(null);
+
+  // «Опубликовать» — нативная MainButton; requestSubmit запускает и проверку required-полей
+  const hasNativeSubmit = useMainButton({
+    text: editingEventId ? 'Сохранить' : 'Опубликовать',
+    onClick: () => formRef.current?.requestSubmit(),
+    loading: isSubmitting,
+    active: isModalOpen && !isMapPickerOpen
+  });
+  useClosingConfirmation(isModalOpen && Boolean(title.trim() || description.trim()));
+
+  // Ошибка формы вверху шторки — прокручиваем к ней, кнопка-то внизу
+  useEffect(() => {
+    if (!formError) return;
+    telegramService.haptic('error');
+    formErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [formError]);
 
   const filteredEvents = (selectedCategory === 'all'
     ? events
@@ -303,7 +322,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
   const handleGetGPS = () => {
     if (!navigator.geolocation) {
-      alert('Геолокация не поддерживается');
+      telegramService.alert('Геолокация не поддерживается');
       return;
     }
     setIsLocating(true);
@@ -330,7 +349,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const handleDeleteEvent = async (ev: AppEvent) => {
     const targetId = ev.id || (ev as any)._id;
     if (!targetId) return;
-    if (!window.confirm(`Удалить сходку "${ev.title}"?`)) return;
+    if (!(await telegramService.confirm(`Удалить сходку «${ev.title}»?`, { destructive: true }))) return;
 
     setDeletingId(String(targetId));
     try {
@@ -342,7 +361,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       telegramService.haptic('success');
       onRefreshEvents?.();
     } catch (err: any) {
-      alert(err.message || 'Ошибка удаления');
+      telegramService.alert(err.message || 'Ошибка удаления');
     } finally {
       setDeletingId(null);
     }
@@ -362,7 +381,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       }
       onRefreshEvents?.();
     } catch (err: any) {
-      alert(err.message || 'Ошибка обновления участия');
+      telegramService.alert(err.message || 'Ошибка обновления участия');
     } finally {
       setJoiningId(null);
     }
@@ -441,7 +460,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           <h1 className="font-serif font-bold text-title text-white">Сходки</h1>
           <button
             onClick={() => handleOpenCreateModal()}
-            className="h-11 px-4 rounded-full bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-body font-bold flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
+            className="h-11 px-4 rounded-full bg-zine-terracotta active:bg-zine-terracottaHover text-white text-body font-bold flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
           >
             <Plus size={20} strokeWidth={2.5} />
             <span>Создать</span>
@@ -569,9 +588,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       {/* Создание / редактирование сходки */}
       {isModalOpen && (
         <BottomSheet title={editingEventId ? 'Изменить сходку' : 'Новая сходка'} onClose={() => setIsModalOpen(false)}>
-          <form onSubmit={handleSubmitForm} className="space-y-5">
+          <form ref={formRef} onSubmit={handleSubmitForm} className="space-y-5">
             {formError && (
-              <div className="p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">{formError}</div>
+              <div ref={formErrorRef} className="p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">{formError}</div>
             )}
 
             <Field label="Как назовём?">
@@ -790,13 +809,15 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               />
             </Field>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full h-14 rounded-zine-sm bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-lead font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.99] transition-transform cursor-pointer"
-            >
-              {isSubmitting ? <Loader2 size={22} className="animate-spin" /> : editingEventId ? 'Сохранить' : 'Опубликовать'}
-            </button>
+            {!hasNativeSubmit && (
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-14 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-lead font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.99] transition-transform cursor-pointer"
+              >
+                {isSubmitting ? <Loader2 size={22} className="animate-spin" /> : editingEventId ? 'Сохранить' : 'Опубликовать'}
+              </button>
+            )}
           </form>
         </BottomSheet>
       )}

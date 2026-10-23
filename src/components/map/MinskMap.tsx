@@ -608,7 +608,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         const isInMinsk = lat >= 53.75 && lat <= 54.05 && lng >= 27.35 && lng <= 27.80;
 
         if (!isInMinsk) {
-          alert('GPS указывает за пределы Минска (возможно, включен VPN). Центрируем по текущей точке.');
+          telegramService.alert('GPS указывает за пределы Минска (возможно, включен VPN). Центрируем по текущей точке.', 'info');
           if (mapRef.current) mapRef.current.panTo(currentCoords, { flying: true, duration: 500 });
           return;
         }

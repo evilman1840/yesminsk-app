@@ -161,7 +161,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       await onSetAvailable(hours);
       return true;
     } catch (err: any) {
-      alert(err.message || 'Не удалось изменить статус');
+      telegramService.alert(err.message || 'Не удалось изменить статус');
       return false;
     } finally {
       setIsSavingAvailability(false);

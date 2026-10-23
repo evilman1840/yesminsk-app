@@ -41,7 +41,7 @@ export const HiddenPlaces: React.FC<{ onRestored: () => void; onEventsRestored?:
       }
       telegramService.haptic('success');
     } catch (err: any) {
-      alert(err.message || 'Не получилось вернуть');
+      telegramService.alert(err.message || 'Не получилось вернуть');
     } finally {
       setRestoringId(null);
     }

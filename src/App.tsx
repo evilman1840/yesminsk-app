@@ -464,8 +464,7 @@ export const App: React.FC = () => {
         setMatchPopupUser(updated);
       }
     } catch (err: any) {
-      telegramService.haptic('error');
-      alert(err.message || 'Не удалось сохранить реакцию');
+      telegramService.alert(err.message || 'Не удалось сохранить реакцию');
     }
   };
 
@@ -549,8 +548,7 @@ export const App: React.FC = () => {
       telegramService.haptic('success');
       return updated;
     } catch (e: any) {
-      telegramService.haptic('error');
-      alert(e?.message || 'Не получилось изменить участие');
+      telegramService.alert(e?.message || 'Не получилось изменить участие');
       return null;
     }
   };
@@ -563,7 +561,7 @@ export const App: React.FC = () => {
       setCurrentUser(prev => ({ ...prev, ventUntil: res.ventUntil || null }));
       telegramService.haptic('success');
     } catch (e: any) {
-      alert(e?.message || 'Не получилось изменить статус');
+      telegramService.alert(e?.message || 'Не получилось изменить статус');
     }
   };
 
@@ -656,8 +654,8 @@ export const App: React.FC = () => {
         load: 'Map,Placemark,Clusterer,templateLayoutFactory,geocode'
       }}
     >
-      <div className="flex justify-center min-h-screen bg-zine-card sm:items-center sm:p-4 font-sans text-zine-ink">
-        <div className="w-full max-w-[420px] h-[100dvh] sm:h-[860px] bg-zine-paper sm:rounded-[36px] overflow-hidden sm:shadow-2xl sm:border sm:border-zine-border flex flex-col relative">
+      <div className="flex justify-center bg-zine-paper font-sans text-zine-ink">
+        <div className="w-full max-w-[420px] h-[var(--tg-viewport-stable-height,100dvh)] bg-zine-paper overflow-hidden flex flex-col relative">
           <ServerWakingBanner />
 
           {apiError && (

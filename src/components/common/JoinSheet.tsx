@@ -3,6 +3,7 @@ import { Minus, Plus, Loader2 } from 'lucide-react';
 import { AppEvent, JoinOptions, maxGuestsFor, SUPPORT_RULES } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
+import { useMainButton } from '../../hooks/useTelegram';
 
 /**
  * «Пойду!» — с кем идёшь: сколько человек ведёшь с собой и есть ли дети.
@@ -34,6 +35,14 @@ export const JoinSheet: React.FC<{
       setBusy(null);
     }
   };
+
+  const joinText = event.isJoined ? 'Сохранить' : guests > 0 ? `Пойдём! Нас ${total}` : 'Пойду!';
+  const hasNativeJoin = useMainButton({
+    text: joinText,
+    onClick: () => run('join'),
+    enabled: !(needsRules && !rulesAccepted) && busy !== 'leave',
+    loading: busy === 'join'
+  });
 
   const step = (delta: number) => {
     const next = Math.min(Math.max(0, guests + delta), maxGuests);
@@ -141,14 +150,16 @@ export const JoinSheet: React.FC<{
           </button>
         )}
 
-        <button
-          type="button"
-          disabled={needsRules && !rulesAccepted}
-          onClick={() => run('join')}
-          className="w-full h-14 rounded-zine-sm bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-lead font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform disabled:opacity-40 disabled:cursor-default"
-        >
-          {busy === 'join' ? <Loader2 size={22} className="animate-spin" /> : event.isJoined ? 'Сохранить' : guests > 0 ? `Пойдём! Нас ${total}` : 'Пойду!'}
-        </button>
+        {!hasNativeJoin && (
+          <button
+            type="button"
+            disabled={needsRules && !rulesAccepted}
+            onClick={() => run('join')}
+            className="w-full h-14 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-lead font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform disabled:opacity-40 disabled:cursor-default"
+          >
+            {busy === 'join' ? <Loader2 size={22} className="animate-spin" /> : joinText}
+          </button>
+        )}
         {event.isJoined && (
           <button
             type="button"

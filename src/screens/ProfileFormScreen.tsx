@@ -5,6 +5,7 @@ import { HelpLine } from '../components/common/HelpLine';
 import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage, dataUrlBytes } from '../utils/compressImage';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
+import { useBackButton, useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 
 interface ProfileFormScreenProps {
   initialData?: {
@@ -154,10 +155,25 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Несохранённый текст — Telegram переспросит перед закрытием
+  const isDirty =
+    name !== (initialData?.name || tgUser?.first_name || '') ||
+    bio !== (initialData?.bio || '') ||
+    customGoal !== (initialData?.customGoal || '') ||
+    guideAbout !== (initialData?.guideAbout || '');
+  useClosingConfirmation(isFirstTime || isDirty);
+
+  useBackButton(!isFirstTime && onBack ? onBack : null);
+  const hasNativeSave = useMainButton({
+    text: justSaved ? 'Сохранено ✓' : isFirstTime ? 'Готово, на карту!' : 'Сохранить',
+    onClick: () => handleSave(),
+    loading: isSaving
+  });
+
   // Определение геолокации по GPS
   const handleGetGPS = () => {
     if (!navigator.geolocation) {
-      alert('Геолокация не поддерживается вашим браузером');
+      telegramService.alert('Геолокация не поддерживается вашим браузером');
       return;
     }
 
@@ -175,7 +191,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       (err) => {
         setIsLocating(false);
         console.warn('GPS error:', err);
-        alert('Не удалось получить точные координаты. Проверьте разрешение геолокации.');
+        telegramService.alert('Не удалось получить точные координаты. Проверьте разрешение геолокации.');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -274,7 +290,6 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       return;
     }
 
-    if (!silent) telegramService.haptic('medium');
     setIsSaving(true);
 
     try {
@@ -322,7 +337,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden">
       <div className="flex-1 overflow-y-auto px-5 pt-5 pb-6">
         <div className="flex items-center gap-2">
-          {!isFirstTime && onBack && (
+          {!isFirstTime && onBack && !telegramService.isInsideTelegram() && (
             <button
               onClick={() => {
                 telegramService.haptic('light');
@@ -812,15 +827,17 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         </div>
       </div>
 
-      {/* Кнопка «Сохранить» всегда под рукой */}
+      {/* Кнопка «Сохранить» всегда под рукой: в Telegram — нативная MainButton, в браузере — своя */}
+      {(errorText || !hasNativeSave) && (
       <div className="shrink-0 px-5 pt-3 pb-3 bg-zine-paper border-t border-zine-border">
         {/* Ошибка — прямо у кнопки, чтобы её было видно */}
         {errorText && <p className="mb-2 p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">⚠️ {errorText}</p>}
+        {!hasNativeSave && (
         <button
           onClick={() => handleSave()}
           disabled={isSaving}
           className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.99] transition-all cursor-pointer ${
-            justSaved ? 'bg-zine-sage text-white' : 'bg-zine-terracotta hover:bg-zine-terracottaHover text-white'
+            justSaved ? 'bg-zine-sage text-white' : 'bg-zine-terracotta active:bg-zine-terracottaHover text-white'
           }`}
         >
           {isSaving ? (
@@ -834,7 +851,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             <span>{isFirstTime ? 'Готово, на карту!' : 'Сохранить'}</span>
           )}
         </button>
+        )}
       </div>
+      )}
     </div>
   );
 };

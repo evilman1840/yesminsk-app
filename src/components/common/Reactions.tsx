@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Send, Lock, Loader2 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { telegramService } from '../../services/telegram';
+import { useBackButton } from '../../hooks/useTelegram';
 
 export type ReactionType = 'like' | 'dislike';
 
@@ -69,7 +70,7 @@ export const ReactionButtons: React.FC<{
         className={`flex-1 h-12 px-4 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer ${
           user.iLiked
             ? 'bg-zine-sage/15 text-zine-sage'
-            : 'bg-zine-terracotta text-white shadow-zine-sm hover:bg-zine-terracottaHover'
+            : 'bg-zine-terracotta text-white shadow-zine-sm active:bg-zine-terracottaHover'
         }`}
       >
         {busy === 'like' ? <Loader2 size={20} className="animate-spin" /> : <span className="text-[20px] leading-none">👋</span>}
@@ -98,7 +99,7 @@ export const ChatButton: React.FC<{ user: UserProfile; className?: string }> = (
           telegramService.haptic('medium');
           telegramService.openChat(user.username);
         }}
-        className={`h-12 px-4 rounded-zine-sm bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-body font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.98] transition-all cursor-pointer ${className}`}
+        className={`h-12 px-4 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-body font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.98] transition-all cursor-pointer ${className}`}
       >
         <Send size={20} />
         <span className="truncate">Написать в Telegram</span>
@@ -135,7 +136,9 @@ export const MatchModal: React.FC<{
   user: UserProfile;
   myAvatarUrl?: string;
   onClose: () => void;
-}> = ({ user, myAvatarUrl, onClose }) => (
+}> = ({ user, myAvatarUrl, onClose }) => {
+  useBackButton(onClose);
+  return (
   <div className="fixed inset-0 z-[60] flex items-center justify-center p-5">
     <div onClick={onClose} className="absolute inset-0 bg-black/55" />
     <div className="relative w-full max-w-[360px] bg-zine-cardElevated rounded-zine-lg p-6 shadow-zine-float text-center">
@@ -157,4 +160,5 @@ export const MatchModal: React.FC<{
       </button>
     </div>
   </div>
-);
+  );
+};

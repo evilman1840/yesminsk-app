@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { useBackButton } from '../hooks/useTelegram';
 import { NewsItem, serverUrl } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -14,14 +15,17 @@ export const NewsScreen: React.FC<{ news: NewsItem[]; isLoading: boolean; onOpen
   onBack
 }) => {
   const [openedPhoto, setOpenedPhoto] = useState<string | null>(null);
+  useBackButton(onBack); // в Telegram — нативная «Назад», своя стрелка только в браузере
 
   return (
     <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden">
       <header className="shrink-0 px-5 pt-5 pb-3">
         <div className="flex items-center gap-1">
-          <button onClick={onBack} aria-label="Назад к карте" className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-zine-ink cursor-pointer">
-            <ArrowLeft size={24} />
-          </button>
+          {!telegramService.isInsideTelegram() && (
+            <button onClick={onBack} aria-label="Назад к карте" className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-zine-ink cursor-pointer">
+              <ArrowLeft size={24} />
+            </button>
+          )}
           <h1 className="font-serif font-bold text-display text-zine-ink">Новости проекта</h1>
         </div>
         <p className="mt-1 text-body text-zine-inkMuted">Что нового в ДА! МИНСК и куда идут донаты</p>

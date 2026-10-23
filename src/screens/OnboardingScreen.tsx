@@ -2,6 +2,7 @@ import React from 'react';
 import { HeartHandshake, ShieldCheck, Cake } from 'lucide-react';
 import { telegramService } from '../services/telegram';
 import { Logo } from '../components/ui/Logo';
+import { useMainButton } from '../hooks/useTelegram';
 
 interface OnboardingScreenProps {
   onAgree: () => void;
@@ -39,7 +40,9 @@ const RULES = [
 /**
  * Первый экран для новичка: о чём приложение и два правила
  */
-export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onAgree }) => (
+export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onAgree }) => {
+  const hasNativeAgree = useMainButton({ text: 'Выходим гулять!', onClick: onAgree });
+  return (
   <div className="flex flex-col h-full w-full bg-zine-paper overflow-y-auto px-6 pt-7">
     <Logo size="lg" withTagline />
 
@@ -67,18 +70,21 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onAgree }) =
       ))}
     </div>
 
-    {/* Кнопка всегда видна внизу, даже на маленьком экране */}
+    {/* Кнопка всегда видна внизу: в Telegram — нативная MainButton, в браузере — своя */}
     <div className="sticky bottom-0 mt-auto -mx-6 px-6 pt-5 pb-6 bg-gradient-to-t from-zine-paper via-zine-paper to-zine-paper/0">
+      {!hasNativeAgree && (
       <button
         onClick={() => {
           telegramService.haptic('medium');
           onAgree();
         }}
-        className="w-full h-14 rounded-zine-sm bg-zine-terracotta hover:bg-zine-terracottaHover text-white text-lead font-bold shadow-zine active:scale-[0.98] transition-transform cursor-pointer"
+        className="w-full h-14 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-lead font-bold shadow-zine active:scale-[0.98] transition-transform cursor-pointer"
       >
         Выходим гулять!
       </button>
+      )}
       <p className="mt-3 text-cap text-zine-inkMuted text-center">Нажимая кнопку, ты соглашаешься с правилами выше</p>
     </div>
   </div>
 );
+};

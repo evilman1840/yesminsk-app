@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useBackButton } from '../../hooks/useTelegram';
 
 const CLOSE_DISTANCE = 110; // протянуть вниз дальше — шторка закроется
 
@@ -28,6 +29,9 @@ export const BottomSheet: React.FC<{
     setDy(window.innerHeight);
     window.setTimeout(() => onCloseRef.current(), 200);
   };
+
+  // Нативная «Назад» Telegram закрывает верхнюю шторку
+  useBackButton(closeAnimated);
 
   // Смахивание вниз пальцем. Слушатели нативные: touchmove должен уметь
   // отменять прокрутку страницы, а React вешает его пассивным
@@ -122,7 +126,7 @@ export const BottomSheet: React.FC<{
         className="relative w-full max-w-[420px]"
         style={{ transform: `translateY(${dy}px)`, transition: isDragging ? 'none' : 'transform 0.2s ease-out' }}
       >
-        <div className="max-h-[92vh] flex flex-col bg-zine-cardElevated rounded-t-zine-lg shadow-zine-float animate-in slide-in-from-bottom-8 fade-in duration-200">
+        <div className="max-h-[calc(var(--tg-viewport-stable-height,100vh)*0.92)] flex flex-col bg-zine-cardElevated rounded-t-zine-lg shadow-zine-float animate-in slide-in-from-bottom-8 fade-in duration-200">
           <div
             className="shrink-0 flex items-center justify-between gap-3 px-5 pt-3 pb-2 touch-none cursor-grab active:cursor-grabbing"
             onPointerDown={onHeaderPointerDown}

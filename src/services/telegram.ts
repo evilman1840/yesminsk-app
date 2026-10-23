@@ -22,8 +22,95 @@ export interface ShareData {
 export const SHARE_EVENT = 'yesminsk:share';
 const openShare = (data: ShareData) => window.dispatchEvent(new CustomEvent<ShareData>(SHARE_EVENT, { detail: data }));
 
-// Цвет фона приложения для светлой и тёмной темы (совпадает с --c-paper в index.css)
+// Цвета приложения для светлой и тёмной темы (совпадают с --c-* в index.css)
 const PAPER = { light: '#FAF7F2', dark: '#1C1917' };
+const BAR = { light: '#FFFDF9', dark: '#2E2A26' };          // --c-card-elevated: фон под MainButton
+const TERRACOTTA = { light: '#D95C3C', dark: '#E8714F' };   // --c-terracotta: цвет MainButton
+
+// Внутри Telegram? Скрипт грузится и в обычном браузере, но initData есть только в Telegram
+const insideTelegram = () => Boolean(tg()?.initData);
+const isDarkNow = () => document.documentElement.classList.contains('dark');
+
+// ── MainButton ─────────────────────────────────────────────────────────────
+export interface MainButtonState {
+  text: string;
+  visible?: boolean;
+  enabled?: boolean;
+  loading?: boolean;
+}
+// Стек: шторка поверх экрана перехватывает кнопку, после закрытия возвращается кнопка экрана
+interface MainButtonBinding {
+  state: MainButtonState;
+  onClick: () => void;
+}
+const mainStack: MainButtonBinding[] = [];
+let mainListenerBound = false;
+const topMain = () => mainStack[mainStack.length - 1];
+
+const onTelegramMain = () => {
+  const top = topMain();
+  if (!top || top.state.loading || top.state.enabled === false) return;
+  telegramService.haptic('medium');
+  top.onClick();
+};
+
+const paintMainButton = () => {
+  const webapp = tg();
+  if (!webapp || !insideTelegram()) return;
+  const b = webapp.MainButton;
+  if (!mainListenerBound) {
+    b.onClick(onTelegramMain);
+    mainListenerBound = true;
+  }
+  const s = topMain()?.state;
+  if (!s || s.visible === false) {
+    b.hideProgress();
+    b.hide();
+    return;
+  }
+  const enabled = s.enabled !== false && !s.loading;
+  const dark = isDarkNow();
+  b.setParams({
+    text: s.text,
+    color: TERRACOTTA[dark ? 'dark' : 'light'],
+    text_color: '#FFFFFF',
+    is_active: enabled,
+    is_visible: true
+  });
+  if (s.loading) b.showProgress(false);
+  else b.hideProgress();
+};
+
+// ── BackButton: стек обработчиков. Верхний (последний открытый экран/шторка) получает «Назад» ──
+const backStack: Array<() => void> = [];
+let backListenerBound = false;
+
+const onTelegramBack = () => {
+  const top = backStack[backStack.length - 1];
+  if (!top) return;
+  telegramService.haptic('light');
+  top();
+};
+
+const syncBackButton = () => {
+  const webapp = tg();
+  if (!webapp || !insideTelegram()) return;
+  if (!backListenerBound) {
+    webapp.BackButton.onClick(onTelegramBack);
+    backListenerBound = true;
+  }
+  if (backStack.length) webapp.BackButton.show();
+  else webapp.BackButton.hide();
+};
+
+// ── Подтверждение закрытия: включено, пока открыт хоть один экран с несохранёнными данными ──
+let closingGuards = 0;
+const syncClosingConfirmation = () => {
+  const webapp = tg();
+  if (!webapp || !insideTelegram()) return;
+  if (closingGuards > 0) webapp.enableClosingConfirmation();
+  else webapp.disableClosingConfirmation();
+};
 
 // Тема, которую человек выбрал сам кнопкой ☀️/🌙 (иначе — как в Telegram)
 // Тема: как в Telegram (по умолчанию) или выбранная вручную в профиле
@@ -46,24 +133,24 @@ const getSavedTheme = (): ThemeMode | null => {
 const applyTheme = () => {
   const webapp = tg();
   // Скрипт Telegram загружен и в обычном браузере, но реальная тема есть только внутри Telegram
-  const insideTelegram = Boolean(webapp?.initData);
+  const inTelegram = insideTelegram();
   const saved = getSavedTheme();
   const isDark = saved
     ? saved === 'dark'
-    : insideTelegram
+    : inTelegram
     ? webapp!.colorScheme === 'dark'
     : window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
   document.documentElement.classList.toggle('dark', Boolean(isDark));
 
-  if (webapp) {
-    try {
-      const color = isDark ? PAPER.dark : PAPER.light;
-      webapp.setHeaderColor(color as any);
-      webapp.setBackgroundColor(color as any);
-    } catch {
-      // старые версии Telegram не умеют менять цвет шапки
+  if (webapp && inTelegram) {
+    const mode = isDark ? 'dark' : 'light';
+    if (webapp.isVersionAtLeast('6.1')) {
+      webapp.setHeaderColor(PAPER[mode]);
+      webapp.setBackgroundColor(PAPER[mode]);
     }
+    if (webapp.isVersionAtLeast('7.10')) webapp.setBottomBarColor(BAR[mode]);
+    paintMainButton(); // цвет кнопки — под новую тему
   }
 };
 
@@ -82,8 +169,9 @@ export const telegramService = {
 
     try {
       webapp.ready();
-      webapp.expand();                  // Раскрыть окно на всю высоту
-      webapp.enableClosingConfirmation(); // Подтверждение закрытия при свайпе вниз
+      webapp.expand(); // Раскрыть окно на всю высоту
+      // Карта, шторки и карусель тянутся по вертикали — свайп вниз не должен сворачивать приложение
+      if (webapp.isVersionAtLeast('7.7')) webapp.disableVerticalSwipes();
 
       // Переключаем тему вместе с Telegram
       webapp.onEvent('themeChanged', applyTheme);
@@ -92,12 +180,96 @@ export const telegramService = {
     }
   },
 
+  /** Внутри Telegram (а не в обычном браузере) — тогда есть MainButton, BackButton и попапы */
+  isInsideTelegram(): boolean {
+    return insideTelegram();
+  },
+
+  /**
+   * Нативная MainButton: кладёт кнопку на верх стека.
+   * update — поменять текст/загрузку, dispose — убрать (вернётся кнопка экрана ниже или скроется)
+   */
+  bindMainButton(state: MainButtonState, onClick: () => void): { update: (s: MainButtonState) => void; dispose: () => void } {
+    const binding: MainButtonBinding = { state, onClick };
+    mainStack.push(binding);
+    paintMainButton();
+    return {
+      update(next) {
+        binding.state = next;
+        if (topMain() === binding) paintMainButton();
+      },
+      dispose() {
+        const i = mainStack.lastIndexOf(binding);
+        if (i !== -1) mainStack.splice(i, 1);
+        paintMainButton();
+      }
+    };
+  },
+
+  /** Нативная «Назад»: обработчик кладётся на верх стека. Возвращает функцию, снимающую его */
+  pushBackHandler(handler: () => void): () => void {
+    backStack.push(handler);
+    syncBackButton();
+    return () => {
+      const i = backStack.lastIndexOf(handler);
+      if (i !== -1) backStack.splice(i, 1);
+      syncBackButton();
+    };
+  },
+
+  /** «Точно закрыть?» при свайпе/крестике, пока есть несохранённые данные */
+  guardClosing(): () => void {
+    closingGuards += 1;
+    syncClosingConfirmation();
+    return () => {
+      closingGuards = Math.max(0, closingGuards - 1);
+      syncClosingConfirmation();
+    };
+  },
+
+  /** Сообщение в окне Telegram (в браузере — обычный alert) */
+  alert(message: string, kind: 'error' | 'info' = 'error'): Promise<void> {
+    if (kind === 'error') telegramService.haptic('error');
+    const webapp = tg();
+    const text = message.slice(0, 256);
+    if (!webapp || !insideTelegram() || !webapp.isVersionAtLeast('6.2')) {
+      window.alert(text);
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => webapp.showAlert(text, () => resolve()));
+  },
+
+  /** Подтверждение в окне Telegram. destructive — красная кнопка для удаления */
+  confirm(message: string, opts: { okText?: string; destructive?: boolean } = {}): Promise<boolean> {
+    if (opts.destructive) telegramService.haptic('warning');
+    const webapp = tg();
+    const text = message.slice(0, 256);
+    if (!webapp || !insideTelegram() || !webapp.isVersionAtLeast('6.2')) {
+      return Promise.resolve(window.confirm(text));
+    }
+    return new Promise((resolve) =>
+      webapp.showPopup(
+        {
+          message: text,
+          buttons: [
+            { id: 'cancel', type: 'cancel' },
+            opts.destructive
+              ? { id: 'ok', type: 'destructive', text: opts.okText || 'Удалить' }
+              : { id: 'ok', type: 'default', text: opts.okText || 'OK' }
+          ]
+        },
+        (id) => resolve(id === 'ok')
+      )
+    );
+  },
+
   getUser(): TelegramUser | null {
     const webapp = tg();
     if (webapp?.initDataUnsafe?.user) {
       return webapp.initDataUnsafe.user as TelegramUser;
     }
-    // Фолбэк для разработки в обычном браузере на ПК
+    // Фолбэк только для разработки в обычном браузере на ПК
+    if (!import.meta.env.DEV) return null;
     return {
       id: 999001,
       first_name: 'Алексей',
@@ -192,7 +364,7 @@ export const telegramService = {
    */
   getLaunchTarget(): { eventId?: string; tab?: string; placeId?: string } {
     const params = new URLSearchParams(window.location.search);
-    const startParam: string = (tg()?.initDataUnsafe as any)?.start_param || '';
+    const startParam = tg()?.initDataUnsafe?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
     return { eventId, tab: params.get('tab') || undefined, placeId: params.get('place') || undefined };
   },
@@ -203,8 +375,8 @@ export const telegramService = {
   openInvoice(url: string): Promise<string> {
     const webapp = tg();
     return new Promise((resolve) => {
-      if (webapp?.initData && (webapp as any).openInvoice) {
-        (webapp as any).openInvoice(url, (status: string) => resolve(status));
+      if (webapp?.initData && webapp.isVersionAtLeast('6.1')) {
+        webapp.openInvoice(url, (status) => resolve(status));
       } else {
         window.open(url, '_blank');
         resolve('pending');
@@ -224,7 +396,7 @@ export const telegramService = {
     const url = `https://t.me/${cleanUsername}`;
     
     const webapp = tg();
-    if (webapp?.openTelegramLink) {
+    if (webapp?.initData && webapp.openTelegramLink) {
       webapp.openTelegramLink(url);
     } else {
       window.open(url, '_blank');
