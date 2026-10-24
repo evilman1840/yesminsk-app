@@ -149,6 +149,7 @@ export const App: React.FC = () => {
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
   // Открыть форму сходки: из карточки места, по ссылке из бота или поста
   const [isAgePromptDismissed, setIsAgePromptDismissed] = useState(false);
+  const [pendingWish, setPendingWish] = useState<{ placeId?: string } | null>(null);
   const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
@@ -337,6 +338,11 @@ export const App: React.FC = () => {
       if (target.placeId) {
         setMapModeState('places');
         setInitialPlaceId(target.placeId);
+      }
+      // «Хочу сходить» из сообщения бота: лента сходок и сразу шторка желаний
+      if (target.want) {
+        setPendingWish({ placeId: target.want.placeId });
+        setCurrentScreen((prev) => (prev === 'main' ? 'events' : prev));
       }
       // «Собрать сходку» по ссылке: шаблон, время и место уже выбраны
       if (target.create) {
@@ -768,6 +774,8 @@ export const App: React.FC = () => {
                 onRefreshEvents={fetchEvents}
                 initialCreate={pendingCreate}
                 places={places}
+                initialWish={pendingWish}
+                onInitialWishUsed={() => setPendingWish(null)}
                 onInitialCreateUsed={() => setPendingCreate(null)}
               />
             )}

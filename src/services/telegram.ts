@@ -383,7 +383,7 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; tab?: string; placeId?: string; create?: CreateMeetupLink } {
+  getLaunchTarget(): { eventId?: string; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string } } {
     const params = new URLSearchParams(window.location.search);
     const startParam = tg()?.initDataUnsafe?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
@@ -397,7 +397,9 @@ export const telegramService = {
           opt: params.get('opt') || undefined
         }
       : startParam.startsWith('create') ? parseCreateParam(startParam) : undefined;
-    return { eventId, tab: params.get('tab') || undefined, placeId: create ? undefined : params.get('place') || undefined, create };
+    // «Хочу сходить» из сообщения бота: ?want=1&place=<id>
+    const want = params.get('want') === '1' ? { placeId: params.get('place') || undefined } : undefined;
+    return { eventId, tab: params.get('tab') || undefined, placeId: create || want ? undefined : params.get('place') || undefined, create, want };
   },
 
   /**

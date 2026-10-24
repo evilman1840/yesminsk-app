@@ -150,6 +150,8 @@ export interface EventsScreenProps {
   initialCreate?: MeetupCreateRequest | null;
   onInitialCreateUsed?: () => void;
   places?: PlaceItem[]; // для «Хочу сходить»: выбор места
+  initialWish?: { placeId?: string } | null; // открыть «Хочу сходить» сразу (из сообщения бота)
+  onInitialWishUsed?: () => void;
 }
 
 export const EventsScreen: React.FC<EventsScreenProps> = ({
@@ -162,7 +164,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   onRefreshEvents,
   initialCreate,
   onInitialCreateUsed,
-  places = []
+  places = [],
+  initialWish,
+  onInitialWishUsed
 }) => {
   const currentTgUser = telegramService.getUser();
   const currentUserId = propUserId || currentTgUser?.id;
@@ -215,6 +219,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   // «Хочу сходить»: плашка в ленте и шторка
   const [isWishOpen, setIsWishOpen] = useState(false);
   const [wishToast, setWishToast] = useState<number | null>(null); // отметили желание: сколько ещё людей хотят того же
+  const [wishPlace, setWishPlace] = useState<PlaceItem | null>(null);
+  useEffect(() => {
+    if (!initialWish) return;
+    setWishPlace((initialWish.placeId && places.find((p) => p.id === initialWish.placeId)) || null);
+    setIsWishOpen(true);
+    onInitialWishUsed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialWish]);
   const [wishSummary, setWishSummary] = useState<WishSummaryItem[]>([]);
   const [myWishCount, setMyWishCount] = useState(0);
   const refreshWishes = () =>
@@ -1134,13 +1146,16 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       {isWishOpen && (
         <WishSheet
           places={places}
+          presetPlace={wishPlace}
           onClose={() => {
             setIsWishOpen(false);
+            setWishPlace(null);
             refreshWishes();
           }}
           onChanged={refreshWishes}
           onCreated={(sameCount) => {
             setIsWishOpen(false);
+            setWishPlace(null);
             setWishToast(sameCount);
           }}
         />
