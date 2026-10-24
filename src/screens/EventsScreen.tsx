@@ -15,6 +15,7 @@ import { HelpLine } from '../components/common/HelpLine';
 import { PhotoPicker, PickedPhoto, photoFromUrl, photoSrc } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
 import { WishSheet } from '../components/common/WishSheet';
+import { InfoToast } from '../components/ui/InfoToast';
 import { WISH_TEXTS } from '../texts/wishes';
 import { MEETUP_TEXTS as M, priceLabel } from '../texts/meetups';
 import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji, quickTimeFromParam } from '../utils/meetupTemplates';
@@ -213,6 +214,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [wishGroupId, setWishGroupId] = useState<string | null>(null);
   // «Хочу сходить»: плашка в ленте и шторка
   const [isWishOpen, setIsWishOpen] = useState(false);
+  const [wishToast, setWishToast] = useState<number | null>(null); // отметили желание: сколько ещё людей хотят того же
   const [wishSummary, setWishSummary] = useState<WishSummaryItem[]>([]);
   const [myWishCount, setMyWishCount] = useState(0);
   const refreshWishes = () =>
@@ -1137,6 +1139,17 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             refreshWishes();
           }}
           onChanged={refreshWishes}
+          onCreated={(sameCount) => {
+            setIsWishOpen(false);
+            setWishToast(sameCount);
+          }}
+        />
+      )}
+      {wishToast !== null && (
+        <InfoToast
+          title={WISH_TEXTS.toastTitle}
+          text={[WISH_TEXTS.toastText, wishToast > 0 ? WISH_TEXTS.sameCount(wishToast) : ''].filter(Boolean).join(' ')}
+          onDone={() => setWishToast(null)}
         />
       )}
 

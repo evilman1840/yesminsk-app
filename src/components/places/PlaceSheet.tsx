@@ -9,6 +9,7 @@ import { formatEventDate } from '../../screens/MapScreen';
 import { priceShort } from '../../texts/meetups';
 import { WishSheet, DELICATE_KINDS } from '../common/WishSheet';
 import { WISH_TEXTS } from '../../texts/wishes';
+import { InfoToast } from '../ui/InfoToast';
 
 // Сходки в этом месте: привязанные к нему или собранные в паре десятков метров
 const eventsAtPlace = (place: PlaceItem, events: AppEvent[]) => {
@@ -50,6 +51,7 @@ export const PlaceSheet: React.FC<{
   // «Хочу сходить» сюда: счётчики (без «поныть») и своя кнопка
   const [wishes, setWishes] = useState<WishSummaryItem[]>([]);
   const [isWishOpen, setIsWishOpen] = useState(false);
+  const [wishToast, setWishToast] = useState<number | null>(null);
   const [wishBusy, setWishBusy] = useState(false);
   const loadWishes = () =>
     api
@@ -64,9 +66,10 @@ export const PlaceSheet: React.FC<{
     if (w.includesMe || wishBusy) return;
     setWishBusy(true);
     try {
-      await api.createWish({ kind: w.kind, sport: w.sport, timeWindow: w.timeWindow, placeId: place.id });
+      const res = await api.createWish({ kind: w.kind, sport: w.sport, timeWindow: w.timeWindow, placeId: place.id });
       telegramService.haptic('success');
       loadWishes();
+      setWishToast(res.sameCount);
     } catch (err: any) {
       telegramService.alert(err?.message || WISH_TEXTS.failed);
     } finally {
@@ -422,6 +425,18 @@ export const PlaceSheet: React.FC<{
             setIsWishOpen(false);
             loadWishes();
           }}
+          onCreated={(sameCount) => {
+            setIsWishOpen(false);
+            loadWishes();
+            setWishToast(sameCount);
+          }}
+        />
+      )}
+      {wishToast !== null && (
+        <InfoToast
+          title={WISH_TEXTS.toastTitle}
+          text={[WISH_TEXTS.toastText, wishToast > 0 ? WISH_TEXTS.sameCount(wishToast) : ''].filter(Boolean).join(' ')}
+          onDone={() => setWishToast(null)}
         />
       )}
 

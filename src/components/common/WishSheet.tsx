@@ -25,7 +25,8 @@ export const WishSheet: React.FC<{
   presetPlace?: PlaceItem | null;
   onClose: () => void;
   onChanged?: () => void;
-}> = ({ places = [], presetPlace, onClose, onChanged }) => {
+  onCreated?: (sameCount: number) => void; // отметили — шторку закрывает родитель и показывает, что дальше
+}> = ({ places = [], presetPlace, onClose, onChanged, onCreated }) => {
   const [templates, setTemplates] = useState<EventTemplate[] | null>(cachedTemplates());
   const [mine, setMine] = useState<WishItem[]>([]);
   const [summary, setSummary] = useState<WishSummaryItem[]>([]);
@@ -70,6 +71,11 @@ export const WishSheet: React.FC<{
     try {
       const res = await api.createWish(data);
       telegramService.haptic('success');
+      if (onCreated) {
+        onChanged?.();
+        onCreated(res.sameCount);
+        return;
+      }
       setDone({ sameCount: res.sameCount });
       setKind(null);
       setSport(null);
