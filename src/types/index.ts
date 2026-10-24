@@ -224,6 +224,10 @@ export interface AppEvent {
   myWithKids?: boolean;
   isOfficial?: boolean; // «⭐ От ДА! МИНСК» — сходка автора проекта
   placeId?: string;     // сходка в месте из «Мест»
+  templateId?: string;  // по какому шаблону собрана
+  durationMinutes?: number;
+  extras?: Record<string, string>; // доп. поля шаблона: фильм, вид спорта, уровень…
+  badges?: string[];    // метки из доп. полей: «🏓 Настольный теннис · любой уровень»
   participants?: Array<{
     telegramId: number;
     name: string;
@@ -233,6 +237,62 @@ export interface AppEvent {
     withKids?: boolean;
   }>;
 }
+
+// Что уходит на сервер при создании и изменении сходки
+export interface EventPayload {
+  title: string;
+  description: string;
+  category: string;
+  customCategory?: string;
+  tags?: EventTag[];
+  placeId?: string;
+  locationName: string;
+  coordinates: [number, number];
+  dateTime: string;
+  maxParticipants?: number;
+  templateId?: string;
+  durationMinutes?: number;
+  extras?: Record<string, string>;
+}
+
+// Шаблон сходки (правится автором в боте через /templates)
+export interface TemplateOption {
+  value: string;
+  label: string;
+  emoji?: string;
+  badge?: string;
+  say?: string;
+  seatsHint?: boolean;
+}
+export interface TemplateField {
+  key: string;
+  token?: string;
+  label: string;
+  type: 'select' | 'text' | 'money';
+  required?: boolean;
+  placeholder?: string;
+  default?: string;
+  options?: TemplateOption[];
+  allowCustom?: boolean;
+  customLabel?: string;
+  freeLabel?: string;
+  amountLabel?: string;
+}
+export interface EventTemplate {
+  key: string;
+  emoji: string;
+  name: string;
+  category: EventCategory | null;
+  title: string;
+  fallbackTitle: string;
+  description: string;
+  seats: number;
+  durationMinutes: number;
+  placeTypes: string[];
+  tags: EventTag[];
+  fields: TemplateField[];
+}
+export const CUSTOM_TEMPLATE = 'custom';
 
 // Сколько ещё можно взять с собой: свободные места минус я сам (моя прошлая запись не в счёт)
 export const maxGuestsFor = (ev: AppEvent) => {
@@ -283,7 +343,13 @@ export const PLACE_TYPES: Record<string, string> = {
   Скульптура: '🗽',
   Смотровая: '🔭',
   Театр: '🎭',
-  Храм: '⛪'
+  Храм: '⛪',
+  Кафе: '🍽',
+  Кофейня: '☕',
+  Кинотеатр: '🎬',
+  Антикафе: '🎲',
+  Спорт: '🏓',
+  Сквер: '🌿'
 };
 export const placeTypeEmoji = (category?: string) => (category && PLACE_TYPES[category]) || '📍';
 

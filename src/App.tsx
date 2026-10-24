@@ -20,7 +20,7 @@ import { FirstStepsCard } from './components/people/FirstSteps';
 import { ShareSheet } from './components/common/ShareSheet';
 import type { MapMode } from './screens/MapScreen';
 import { NewsItem } from './services/api';
-import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency } from './types';
+import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload } from './types';
 
 // Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
@@ -144,7 +144,7 @@ export const App: React.FC = () => {
     }
   };
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
-  const [pendingEventPlace, setPendingEventPlace] = useState<{ name: string; coordinates: [number, number]; category: EventCategory; placeId?: string } | null>(null);
+  const [pendingEventPlace, setPendingEventPlace] = useState<{ name: string; coordinates: [number, number]; category: EventCategory; placeId?: string; placeType?: string } | null>(null);
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
     try {
@@ -468,17 +468,7 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleCreateEvent = async (eventData: {
-    title: string;
-    description: string;
-    category: string;
-    customCategory?: string;
-    placeId?: string;
-    locationName: string;
-    coordinates: [number, number];
-    dateTime: string;
-    maxParticipants?: number;
-  }): Promise<AppEvent> => {
+  const handleCreateEvent = async (eventData: EventPayload): Promise<AppEvent> => {
     const created = await api.createEvent({
       ...eventData,
       category: eventData.category as EventCategory
@@ -609,7 +599,8 @@ export const App: React.FC = () => {
       name: p.address && p.address !== p.name ? `${p.name}, ${p.address}` : p.name,
       coordinates: p.coordinates,
       category: p.moods.includes('food') || p.moods.includes('party') ? 'cafe_bar' : 'walk',
-      placeId: p.id
+      placeId: p.id,
+      placeType: p.category // шаблоны сходок подбираются под тип места
     });
     handleNavigate('events');
   };

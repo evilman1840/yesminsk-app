@@ -1,5 +1,5 @@
 import { telegramService } from './telegram';
-import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem } from '../types';
+import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate } from '../types';
 
 /**
  * Нормализация базового URL бэкенда.
@@ -280,6 +280,11 @@ class ApiService {
   // СОБЫТИЯ / СХОДКИ (EVENTS)
   // ==========================================
 
+  // Шаблоны сходок: «Кофе и поболтать», «Кино»…
+  async getEventTemplates(): Promise<EventTemplate[]> {
+    return this.request<EventTemplate[]>('/event-templates');
+  }
+
   async getEvents(params?: {
     category?: string;
     lat?: number;
@@ -296,18 +301,7 @@ class ApiService {
     return this.request<AppEvent[]>(`/events${queryString}`);
   }
 
-  async createEvent(data: {
-    title: string;
-    description: string;
-    category: string;
-    customCategory?: string;
-    tags?: string[];
-    placeId?: string;
-    locationName: string;
-    coordinates: [number, number];
-    dateTime: string;
-    maxParticipants?: number;
-  }): Promise<AppEvent> {
+  async createEvent(data: EventPayload): Promise<AppEvent> {
     return this.request<AppEvent>('/events', {
       method: 'POST',
       body: JSON.stringify(data)
@@ -317,17 +311,7 @@ class ApiService {
   /**
    * Обновить существующее событие (редактирование автором)
    */
-  async updateEvent(eventId: string, data: {
-    title?: string;
-    description?: string;
-    category?: string;
-    customCategory?: string;
-    tags?: string[];
-    locationName?: string;
-    coordinates?: [number, number];
-    dateTime?: string;
-    maxParticipants?: number;
-  }): Promise<AppEvent> {
+  async updateEvent(eventId: string, data: Partial<EventPayload>): Promise<AppEvent> {
     try {
       return await this.request<AppEvent>(`/events/${eventId}`, {
         method: 'PUT',

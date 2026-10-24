@@ -6,6 +6,7 @@ import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
 import { ReportSheet } from './ReportSheet';
 import { JoinSheet } from './JoinSheet';
+import { MEETUP_TEXTS } from '../../texts/meetups';
 
 /**
  * Подробности сходки: когда, где, сколько идёт, кнопки «Пойду!», «Позвать друзей» и «Организатору»
@@ -88,6 +89,11 @@ export const EventDetails: React.FC<{
             {EVENT_TAGS[t].emoji} {EVENT_TAGS[t].label}
           </span>
         ))}
+        {(event.badges || []).map((b) => (
+          <span key={b} className="inline-flex items-center px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-card text-zine-ink">
+            {b}
+          </span>
+        ))}
       </div>
 
       {/* Когда, где, кто идёт — одним списком */}
@@ -97,6 +103,7 @@ export const EventDetails: React.FC<{
           <span className="text-body text-zine-ink">
             <b>{formatEventDate(event.dateTime)}</b>
             <span className="text-zine-inkMuted"> · {relativeDay(event.dateTime)}</span>
+            {event.durationMinutes ? <span className="text-zine-inkMuted"> · {MEETUP_TEXTS.duration(event.durationMinutes)}</span> : null}
           </span>
         </div>
         <button onClick={() => lat && telegramService.openLink(routeUrl)} className="w-full px-4 py-3 flex items-center gap-3 text-left cursor-pointer">

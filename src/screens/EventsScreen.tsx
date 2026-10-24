@@ -1,16 +1,22 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2 } from 'lucide-react';
-import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen } from '../types';
+import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { formatEventDate } from './MapScreen';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { MapPicker } from '../components/common/MapPicker';
-import { EventDetails } from '../components/common/EventDetails';
+import { EventDetails, plural } from '../components/common/EventDetails';
 import { JoinSheet } from '../components/common/JoinSheet';
 import { UndoToast } from '../components/ui/UndoToast';
 import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
+import { HelpLine } from '../components/common/HelpLine';
+import { MEETUP_TEXTS as M } from '../texts/meetups';
+import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji } from '../utils/meetupTemplates';
+
+// Шаблоны грузим один раз за запуск
+let templatesCache: EventTemplate[] | null = null;
 
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
   { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'ул. ленина 5', 'ленина'], coords: [53.8998, 27.5585] },
@@ -130,36 +136,14 @@ export const forgetNotInterestedEvent = (id: string) => notInterestedEvents.dele
 export interface EventsScreenProps {
   events: AppEvent[];
   currentUserId?: number;
-  onCreateEvent?: (eventData: {
-    title: string;
-    description: string;
-    category: string;
-    customCategory?: string;
-    tags?: EventTag[];
-    placeId?: string;
-    locationName: string;
-    coordinates: [number, number];
-    dateTime: string;
-    maxParticipants?: number;
-  }) => Promise<any>;
-  onUpdateEvent?: (eventId: string, eventData: {
-    title: string;
-    description: string;
-    category: string;
-    customCategory?: string;
-    tags?: EventTag[];
-    placeId?: string;
-    locationName: string;
-    coordinates: [number, number];
-    dateTime: string;
-    maxParticipants?: number;
-  }) => Promise<any>;
+  onCreateEvent?: (eventData: EventPayload) => Promise<any>;
+  onUpdateEvent?: (eventId: string, eventData: EventPayload) => Promise<any>;
   onDeleteEvent?: (eventId: string) => Promise<any> | void;
   // options — с кем идёшь; null — «Не пойду». Вернёт обновлённую сходку или null
   onJoin?: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
   onRefreshEvents?: () => void;
   // «Сходка сюда» из карточки места: открыть форму с уже заполненным местом
-  initialPlace?: { name: string; coordinates: [number, number]; category: EventCategory; placeId?: string } | null;
+  initialPlace?: { name: string; coordinates: [number, number]; category: EventCategory; placeId?: string; placeType?: string } | null;
   onInitialPlaceUsed?: () => void;
 }
 
@@ -210,6 +194,28 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [joinEventId, setJoinEventId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Шаблоны: сначала выбор идеи, потом заполненная форма
+  const [templates, setTemplates] = useState<EventTemplate[] | null>(templatesCache);
+  const [formStep, setFormStep] = useState<'pick' | 'form'>('pick');
+  const [templateKey, setTemplateKey] = useState<string | null>(null);
+  const [extras, setExtras] = useState<Record<string, string>>({});
+  const [durationMinutes, setDurationMinutes] = useState(0);
+  const [pickPlaceType, setPickPlaceType] = useState<string | undefined>(undefined);
+  // Последние название и описание, которые заполнил шаблон: пока человек их не правил, обновляем вместе с полями
+  const autoText = useRef<{ title: string; description: string }>({ title: '', description: '' });
+  const template = templates?.find((t) => t.key === templateKey) || null;
+  const isTemplateForm = Boolean(template && template.key !== CUSTOM_TEMPLATE);
+
+  useEffect(() => {
+    if (templatesCache) return;
+    api
+      .getEventTemplates()
+      .then((list) => {
+        templatesCache = list || [];
+        setTemplates(templatesCache);
+      })
+      .catch(() => setTemplates([]));
+  }, []);
   const formRef = useRef<HTMLFormElement>(null);
   const formErrorRef = useRef<HTMLDivElement>(null);
 
@@ -218,7 +224,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     text: editingEventId ? 'Сохранить' : 'Опубликовать',
     onClick: () => formRef.current?.requestSubmit(),
     loading: isSubmitting,
-    active: isModalOpen && !isMapPickerOpen
+    active: isModalOpen && !isMapPickerOpen && formStep === 'form'
   });
   useClosingConfirmation(isModalOpen && Boolean(title.trim() || description.trim()));
 
@@ -249,8 +255,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToId]);
 
-  const handleOpenCreateModal = (presetCategory?: EventCategory, place?: { name: string; coordinates: [number, number]; placeId?: string }) => {
+  const handleOpenCreateModal = (presetCategory?: EventCategory, place?: { name: string; coordinates: [number, number]; placeId?: string; placeType?: string }) => {
     setPlaceId(place?.placeId || null);
+    setPickPlaceType(place?.placeType);
+    setTemplateKey(null);
+    setExtras({});
+    setDurationMinutes(0);
+    // Шаблоны не загрузились — сразу обычная форма
+    setFormStep(templates && templates.length ? 'pick' : 'form');
     telegramService.haptic('selection');
     setEditingEventId(null);
     setTitle('');
@@ -263,9 +275,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setPlaceLabel(place?.name || null);
     setPlaceNotFound(false);
     setIsPickedOnMap(Boolean(place));
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    tomorrow.setMinutes(0, 0, 0);
-    setDateTime(tomorrow.toISOString().slice(0, 16));
+    // По умолчанию — завтра вечером; быстрые кнопки рядом
+    setDateTime(toLocalInput(quickTimes().find((q) => q.id === 'tomorrowEvening')!.date));
     setMaxParticipants('0');
     setTags([]);
     setFormError(null);
@@ -301,8 +312,57 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
     setMaxParticipants(String(ev.maxParticipants || 0));
     setTags(ev.tags || []);
+    setTemplateKey(ev.templateId || null);
+    setExtras(ev.extras || {});
+    setDurationMinutes(ev.durationMinutes || 0);
+    autoText.current = { title: ev.title || '', description: ev.description || '' };
+    setFormStep('form');
     setFormError(null);
     setIsModalOpen(true);
+  };
+
+  // Выбрали шаблон — заполняем форму за человека
+  const applyTemplate = (tpl: EventTemplate) => {
+    telegramService.haptic('selection');
+    setTemplateKey(tpl.key);
+    setFormError(null);
+    if (tpl.key === CUSTOM_TEMPLATE) {
+      setExtras({});
+      setDurationMinutes(0);
+      setTitle('');
+      setDescription('');
+      setCategory('walk');
+      setTags([]);
+      setMaxParticipants('0');
+      autoText.current = { title: '', description: '' };
+    } else {
+      const ex = defaultExtras(tpl);
+      const nextTitle = templateTitle(tpl, ex);
+      const nextDescription = templateDescription(tpl, ex);
+      setExtras(ex);
+      setTitle(nextTitle);
+      setDescription(nextDescription);
+      setCategory(tpl.category || 'other');
+      setCustomCategory(tpl.category ? '' : tpl.name);
+      setTags(tpl.tags || []);
+      setMaxParticipants(String(tpl.seats || 0));
+      setDurationMinutes(tpl.durationMinutes || 0);
+      autoText.current = { title: nextTitle, description: nextDescription };
+    }
+    setFormStep('form');
+  };
+
+  // Поменяли доп. поле (фильм, вид спорта, уровень): название и описание обновляем, если их не правили руками
+  const updateExtra = (key: string, value: string) => {
+    const next = { ...extras, [key]: value };
+    if (!value) delete next[key];
+    setExtras(next);
+    if (!template) return;
+    const nextTitle = templateTitle(template, next);
+    const nextDescription = templateDescription(template, next);
+    if (title === autoText.current.title) setTitle(nextTitle);
+    if (description === autoText.current.description) setDescription(nextDescription);
+    autoText.current = { title: nextTitle, description: nextDescription };
   };
 
   const handleGeocodeAddress = async (addr: string): Promise<FoundPlace | null> => {
@@ -393,6 +453,11 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setFormError('Заполните все обязательные поля');
       return;
     }
+    const missingField = template?.fields.find((f) => f.required && (!extras[f.key] || (extras[f.key] === 'other' && f.allowCustom && !extras[`${f.key}Custom`])));
+    if (missingField) {
+      setFormError(M.fieldRequired(missingField.label));
+      return;
+    }
     if (category === 'other' && !customCategory.trim()) {
       setFormError('Напиши, что будете делать — например, «Караоке»');
       return;
@@ -421,7 +486,11 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         dateTime: new Date(dateTime).toISOString(),
         maxParticipants: Number(maxParticipants) || 0,
         tags,
-        ...(placeId && !editingEventId ? { placeId } : {})
+        ...(placeId && !editingEventId ? { placeId } : {}),
+        ...(templateKey && !editingEventId ? { templateId: templateKey } : {}),
+        durationMinutes,
+        // «Делим аренду» без суммы — просто не указываем
+        ...(template?.fields.length ? { extras: Object.fromEntries(Object.entries(extras).filter(([, v]) => v && v !== 'split')) } : {})
       };
 
       if (editingEventId) {
@@ -533,6 +602,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               <EventReel
                 key={ev.id}
                 event={ev}
+                emoji={eventTemplateEmoji(ev, templates)}
                 isFirst={index === 0}
                 isCreator={isCreator}
                 isJoining={joiningId === String(ev.id)}
@@ -585,127 +655,101 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </BottomSheet>
       )}
 
-      {/* Создание / редактирование сходки */}
-      {isModalOpen && (
-        <BottomSheet title={editingEventId ? 'Изменить сходку' : 'Новая сходка'} onClose={() => setIsModalOpen(false)}>
+      {/* Создание / редактирование сходки: сначала выбор идеи, потом заполненная форма */}
+      {isModalOpen && formStep === 'pick' && templates && (
+        <BottomSheet title={M.pickTitle} onClose={() => setIsModalOpen(false)}>
+          <p className="text-body text-zine-inkMuted">{M.pickHint}</p>
+          {placeLabel && <p className="mt-2 text-sm2 font-semibold text-zine-ink truncate">📍 {M.pickForPlace(placeLabel)}</p>}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {templatesForPlace(templates, pickPlaceType)
+              .filter((t) => t.key !== CUSTOM_TEMPLATE)
+              .map((t) => (
+                <button
+                  type="button"
+                  key={t.key}
+                  onClick={() => applyTemplate(t)}
+                  className="min-h-[104px] p-3 rounded-zine-sm bg-zine-card text-left flex flex-col gap-1.5 active:scale-[0.97] transition-transform cursor-pointer"
+                >
+                  <span className="text-[30px] leading-none">{t.emoji}</span>
+                  <span className="text-body font-bold text-zine-ink leading-tight">{t.name}</span>
+                  <span className="mt-auto text-cap text-zine-inkMuted">
+                    {[t.seats ? `${t.seats} ${plural(t.seats, 'место', 'места', 'мест')}` : '', t.durationMinutes ? M.duration(t.durationMinutes) : ''].filter(Boolean).join(' · ')}
+                  </span>
+                </button>
+              ))}
+          </div>
+          {templates
+            .filter((t) => t.key === CUSTOM_TEMPLATE)
+            .map((t) => (
+              <button
+                type="button"
+                key={t.key}
+                onClick={() => applyTemplate(t)}
+                className="mt-2 w-full p-3 rounded-zine-sm border-2 border-dashed border-zine-border flex items-center gap-3 text-left active:scale-[0.99] transition-transform cursor-pointer"
+              >
+                <span className="text-[26px] leading-none">{t.emoji}</span>
+                <span>
+                  <span className="block text-body font-bold text-zine-ink">{t.name}</span>
+                  <span className="block text-cap text-zine-inkMuted">{M.customHint}</span>
+                </span>
+              </button>
+            ))}
+        </BottomSheet>
+      )}
+
+      {isModalOpen && formStep === 'form' && (
+        <BottomSheet title={editingEventId ? M.editMeetup : M.newMeetup} onClose={() => setIsModalOpen(false)}>
           <form ref={formRef} onSubmit={handleSubmitForm} className="space-y-5">
             {formError && (
               <div ref={formErrorRef} className="p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">{formError}</div>
             )}
 
-            <Field label="Как назовём?">
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Прогулка по Осмоловке с кофе"
-                className="field"
-                required
-              />
-            </Field>
-
-            <Field label="Что будем делать?">
-              <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).filter((c) => c !== 'other').map((cat) => {
-                  const cfg = EVENT_CATEGORIES_CONFIG[cat];
-                  const isSelected = category === cat;
-                  return (
-                    <button
-                      type="button"
-                      key={cat}
-                      onClick={() => {
-                        telegramService.haptic('selection');
-                        setCategory(cat);
-                        // «Поныть» — маленькой группой, чтобы каждый успел выговориться
-                        if (cat === 'support' && (maxParticipants === '0' || !maxParticipants)) setMaxParticipants('6');
-                      }}
-                      className={`h-[72px] rounded-zine-sm border-2 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
-                        isSelected ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
-                      }`}
-                    >
-                      <span className="text-[24px] leading-none">{cfg.emoji}</span>
-                      <span className={`text-cap font-semibold ${isSelected ? 'text-zine-terracotta' : 'text-zine-ink'}`}>{cfg.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {/* Своя идея: автор сам пишет, что за сходка */}
-              <button
-                type="button"
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setCategory('other');
-                }}
-                className={`mt-2 w-full h-14 px-4 rounded-zine-sm border-2 flex items-center gap-3 text-left transition-colors cursor-pointer ${
-                  category === 'other' ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-dashed border-zine-border bg-zine-cardElevated'
-                }`}
-              >
-                <span className="text-[24px] leading-none">✨</span>
-                <span className={`text-sm2 font-semibold ${category === 'other' ? 'text-zine-terracotta' : 'text-zine-ink'}`}>
-                  Своя идея — впиши свою
-                </span>
-              </button>
-              {category === 'other' && (
-                <input
-                  type="text"
-                  value={customCategory}
-                  onChange={(e) => setCustomCategory(e.target.value.slice(0, 30))}
-                  placeholder="Караоке, йога в парке, квиз…"
-                  className="field mt-2"
-                  autoFocus
-                />
-              )}
-            </Field>
-
-            <Field label="Для кого?">
-              <div className="flex flex-wrap gap-2">
-                {/* «Всех» — по умолчанию: без пометок */}
+            {/* Выбранный шаблон — можно сменить */}
+            {!editingEventId && template && templates && templates.length > 0 && (
+              <div className="flex items-center gap-3 p-3 rounded-zine-sm bg-zine-card">
+                <span className="text-[26px] leading-none">{template.emoji}</span>
+                <span className="flex-1 min-w-0 text-body font-bold text-zine-ink truncate">{template.name}</span>
                 <button
                   type="button"
                   onClick={() => {
                     telegramService.haptic('selection');
-                    setTags([]);
+                    setFormStep('pick');
                   }}
-                  className={`h-11 px-4 rounded-full border-2 text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
-                    tags.length === 0 ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
-                  }`}
+                  className="h-9 px-3.5 shrink-0 rounded-full bg-zine-cardElevated text-sm2 font-semibold text-zine-terracotta cursor-pointer"
                 >
-                  🙌 Всех
+                  {M.changeTemplate}
                 </button>
-                {(Object.keys(EVENT_TAGS) as EventTag[]).map((t) => {
-                  const isOn = tags.includes(t);
+              </div>
+            )}
+
+            <Field label={M.whenLabel}>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 mb-2">
+                {quickTimes().map((q) => {
+                  const value = toLocalInput(q.date);
                   return (
                     <button
                       type="button"
-                      key={t}
+                      key={q.id}
                       onClick={() => {
                         telegramService.haptic('selection');
-                        setTags(isOn ? tags.filter((x) => x !== t) : [...tags, t]);
+                        setDateTime(value);
                       }}
-                      className={`h-11 px-4 rounded-full border-2 text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
-                        isOn ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                      className={`h-10 px-3.5 shrink-0 rounded-full border-2 text-sm2 font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                        dateTime === value ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
                       }`}
                     >
-                      {EVENT_TAGS[t].emoji} {EVENT_TAGS[t].label}
+                      {q.label}
                     </button>
                   );
                 })}
               </div>
-            </Field>
-
-            <Field label="Сколько мест?">
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  value={maxParticipants === '0' ? '' : maxParticipants}
-                  onChange={(e) => setMaxParticipants(String(Math.max(0, Math.floor(Number(e.target.value) || 0))))}
-                  placeholder="Без ограничений"
-                  className="field flex-1"
-                />
-              </div>
-              <p className="mt-1.5 text-cap text-zine-inkMuted">Вместе с тобой и гостями участников. Пусто — сколько угодно</p>
+              <input
+                type="datetime-local"
+                value={dateTime}
+                onChange={(e) => setDateTime(e.target.value)}
+                className="field"
+                required
+              />
             </Field>
 
             <Field label="Где встречаемся?">
@@ -788,15 +832,76 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               </div>
             </Field>
 
-            <Field label="Когда?">
+            {/* Доп. поля шаблона: фильм, вид спорта, уровень, что взять, стоимость */}
+            {template?.fields.map((field) => (
+              <TemplateFieldInput key={field.key} field={field} extras={extras} onChange={updateExtra} />
+            ))}
+
+            <Field label="Как назовём?">
               <input
-                type="datetime-local"
-                value={dateTime}
-                onChange={(e) => setDateTime(e.target.value)}
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Прогулка по Осмоловке с кофе"
                 className="field"
                 required
               />
             </Field>
+
+            {!isTemplateForm && (
+              <Field label="Что будем делать?">
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).filter((c) => c !== 'other').map((cat) => {
+                    const cfg = EVENT_CATEGORIES_CONFIG[cat];
+                    const isSelected = category === cat;
+                    return (
+                      <button
+                        type="button"
+                        key={cat}
+                        onClick={() => {
+                          telegramService.haptic('selection');
+                          setCategory(cat);
+                          // «Поныть» — маленькой группой, чтобы каждый успел выговориться
+                          if (cat === 'support' && (maxParticipants === '0' || !maxParticipants)) setMaxParticipants('6');
+                        }}
+                        className={`h-[72px] rounded-zine-sm border-2 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
+                          isSelected ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
+                        }`}
+                      >
+                        <span className="text-[24px] leading-none">{cfg.emoji}</span>
+                        <span className={`text-cap font-semibold ${isSelected ? 'text-zine-terracotta' : 'text-zine-ink'}`}>{cfg.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Своя идея: автор сам пишет, что за сходка */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setCategory('other');
+                  }}
+                  className={`mt-2 w-full h-14 px-4 rounded-zine-sm border-2 flex items-center gap-3 text-left transition-colors cursor-pointer ${
+                    category === 'other' ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-dashed border-zine-border bg-zine-cardElevated'
+                  }`}
+                >
+                  <span className="text-[24px] leading-none">✨</span>
+                  <span className={`text-sm2 font-semibold ${category === 'other' ? 'text-zine-terracotta' : 'text-zine-ink'}`}>
+                    Своя идея — впиши свою
+                  </span>
+                </button>
+                {category === 'other' && (
+                  <input
+                    type="text"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value.slice(0, 30))}
+                    placeholder="Караоке, йога в парке, квиз…"
+                    className="field mt-2"
+                    autoFocus
+                  />
+                )}
+              </Field>
+            )}
 
             <Field label="Пару слов о встрече">
               <textarea
@@ -807,6 +912,76 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 className="field"
                 required
               />
+            </Field>
+
+            {/* «Поныть»: правила встречи и телефон доверия подключаются сами */}
+            {category === 'support' && (
+              <div className="p-4 rounded-zine-sm bg-zine-blush/15">
+                <p className="text-body font-bold text-zine-ink">{M.supportRulesTitle}</p>
+                <ul className="mt-1.5 space-y-1">
+                  {SUPPORT_RULES.map((r) => (
+                    <li key={r} className="text-sm2 text-zine-ink">
+                      • {r}
+                    </li>
+                  ))}
+                </ul>
+                {tags.includes('empaths') && <p className="mt-2 text-sm2 text-zine-inkMuted">🫶 {M.empathsDefaultHint}</p>}
+                <HelpLine className="mt-3" />
+              </div>
+            )}
+
+            <Field label="Сколько мест?">
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={maxParticipants === '0' ? '' : maxParticipants}
+                  onChange={(e) => setMaxParticipants(String(Math.max(0, Math.floor(Number(e.target.value) || 0))))}
+                  placeholder="Без ограничений"
+                  className="field flex-1"
+                />
+              </div>
+              <p className="mt-1.5 text-cap text-zine-inkMuted">Вместе с тобой и гостями участников. Пусто — сколько угодно</p>
+              {template?.fields.some((f) => f.options?.some((o) => o.seatsHint && o.value === extras[f.key])) && (
+                <p className="mt-1.5 text-cap font-semibold text-zine-ink">💡 {M.seatsHintPair}</p>
+              )}
+            </Field>
+
+            <Field label="Для кого?">
+              <div className="flex flex-wrap gap-2">
+                {/* «Всех» — по умолчанию: без пометок */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setTags([]);
+                  }}
+                  className={`h-11 px-4 rounded-full border-2 text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                    tags.length === 0 ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                  }`}
+                >
+                  🙌 Всех
+                </button>
+                {(Object.keys(EVENT_TAGS) as EventTag[]).map((t) => {
+                  const isOn = tags.includes(t);
+                  return (
+                    <button
+                      type="button"
+                      key={t}
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        setTags(isOn ? tags.filter((x) => x !== t) : [...tags, t]);
+                      }}
+                      className={`h-11 px-4 rounded-full border-2 text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                        isOn ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                      }`}
+                    >
+                      {EVENT_TAGS[t].emoji} {EVENT_TAGS[t].label}
+                    </button>
+                  );
+                })}
+              </div>
             </Field>
 
             {!hasNativeSubmit && (
@@ -868,7 +1043,8 @@ const EventReel: React.FC<{
   onDelete: () => void;
   onOpenDetails: () => void;
   onNotInterested: () => void;
-}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onEdit, onDelete, onOpenDetails, onNotInterested }) => {
+  emoji?: string | null;
+}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onEdit, onDelete, onOpenDetails, onNotInterested, emoji }) => {
   const cat = eventCategoryOf(ev);
   const isFull = !ev.isJoined && Boolean(ev.maxParticipants) && (ev.participantsCount || 1) >= ev.maxParticipants;
   const people = (ev.participants || []).slice(0, 4);
@@ -883,7 +1059,7 @@ const EventReel: React.FC<{
       onSwipe={(dir) => (dir === 'right' ? onOpenDetails() : onNotInterested())}
     >
       {/* Большой значок категории вместо фото */}
-      <div className="absolute inset-x-0 top-[30%] flex justify-center text-[110px] leading-none select-none pointer-events-none">{cat.emoji}</div>
+      <div className="absolute inset-x-0 top-[30%] flex justify-center text-[110px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>
 
       {/* Справа — только «Позвать»; маршрут и жалоба — в подробностях */}
       <div className="absolute right-3 bottom-40 z-20 flex flex-col items-center gap-4 text-white">
@@ -928,8 +1104,21 @@ const EventReel: React.FC<{
           )}
         </p>
         <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight line-clamp-2">{ev.title}</h2>
-        <p className="mt-1.5 pr-16 text-body font-semibold">{formatEventDate(ev.dateTime)}</p>
+        <p className="mt-1.5 pr-16 text-body font-semibold">
+          {formatEventDate(ev.dateTime)}
+          {ev.durationMinutes ? <span className="font-normal text-white/75"> · {M.duration(ev.durationMinutes)}</span> : null}
+        </p>
         <p className="pr-16 text-sm2 text-white/80 truncate">📍 {ev.locationName}</p>
+        {/* Метки шаблона: «🏓 Настольный теннис · любой уровень» */}
+        {ev.badges && ev.badges.length > 0 && (
+          <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
+            {ev.badges.map((b) => (
+              <span key={b} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold flex items-center">
+                {b}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="mt-3 flex items-center gap-3">
           {isCreator ? (
@@ -996,6 +1185,79 @@ const EventReel: React.FC<{
       {/* Подсказка про свайпы — только на первой карточке */}
       {isFirst && <SwipeHint left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" className="top-44" />}
     </SwipeReel>
+  );
+};
+
+// Доп. поле шаблона: выбор вариантов, текст или сумма
+const TemplateFieldInput: React.FC<{ field: TemplateField; extras: Record<string, string>; onChange: (key: string, value: string) => void }> = ({
+  field,
+  extras,
+  onChange
+}) => {
+  const value = extras[field.key] || '';
+  const chip = (isOn: boolean) =>
+    `h-10 px-3.5 rounded-full border-2 text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+      isOn ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+    }`;
+  const pick = (v: string) => {
+    telegramService.haptic('selection');
+    onChange(field.key, v);
+  };
+
+  return (
+    <Field label={field.label}>
+      {field.type === 'select' && (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {field.options?.map((o) => (
+              <button type="button" key={o.value} onClick={() => pick(o.value)} className={chip(value === o.value)}>
+                {o.emoji && <span>{o.emoji}</span>}
+                {o.label}
+              </button>
+            ))}
+          </div>
+          {value === 'other' && field.allowCustom && (
+            <input
+              type="text"
+              value={extras[`${field.key}Custom`] || ''}
+              onChange={(e) => onChange(`${field.key}Custom`, e.target.value.slice(0, 40))}
+              placeholder={field.customLabel || M.customOptionPlaceholder}
+              className="field mt-2"
+              autoFocus
+            />
+          )}
+        </>
+      )}
+      {field.type === 'text' && (
+        <input type="text" value={value} onChange={(e) => onChange(field.key, e.target.value.slice(0, 80))} placeholder={field.placeholder} className="field" />
+      )}
+      {field.type === 'money' && (
+        <>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => pick(value === 'free' ? '' : 'free')} className={chip(value === 'free')}>
+              {field.freeLabel || M.moneyFree}
+            </button>
+            <button type="button" onClick={() => pick(value && value !== 'free' ? '' : 'split')} className={chip(Boolean(value) && value !== 'free')}>
+              {M.moneySplit}
+            </button>
+          </div>
+          {value && value !== 'free' && (
+            <input
+              type="text"
+              inputMode="decimal"
+              value={value === 'split' ? '' : value}
+              onChange={(e) => onChange(field.key, e.target.value.replace(/[^\d.,]/g, '').slice(0, 7) || 'split')}
+              placeholder={M.moneyAmountPlaceholder}
+              className="field mt-2"
+              autoFocus
+            />
+          )}
+          {value && value !== 'free' && value !== 'split' && field.amountLabel && (
+            <p className="mt-1.5 text-cap text-zine-inkMuted">{field.amountLabel.replace('{сумма}', value)}</p>
+          )}
+        </>
+      )}
+    </Field>
   );
 };
 
