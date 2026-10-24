@@ -15,6 +15,7 @@ interface ProfileFormScreenProps {
     name?: string;
     age?: string | number;
     ageConfirmed?: boolean;
+    profileCompleted?: boolean;
     gender?: Gender;
     preferredGender?: PreferredGender;
     preferredAgeRange?: { min: number; max: number };
@@ -113,12 +114,13 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [bio, setBio] = useState<string>(
     initialData?.bio || ''
   );
+  // Новичку интересы не выбираем заранее: пусть отметит сам
   const [selectedGoals, setSelectedGoals] = useState<ActivityGoal[]>(
     initialData?.goals && initialData.goals.length > 0
       ? initialData.goals
-      : initialData?.goal
+      : initialData?.profileCompleted && initialData?.goal
       ? [initialData.goal]
-      : ['walk']
+      : []
   );
   const [customGoal, setCustomGoal] = useState<string>(initialData?.customGoal || '');
   const [goesWith, setGoesWith] = useState<GoesWith | undefined>(initialData?.goesWith);
@@ -288,7 +290,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     }
 
     if (selectedGoals.length === 0) {
-      setErrorText('Выбери хотя бы одну цель для встреч');
+      setErrorText(AGE_TEXTS.goalsRequired);
       telegramService.haptic('warning');
       return;
     }
@@ -497,6 +499,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
           {/* Цели */}
           <Section title="Что тебе интересно?" subtitle="Можно выбрать несколько">
+            {selectedGoals.length === 0 && <p className="-mt-1 mb-3 text-cap font-semibold text-zine-terracotta">{AGE_TEXTS.goalsRequired}</p>}
             <div className="grid grid-cols-2 gap-2">
               {(Object.keys(GOALS_CONFIG) as ActivityGoal[]).filter((key) => key !== 'other').map((key) => {
                 const item = GOALS_CONFIG[key];

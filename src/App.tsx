@@ -65,6 +65,7 @@ export const App: React.FC = () => {
     username: tgUser?.username || '',
     age: '25',
     ageConfirmed: false, // человек сам указал возраст (25 стоит по умолчанию)
+    profileCompleted: false, // указал возраст и интересы — только тогда анкету видят другие
     bio: '',
     gender: 'not_specified' as Gender,
     preferredGender: 'all' as PreferredGender,
@@ -285,7 +286,9 @@ export const App: React.FC = () => {
             gender: me.gender || prev.gender,
             preferredGender: me.preferredGender || prev.preferredGender,
             preferredAgeRange: me.preferredAgeRange || prev.preferredAgeRange,
-            goals: me.goals || (me.goal ? [me.goal] : prev.goals),
+            // Пока анкета не заполнена, интересы не подставляем (иначе стоял бы «Погулять» по умолчанию)
+            goals: me.profileCompleted ? me.goals || (me.goal ? [me.goal] : prev.goals) : [],
+            profileCompleted: Boolean(me.profileCompleted),
             goal: me.goal || prev.goal,
             customGoal: me.customGoal || '',
             goesWith: me.goesWith || undefined,
@@ -309,6 +312,9 @@ export const App: React.FC = () => {
           }
           if (me.hasAgreedToRules === false) {
             setCurrentScreen('onboarding');
+          } else if (!me.profileCompleted) {
+            // Приветствие прошёл, а анкету не дозаполнил — сначала анкета
+            setCurrentScreen('profile_create');
           }
         }
       } catch (err) {
@@ -466,6 +472,7 @@ export const App: React.FC = () => {
       ...prev,
       ...formData,
       avatarUrl: formData.avatarUrl || prev?.avatarUrl, // фото не меняли — оставляем прежнее
+      profileCompleted: prev.profileCompleted || Boolean(formData.ageConfirmed && formData.goals?.length),
       photos: formData.photos ? formData.photos.map((id) => `/api/photos/${encodeURIComponent(id)}`) : prev.photos,
       coordinates: coords
     }));
