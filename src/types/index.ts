@@ -230,6 +230,8 @@ export interface AppEvent {
   extras?: Record<string, string>; // доп. поля шаблона: фильм, вид спорта, уровень…
   badges?: string[];    // метки из доп. полей: «🏓 Настольный теннис · любой уровень»
   photos?: string[];    // до 5 фото: адреса на сервере, первое — обложка
+  isPaid?: boolean;     // платная (по умолчанию бесплатная)
+  price?: number;       // примерно сколько, BYN с человека
   participants?: Array<{
     telegramId: number;
     name: string;
@@ -256,6 +258,8 @@ export interface EventPayload {
   durationMinutes?: number;
   extras?: Record<string, string>;
   photos?: string[]; // id фото на сервере
+  isPaid?: boolean;
+  price?: number;
 }
 
 // Шаблон сходки (правится автором в боте через /templates)
@@ -293,6 +297,7 @@ export interface EventTemplate {
   durationMinutes: number;
   placeTypes: string[];
   tags: EventTag[];
+  paid: boolean; // по умолчанию «Платно»
   fields: TemplateField[];
 }
 export const CUSTOM_TEMPLATE = 'custom';

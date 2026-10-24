@@ -6,7 +6,7 @@ import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
 import { ReportSheet } from './ReportSheet';
 import { JoinSheet } from './JoinSheet';
-import { MEETUP_TEXTS } from '../../texts/meetups';
+import { MEETUP_TEXTS, priceLabel } from '../../texts/meetups';
 import { photoSrc } from './PhotoPicker';
 
 /**
@@ -105,6 +105,7 @@ export const EventDetails: React.FC<{
             {EVENT_TAGS[t].emoji} {EVENT_TAGS[t].label}
           </span>
         ))}
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-card text-zine-ink">{priceLabel(event)}</span>
         {(event.badges || []).map((b) => (
           <span key={b} className="inline-flex items-center px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-card text-zine-ink">
             {b}

@@ -33,6 +33,13 @@ export const MEETUP_TEXTS = {
   seatsHintPair: 'Для пары достаточно 2 мест, для пары на пару 4.',
   duration: (minutes: number) => `≈ ${String(Math.round((minutes / 60) * 10) / 10).replace('.', ',')} ч`,
 
+  // Цена: по умолчанию бесплатно
+  priceLabel: 'Сколько стоит?',
+  priceFree: '💚 Бесплатно',
+  pricePaid: '💸 Платно',
+  priceAmountPlaceholder: 'Примерно сколько BYN с человека (можно не писать)',
+  priceHint: 'Например, билет, аренда или вход. Чтобы никто не удивлялся на месте.',
+
   // «Поныть»
   supportRulesTitle: '🫂 Правила встречи подключатся сами',
   empathsDefaultHint: 'Метка «Только эмпаты» включена: придут те, кто умеет слушать. Можно выключить в «Для кого?».',
@@ -41,3 +48,9 @@ export const MEETUP_TEXTS = {
   emptyTitle: 'Тут пока пусто',
   emptyText: 'Собери первую сходку, это займёт минуту.'
 };
+
+// Пометка цены сходки: «💚 Бесплатно», «💸 Платно», «💸 Платно, примерно 15 BYN»
+export const priceLabel = (ev: { isPaid?: boolean; price?: number }) =>
+  !ev.isPaid ? MEETUP_TEXTS.priceFree : ev.price ? `${MEETUP_TEXTS.pricePaid}, примерно ${String(ev.price).replace('.', ',')} BYN` : MEETUP_TEXTS.pricePaid;
+export const priceShort = (ev: { isPaid?: boolean; price?: number }) =>
+  !ev.isPaid ? 'бесплатно' : ev.price ? `~${String(ev.price).replace('.', ',')} BYN` : 'платно';

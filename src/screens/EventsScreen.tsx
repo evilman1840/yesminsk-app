@@ -14,7 +14,7 @@ import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 import { HelpLine } from '../components/common/HelpLine';
 import { PhotoPicker, PickedPhoto, photoFromUrl, photoSrc } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
-import { MEETUP_TEXTS as M } from '../texts/meetups';
+import { MEETUP_TEXTS as M, priceLabel } from '../texts/meetups';
 import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji, quickTimeFromParam } from '../utils/meetupTemplates';
 
 // Шаблоны грузим один раз за запуск
@@ -204,6 +204,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [durationMinutes, setDurationMinutes] = useState(0);
   const [pickPlaceType, setPickPlaceType] = useState<string | undefined>(undefined);
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
+  // Цена: по умолчанию бесплатно
+  const [isPaid, setIsPaid] = useState(false);
+  const [price, setPrice] = useState('');
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   // Последние название и описание, которые заполнил шаблон: пока человек их не правил, обновляем вместе с полями
   const autoText = useRef<{ title: string; description: string }>({ title: '', description: '' });
@@ -281,6 +284,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setDurationMinutes(0);
     setPhotos([]);
     setIsPhotoUploading(false);
+    setIsPaid(false);
+    setPrice('');
     // Шаблоны не загрузились — сразу обычная форма
     setFormStep(templates && templates.length ? 'pick' : 'form');
     telegramService.haptic('selection');
@@ -337,6 +342,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setExtras(ev.extras || {});
     setDurationMinutes(ev.durationMinutes || 0);
     setPhotos((ev.photos || []).map(photoFromUrl));
+    setIsPaid(Boolean(ev.isPaid));
+    setPrice(ev.price ? String(ev.price).replace('.', ',') : '');
     setIsPhotoUploading(false);
     autoText.current = { title: ev.title || '', description: ev.description || '' };
     setFormStep('form');
@@ -358,6 +365,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setCategory('walk');
       setTags([]);
       setMaxParticipants('0');
+      setIsPaid(false);
+      setPrice('');
       autoText.current = { title: '', description: '' };
     } else {
       const ex = defaultExtras(tpl);
@@ -371,6 +380,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setTags(tpl.tags || []);
       setMaxParticipants(String(tpl.seats || 0));
       setDurationMinutes(tpl.durationMinutes || 0);
+      setIsPaid(Boolean(tpl.paid));
+      setPrice('');
       autoText.current = { title: nextTitle, description: nextDescription };
     }
     setFormStep('form');
@@ -518,6 +529,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         ...(templateKey && !editingEventId ? { templateId: templateKey } : {}),
         durationMinutes,
         photos: photos.map((p) => p.id).filter(Boolean),
+        isPaid,
+        price: isPaid && price ? Number(price.replace(',', '.')) || undefined : undefined,
         // «Делим аренду» без суммы — просто не указываем
         ...(template?.fields.length ? { extras: Object.fromEntries(Object.entries(extras).filter(([, v]) => v && v !== 'split')) } : {})
       };
@@ -986,6 +999,39 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               )}
             </Field>
 
+            <Field label={M.priceLabel}>
+              <div className="flex gap-2">
+                {[false, true].map((paid) => (
+                  <button
+                    type="button"
+                    key={String(paid)}
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      setIsPaid(paid);
+                    }}
+                    className={`h-11 px-4 rounded-full border-2 text-sm2 font-semibold cursor-pointer transition-colors ${
+                      isPaid === paid ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                    }`}
+                  >
+                    {paid ? M.pricePaid : M.priceFree}
+                  </button>
+                ))}
+              </div>
+              {isPaid && (
+                <>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value.replace(/[^\d.,]/g, '').slice(0, 7))}
+                    placeholder={M.priceAmountPlaceholder}
+                    className="field mt-2"
+                  />
+                  <p className="mt-1.5 text-cap text-zine-inkMuted">{M.priceHint}</p>
+                </>
+              )}
+            </Field>
+
             <Field label="Для кого?">
               <div className="flex flex-wrap gap-2">
                 {/* «Всех» — по умолчанию: без пометок */}
@@ -1154,16 +1200,14 @@ const EventReel: React.FC<{
           {ev.durationMinutes ? <span className="font-normal text-white/75"> · {M.duration(ev.durationMinutes)}</span> : null}
         </p>
         <p className="pr-16 text-sm2 text-white/80 truncate">📍 {ev.locationName}</p>
-        {/* Метки шаблона: «🏓 Настольный теннис · любой уровень» */}
-        {ev.badges && ev.badges.length > 0 && (
-          <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
-            {ev.badges.map((b) => (
-              <span key={b} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold flex items-center">
-                {b}
-              </span>
-            ))}
-          </div>
-        )}
+        {/* Цена и метки шаблона: «💚 Бесплатно», «🏓 Настольный теннис · любой уровень» */}
+        <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
+          {[priceLabel(ev), ...(ev.badges || [])].map((b) => (
+            <span key={b} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold flex items-center">
+              {b}
+            </span>
+          ))}
+        </div>
 
         <div className="mt-3 flex items-center gap-3">
           {isCreator ? (

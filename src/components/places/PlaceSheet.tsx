@@ -6,6 +6,7 @@ import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
 import { EventDetails, relativeDay } from '../common/EventDetails';
 import { formatEventDate } from '../../screens/MapScreen';
+import { priceShort } from '../../texts/meetups';
 
 // Сходки в этом месте: привязанные к нему или собранные в паре десятков метров
 const eventsAtPlace = (place: PlaceItem, events: AppEvent[]) => {
@@ -202,7 +203,7 @@ export const PlaceSheet: React.FC<{
                   <span className="min-w-0 flex-1">
                     <span className="block text-body font-bold text-zine-ink truncate">{ev.title}</span>
                     <span className="block text-sm2 text-zine-inkMuted truncate">
-                      {shortWhen(ev.dateTime)}
+                      {shortWhen(ev.dateTime)} · {priceShort(ev)}
                     </span>
                   </span>
                   {ev.isJoined ? (
