@@ -20,7 +20,7 @@ import { FirstStepsCard } from './components/people/FirstSteps';
 import { ShareSheet } from './components/common/ShareSheet';
 import type { MapMode } from './screens/MapScreen';
 import { NewsItem } from './services/api';
-import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload } from './types';
+import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, placeForMeetup } from './types';
 
 // Примерные координаты районов Минска
 const AREA_COORDINATES: Record<string, [number, number]> = {
@@ -144,7 +144,8 @@ export const App: React.FC = () => {
     }
   };
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
-  const [pendingEventPlace, setPendingEventPlace] = useState<{ name: string; coordinates: [number, number]; category: EventCategory; placeId?: string; placeType?: string } | null>(null);
+  // Открыть форму сходки: из карточки места, по ссылке из бота или поста
+  const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
     try {
@@ -305,7 +306,7 @@ export const App: React.FC = () => {
       }
       setIsMeLoaded(true);
 
-      const [, loadedEvents] = await Promise.all([
+      const [, loadedEvents, , , loadedPlaces] = await Promise.all([
         fetchNearbyUsers(),
         fetchEvents(),
         fetchInbox(true),
@@ -329,6 +330,12 @@ export const App: React.FC = () => {
       if (target.placeId) {
         setMapModeState('places');
         setInitialPlaceId(target.placeId);
+      }
+      // «Собрать сходку» по ссылке: шаблон, время и место уже выбраны
+      if (target.create) {
+        const place = target.create.placeId ? loadedPlaces.find((p) => p.id === target.create!.placeId) : undefined;
+        setPendingCreate({ template: target.create.template, when: target.create.when, place: place ? placeForMeetup(place) : undefined });
+        setCurrentScreen((prev) => (prev === 'main' ? 'events' : prev));
       }
       if (target.eventId) {
         const found = loadedEvents.find(e => String(e.id) === target.eventId);
@@ -595,13 +602,7 @@ export const App: React.FC = () => {
     return updated;
   };
   const createEventAtPlace = (p: PlaceItem) => {
-    setPendingEventPlace({
-      name: p.address && p.address !== p.name ? `${p.name}, ${p.address}` : p.name,
-      coordinates: p.coordinates,
-      category: p.moods.includes('food') || p.moods.includes('party') ? 'cafe_bar' : 'walk',
-      placeId: p.id,
-      placeType: p.category // шаблоны сходок подбираются под тип места
-    });
+    setPendingCreate({ place: placeForMeetup(p) });
     handleNavigate('events');
   };
 
@@ -746,8 +747,8 @@ export const App: React.FC = () => {
                 onDeleteEvent={handleDeleteEvent}
                 onJoin={handleJoinEvent}
                 onRefreshEvents={fetchEvents}
-                initialPlace={pendingEventPlace}
-                onInitialPlaceUsed={() => setPendingEventPlace(null)}
+                initialCreate={pendingCreate}
+                onInitialCreateUsed={() => setPendingCreate(null)}
               />
             )}
           </div>

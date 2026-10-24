@@ -31,6 +31,25 @@ const TERRACOTTA = { light: '#D95C3C', dark: '#E8714F' };   // --c-terracotta: �
 const insideTelegram = () => Boolean(tg()?.initData);
 const isDarkNow = () => document.documentElement.classList.contains('dark');
 
+// ── Ссылка «собрать сходку» ───────────────────────────────────────────────
+export interface CreateMeetupLink {
+  template?: string; // ключ шаблона: coffee, sport…
+  when?: string;     // today / tomorrow / saturday / sunday / weekend
+  placeId?: string;
+}
+const WHEN_PARAMS = ['today', 'tomorrow', 'saturday', 'sunday', 'weekend'];
+
+// create_coffee_weekend_<id места>: части по порядку, любую можно пропустить
+export const parseCreateParam = (param: string): CreateMeetupLink => {
+  const link: CreateMeetupLink = {};
+  param.split('_').slice(1).forEach((part) => {
+    if (/^[a-f0-9]{24}$/i.test(part)) link.placeId = part;
+    else if (WHEN_PARAMS.includes(part)) link.when = part;
+    else if (/^[a-z0-9]+$/i.test(part) && !link.template) link.template = part.toLowerCase();
+  });
+  return link;
+};
+
 // ── MainButton ─────────────────────────────────────────────────────────────
 export interface MainButtonState {
   text: string;
@@ -362,11 +381,15 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; tab?: string; placeId?: string } {
+  getLaunchTarget(): { eventId?: string; tab?: string; placeId?: string; create?: CreateMeetupLink } {
     const params = new URLSearchParams(window.location.search);
     const startParam = tg()?.initDataUnsafe?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
-    return { eventId, tab: params.get('tab') || undefined, placeId: params.get('place') || undefined };
+    // Собрать сходку: ?create=coffee&when=weekend&place=<id> (кнопки бота) или startapp=create_coffee_weekend_<id> (ссылки в постах)
+    const create = params.has('create')
+      ? { template: params.get('create') || undefined, when: params.get('when') || undefined, placeId: params.get('place') || undefined }
+      : startParam.startsWith('create') ? parseCreateParam(startParam) : undefined;
+    return { eventId, tab: params.get('tab') || undefined, placeId: create ? undefined : params.get('place') || undefined, create };
   },
 
   /**

@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2 } from 'lucide-react';
-import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES } from '../types';
+import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -13,7 +13,7 @@ import { UndoToast } from '../components/ui/UndoToast';
 import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 import { HelpLine } from '../components/common/HelpLine';
 import { MEETUP_TEXTS as M } from '../texts/meetups';
-import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji } from '../utils/meetupTemplates';
+import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji, quickTimeFromParam } from '../utils/meetupTemplates';
 
 // Шаблоны грузим один раз за запуск
 let templatesCache: EventTemplate[] | null = null;
@@ -142,9 +142,9 @@ export interface EventsScreenProps {
   // options — с кем идёшь; null — «Не пойду». Вернёт обновлённую сходку или null
   onJoin?: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
   onRefreshEvents?: () => void;
-  // «Сходка сюда» из карточки места: открыть форму с уже заполненным местом
-  initialPlace?: { name: string; coordinates: [number, number]; category: EventCategory; placeId?: string; placeType?: string } | null;
-  onInitialPlaceUsed?: () => void;
+  // Открыть форму уже заполненной: «Сходка сюда» из карточки места, ссылка из бота или поста
+  initialCreate?: MeetupCreateRequest | null;
+  onInitialCreateUsed?: () => void;
 }
 
 export const EventsScreen: React.FC<EventsScreenProps> = ({
@@ -155,8 +155,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   onDeleteEvent,
   onJoin,
   onRefreshEvents,
-  initialPlace,
-  onInitialPlaceUsed
+  initialCreate,
+  onInitialCreateUsed
 }) => {
   const currentTgUser = telegramService.getUser();
   const currentUserId = propUserId || currentTgUser?.id;
@@ -255,7 +255,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToId]);
 
-  const handleOpenCreateModal = (presetCategory?: EventCategory, place?: { name: string; coordinates: [number, number]; placeId?: string; placeType?: string }) => {
+  const handleOpenCreateModal = (presetCategory?: EventCategory, place?: MeetupPlace) => {
     setPlaceId(place?.placeId || null);
     setPickPlaceType(place?.placeType);
     setTemplateKey(null);
@@ -283,13 +283,17 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setIsModalOpen(true);
   };
 
-  // Пришли из карточки места — сразу открываем форму с этим местом
+  // Пришли из карточки места или по ссылке — открываем форму; если указан шаблон и время, сразу заполняем
   useEffect(() => {
-    if (!initialPlace) return;
-    handleOpenCreateModal(initialPlace.category, initialPlace);
-    onInitialPlaceUsed?.();
+    if (!initialCreate || !templates) return;
+    handleOpenCreateModal(undefined, initialCreate.place);
+    const tpl = initialCreate.template ? templates.find((t) => t.key === initialCreate.template) : null;
+    if (tpl) applyTemplate(tpl);
+    const when = quickTimeFromParam(initialCreate.when);
+    if (when) setDateTime(toLocalInput(when));
+    onInitialCreateUsed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPlace]);
+  }, [initialCreate, templates]);
 
   const handleOpenEditModal = (ev: AppEvent) => {
     telegramService.haptic('selection');
@@ -304,12 +308,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setPlaceLabel(ev.coordinates ? ev.locationName : null);
     setPlaceNotFound(false);
     setIsPickedOnMap(Boolean(ev.coordinates));
-    try {
-      const d = new Date(ev.dateTime);
-      setDateTime(d.toISOString().slice(0, 16));
-    } catch {
-      setDateTime('');
-    }
+    // Время — в местном часовом поясе (раньше уходило по UTC, и при сохранении сдвигалось на 3 часа)
+    const d = new Date(ev.dateTime);
+    setDateTime(Number.isNaN(d.getTime()) ? '' : toLocalInput(d));
     setMaxParticipants(String(ev.maxParticipants || 0));
     setTags(ev.tags || []);
     setTemplateKey(ev.templateId || null);
@@ -532,7 +533,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             className="h-11 px-4 rounded-full bg-zine-terracotta active:bg-zine-terracottaHover text-white text-body font-bold flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
           >
             <Plus size={20} strokeWidth={2.5} />
-            <span>Создать</span>
+            <span>{M.createButtonShort}</span>
           </button>
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
@@ -577,8 +578,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       {filteredEvents.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-center px-8 text-white">
           <div className="text-[48px] mb-3">🗓</div>
-          <p className="font-serif font-bold text-title">Сходок пока нет</p>
-          <p className="mt-2 text-body text-white/70">Собери компанию на прогулку, в кафе или за настолки — это займёт минуту.</p>
+          <p className="font-serif font-bold text-title">{M.emptyTitle}</p>
+          <p className="mt-2 text-body text-white/70">{M.emptyText}</p>
           <button
             onClick={() => {
               handleOpenCreateModal(selectedCategory === 'all' || selectedCategory === 'kids' ? undefined : selectedCategory);
@@ -586,7 +587,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             }}
             className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer"
           >
-            Создать сходку
+            {M.createButton}
           </button>
         </div>
       ) : (

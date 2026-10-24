@@ -294,6 +294,19 @@ export interface EventTemplate {
 }
 export const CUSTOM_TEMPLATE = 'custom';
 
+// Открыть форму сходки уже заполненной: место, шаблон, время (today / tomorrow / saturday / sunday / weekend)
+export interface MeetupPlace {
+  name: string;
+  coordinates: [number, number];
+  placeId?: string;
+  placeType?: string; // тип места: под него подбираются шаблоны
+}
+export interface MeetupCreateRequest {
+  place?: MeetupPlace;
+  template?: string;
+  when?: string;
+}
+
 // Сколько ещё можно взять с собой: свободные места минус я сам (моя прошлая запись не в счёт)
 export const maxGuestsFor = (ev: AppEvent) => {
   if (!ev.maxParticipants) return Infinity;
@@ -403,6 +416,14 @@ export interface PlaceItem {
   kidsNote?: string;
   savedByOthers?: number; // сколько ещё людей сохранили место
 }
+
+// Место из «Мест» → место для формы сходки
+export const placeForMeetup = (p: PlaceItem): MeetupPlace => ({
+  name: p.address && p.address !== p.name ? `${p.name}, ${p.address}` : p.name,
+  coordinates: p.coordinates,
+  placeId: p.id,
+  placeType: p.category
+});
 
 export interface PlaceTipItem {
   id: string;
