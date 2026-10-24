@@ -271,13 +271,13 @@ const PersonReel: React.FC<{
       {/* Несколько фото: тап слева и справа листает, как в сторис; по центру — анкета */}
       {gallery.length > 1 && (
         <>
-          {/* Стрелки по бокам: видно, что фото листаются */}
-          <button type="button" aria-label={PHOTO_TEXTS.galleryPrev} onClick={() => showPhoto(-1)} className="absolute left-0 top-[22%] bottom-[45%] w-[30%] z-10 flex items-center justify-start pl-2 cursor-pointer">
+          {/* Стрелки по бокам: видно, что фото листаются. Слой выше нижнего блока — иначе его градиент перехватывает нажатия */}
+          <button type="button" aria-label={PHOTO_TEXTS.galleryPrev} onClick={() => showPhoto(-1)} className="absolute left-0 top-[22%] bottom-[45%] w-[30%] z-20 flex items-center justify-start pl-2 cursor-pointer">
             <span className="w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm text-white/90 flex items-center justify-center">
               <ChevronLeft size={22} />
             </span>
           </button>
-          <button type="button" aria-label={PHOTO_TEXTS.galleryNext} onClick={() => showPhoto(1)} className="absolute right-0 top-[22%] bottom-[45%] w-[30%] z-10 flex items-center justify-end pr-2 cursor-pointer">
+          <button type="button" aria-label={PHOTO_TEXTS.galleryNext} onClick={() => showPhoto(1)} className="absolute right-0 top-[22%] bottom-[45%] w-[30%] z-20 flex items-center justify-end pr-2 cursor-pointer">
             <span className="w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm text-white/90 flex items-center justify-center">
               <ChevronRight size={22} />
             </span>
