@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2 } from 'lucide-react';
-import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource } from '../types';
+import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -14,11 +14,12 @@ import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 import { HelpLine } from '../components/common/HelpLine';
 import { PhotoPicker, PickedPhoto, photoFromUrl, photoSrc } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
+import { WishSheet } from '../components/common/WishSheet';
+import { WISH_TEXTS } from '../texts/wishes';
 import { MEETUP_TEXTS as M, priceLabel } from '../texts/meetups';
 import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji, quickTimeFromParam } from '../utils/meetupTemplates';
 
-// Шаблоны грузим один раз за запуск
-let templatesCache: EventTemplate[] | null = null;
+import { cachedTemplates, loadTemplates } from '../utils/templatesStore';
 
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
   { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'ул. ленина 5', 'ленина'], coords: [53.8998, 27.5585] },
@@ -147,6 +148,7 @@ export interface EventsScreenProps {
   // Открыть форму уже заполненной: «Сходка сюда» из карточки места, ссылка из бота или поста
   initialCreate?: MeetupCreateRequest | null;
   onInitialCreateUsed?: () => void;
+  places?: PlaceItem[]; // для «Хочу сходить»: выбор места
 }
 
 export const EventsScreen: React.FC<EventsScreenProps> = ({
@@ -158,7 +160,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   onJoin,
   onRefreshEvents,
   initialCreate,
-  onInitialCreateUsed
+  onInitialCreateUsed,
+  places = []
 }) => {
   const currentTgUser = telegramService.getUser();
   const currentUserId = propUserId || currentTgUser?.id;
@@ -197,7 +200,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   // Шаблоны: сначала выбор идеи, потом заполненная форма
-  const [templates, setTemplates] = useState<EventTemplate[] | null>(templatesCache);
+  const [templates, setTemplates] = useState<EventTemplate[] | null>(cachedTemplates());
   const [formStep, setFormStep] = useState<'pick' | 'form'>('pick');
   const [templateKey, setTemplateKey] = useState<string | null>(null);
   const [extras, setExtras] = useState<Record<string, string>>({});
@@ -206,6 +209,24 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   // Цена: по умолчанию бесплатно
   const [isPaid, setIsPaid] = useState(false);
+  // «Соберу я» из «Хочу сходить»: после публикации бот напишет остальным
+  const [wishGroupId, setWishGroupId] = useState<string | null>(null);
+  // «Хочу сходить»: плашка в ленте и шторка
+  const [isWishOpen, setIsWishOpen] = useState(false);
+  const [wishSummary, setWishSummary] = useState<WishSummaryItem[]>([]);
+  const [myWishCount, setMyWishCount] = useState(0);
+  const refreshWishes = () =>
+    api
+      .getWishes()
+      .then((r) => {
+        setWishSummary(r.summary || []);
+        setMyWishCount((r.mine || []).length);
+      })
+      .catch(() => {});
+  useEffect(() => {
+    refreshWishes();
+  }, []);
+  const topWish = wishSummary.filter((s) => !s.includesMe).sort((a, b) => b.count - a.count)[0];
   const [price, setPrice] = useState('');
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   // Последние название и описание, которые заполнил шаблон: пока человек их не правил, обновляем вместе с полями
@@ -214,14 +235,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const isTemplateForm = Boolean(template && template.key !== CUSTOM_TEMPLATE);
 
   useEffect(() => {
-    if (templatesCache) return;
-    api
-      .getEventTemplates()
-      .then((list) => {
-        templatesCache = list || [];
-        setTemplates(templatesCache);
-      })
-      .catch(() => setTemplates([]));
+    if (!templates) loadTemplates().then(setTemplates);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const formRef = useRef<HTMLFormElement>(null);
   const formErrorRef = useRef<HTMLDivElement>(null);
@@ -286,6 +301,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setIsPhotoUploading(false);
     setIsPaid(false);
     setPrice('');
+    setWishGroupId(null);
     // Шаблоны не загрузились — сразу обычная форма
     setFormStep(templates && templates.length ? 'pick' : 'form');
     telegramService.haptic('selection');
@@ -313,7 +329,12 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     if (!initialCreate || !templates) return;
     handleOpenCreateModal(undefined, initialCreate.place, initialCreate.source || 'place');
     const tpl = initialCreate.template ? templates.find((t) => t.key === initialCreate.template) : null;
-    if (tpl) applyTemplate(tpl);
+    if (tpl) {
+      // Вид спорта из ссылки — в первое обязательное поле-выбор
+      const sub = initialCreate.opt ? tpl.fields.find((f) => f.type === 'select' && f.required && f.options?.some((o) => o.value === initialCreate.opt)) : null;
+      applyTemplate(tpl, sub ? { [sub.key]: initialCreate.opt! } : undefined);
+    }
+    if (initialCreate.wishGroupId) setWishGroupId(initialCreate.wishGroupId);
     const when = quickTimeFromParam(initialCreate.when);
     if (when) setDateTime(toLocalInput(when));
     onInitialCreateUsed?.();
@@ -352,7 +373,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   };
 
   // Выбрали шаблон — заполняем форму за человека
-  const applyTemplate = (tpl: EventTemplate) => {
+  const applyTemplate = (tpl: EventTemplate, presetExtras?: Record<string, string>) => {
     telegramService.haptic('selection');
     if (!editingEventId) track('template', { template: tpl.key });
     setTemplateKey(tpl.key);
@@ -369,7 +390,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setPrice('');
       autoText.current = { title: '', description: '' };
     } else {
-      const ex = defaultExtras(tpl);
+      const ex = { ...defaultExtras(tpl), ...presetExtras };
       const nextTitle = templateTitle(tpl, ex);
       const nextDescription = templateDescription(tpl, ex);
       setExtras(ex);
@@ -527,6 +548,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         tags,
         ...(placeId && !editingEventId ? { placeId } : {}),
         ...(templateKey && !editingEventId ? { templateId: templateKey } : {}),
+        ...(wishGroupId && !editingEventId ? { wishGroupId } : {}),
         durationMinutes,
         photos: photos.map((p) => p.id).filter(Boolean),
         isPaid,
@@ -618,6 +640,19 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             </button>
           ))}
         </div>
+
+        {/* «Хочу сходить»: нет подходящей сходки — отметь, куда хочется */}
+        <div className="px-4 mt-2">
+          <button
+            onClick={() => {
+              telegramService.haptic('selection');
+              setIsWishOpen(true);
+            }}
+            className="w-full min-h-10 px-4 py-2 rounded-full bg-black/35 backdrop-blur border border-white/20 text-white text-sm2 font-semibold text-left truncate cursor-pointer active:scale-[0.99] transition-transform"
+          >
+            {topWish ? WISH_TEXTS.barCounter(topWish.count, topWish.what, topWish.when) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+          </button>
+        </div>
       </div>
 
       {filteredEvents.length === 0 ? (
@@ -633,6 +668,12 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer"
           >
             {M.createButton}
+          </button>
+          <button
+            onClick={() => setIsWishOpen(true)}
+            className="mt-3 h-12 px-6 rounded-full bg-white/15 text-white text-body font-semibold cursor-pointer"
+          >
+            {WISH_TEXTS.emptyWant}
           </button>
         </div>
       ) : (
@@ -671,7 +712,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
       {justHidden && (
         <UndoToast
-          topClass="top-[164px]"
+          topClass="top-[220px]"
           text={`Скрыто: ${justHidden.title}`}
           onDone={() => setJustHidden(null)}
           onUndo={() => {
@@ -1081,6 +1122,17 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </BottomSheet>
       )}
 
+      {isWishOpen && (
+        <WishSheet
+          places={places}
+          onClose={() => {
+            setIsWishOpen(false);
+            refreshWishes();
+          }}
+          onChanged={refreshWishes}
+        />
+      )}
+
       {isMapPickerOpen && (
         <MapPicker
           initial={customCoords}
@@ -1272,7 +1324,7 @@ const EventReel: React.FC<{
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
-      {isFirst && <SwipeHint left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" className="top-44" />}
+      {isFirst && <SwipeHint left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" className="top-[232px]" />}
     </SwipeReel>
   );
 };

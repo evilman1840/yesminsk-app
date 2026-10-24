@@ -260,6 +260,7 @@ export interface EventPayload {
   photos?: string[]; // id фото на сервере
   isPaid?: boolean;
   price?: number;
+  wishGroupId?: string;
 }
 
 // Шаблон сходки (правится автором в боте через /templates)
@@ -298,9 +299,34 @@ export interface EventTemplate {
   placeTypes: string[];
   tags: EventTag[];
   paid: boolean; // по умолчанию «Платно»
+  wishPhrase: string; // для «Хочу сходить»: «в кино»; пусто — не вид желания
   fields: TemplateField[];
 }
 export const CUSTOM_TEMPLATE = 'custom';
+
+// «Хочу сходить»: желание без обязательств
+export type WishWindow = 'today' | 'tomorrow' | 'weekend' | 'week';
+export interface WishItem {
+  id: string;
+  kind: string;
+  sport: string | null;
+  timeWindow: WishWindow;
+  placeId: string | null;
+  status: 'active' | 'matched';
+  what: string; // «в кино»
+  when: string; // «на выходных»
+  groupSize: number; // совпало: сколько вас
+}
+export interface WishSummaryItem {
+  kind: string;
+  sport: string | null;
+  timeWindow: WishWindow;
+  placeId: string | null;
+  count: number;
+  what: string;
+  when: string;
+  includesMe: boolean;
+}
 
 // Открыть форму сходки уже заполненной: место, шаблон, время (today / tomorrow / saturday / sunday / weekend)
 export interface MeetupPlace {
@@ -316,6 +342,8 @@ export interface MeetupCreateRequest {
   template?: string;
   when?: string;
   source?: MeetupFormSource;
+  wishGroupId?: string; // «Соберу я» из сообщения бота
+  opt?: string;         // предвыбранный вариант доп. поля (вид спорта)
 }
 
 // Сколько ещё можно взять с собой: свободные места минус я сам (моя прошлая запись не в счёт)

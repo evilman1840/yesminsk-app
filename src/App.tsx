@@ -336,7 +336,14 @@ export const App: React.FC = () => {
       // «Собрать сходку» по ссылке: шаблон, время и место уже выбраны
       if (target.create) {
         const place = target.create.placeId ? loadedPlaces.find((p) => p.id === target.create!.placeId) : undefined;
-        setPendingCreate({ template: target.create.template, when: target.create.when, place: place ? placeForMeetup(place) : undefined, source: 'link' });
+        setPendingCreate({
+          template: target.create.template,
+          when: target.create.when,
+          place: place ? placeForMeetup(place) : undefined,
+          source: 'link',
+          wishGroupId: target.create.wishGroupId,
+          opt: target.create.opt
+        });
         setCurrentScreen((prev) => (prev === 'main' ? 'events' : prev));
       }
       if (target.eventId) {
@@ -753,6 +760,7 @@ export const App: React.FC = () => {
                 onJoin={handleJoinEvent}
                 onRefreshEvents={fetchEvents}
                 initialCreate={pendingCreate}
+                places={places}
                 onInitialCreateUsed={() => setPendingCreate(null)}
               />
             )}

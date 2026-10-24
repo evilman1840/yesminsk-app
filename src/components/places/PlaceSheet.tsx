@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, Navigation, CalendarPlus, BookOpen, Loader2, Trash2, Bookmark, BookmarkCheck, Star, Clock, Phone, Globe, ChevronRight, Sparkles } from 'lucide-react';
-import { PlaceItem, PlaceTipItem, PLACE_MOODS, PLACE_PRICES, placeTypeEmoji, formatRatingCount, KIDS_LEVELS, AppEvent, JoinOptions, eventCategoryOf } from '../../types';
+import { WishSummaryItem, PlaceItem, PlaceTipItem, PLACE_MOODS, PLACE_PRICES, placeTypeEmoji, formatRatingCount, KIDS_LEVELS, AppEvent, JoinOptions, eventCategoryOf } from '../../types';
 import { api, serverUrl } from '../../services/api';
 import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
 import { EventDetails, relativeDay } from '../common/EventDetails';
 import { formatEventDate } from '../../screens/MapScreen';
 import { priceShort } from '../../texts/meetups';
+import { WishSheet, DELICATE_KINDS } from '../common/WishSheet';
+import { WISH_TEXTS } from '../../texts/wishes';
 
 // Сходки в этом месте: привязанные к нему или собранные в паре десятков метров
 const eventsAtPlace = (place: PlaceItem, events: AppEvent[]) => {
@@ -45,6 +47,32 @@ export const PlaceSheet: React.FC<{
   onJoinEvent?: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
 }> = ({ place, onClose, onCreateEvent, onToggleSave, events = [], onJoinEvent }) => {
   const placeEvents = eventsAtPlace(place, events);
+  // «Хочу сходить» сюда: счётчики (без «поныть») и своя кнопка
+  const [wishes, setWishes] = useState<WishSummaryItem[]>([]);
+  const [isWishOpen, setIsWishOpen] = useState(false);
+  const [wishBusy, setWishBusy] = useState(false);
+  const loadWishes = () =>
+    api
+      .getWishes()
+      .then((r) => setWishes((r.summary || []).filter((w) => w.placeId === place.id && !DELICATE_KINDS.includes(w.kind) && !(w.includesMe && w.count === 1))))
+      .catch(() => {});
+  useEffect(() => {
+    loadWishes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [place.id]);
+  const wantSame = async (w: WishSummaryItem) => {
+    if (w.includesMe || wishBusy) return;
+    setWishBusy(true);
+    try {
+      await api.createWish({ kind: w.kind, sport: w.sport, timeWindow: w.timeWindow, placeId: place.id });
+      telegramService.haptic('success');
+      loadWishes();
+    } catch (err: any) {
+      telegramService.alert(err?.message || WISH_TEXTS.failed);
+    } finally {
+      setWishBusy(false);
+    }
+  };
   const [openedEventId, setOpenedEventId] = useState<string | null>(null);
   const openedEvent = placeEvents.find((ev) => ev.id === openedEventId) || null;
   const [isSaving, setIsSaving] = useState(false);
@@ -218,6 +246,30 @@ export const PlaceSheet: React.FC<{
         </section>
       )}
 
+      {/* «Хочу сходить» сюда: кто уже хочет и своя кнопка */}
+      <section className="mt-5 space-y-2">
+        {wishes.map((w) => (
+          <button
+            key={`${w.kind}-${w.sport}-${w.timeWindow}`}
+            onClick={() => wantSame(w)}
+            disabled={w.includesMe}
+            className="w-full p-3 rounded-zine-sm bg-zine-mustard/15 text-left text-sm2 text-zine-ink flex items-center gap-2 cursor-pointer disabled:cursor-default"
+          >
+            <span className="flex-1 font-semibold">{WISH_TEXTS.placeCounter(w.count, w.what, w.when)}</span>
+            {w.includesMe && <span className="shrink-0 font-bold text-zine-sage">{WISH_TEXTS.meToo}</span>}
+          </button>
+        ))}
+        <button
+          onClick={() => {
+            telegramService.haptic('selection');
+            setIsWishOpen(true);
+          }}
+          className="h-10 px-4 rounded-full bg-zine-card text-sm2 font-bold text-zine-ink cursor-pointer active:scale-95 transition-transform"
+        >
+          {WISH_TEXTS.placeWant}
+        </button>
+      </section>
+
       {/* Куда с детьми */}
       {place.kidsLevel && KIDS_LEVELS[place.kidsLevel] && (
         <div className="mt-5 p-4 rounded-zine bg-zine-sky/10">
@@ -361,6 +413,17 @@ export const PlaceSheet: React.FC<{
         )}
         {error && <p className="mt-2 text-sm2 font-semibold text-zine-danger">{error}</p>}
       </div>
+
+      {isWishOpen && (
+        <WishSheet
+          presetPlace={place}
+          places={[place]}
+          onClose={() => {
+            setIsWishOpen(false);
+            loadWishes();
+          }}
+        />
+      )}
 
       {openedEvent && (
         <BottomSheet title={openedEvent.title} onClose={() => setOpenedEventId(null)}>

@@ -1,5 +1,5 @@
 import { telegramService } from './telegram';
-import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource } from '../types';
+import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow } from '../types';
 
 /**
  * Нормализация базового URL бэкенда.
@@ -75,6 +75,7 @@ class ApiService {
         throw new Error(errorData.error || `Ошибка сервера (${response.status})`);
       }
 
+      if (response.status === 204) return undefined as T; // ответ без тела
       return await response.json();
     } catch (error: any) {
       console.warn(`[API] Ошибка запроса к ${url}:`, error.message);
@@ -291,6 +292,17 @@ class ApiService {
   // Воронка формы «Собрать сходку»: шаги без ожидания ответа
   trackMeetupForm(data: { sessionId: string; step: 'opened' | 'template' | 'published' | 'closed'; template?: string; source?: MeetupFormSource; closedAt?: 'pick' | 'form' }) {
     this.request('/metrics/meetup-form', { method: 'POST', body: JSON.stringify(data) }).catch(() => {});
+  }
+
+  // «Хочу сходить»
+  async getWishes(): Promise<{ mine: WishItem[]; summary: WishSummaryItem[]; maxActive: number }> {
+    return this.request('/wishes');
+  }
+  async createWish(data: { kind: string; sport?: string | null; timeWindow: WishWindow; placeId?: string | null }): Promise<{ wish: WishItem; sameCount: number }> {
+    return this.request('/wishes', { method: 'POST', body: JSON.stringify(data) });
+  }
+  async cancelWish(id: string): Promise<void> {
+    await this.request(`/wishes/${id}`, { method: 'DELETE' });
   }
 
   // Шаблоны сходок: «Кофе и поболтать», «Кино»…

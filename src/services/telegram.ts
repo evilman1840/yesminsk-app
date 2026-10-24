@@ -36,6 +36,8 @@ export interface CreateMeetupLink {
   template?: string; // ключ шаблона: coffee, sport…
   when?: string;     // today / tomorrow / saturday / sunday / weekend
   placeId?: string;
+  wishGroupId?: string; // «Соберу я» из «Хочу сходить»
+  opt?: string;         // вид спорта
 }
 const WHEN_PARAMS = ['today', 'tomorrow', 'saturday', 'sunday', 'weekend'];
 
@@ -387,7 +389,13 @@ export const telegramService = {
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
     // Собрать сходку: ?create=coffee&when=weekend&place=<id> (кнопки бота) или startapp=create_coffee_weekend_<id> (ссылки в постах)
     const create = params.has('create')
-      ? { template: params.get('create') || undefined, when: params.get('when') || undefined, placeId: params.get('place') || undefined }
+      ? {
+          template: params.get('create') || undefined,
+          when: params.get('when') || undefined,
+          placeId: params.get('place') || undefined,
+          wishGroupId: params.get('wish') || undefined,
+          opt: params.get('opt') || undefined
+        }
       : startParam.startsWith('create') ? parseCreateParam(startParam) : undefined;
     return { eventId, tab: params.get('tab') || undefined, placeId: create ? undefined : params.get('place') || undefined, create };
   },
