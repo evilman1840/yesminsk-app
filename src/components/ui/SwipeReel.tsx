@@ -190,13 +190,27 @@ export const SwipeReel: React.FC<{
 // Подсказка на первой карточке: что делают свайпы
 // Подсказка про жесты на первой карточке: тёмная плашка, чтобы читалась на любом фоне; через несколько секунд исчезает.
 // inline — в потоке (над текстом карточки), иначе поверх по className
-export const SwipeHint: React.FC<{ left?: string; right?: string; className?: string; inline?: boolean }> = ({ left, right, className = 'top-36', inline }) => {
+export const SwipeHint: React.FC<{ left?: string; right?: string; className?: string; inline?: boolean; extra?: string }> = ({ left, right, className = 'top-36', inline, extra }) => {
   const [visible, setVisible] = useState(true);
   useEffect(() => {
     const t = setTimeout(() => setVisible(false), 7000);
     return () => clearTimeout(t);
   }, []);
   const parts = [left && `← ${left}`, right && `${right} →`, '↑ листай'].filter(Boolean) as string[];
+  // Вторая строка подсказки (например, как листать фото) — отдельной плашкой под первой
+  if (extra) {
+    return (
+      <div className={`${inline ? 'mb-3' : `absolute left-1/2 -translate-x-1/2 z-10 ${className}`} flex flex-col items-start gap-1.5`}>
+        <SwipeHint left={left} right={right} inline />
+        <span
+          aria-hidden
+          className={`-mt-1.5 px-3.5 py-2 rounded-full bg-black/70 text-sm2 font-semibold text-white whitespace-nowrap pointer-events-none transition-opacity duration-700 ${visible ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {extra}
+        </span>
+      </div>
+    );
+  }
   return (
     <div
       aria-hidden

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, SlidersHorizontal, ChevronUp, ChevronRight, Send, Loader2 } from 'lucide-react';
+import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2 } from 'lucide-react';
 import { UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, EMPATH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType } from '../components/common/Reactions';
@@ -271,8 +271,17 @@ const PersonReel: React.FC<{
       {/* Несколько фото: тап слева и справа листает, как в сторис; по центру — анкета */}
       {gallery.length > 1 && (
         <>
-          <button type="button" aria-label={PHOTO_TEXTS.galleryPrev} onClick={() => showPhoto(-1)} className="absolute left-0 top-[22%] bottom-[45%] w-[30%] z-10 cursor-pointer" />
-          <button type="button" aria-label={PHOTO_TEXTS.galleryNext} onClick={() => showPhoto(1)} className="absolute right-0 top-[22%] bottom-[45%] w-[30%] z-10 cursor-pointer" />
+          {/* Стрелки по бокам: видно, что фото листаются */}
+          <button type="button" aria-label={PHOTO_TEXTS.galleryPrev} onClick={() => showPhoto(-1)} className="absolute left-0 top-[22%] bottom-[45%] w-[30%] z-10 flex items-center justify-start pl-2 cursor-pointer">
+            <span className="w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm text-white/90 flex items-center justify-center">
+              <ChevronLeft size={22} />
+            </span>
+          </button>
+          <button type="button" aria-label={PHOTO_TEXTS.galleryNext} onClick={() => showPhoto(1)} className="absolute right-0 top-[22%] bottom-[45%] w-[30%] z-10 flex items-center justify-end pr-2 cursor-pointer">
+            <span className="w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm text-white/90 flex items-center justify-center">
+              <ChevronRight size={22} />
+            </span>
+          </button>
         </>
       )}
 
@@ -325,7 +334,7 @@ const PersonReel: React.FC<{
         {/* Подсказка про жесты — только на первой карточке, в потоке, чтобы не закрывать лицо */}
         {isFirst && (
           <div>
-            <SwipeHint inline left={user.isMatch ? undefined : 'скрыть'} right={canLike ? '👋' : undefined} />
+            <SwipeHint inline left={user.isMatch ? undefined : 'скрыть'} right={canLike ? '👋' : undefined} extra={gallery.length > 1 ? PHOTO_TEXTS.tapHint : undefined} />
           </div>
         )}
         {gallery.length > 1 && (

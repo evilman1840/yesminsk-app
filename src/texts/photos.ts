@@ -14,5 +14,6 @@ export const PHOTO_TEXTS = {
   profileTitle: 'Ещё фото',
   profileHint: 'До 5 фото: хобби, любимые места, ты в деле. Их увидят в ленте и в анкете.',
   galleryPrev: 'Предыдущее фото',
-  galleryNext: 'Следующее фото'
+  galleryNext: 'Следующее фото',
+  tapHint: '‹ › по бокам: листать фото'
 };
