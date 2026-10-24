@@ -334,7 +334,7 @@ export const App: React.FC = () => {
       // «Собрать сходку» по ссылке: шаблон, время и место уже выбраны
       if (target.create) {
         const place = target.create.placeId ? loadedPlaces.find((p) => p.id === target.create!.placeId) : undefined;
-        setPendingCreate({ template: target.create.template, when: target.create.when, place: place ? placeForMeetup(place) : undefined });
+        setPendingCreate({ template: target.create.template, when: target.create.when, place: place ? placeForMeetup(place) : undefined, source: 'link' });
         setCurrentScreen((prev) => (prev === 'main' ? 'events' : prev));
       }
       if (target.eventId) {
@@ -602,7 +602,7 @@ export const App: React.FC = () => {
     return updated;
   };
   const createEventAtPlace = (p: PlaceItem) => {
-    setPendingCreate({ place: placeForMeetup(p) });
+    setPendingCreate({ place: placeForMeetup(p), source: 'place' });
     handleNavigate('events');
   };
 

@@ -1,5 +1,5 @@
 import { telegramService } from './telegram';
-import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate } from '../types';
+import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource } from '../types';
 
 /**
  * Нормализация базового URL бэкенда.
@@ -279,6 +279,11 @@ class ApiService {
   // ==========================================
   // СОБЫТИЯ / СХОДКИ (EVENTS)
   // ==========================================
+
+  // Воронка формы «Собрать сходку»: шаги без ожидания ответа
+  trackMeetupForm(data: { sessionId: string; step: 'opened' | 'template' | 'published' | 'closed'; template?: string; source?: MeetupFormSource; closedAt?: 'pick' | 'form' }) {
+    this.request('/metrics/meetup-form', { method: 'POST', body: JSON.stringify(data) }).catch(() => {});
+  }
 
   // Шаблоны сходок: «Кофе и поболтать», «Кино»…
   async getEventTemplates(): Promise<EventTemplate[]> {

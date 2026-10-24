@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2 } from 'lucide-react';
-import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace } from '../types';
+import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -255,7 +255,21 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToId]);
 
-  const handleOpenCreateModal = (presetCategory?: EventCategory, place?: MeetupPlace) => {
+  // Одно открытие формы — для воронки «открыли → выбрали идею → опубликовали»
+  const formSession = useRef<{ id: string; done: boolean } | null>(null);
+  const track = (step: 'opened' | 'template' | 'published' | 'closed', extra: { template?: string; source?: MeetupFormSource; closedAt?: 'pick' | 'form' } = {}) => {
+    if (formSession.current) api.trackMeetupForm({ sessionId: formSession.current.id, step, ...extra });
+  };
+  const closeModal = () => {
+    // Закрыли новую сходку, не опубликовав: где именно
+    if (!editingEventId && formSession.current && !formSession.current.done) track('closed', { closedAt: formStep });
+    formSession.current = null;
+    setIsModalOpen(false);
+  };
+
+  const handleOpenCreateModal = (presetCategory?: EventCategory, place?: MeetupPlace, source: MeetupFormSource = 'feed') => {
+    formSession.current = { id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, done: false };
+    track('opened', { source });
     setPlaceId(place?.placeId || null);
     setPickPlaceType(place?.placeType);
     setTemplateKey(null);
@@ -286,7 +300,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   // Пришли из карточки места или по ссылке — открываем форму; если указан шаблон и время, сразу заполняем
   useEffect(() => {
     if (!initialCreate || !templates) return;
-    handleOpenCreateModal(undefined, initialCreate.place);
+    handleOpenCreateModal(undefined, initialCreate.place, initialCreate.source || 'place');
     const tpl = initialCreate.template ? templates.find((t) => t.key === initialCreate.template) : null;
     if (tpl) applyTemplate(tpl);
     const when = quickTimeFromParam(initialCreate.when);
@@ -325,6 +339,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   // Выбрали шаблон — заполняем форму за человека
   const applyTemplate = (tpl: EventTemplate) => {
     telegramService.haptic('selection');
+    if (!editingEventId) track('template', { template: tpl.key });
     setTemplateKey(tpl.key);
     setFormError(null);
     if (tpl.key === CUSTOM_TEMPLATE) {
@@ -508,7 +523,11 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         }
       }
 
-      setIsModalOpen(false);
+      if (!editingEventId && formSession.current) {
+        track('published', { template: templateKey || undefined });
+        formSession.current.done = true;
+      }
+      closeModal();
       telegramService.haptic('success');
       onRefreshEvents?.();
     } catch (err: any) {
@@ -529,7 +548,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         <div className="px-4 mb-2 flex items-center justify-between gap-3">
           <h1 className="font-serif font-bold text-title text-white">Сходки</h1>
           <button
-            onClick={() => handleOpenCreateModal()}
+            onClick={() => handleOpenCreateModal(undefined, undefined, 'feed')}
             className="h-11 px-4 rounded-full bg-zine-terracotta active:bg-zine-terracottaHover text-white text-body font-bold flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
           >
             <Plus size={20} strokeWidth={2.5} />
@@ -582,7 +601,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           <p className="mt-2 text-body text-white/70">{M.emptyText}</p>
           <button
             onClick={() => {
-              handleOpenCreateModal(selectedCategory === 'all' || selectedCategory === 'kids' ? undefined : selectedCategory);
+              handleOpenCreateModal(selectedCategory === 'all' || selectedCategory === 'kids' ? undefined : selectedCategory, undefined, 'empty');
               if (selectedCategory === 'kids') setTags(['kids']);
             }}
             className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer"
@@ -658,7 +677,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
       {/* Создание / редактирование сходки: сначала выбор идеи, потом заполненная форма */}
       {isModalOpen && formStep === 'pick' && templates && (
-        <BottomSheet title={M.pickTitle} onClose={() => setIsModalOpen(false)}>
+        <BottomSheet title={M.pickTitle} onClose={closeModal}>
           <p className="text-body text-zine-inkMuted">{M.pickHint}</p>
           {placeLabel && <p className="mt-2 text-sm2 font-semibold text-zine-ink truncate">📍 {M.pickForPlace(placeLabel)}</p>}
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -699,7 +718,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       )}
 
       {isModalOpen && formStep === 'form' && (
-        <BottomSheet title={editingEventId ? M.editMeetup : M.newMeetup} onClose={() => setIsModalOpen(false)}>
+        <BottomSheet title={editingEventId ? M.editMeetup : M.newMeetup} onClose={closeModal}>
           <form ref={formRef} onSubmit={handleSubmitForm} className="space-y-5">
             {formError && (
               <div ref={formErrorRef} className="p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">{formError}</div>

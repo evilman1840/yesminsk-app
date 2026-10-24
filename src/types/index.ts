@@ -301,10 +301,13 @@ export interface MeetupPlace {
   placeId?: string;
   placeType?: string; // тип места: под него подбираются шаблоны
 }
+// Откуда открыли форму сходки — для воронки в /stats
+export type MeetupFormSource = 'feed' | 'empty' | 'place' | 'link';
 export interface MeetupCreateRequest {
   place?: MeetupPlace;
   template?: string;
   when?: string;
+  source?: MeetupFormSource;
 }
 
 // Сколько ещё можно взять с собой: свободные места минус я сам (моя прошлая запись не в счёт)
