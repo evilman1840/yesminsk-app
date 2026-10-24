@@ -255,7 +255,7 @@ export const WishSheet: React.FC<{
                     className="w-full p-3 rounded-zine-sm bg-zine-card flex items-center gap-3 text-left cursor-pointer disabled:cursor-default"
                   >
                     <span className="min-w-0 flex-1 text-body text-zine-ink">
-                      <b>{T.barCounter(s.count, s.what, s.when)}</b>
+                      <b>🙋 {T.barCounter(s.count, s.what, s.when)}</b>
                       {placeName(s.placeId) && <span className="text-zine-inkMuted"> · {placeName(s.placeId)}</span>}
                     </span>
                     {s.includesMe && <span className="shrink-0 text-sm2 font-bold text-zine-sage">{T.meToo}</span>}

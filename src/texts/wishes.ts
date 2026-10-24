@@ -5,9 +5,10 @@ const people = (n: number) =>
   `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'человек' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'человека' : 'человек'}`;
 
 export const WISH_TEXTS = {
-  barPrompt: 'Нет подходящей сходки? Отметь, куда хочется 👇',
-  barCounter: (n: number, what: string, when: string) => `🙋 ${people(n)} ${n === 1 ? 'хочет' : 'хотят'} ${what} ${when}`,
-  barMine: (n: number) => (n === 1 ? '🙋 Твоё желание отмечено' : `🙋 Твоих желаний: ${n}`),
+  barTitle: 'Хочу сходить',
+  barPrompt: 'Нет подходящей сходки? Отметь, куда хочется',
+  barCounter: (n: number, what: string, when: string) => `${people(n)} ${n === 1 ? 'хочет' : 'хотят'} ${what} ${when}`,
+  barMine: (n: number) => (n === 1 ? 'Твоё желание отмечено, ждём совпадений' : `Твоих желаний: ${n}, ждём совпадений`),
 
   sheetTitle: 'Куда хочется?',
   sheetHint: 'Без обязательств. Когда найдутся люди с таким же желанием, бот предложит собрать сходку.',

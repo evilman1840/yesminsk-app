@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2 } from 'lucide-react';
+import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
@@ -648,9 +648,16 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               telegramService.haptic('selection');
               setIsWishOpen(true);
             }}
-            className="w-full min-h-10 px-4 py-2 rounded-full bg-black/35 backdrop-blur border border-white/20 text-white text-sm2 font-semibold text-left truncate cursor-pointer active:scale-[0.99] transition-transform"
+            className="w-full p-2 pr-3 rounded-zine-sm bg-black/40 backdrop-blur border border-white/20 text-white text-left flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-transform"
           >
-            {topWish ? WISH_TEXTS.barCounter(topWish.count, topWish.what, topWish.when) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+            <span className="w-10 h-10 shrink-0 rounded-full bg-zine-terracotta flex items-center justify-center text-[20px] leading-none">🙋</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm2 font-bold">{WISH_TEXTS.barTitle}</span>
+              <span className="block text-cap text-white/80 line-clamp-2">
+                {topWish ? WISH_TEXTS.barCounter(topWish.count, topWish.what, topWish.when) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+              </span>
+            </span>
+            <ChevronRight size={20} className="shrink-0 text-white/70" />
           </button>
         </div>
       </div>
@@ -712,7 +719,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
       {justHidden && (
         <UndoToast
-          topClass="top-[220px]"
+          topClass="top-[244px]"
           text={`Скрыто: ${justHidden.title}`}
           onDone={() => setJustHidden(null)}
           onUndo={() => {
@@ -1324,7 +1331,7 @@ const EventReel: React.FC<{
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
-      {isFirst && <SwipeHint left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" className="top-[232px]" />}
+      {isFirst && <SwipeHint left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" className="top-[256px]" />}
     </SwipeReel>
   );
 };
