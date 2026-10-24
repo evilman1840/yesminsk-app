@@ -79,6 +79,7 @@ export const App: React.FC = () => {
     isProfileActive: true,
     isGuide: false,
     guideAbout: '',
+    photos: [] as string[],
     availableUntil: null as string | null,
     coordinates: getSavedCoordinates()
   });
@@ -289,6 +290,7 @@ export const App: React.FC = () => {
             isProfileActive: me.isProfileActive !== false,
             isGuide: Boolean(me.isGuide),
             guideAbout: me.guideAbout || '',
+            photos: me.photos || [],
             availableUntil: me.availableUntil || null,
             coordinates: userCoords
           }));
@@ -366,6 +368,7 @@ export const App: React.FC = () => {
     digest?: DigestFrequency;
     isEmpath?: boolean;
     avatarUrl?: string;
+    photos?: string[];
     area: string;
     isTourist?: boolean;
     isProfileActive?: boolean;
@@ -398,6 +401,7 @@ export const App: React.FC = () => {
       digest: formData.digest,
       isEmpath: formData.isEmpath,
       avatarUrl: formData.avatarUrl,
+      photos: formData.photos,
       areaName: formData.area,
       isTourist: formData.isTourist,
       isProfileActive: formData.isProfileActive,
@@ -423,6 +427,7 @@ export const App: React.FC = () => {
       ...prev,
       ...formData,
       avatarUrl: formData.avatarUrl || prev?.avatarUrl, // фото не меняли — оставляем прежнее
+      photos: formData.photos ? formData.photos.map((id) => `/api/photos/${encodeURIComponent(id)}`) : prev.photos,
       coordinates: coords
     }));
 

@@ -4,6 +4,8 @@ import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WIT
 import { HelpLine } from '../components/common/HelpLine';
 import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage, dataUrlBytes } from '../utils/compressImage';
+import { PhotoPicker, PickedPhoto, photoFromUrl } from '../components/common/PhotoPicker';
+import { PHOTO_TEXTS } from '../texts/photos';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
 import { useBackButton, useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 
@@ -29,6 +31,7 @@ interface ProfileFormScreenProps {
     isGuide?: boolean;
     guideAbout?: string;
     coordinates?: [number, number];
+    photos?: string[];
   };
   onSave: (data: {
     name: string;
@@ -44,6 +47,7 @@ interface ProfileFormScreenProps {
     digest: DigestFrequency;
     isEmpath: boolean;
     avatarUrl?: string;
+    photos: string[]; // id ещё до 5 фото
     area: string;
     isTourist: boolean;
     isProfileActive: boolean;
@@ -209,7 +213,12 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   };
 
   // Переключатели и выбор района сохраняются сразу — как «Хочется поныть» и тема. Текст — по кнопке
-  const settingsSnapshot = JSON.stringify([isEmpath, goesWith, area, digest, isGuide, isProfileActive]);
+  // Ещё до 5 фото: сохраняются сами, как и настройки ниже
+  const [photos, setPhotos] = useState<PickedPhoto[]>((initialData?.photos || []).map(photoFromUrl));
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+  const photoIds = photos.map((p) => p.id).filter(Boolean);
+
+  const settingsSnapshot = JSON.stringify([isEmpath, goesWith, area, digest, isGuide, isProfileActive, isPhotoUploading ? null : photoIds]);
   const lastSavedSettings = useRef(settingsSnapshot);
   useEffect(() => {
     if (isFirstTime || settingsSnapshot === lastSavedSettings.current) return;
@@ -265,6 +274,10 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   // silent — автосохранение переключателей: без вибрации «успеха», но ошибки показываем
   const handleSave = async (silent = false) => {
     setErrorText(null);
+    if (isPhotoUploading && !silent) {
+      setErrorText(PHOTO_TEXTS.wait);
+      return;
+    }
 
     if (!name.trim()) {
       setErrorText('Пожалуйста, укажи имя');
@@ -313,6 +326,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         isEmpath,
         // Фото отправляем, только если оно новое — иначе каждое переключение настроек гоняло бы его на сервер
         avatarUrl: avatarUrl !== initialData?.avatarUrl ? avatarUrl : undefined,
+        photos: photoIds,
         area,
         isTourist,
         isProfileActive,
@@ -430,6 +444,11 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 </div>
               )}
             </div>
+          </Section>
+
+          {/* Ещё до 5 фото */}
+          <Section title={PHOTO_TEXTS.profileTitle} subtitle={PHOTO_TEXTS.profileHint}>
+            <PhotoPicker value={photos} onChange={setPhotos} onBusyChange={setIsPhotoUploading} showCover={false} />
           </Section>
 
           {/* Имя, возраст, о себе */}

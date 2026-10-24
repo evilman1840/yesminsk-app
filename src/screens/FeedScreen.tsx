@@ -6,6 +6,8 @@ import { ReactionType } from '../components/common/Reactions';
 import { formatDistance } from '../components/common/UserBottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
+import { photoSrc } from '../components/common/PhotoPicker';
+import { PHOTO_TEXTS } from '../texts/photos';
 import {
   PeopleFiltersSheet,
   PeopleFilters,
@@ -218,6 +220,13 @@ const PersonReel: React.FC<{
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
   const common = new Set(commonGoalIds(user, myGoals));
   const goals = goalsOf(user);
+  // Главное фото и ещё до 5
+  const gallery = [user.avatarUrl, ...(user.photos || []).map(photoSrc)];
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const showPhoto = (step: number) => {
+    telegramService.haptic('selection');
+    setPhotoIndex((i) => (i + step + gallery.length) % gallery.length);
+  };
   const canLike = !user.isMatch && !user.iLiked;
   const distance = formatDistance(user.distanceMeters);
 
@@ -251,7 +260,14 @@ const PersonReel: React.FC<{
         else onReact(user, 'dislike');
       }}
     >
-      <img src={user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
+      <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
+      {/* Несколько фото: тап слева и справа листает, как в сторис; по центру — анкета */}
+      {gallery.length > 1 && (
+        <>
+          <button type="button" aria-label={PHOTO_TEXTS.galleryPrev} onClick={() => showPhoto(-1)} className="absolute left-0 top-[22%] bottom-[45%] w-[30%] z-10 cursor-pointer" />
+          <button type="button" aria-label={PHOTO_TEXTS.galleryNext} onClick={() => showPhoto(1)} className="absolute right-0 top-[22%] bottom-[45%] w-[30%] z-10 cursor-pointer" />
+        </>
+      )}
 
       {/* Кнопки справа, как в Reels */}
       <div className="absolute right-3 bottom-48 z-20 flex flex-col items-center gap-5 text-white">
@@ -299,6 +315,13 @@ const PersonReel: React.FC<{
         }}
         className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white cursor-pointer"
       >
+        {gallery.length > 1 && (
+          <div className="mb-3 flex gap-1" aria-hidden>
+            {gallery.map((src, i) => (
+              <span key={src} className={`h-1 flex-1 rounded-full ${i === photoIndex ? 'bg-white' : 'bg-white/35'}`} />
+            ))}
+          </div>
+        )}
         <div className="pr-16 flex flex-wrap gap-1.5">
           {user.isMatch && <span className="px-3 py-1 rounded-full bg-zine-sage text-white text-sm2 font-bold">🤝 На связи</span>}
           {user.likedMe && !user.isMatch && <span className="px-3 py-1 rounded-full bg-white text-[#2B2623] text-sm2 font-bold">👋 Хочет пообщаться</span>}

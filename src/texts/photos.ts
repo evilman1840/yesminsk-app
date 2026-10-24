@@ -10,5 +10,9 @@ export const PHOTO_TEXTS = {
   uploading: 'Загружаем…',
   failed: 'Не получилось загрузить фото, попробуй ещё раз',
   wait: 'Подожди, фото ещё загружаются',
-  limit: (max: number) => `Можно до ${max} фото`
+  limit: (max: number) => `Можно до ${max} фото`,
+  profileTitle: 'Ещё фото',
+  profileHint: 'До 5 фото: хобби, любимые места, ты в деле. Их увидят в ленте и в анкете.',
+  galleryPrev: 'Предыдущее фото',
+  galleryNext: 'Следующее фото'
 };

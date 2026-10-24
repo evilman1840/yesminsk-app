@@ -4,6 +4,7 @@ import { UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, EMPATH, i
 import { ReactionButtons, ChatButton, ReactionType } from './Reactions';
 import { BottomSheet } from '../ui/BottomSheet';
 import { ReportSheet, SafetyTipsSheet } from './ReportSheet';
+import { photoSrc } from './PhotoPicker';
 
 interface UserBottomSheetProps {
   user: UserProfile;
@@ -35,6 +36,8 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
   const goals = goalsOf(user).sort((a, b) => Number(common.has(b.id)) - Number(common.has(a.id)));
   const commonGoals = goals.filter((g) => common.has(g.id));
   const distance = formatDistance(user.distanceMeters);
+  const gallery = [user.avatarUrl, ...(user.photos || []).map(photoSrc)];
+  const [photoIndex, setPhotoIndex] = useState(0);
   const goesWith = user.goesWith && GOES_WITH[user.goesWith];
 
   return (
@@ -44,13 +47,28 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
     >
       {/* Фото с именем поверх */}
       <div className="relative -mt-1 rounded-zine overflow-hidden bg-zine-card">
-        <img src={user.avatarUrl} alt={user.firstName} className="w-full aspect-[4/5] max-h-[52vh] object-cover" />
-        <div className="absolute top-3 left-3 right-3 flex flex-wrap gap-1.5">
+        {/* Главное фото и ещё до 5: листаются пальцем */}
+        <div
+          className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
+          onScroll={(e) => setPhotoIndex(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
+        >
+          {gallery.map((src) => (
+            <img key={src} src={src} alt={user.firstName} className="w-full shrink-0 snap-center aspect-[4/5] max-h-[52vh] object-cover" loading="lazy" />
+          ))}
+        </div>
+        {gallery.length > 1 && (
+          <div className="absolute top-2 inset-x-3 flex gap-1 pointer-events-none" aria-hidden>
+            {gallery.map((src, i) => (
+              <span key={src} className={`h-1 flex-1 rounded-full ${i === photoIndex ? 'bg-white' : 'bg-white/45'}`} />
+            ))}
+          </div>
+        )}
+        <div className="absolute top-5 left-3 right-3 flex flex-wrap gap-1.5 pointer-events-none">
           {user.isMatch && <span className="px-3 py-1 rounded-full bg-zine-sage text-white text-sm2 font-bold shadow">🤝 На связи</span>}
           {user.likedMe && !user.isMatch && <span className="px-3 py-1 rounded-full bg-white text-zine-ink text-sm2 font-bold shadow">👋 Хочет пообщаться</span>}
           {user.isGuide && <span className="px-3 py-1 rounded-full bg-zine-sky text-white text-sm2 font-bold shadow">🧭 Покажу город</span>}
         </div>
-        <div className="absolute inset-x-0 bottom-0 px-4 pt-16 pb-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white">
+        <div className="absolute inset-x-0 bottom-0 px-4 pt-16 pb-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white pointer-events-none">
           <h3 className="font-serif font-bold text-display leading-tight">
             {user.firstName}
             {user.age ? <span className="font-sans font-medium text-white/85">, {user.age}</span> : null}

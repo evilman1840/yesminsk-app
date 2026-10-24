@@ -22,7 +22,8 @@ export const PhotoPicker: React.FC<{
   onChange: (photos: PickedPhoto[]) => void;
   onBusyChange?: (busy: boolean) => void;
   max?: number;
-}> = ({ value, onChange, onBusyChange, max = 5 }) => {
+  showCover?: boolean; // у анкеты обложка — главное фото, тут подпись не нужна
+}> = ({ value, onChange, onBusyChange, max = 5, showCover = true }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const latest = useRef(value);
@@ -63,7 +64,7 @@ export const PhotoPicker: React.FC<{
                 <Loader2 size={22} className="animate-spin" />
               </span>
             )}
-            {i === 0 && p.id && <span className="absolute left-1.5 bottom-1.5 px-2 py-0.5 rounded-full bg-black/55 text-white text-[11px] font-semibold">{T.cover}</span>}
+            {showCover && i === 0 && p.id && <span className="absolute left-1.5 bottom-1.5 px-2 py-0.5 rounded-full bg-black/55 text-white text-[11px] font-semibold">{T.cover}</span>}
             {p.id && (
               <button
                 type="button"
