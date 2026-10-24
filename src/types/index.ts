@@ -171,7 +171,7 @@ export const isVentingNow = (u?: { ventUntil?: string | null } | null) =>
   Boolean(u?.ventUntil && new Date(u.ventUntil).getTime() > Date.now());
 
 // Правила сходки «🫂 Поныть» — показываем на карточке и подтверждаем при записи
-export const SUPPORT_RULES = ['Не осуждаем и не даём советов, если не просят', 'Слушаем по очереди', 'Что сказано здесь — остаётся здесь'];
+export const SUPPORT_RULES = ['Не осуждаем и не даём советов, если не просят', 'Слушаем по очереди', 'Что сказано здесь, остаётся здесь'];
 
 // Куда обращаться, если совсем тяжело
 export const HELP_PHONE = '133';
@@ -180,7 +180,7 @@ export const HELP_URL = 'https://clck.ru/3MuBz2';
 // Подборки от бота: как часто присылать
 export type DigestFrequency = 'daily' | 'weekend' | 'weekly' | 'off';
 export const DIGEST_OPTIONS: Record<DigestFrequency, { label: string; hint: string; emoji: string }> = {
-  daily: { label: 'Каждый день', hint: 'утром — что сегодня и завтра', emoji: '📅' },
+  daily: { label: 'Каждый день', hint: 'утром: что сегодня и завтра', emoji: '📅' },
   weekend: { label: 'На выходные', hint: 'в четверг вечером', emoji: '🎉' },
   weekly: { label: 'Раз в неделю', hint: 'в понедельник утром', emoji: '🗓' },
   off: { label: 'Не присылать', hint: 'загляну в приложение', emoji: '🔕' }
@@ -382,8 +382,8 @@ export const formatRatingCount = (n: number) => {
 // Куда с детьми
 export type KidsLevel = 'top' | 'age' | 'nearby';
 export const KIDS_LEVELS: Record<KidsLevel, { label: string; short: string; tiny: string; order: number }> = {
-  top: { label: 'Отлично с детьми — стоит ехать специально', short: 'Отлично с детьми', tiny: 'топ для детей', order: 0 },
-  age: { label: 'С детьми — смотря какой возраст', short: 'С детьми постарше', tiny: 'детям постарше', order: 1 },
+  top: { label: 'Отлично с детьми, стоит ехать специально', short: 'Отлично с детьми', tiny: 'топ для детей', order: 0 },
+  age: { label: 'С детьми, смотря какой возраст', short: 'С детьми постарше', tiny: 'детям постарше', order: 1 },
   nearby: { label: 'Можно с детьми, если живёшь рядом', short: 'Можно с детьми', tiny: 'можно с детьми', order: 2 }
 };
 

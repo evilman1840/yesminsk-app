@@ -22,7 +22,7 @@ export const DONATE_LINKS: DonateLink[] = [
   {
     emoji: '💳',
     title: 'Перевод на карту',
-    hint: 'Альфа-Банк — по ссылке, с любой карты',
+    hint: 'Альфа-Банк: по ссылке, с любой карты',
     url: 'https://www.alfabank.by/share/?transferLinkId=697bdff3d6f242317b6e3cab&version=INSNC3'
   },
   {

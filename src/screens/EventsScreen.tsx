@@ -487,7 +487,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       return;
     }
     if (category === 'other' && !customCategory.trim()) {
-      setFormError('Напиши, что будете делать — например, «Караоке»');
+      setFormError('Напиши, что будете делать, например «Караоке»');
       return;
     }
 
@@ -920,7 +920,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 >
                   <span className="text-[24px] leading-none">✨</span>
                   <span className={`text-sm2 font-semibold ${category === 'other' ? 'text-zine-terracotta' : 'text-zine-ink'}`}>
-                    Своя идея — впиши свою
+                    Своя идея: впиши свою
                   </span>
                 </button>
                 {category === 'other' && (
@@ -980,7 +980,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   className="field flex-1"
                 />
               </div>
-              <p className="mt-1.5 text-cap text-zine-inkMuted">Вместе с тобой и гостями участников. Пусто — сколько угодно</p>
+              <p className="mt-1.5 text-cap text-zine-inkMuted">Вместе с тобой и гостями участников. Пусто: сколько угодно</p>
               {template?.fields.some((f) => f.options?.some((o) => o.seatsHint && o.value === extras[f.key])) && (
                 <p className="mt-1.5 text-cap font-semibold text-zine-ink">💡 {M.seatsHintPair}</p>
               )}

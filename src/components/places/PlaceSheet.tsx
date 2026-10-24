@@ -178,7 +178,7 @@ export const PlaceSheet: React.FC<{
           className="mt-3 w-full p-3 rounded-zine-sm bg-zine-terracotta/10 text-left text-sm2 text-zine-ink cursor-pointer active:scale-[0.99] transition-transform"
         >
           🔖 Это место хотят посетить ещё {place.savedByOthers} {place.savedByOthers === 1 ? 'человек' : place.savedByOthers < 5 ? 'человека' : 'человек'}.{' '}
-          <b className="text-zine-terracotta">Собери сходку</b> — мы им напишем.
+          <b className="text-zine-terracotta">Собери сходку</b>, мы им напишем.
         </button>
       ) : null}
 
@@ -315,7 +315,7 @@ export const PlaceSheet: React.FC<{
           {isTipsLoading ? (
             <p className="text-sm2 text-zine-inkMuted">Загружаем…</p>
           ) : tips.length === 0 ? (
-            <p className="text-sm2 text-zine-inkMuted">Пока никто не поделился советом — твой будет первым 🙂</p>
+            <p className="text-sm2 text-zine-inkMuted">Пока никто не поделился советом, твой будет первым 🙂</p>
           ) : (
             tips.map((tip) => (
               <div key={tip.id} className="flex gap-3">

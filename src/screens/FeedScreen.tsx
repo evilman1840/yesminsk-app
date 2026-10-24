@@ -72,7 +72,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       : selectedGoal === 'empaths'
       ? '🫶 Те, кто отметил: умею слушать и поддерживать.'
       : tab === 'likes' && filteredUsers.length > 0
-      ? 'Хотят пообщаться — нажми 👋 в ответ, и сможете написать.'
+      ? 'Хотят пообщаться: нажми 👋 в ответ, и сможете написать.'
       : '';
 
   return (
@@ -135,7 +135,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
             <div className="w-full p-8 rounded-zine bg-zine-card text-center">
               <div className="text-[44px] mb-3">🔍</div>
               <h3 className="font-serif font-bold text-title text-zine-ink mb-2">Под фильтры никто не подходит</h3>
-              <p className="text-body text-zine-inkMuted mb-5">Попробуй ослабить фильтры — например, увеличить расстояние.</p>
+              <p className="text-body text-zine-inkMuted mb-5">Попробуй ослабить фильтры, например увеличить расстояние.</p>
               <button onClick={() => setIsFiltersOpen(true)} className="h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer">
                 Изменить фильтры
               </button>
@@ -153,7 +153,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               {showGuidesBanner && (
                 <section className="p-4 rounded-zine bg-zine-cardElevated border border-zine-sky/25">
                   <p className="text-lead font-bold text-zine-ink">🧳 Впервые в Минске?</p>
-                  <p className="mt-1 text-body text-zine-inkMuted">Местные жители готовы показать тебе город — бесплатно, просто из любви к Минску. Обо всех условиях договаривайтесь лично.</p>
+                  <p className="mt-1 text-body text-zine-inkMuted">Местные жители готовы показать тебе город бесплатно, просто из любви к Минску. Обо всех условиях договаривайтесь лично.</p>
                   <button
                     onClick={() => {
                       telegramService.haptic('selection');
@@ -168,7 +168,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               {filteredUsers.length > 0 ? (
                 <div className="mt-auto flex flex-col items-center text-white/80 animate-bounce pointer-events-none">
                   <ChevronUp size={22} />
-                  <span className="text-cap font-semibold">листай — там люди</span>
+                  <span className="text-cap font-semibold">листай, там люди</span>
                 </div>
               ) : (
                 <EmptyState tab={tab} />
@@ -372,7 +372,7 @@ const PersonReel: React.FC<{
             Анкета
           </button>
         )}
-        {user.isMatch && !user.username && <p className="mt-2 text-cap text-white/70">🤝 У человека нет @username — ссылку прислал бот в чате.</p>}
+        {user.isMatch && !user.username && <p className="mt-2 text-cap text-white/70">🤝 У человека нет @username, ссылку прислал бот в чате.</p>}
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
@@ -385,7 +385,7 @@ const EmptyState: React.FC<{ tab: FeedTab }> = ({ tab }) => {
   const content = {
     likes: { emoji: '👋', title: 'Пока никто не передал привет', text: 'Когда кто-то захочет пообщаться, он появится здесь, а бот пришлёт уведомление.' },
     matches: { emoji: '🤝', title: 'Пока никого на связи', text: 'Нажимай 👋 на анкетах. Когда человек ответит тем же, здесь появится кнопка «Написать».' },
-    all: { emoji: '🗺', title: 'Здесь пока никого', text: 'Позови друзей — вместе веселее. А ещё загляни чуть позже.' }
+    all: { emoji: '🗺', title: 'Здесь пока никого', text: 'Позови друзей, вместе веселее. А ещё загляни чуть позже.' }
   }[tab];
 
   return (

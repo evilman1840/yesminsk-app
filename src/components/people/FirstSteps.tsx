@@ -22,7 +22,7 @@ export const FirstStepsCard: React.FC<{ steps: FirstStep[]; onDismiss: () => voi
         <div>
           <p className="text-lead font-bold text-zine-ink">🚀 Первые шаги</p>
           <p className="text-sm2 text-zine-inkMuted">
-            Сделано {doneCount} из {steps.length} — так тебя быстрее найдут
+            Сделано {doneCount} из {steps.length}, так тебя быстрее найдут
           </p>
         </div>
         <button onClick={onDismiss} aria-label="Скрыть" className="w-11 h-11 -mr-2 -mt-2 rounded-full flex items-center justify-center text-zine-inkMuted cursor-pointer">

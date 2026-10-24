@@ -52,7 +52,7 @@ export const ShareSheet: React.FC<{ data: ShareData; onClose: () => void }> = ({
           }`}
         >
           {copied ? <Check size={20} strokeWidth={3} /> : <Copy size={20} />}
-          <span>{copied ? 'Скопировано — вставь куда удобно' : 'Скопировать ссылку'}</span>
+          <span>{copied ? 'Скопировано, вставь куда удобно' : 'Скопировать ссылку'}</span>
         </button>
       </div>
       <p className="mt-3 text-cap text-zine-inkMuted text-center">Ссылку можно отправить в любой мессенджер, Instagram или Threads</p>

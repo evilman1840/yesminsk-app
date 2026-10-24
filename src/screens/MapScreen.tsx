@@ -50,14 +50,14 @@ export interface MapScreenProps {
 }
 
 const HELP_STEPS = [
-  { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото — откроется анкета.' },
+  { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото, и откроется анкета.' },
   { emoji: '👋', title: '«Пообщаться»', text: 'Передай человеку привет. Если в ответ тоже нажмут 👋, вы сможете написать друг другу в Telegram.' },
-  { emoji: '⚡', title: '«Хочу сейчас»', text: 'Включи переключатель, если можешь встретиться в ближайшие 3 часа — твою анкету покажут в начале списка.' },
-  { emoji: '🧭', title: '«Покажут город»', text: 'Приехали в Минск? Местные жители с радостью покажут город. А если живёшь здесь — включи «Покажу город» в анкете.' },
-  { emoji: '📍', title: '«Места»', text: 'Переключи карту на «Места» и выбери настроение — Миша подскажет, куда сходить. Оставляй свои советы!' },
-  { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию — это займёт минуту.' },
-  { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе — так тебя быстрее заметят.' },
-  { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 300–500 м. Можно включить режим невидимки.' }
+  { emoji: '⚡', title: '«Хочу сейчас»', text: 'Включи переключатель, если можешь встретиться в ближайшие 3 часа: твою анкету покажут в начале списка.' },
+  { emoji: '🧭', title: '«Покажут город»', text: 'Приехали в Минск? Местные жители с радостью покажут город. А если живёшь здесь, включи «Покажу город» в анкете.' },
+  { emoji: '📍', title: '«Места»', text: 'Переключи карту на «Места» и выбери настроение, Миша подскажет, куда сходить. Оставляй свои советы!' },
+  { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию, это займёт минуту.' },
+  { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе, так тебя быстрее заметят.' },
+  { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 300-500 м. Можно включить режим невидимки.' }
 ];
 
 export type MapMode = 'all' | 'people' | 'events' | 'places';
@@ -339,7 +339,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             <div className="p-4 rounded-zine bg-zine-cardElevated shadow-zine-float">
               <p className="font-serif font-bold text-title text-zine-ink">📍 Места по вайбу</p>
               <p className="mt-1 text-body text-zine-inkMuted">
-                Скоро здесь появятся самые классные и вайбовые места города — под любое настроение: разогнать тоску, сбежать от всех, накормить душу…
+                Скоро здесь появятся самые классные и вайбовые места города под любое настроение: разогнать тоску, сбежать от всех, накормить душу…
               </p>
             </div>
           ) : (
@@ -359,7 +359,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       {mapMode === 'events' && filteredEvents.length === 0 && (
         <div className={`absolute left-4 right-[72px] ${overlayTop} z-20 p-4 rounded-zine bg-zine-cardElevated shadow-zine-float`}>
           <p className="text-body font-bold text-zine-ink">{events.length === 0 ? 'Сходок пока нет' : 'На это время сходок нет'}</p>
-          <p className="mt-1 text-sm2 text-zine-inkMuted">Собери свою — это займёт минуту, а люди рядом увидят её на карте.</p>
+          <p className="mt-1 text-sm2 text-zine-inkMuted">Собери свою, это займёт минуту, а люди рядом увидят её на карте.</p>
           <button onClick={onOpenEvents} className="mt-3 w-full h-11 rounded-zine-sm bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer">
             Создать сходку
           </button>
@@ -384,7 +384,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         <div className={`absolute left-4 right-[72px] ${overlayTop} z-20 p-3.5 rounded-zine bg-zine-cardElevated shadow-zine-float`}>
           <div className="flex items-start gap-2">
             <p className="flex-1 text-sm2 text-zine-ink">
-              <b>Рядом пока мало людей.</b> Позови друзей — вместе веселее 💛
+              <b>Рядом пока мало людей.</b> Позови друзей, вместе веселее 💛
             </p>
             <button onClick={() => setIsFewHintClosed(true)} aria-label="Скрыть" className="w-8 h-8 -mt-1 -mr-1 rounded-full flex items-center justify-center text-zine-inkMuted cursor-pointer">
               <X size={18} />
@@ -448,7 +448,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           {/* Что произошло после включения */}
           {justEnabled && (
             <div className="max-w-[300px] p-3 rounded-zine-sm bg-[#2FA36B] text-white text-sm2 font-semibold shadow-zine-float">
-              ⚡ Готово! 3 часа твоя анкета в начале списка с пометкой «Могу сейчас» — люди рядом увидят, что можно встретиться.
+              ⚡ Готово! 3 часа твоя анкета в начале списка с пометкой «Могу сейчас»: люди рядом увидят, что можно встретиться.
             </div>
           )}
           <div className="h-16 pl-4 pr-1 rounded-zine bg-zine-cardElevated text-zine-ink shadow-zine-float flex items-center max-w-full">
@@ -509,9 +509,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         <BottomSheet title="Что такое «Хочу сейчас»?" onClose={() => setIsWantNowInfoOpen(false)}>
           <div className="space-y-4">
             {[
-              { emoji: '⚡', title: 'Можешь встретиться прямо сейчас?', text: 'Включи переключатель — например, если ты в центре и есть пара свободных часов.' },
+              { emoji: '⚡', title: 'Можешь встретиться прямо сейчас?', text: 'Включи переключатель, например если ты в центре и есть пара свободных часов.' },
               { emoji: '🟢', title: 'Тебя заметят', text: 'На твоей аватарке появится ⚡ и зелёная рамка, а анкета будет в начале списка «Люди» с пометкой «Могу сейчас».' },
-              { emoji: '👋', title: 'Как познакомиться', text: 'Люди рядом нажмут «Пообщаться». Когда передадите привет друг другу — сможете написать.' },
+              { emoji: '👋', title: 'Как познакомиться', text: 'Люди рядом нажмут «Пообщаться». Когда передадите привет друг другу, сможете написать.' },
               { emoji: '⏱', title: 'Выключится само', text: 'Через 3 часа статус пропадёт. Можно выключить и раньше.' }
             ].map((item) => (
               <div key={item.title} className="flex gap-3.5">
@@ -536,7 +536,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       {isAvailabilityOpen && (
         <BottomSheet title="Сейчас тебя не видно" onClose={() => setIsAvailabilityOpen(false)}>
           <p className="text-body text-zine-inkMuted">
-            Включён режим невидимки, поэтому никто не увидит «Хочу сейчас». Выключи невидимку в анкете — и включи переключатель снова.
+            Включён режим невидимки, поэтому никто не увидит «Хочу сейчас». Выключи невидимку в анкете и включи переключатель снова.
           </p>
           <button
             onClick={() => {
@@ -601,7 +601,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
           <div className={`mt-4 p-3.5 rounded-zine-sm flex items-center gap-3 text-sm2 ${isVisible ? 'bg-zine-sage/15 text-zine-ink' : 'bg-zine-plum/10 text-zine-ink'}`}>
             {isVisible ? <Eye size={22} className="text-zine-sage shrink-0" /> : <EyeOff size={22} className="text-zine-plum shrink-0" />}
-            <span>{isVisible ? 'Тебя видят на карте. Точный адрес скрыт — метка смещена на 300–500 м.' : 'Режим невидимки: другие тебя не видят.'}</span>
+            <span>{isVisible ? 'Тебя видят на карте. Точный адрес скрыт: метка смещена на 300-500 м.' : 'Режим невидимки: другие тебя не видят.'}</span>
           </div>
 
           <button

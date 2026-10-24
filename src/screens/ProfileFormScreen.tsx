@@ -232,7 +232,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     }
 
     if (file.size > 25 * 1024 * 1024) {
-      setErrorText('Фото слишком большое — выбери другое (до 25 МБ)');
+      setErrorText('Фото слишком большое, выбери другое (до 25 МБ)');
       return;
     }
 
@@ -279,13 +279,13 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     }
 
     if (Number(age) < 18) {
-      setErrorText('ДА! МИНСК — только для тех, кому 18+');
+      setErrorText('ДА! МИНСК только для тех, кому 18+');
       telegramService.haptic('warning');
       return;
     }
 
     if (selectedGoals.includes('other') && !customGoal.trim()) {
-      setErrorText('Напиши свою идею — например, «Караоке»');
+      setErrorText('Напиши свою идею, например «Караоке»');
       telegramService.haptic('warning');
       return;
     }
@@ -354,7 +354,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           </h1>
         </div>
         {isFirstTime && (
-          <p className="mt-2 text-body text-zine-inkMuted">Пара минут — и тебя увидят люди рядом.</p>
+          <p className="mt-2 text-body text-zine-inkMuted">Пара минут, и тебя увидят люди рядом.</p>
         )}
 
         {!isFirstTime && (
@@ -501,7 +501,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               }`}
             >
               <span className="text-[24px] leading-none">✨</span>
-              <span className="text-sm2 font-semibold text-zine-ink">Своя идея — впиши свою</span>
+              <span className="text-sm2 font-semibold text-zine-ink">Своя идея: впиши свою</span>
               {selectedGoals.includes('other') && (
                 <span className="absolute top-1/2 -translate-y-1/2 right-3 w-6 h-6 rounded-full bg-zine-terracotta text-white flex items-center justify-center">
                   <Check size={14} strokeWidth={3} />
@@ -545,7 +545,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           </Section>
 
           {/* Район */}
-          <Section title="Где ты в Минске?" subtitle="Точный адрес никто не увидит — метка смещается на 300–500 м">
+          <Section title="Где ты в Минске?" subtitle="Точный адрес никто не увидит: метка смещается на 300-500 м">
             <select
               value={area}
               onChange={(e) => {
@@ -693,7 +693,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
           {/* Подборки от бота */}
           {!isFirstTime && (
-            <Section title="Подборки" subtitle="Бот пришлёт сходки и места — как часто?">
+            <Section title="Подборки" subtitle="Бот пришлёт сходки и места. Как часто?">
               <div className="space-y-2">
                 {(Object.keys(DIGEST_OPTIONS) as DigestFrequency[]).map((d) => {
                   const isSelected = digest === d;
@@ -734,14 +734,14 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           {/* Безопасность: 18+ и куда обращаться */}
           {!isFirstTime && (
             <Section title="🔞 Только 18+">
-              <p className="text-sm2 text-zine-ink">Если замечаешь человека младше 18 — пожалуйся на анкету, администрация проверит.</p>
+              <p className="text-sm2 text-zine-ink">Если замечаешь человека младше 18, пожалуйся на анкету, администрация проверит.</p>
               <HelpLine className="mt-2" />
             </Section>
           )}
 
           {/* Тема оформления — применяется сразу */}
           {!isFirstTime && (
-            <Section title="Тема оформления" subtitle="«Авто» — как в Telegram">
+            <Section title="Тема оформления" subtitle="«Авто»: как в Telegram">
               <Segmented
                 value={themePref}
                 onChange={(v) => {
@@ -809,7 +809,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                       onChange={(e) => setMinAge(Number(e.target.value) || 18)}
                       className="field text-center"
                     />
-                    <span className="text-body text-zine-inkMuted">—</span>
+                    <span className="text-body text-zine-inkMuted">-</span>
                     <input
                       type="number"
                       inputMode="numeric"

@@ -14,13 +14,13 @@ const FEATURES = [
     emoji: '📍',
     color: 'bg-zine-sage/15',
     title: 'Места по настроению',
-    text: 'Куда сходить — соло, компанией или с детьми'
+    text: 'Куда сходить: соло, компанией или с детьми'
   },
   {
     emoji: '🗓',
     color: 'bg-zine-terracotta/10',
     title: 'Сходки',
-    text: 'Прогулки, кофе, настолки — или собери свою'
+    text: 'Прогулки, кофе, настолки. Или собери свою'
   },
   {
     emoji: '👋',
@@ -32,9 +32,9 @@ const FEATURES = [
 
 // Правила — коротко, но обязательно
 const RULES = [
-  { Icon: Cake, text: 'Только 18+. Заметили кого-то младше — пожалуйтесь на анкету' },
+  { Icon: Cake, text: 'Только 18+. Заметили кого-то младше? Пожалуйтесь на анкету' },
   { Icon: HeartHandshake, text: 'Только дружба: без флирта и свиданий' },
-  { Icon: ShieldCheck, text: 'Метка на карте смещена на 300–500 м — где ты живёшь, никто не узнает' }
+  { Icon: ShieldCheck, text: 'Метка на карте смещена на 300-500 м, где ты живёшь, никто не узнает' }
 ];
 
 /**
@@ -46,8 +46,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onAgree }) =
   <div className="flex flex-col h-full w-full bg-zine-paper overflow-y-auto px-6 pt-7">
     <Logo size="lg" withTagline />
 
-    <h1 className="mt-6 font-serif font-bold text-display text-zine-ink">Куда сходить в&nbsp;Минске — и&nbsp;с&nbsp;кем</h1>
-    <p className="mt-2 text-lead text-zine-inkMuted">Места, сходки и люди рядом — в одном приложении.</p>
+    <h1 className="mt-6 font-serif font-bold text-display text-zine-ink">Куда сходить в&nbsp;Минске и&nbsp;с&nbsp;кем</h1>
+    <p className="mt-2 text-lead text-zine-inkMuted">Места, сходки и люди рядом в одном приложении.</p>
 
     <div className="mt-5 space-y-3">
       {FEATURES.map(({ emoji, color, title, text }) => (

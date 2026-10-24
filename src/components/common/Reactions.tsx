@@ -110,7 +110,7 @@ export const ChatButton: React.FC<{ user: UserProfile; className?: string }> = (
   if (user.isMatch) {
     return (
       <div className={`p-3 rounded-zine-sm bg-zine-sage/15 text-zine-ink text-sm2 text-center ${className}`}>
-        🤝 Вы на связи! У человека нет @username — ссылку на него прислал бот в чате.
+        🤝 Вы на связи! У человека нет @username, ссылку на него прислал бот в чате.
       </div>
     );
   }

@@ -57,7 +57,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
           </h3>
           {user.isEmpath && (
             <p className="mt-0.5 text-sm2 font-semibold text-white/90">
-              {EMPATH.emoji} {EMPATH.label} — умею слушать и поддерживать
+              {EMPATH.emoji} {EMPATH.label}: умею слушать и поддерживать
             </p>
           )}
           <p className="mt-1 flex items-center gap-1.5 text-sm2 text-white/85">
@@ -84,7 +84,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
       )}
       {isVentingNow(user) && (
         <p className="mt-3 p-3 rounded-zine-sm bg-zine-blush/20 text-body text-zine-ink">
-          <b>🫂 Хочется поныть</b> · до {formatTime(user.ventUntil)}. Передай 👋 — можно поддержать без советов и оценок.
+          <b>🫂 Хочется поныть</b> · до {formatTime(user.ventUntil)}. Передай 👋, можно поддержать без советов и оценок.
         </p>
       )}
 
@@ -134,10 +134,10 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
 
       {!user.isMatch && (
         <p className="mt-5 text-sm2 text-zine-inkMuted">
-          Нажми 👋 — если человек ответит тем же, вы окажетесь «На связи» и сможете написать друг другу.
+          Нажми 👋. Если человек ответит тем же, вы окажетесь «На связи» и сможете написать друг другу.
         </p>
       )}
-      {user.isMatch && !user.username && <p className="mt-5 text-sm2 text-zine-inkMuted">🤝 У человека нет @username — ссылку прислал бот в чате.</p>}
+      {user.isMatch && !user.username && <p className="mt-5 text-sm2 text-zine-inkMuted">🤝 У человека нет @username, ссылку прислал бот в чате.</p>}
 
       {/* Безопасность */}
       <div className="mt-4 pt-3 border-t border-zine-border flex items-center justify-between gap-2">

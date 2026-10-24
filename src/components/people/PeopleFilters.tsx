@@ -163,7 +163,7 @@ export const PeopleFiltersSheet: React.FC<{
           <Chip active={f.ages.length === 0} onClick={() => set({ ages: [] })}>Любой</Chip>
           {AGE_BUCKETS.map((b) => (
             <Chip key={b.id} active={f.ages.includes(b.id)} onClick={() => toggleAge(b.id)}>
-              {b.id.replace('-', '–')}
+              {b.id}
             </Chip>
           ))}
         </Section>

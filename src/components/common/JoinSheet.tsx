@@ -55,7 +55,7 @@ export const JoinSheet: React.FC<{
   };
 
   return (
-    <BottomSheet title={event.isJoined ? 'Ты идёшь — что поменять?' : 'Сколько вас?'} onClose={onClose}>
+    <BottomSheet title={event.isJoined ? 'Ты идёшь. Что поменять?' : 'Сколько вас?'} onClose={onClose}>
       <div className="space-y-4">
         {/* Сколько человек: я + гости */}
         <div className="p-4 rounded-zine bg-zine-card flex items-center justify-between gap-3">
@@ -90,7 +90,7 @@ export const JoinSheet: React.FC<{
 
         {Number.isFinite(maxGuests) && (
           <p className="-mt-2 px-1 text-cap text-zine-inkMuted">
-            {maxGuests === 0 ? 'Свободное место осталось только для тебя' : `Можно взять ещё до ${maxGuests} — столько мест свободно`}
+            {maxGuests === 0 ? 'Свободное место осталось только для тебя' : `Можно взять ещё до ${maxGuests}: столько мест свободно`}
           </p>
         )}
 

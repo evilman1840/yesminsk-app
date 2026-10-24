@@ -91,7 +91,7 @@ export const EventDetails: React.FC<{
         </div>
       )}
 
-      {event.isOfficial && <p className="text-sm2 font-bold text-zine-terracotta">⭐ От ДА! МИНСК — тут рады новичкам</p>}
+      {event.isOfficial && <p className="text-sm2 font-bold text-zine-terracotta">⭐ От ДА! МИНСК: тут рады новичкам</p>}
 
       {/* Категория и пометки */}
       <div className={`${event.isOfficial ? 'mt-2' : ''} flex flex-wrap gap-1.5`}>
@@ -259,7 +259,7 @@ export const EventDetails: React.FC<{
           {isCreator ? (
             <span>Ты собираешь эту сходку</span>
           ) : isFull ? (
-            <span>Мест нет — все {event.maxParticipants} заняты</span>
+            <span>Мест нет: все {event.maxParticipants} заняты</span>
           ) : event.isJoined ? (
             <>
               <Check size={22} strokeWidth={3} />

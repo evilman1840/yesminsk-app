@@ -62,7 +62,7 @@ export const ReportSheet: React.FC<{
             ? 'Мы проверим анкету. Этот человек больше не будет тебе показываться.'
             : 'Мы проверим сходку и примем меры, если нужно.'}
         </p>
-        <p className="mt-3 text-sm2 text-zine-inkMuted">Если тебе угрожает опасность — звони 102 (милиция).</p>
+        <p className="mt-3 text-sm2 text-zine-inkMuted">Если тебе угрожает опасность, звони 102 (милиция).</p>
         <button
           onClick={() => {
             onReported();
@@ -78,7 +78,7 @@ export const ReportSheet: React.FC<{
 
   return (
     <BottomSheet title={targetType === 'user' ? `Жалоба: ${targetName}` : 'Жалоба на сходку'} onClose={onClose}>
-      <p className="text-body text-zine-inkMuted">Что случилось? Жалоба анонимна — человек не узнает, кто её отправил.</p>
+      <p className="text-body text-zine-inkMuted">Что случилось? Жалоба анонимна: человек не узнает, кто её отправил.</p>
 
       <div className="mt-4 space-y-2">
         {REASONS.map((r) => (
@@ -103,7 +103,7 @@ export const ReportSheet: React.FC<{
         maxLength={500}
         value={comment}
         onChange={(e) => setComment(e.target.value)}
-        placeholder="Подробности — по желанию"
+        placeholder="Подробности, по желанию"
         className="field mt-3"
       />
 
@@ -130,9 +130,9 @@ export const SafetyTipsSheet: React.FC<{ onClose: () => void }> = ({ onClose }) 
         { emoji: '☕️', title: 'Встречайтесь в людных местах', text: 'Кафе, парк днём, центр города. Не в квартире и не в безлюдном месте.' },
         { emoji: '📱', title: 'Скажи близким', text: 'Напиши другу, куда и с кем идёшь, и когда примерно вернёшься.' },
         { emoji: '🚕', title: 'Добирайся самостоятельно', text: 'Не садись в машину к малознакомому человеку и не называй свой адрес.' },
-        { emoji: '💳', title: 'Никаких денег', text: 'Не переводи деньги и не давай в долг. Просьбы о деньгах — повод для жалобы.' },
-        { emoji: '🚪', title: 'Можно уйти', text: 'Если что-то не так — уходи без объяснений. Это нормально.' },
-        { emoji: '⚠️', title: 'Сообщи нам', text: 'Нарушение правил — нажми «Пожаловаться». В опасной ситуации звони 102.' }
+        { emoji: '💳', title: 'Никаких денег', text: 'Не переводи деньги и не давай в долг. Просьбы о деньгах: повод для жалобы.' },
+        { emoji: '🚪', title: 'Можно уйти', text: 'Если что-то не так, уходи без объяснений. Это нормально.' },
+        { emoji: '⚠️', title: 'Сообщи нам', text: 'Нарушили правила? Нажми «Пожаловаться». В опасной ситуации звони 102.' }
       ].map((tip) => (
         <div key={tip.title} className="flex gap-3.5">
           <span className="w-12 h-12 shrink-0 rounded-zine-sm bg-zine-card flex items-center justify-center text-[24px]">{tip.emoji}</span>

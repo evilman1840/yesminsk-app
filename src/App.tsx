@@ -340,7 +340,7 @@ export const App: React.FC = () => {
       if (target.eventId) {
         const found = loadedEvents.find(e => String(e.id) === target.eventId);
         if (found) setSharedEvent(found);
-        else setLaunchNotice('Эта сходка уже прошла или отменена. Загляни в «Сходки» — там есть другие встречи.');
+        else setLaunchNotice('Эта сходка уже прошла или отменена. Загляни в «Сходки», там есть другие встречи.');
       }
     };
 

@@ -365,7 +365,7 @@ export const telegramService = {
     const me = this.getUser();
     openShare({
       title: 'Позвать друзей',
-      text: 'Пошли со мной в ДА! МИНСК — там легко найти компанию для прогулок, кофе и выставок в Минске 👋',
+      text: 'Пошли со мной в ДА! МИНСК: там легко найти компанию для прогулок, кофе и выставок в Минске 👋',
       link: me?.id ? `https://t.me/${BOT}?start=invite_${me.id}` : `https://t.me/${BOT}`
     });
   },

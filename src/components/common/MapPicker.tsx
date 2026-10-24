@@ -107,7 +107,7 @@ export const MapPicker: React.FC<{
 
         <div className="absolute top-0 inset-x-0 z-20 p-3 flex items-start gap-2">
           <p className="flex-1 p-3 rounded-zine bg-zine-cardElevated shadow-zine-float text-sm2 font-semibold text-zine-ink">
-            👆 Тапни по карте или подвинь её — метка покажет место встречи
+            👆 Тапни по карте или подвинь её, метка покажет место встречи
           </p>
           <button
             onClick={onClose}
