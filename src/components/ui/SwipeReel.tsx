@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { telegramService } from '../../services/telegram';
 
 export type SwipeDirection = 'left' | 'right';
@@ -188,10 +188,28 @@ export const SwipeReel: React.FC<{
 };
 
 // Подсказка на первой карточке: что делают свайпы
-export const SwipeHint: React.FC<{ left?: string; right?: string; className?: string }> = ({ left, right, className = 'top-36' }) => (
-  <div
-    className={`absolute left-1/2 -translate-x-1/2 z-10 px-3.5 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/25 text-cap font-semibold text-white whitespace-nowrap pointer-events-none [text-shadow:0_1px_2px_rgba(0,0,0,0.35)] ${className}`}
-  >
-    {[left && `← ${left}`, right && `${right} →`, '↑ листай'].filter(Boolean).join(' · ')}
-  </div>
-);
+// Подсказка про жесты на первой карточке: тёмная плашка, чтобы читалась на любом фоне; через несколько секунд исчезает.
+// inline — в потоке (над текстом карточки), иначе поверх по className
+export const SwipeHint: React.FC<{ left?: string; right?: string; className?: string; inline?: boolean }> = ({ left, right, className = 'top-36', inline }) => {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(false), 7000);
+    return () => clearTimeout(t);
+  }, []);
+  const parts = [left && `← ${left}`, right && `${right} →`, '↑ листай'].filter(Boolean) as string[];
+  return (
+    <div
+      aria-hidden
+      className={`${inline ? 'inline-flex mb-3' : `absolute left-1/2 -translate-x-1/2 z-10 flex ${className}`} items-center gap-2.5 px-3.5 py-2 rounded-full bg-black/70 text-sm2 font-semibold text-white whitespace-nowrap pointer-events-none transition-opacity duration-700 ${
+        visible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      {parts.map((p, i) => (
+        <React.Fragment key={p}>
+          {i > 0 && <span className="w-1 h-1 rounded-full bg-white/50" />}
+          <span>{p}</span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+};

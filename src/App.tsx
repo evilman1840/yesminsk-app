@@ -8,6 +8,7 @@ import { EventsScreen } from './screens/EventsScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
+import { AgePrompt } from './components/common/AgePrompt';
 import { MatchModal, ReactionType } from './components/common/Reactions';
 import { ServerWakingBanner } from './components/common/ServerWakingBanner';
 import { TabBar, TabId } from './components/ui/TabBar';
@@ -62,6 +63,7 @@ export const App: React.FC = () => {
     name: tgUser?.first_name || '',
     username: tgUser?.username || '',
     age: '25',
+    ageConfirmed: false, // человек сам указал возраст (25 стоит по умолчанию)
     bio: '',
     gender: 'not_specified' as Gender,
     preferredGender: 'all' as PreferredGender,
@@ -146,6 +148,7 @@ export const App: React.FC = () => {
   };
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
   // Открыть форму сходки: из карточки места, по ссылке из бота или поста
+  const [isAgePromptDismissed, setIsAgePromptDismissed] = useState(false);
   const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
@@ -273,6 +276,8 @@ export const App: React.FC = () => {
             name: me.firstName || tgUser?.first_name || prev.name,
             username: me.username || tgUser?.username || prev.username,
             age: me.age ? String(me.age) : prev.age,
+            // Старые анкеты: если возраст не 25, его точно меняли руками
+            ageConfirmed: Boolean(me.ageConfirmed) || (Boolean(me.age) && Number(me.age) !== 25),
             bio: me.bio ?? prev.bio,
             gender: me.gender || prev.gender,
             preferredGender: me.preferredGender || prev.preferredGender,
@@ -364,6 +369,7 @@ export const App: React.FC = () => {
   const handleSaveProfile = async (formData: {
     name: string;
     age: string;
+    ageConfirmed?: boolean;
     bio: string;
     gender?: Gender;
     preferredGender?: PreferredGender;
@@ -397,6 +403,7 @@ export const App: React.FC = () => {
       name: formData.name,
       firstName: formData.name,
       age: Number(formData.age) || 25,
+      ageConfirmed: formData.ageConfirmed,
       bio: formData.bio,
       gender: formData.gender || 'not_specified',
       preferredGender: formData.preferredGender || 'all',
@@ -794,6 +801,17 @@ export const App: React.FC = () => {
                 }}
               />
             </BottomSheet>
+          )}
+
+          {/* Возраст остался по умолчанию: один раз спрашиваем */}
+          {isMeLoaded && isTab && currentScreen !== 'profile_edit' && !currentUser.ageConfirmed && !isAgePromptDismissed && !sharedEvent && !matchPopupUser && (
+            <AgePrompt
+              onSave={async (age) => {
+                await api.updateProfile({ age, ageConfirmed: true });
+                setCurrentUser((prev) => ({ ...prev, age: String(age), ageConfirmed: true }));
+              }}
+              onClose={() => setIsAgePromptDismissed(true)}
+            />
           )}
 
           {launchNotice && (

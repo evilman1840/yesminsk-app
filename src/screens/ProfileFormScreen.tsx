@@ -6,6 +6,7 @@ import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage, dataUrlBytes } from '../utils/compressImage';
 import { PhotoPicker, PickedPhoto, photoFromUrl } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
+import { AGE_TEXTS } from '../texts/profile';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
 import { useBackButton, useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 
@@ -13,6 +14,7 @@ interface ProfileFormScreenProps {
   initialData?: {
     name?: string;
     age?: string | number;
+    ageConfirmed?: boolean;
     gender?: Gender;
     preferredGender?: PreferredGender;
     preferredAgeRange?: { min: number; max: number };
@@ -36,6 +38,7 @@ interface ProfileFormScreenProps {
   onSave: (data: {
     name: string;
     age: string;
+    ageConfirmed?: boolean;
     gender: Gender;
     preferredGender: PreferredGender;
     preferredAgeRange: { min: number; max: number };
@@ -92,9 +95,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [name, setName] = useState<string>(
     initialData?.name || tgUser?.first_name || ''
   );
-  const [age, setAge] = useState<string>(
-    initialData?.age ? String(initialData.age) : '25'
-  );
+  // Возраст по умолчанию (25) не подставляем: человек должен указать сам
+  const [age, setAge] = useState<string>(initialData?.ageConfirmed && initialData?.age ? String(initialData.age) : '');
   const [gender, setGender] = useState<Gender>(
     initialData?.gender || 'not_specified'
   );
@@ -291,8 +293,14 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       return;
     }
 
+    if (!age.trim()) {
+      setErrorText(AGE_TEXTS.required);
+      telegramService.haptic('warning');
+      return;
+    }
+
     if (Number(age) < 18) {
-      setErrorText('ДА! МИНСК только для тех, кому 18+');
+      setErrorText(AGE_TEXTS.under18);
       telegramService.haptic('warning');
       return;
     }
@@ -310,7 +318,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
       await onSave({
         name: name.trim(),
-        age: age.trim() || '25',
+        age: age.trim(),
+        ageConfirmed: true,
         gender,
         preferredGender,
         preferredAgeRange: {
@@ -465,11 +474,12 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                   max="99"
                   value={age}
                   onChange={(e) => setAge(e.target.value)}
-                  placeholder="25"
-                  className="field text-center"
+                  placeholder={AGE_TEXTS.placeholder}
+                  className={`field text-center ${age.trim() ? '' : 'ring-2 ring-zine-terracotta/60'}`}
                 />
               </Label>
             </div>
+            {!age.trim() && <p className="mt-2 text-cap font-semibold text-zine-terracotta">{AGE_TEXTS.required}</p>}
 
             <div className="mt-4">
               <Label text="О себе" hint={`${bio.length}/200`}>

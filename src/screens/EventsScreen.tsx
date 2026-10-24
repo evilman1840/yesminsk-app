@@ -1201,15 +1201,13 @@ const EventReel: React.FC<{
       leftBehavior="remove"
       onSwipe={(dir) => (dir === 'right' ? onOpenDetails() : onNotInterested())}
     >
-      {/* Обложка: первое фото сходки, без фото — большой значок */}
+      {/* Обложка: первое фото сходки; без фото значок стоит над названием (внизу), чтобы не наезжать на шапку */}
       {ev.photos?.length ? (
         <>
           <img src={photoSrc(ev.photos[0])} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
         </>
-      ) : (
-        <div className="absolute inset-x-0 top-[30%] flex justify-center text-[110px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>
-      )}
+      ) : null}
 
       {/* Справа — только «Позвать»; маршрут и жалоба — в подробностях */}
       <div className="absolute right-3 bottom-40 z-20 flex flex-col items-center gap-4 text-white">
@@ -1235,6 +1233,12 @@ const EventReel: React.FC<{
         }}
         className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white cursor-pointer"
       >
+        {isFirst && (
+          <div>
+            <SwipeHint inline left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" />
+          </div>
+        )}
+        {!ev.photos?.length && <div className="mb-3 text-[72px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>}
         {/* Одна строка-подпись: от ДА! МИНСК · категория · пометки значками */}
         <p className="pr-16 text-sm2 font-semibold text-white/85 flex items-center gap-x-2 whitespace-nowrap overflow-hidden">
           {ev.isOfficial && (
@@ -1331,7 +1335,6 @@ const EventReel: React.FC<{
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}
-      {isFirst && <SwipeHint left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" className="top-[256px]" />}
     </SwipeReel>
   );
 };
