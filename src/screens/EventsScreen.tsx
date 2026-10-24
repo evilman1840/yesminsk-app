@@ -12,6 +12,8 @@ import { JoinSheet } from '../components/common/JoinSheet';
 import { UndoToast } from '../components/ui/UndoToast';
 import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 import { HelpLine } from '../components/common/HelpLine';
+import { PhotoPicker, PickedPhoto, photoFromUrl, photoSrc } from '../components/common/PhotoPicker';
+import { PHOTO_TEXTS } from '../texts/photos';
 import { MEETUP_TEXTS as M } from '../texts/meetups';
 import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji, quickTimeFromParam } from '../utils/meetupTemplates';
 
@@ -201,6 +203,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [extras, setExtras] = useState<Record<string, string>>({});
   const [durationMinutes, setDurationMinutes] = useState(0);
   const [pickPlaceType, setPickPlaceType] = useState<string | undefined>(undefined);
+  const [photos, setPhotos] = useState<PickedPhoto[]>([]);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   // Последние название и описание, которые заполнил шаблон: пока человек их не правил, обновляем вместе с полями
   const autoText = useRef<{ title: string; description: string }>({ title: '', description: '' });
   const template = templates?.find((t) => t.key === templateKey) || null;
@@ -275,6 +279,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setTemplateKey(null);
     setExtras({});
     setDurationMinutes(0);
+    setPhotos([]);
+    setIsPhotoUploading(false);
     // Шаблоны не загрузились — сразу обычная форма
     setFormStep(templates && templates.length ? 'pick' : 'form');
     telegramService.haptic('selection');
@@ -330,6 +336,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setTemplateKey(ev.templateId || null);
     setExtras(ev.extras || {});
     setDurationMinutes(ev.durationMinutes || 0);
+    setPhotos((ev.photos || []).map(photoFromUrl));
+    setIsPhotoUploading(false);
     autoText.current = { title: ev.title || '', description: ev.description || '' };
     setFormStep('form');
     setFormError(null);
@@ -469,6 +477,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setFormError('Заполните все обязательные поля');
       return;
     }
+    if (isPhotoUploading) {
+      setFormError(PHOTO_TEXTS.wait);
+      return;
+    }
     const missingField = template?.fields.find((f) => f.required && (!extras[f.key] || (extras[f.key] === 'other' && f.allowCustom && !extras[`${f.key}Custom`])));
     if (missingField) {
       setFormError(M.fieldRequired(missingField.label));
@@ -505,6 +517,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         ...(placeId && !editingEventId ? { placeId } : {}),
         ...(templateKey && !editingEventId ? { templateId: templateKey } : {}),
         durationMinutes,
+        photos: photos.map((p) => p.id).filter(Boolean),
         // «Делим аренду» без суммы — просто не указываем
         ...(template?.fields.length ? { extras: Object.fromEntries(Object.entries(extras).filter(([, v]) => v && v !== 'split')) } : {})
       };
@@ -934,6 +947,11 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               />
             </Field>
 
+            <Field label={PHOTO_TEXTS.eventLabel}>
+              <PhotoPicker value={photos} onChange={setPhotos} onBusyChange={setIsPhotoUploading} />
+              <p className="mt-1.5 text-cap text-zine-inkMuted">{PHOTO_TEXTS.eventHint(5)}</p>
+            </Field>
+
             {/* «Поныть»: правила встречи и телефон доверия подключаются сами */}
             {category === 'support' && (
               <div className="p-4 rounded-zine-sm bg-zine-blush/15">
@@ -1078,8 +1096,15 @@ const EventReel: React.FC<{
       leftBehavior="remove"
       onSwipe={(dir) => (dir === 'right' ? onOpenDetails() : onNotInterested())}
     >
-      {/* Большой значок категории вместо фото */}
-      <div className="absolute inset-x-0 top-[30%] flex justify-center text-[110px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>
+      {/* Обложка: первое фото сходки, без фото — большой значок */}
+      {ev.photos?.length ? (
+        <>
+          <img src={photoSrc(ev.photos[0])} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
+        </>
+      ) : (
+        <div className="absolute inset-x-0 top-[30%] flex justify-center text-[110px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>
+      )}
 
       {/* Справа — только «Позвать»; маршрут и жалоба — в подробностях */}
       <div className="absolute right-3 bottom-40 z-20 flex flex-col items-center gap-4 text-white">

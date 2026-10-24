@@ -228,6 +228,7 @@ export interface AppEvent {
   durationMinutes?: number;
   extras?: Record<string, string>; // доп. поля шаблона: фильм, вид спорта, уровень…
   badges?: string[];    // метки из доп. полей: «🏓 Настольный теннис · любой уровень»
+  photos?: string[];    // до 5 фото: адреса на сервере, первое — обложка
   participants?: Array<{
     telegramId: number;
     name: string;
@@ -253,6 +254,7 @@ export interface EventPayload {
   templateId?: string;
   durationMinutes?: number;
   extras?: Record<string, string>;
+  photos?: string[]; // id фото на сервере
 }
 
 // Шаблон сходки (правится автором в боте через /templates)

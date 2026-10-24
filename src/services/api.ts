@@ -280,6 +280,13 @@ class ApiService {
   // СОБЫТИЯ / СХОДКИ (EVENTS)
   // ==========================================
 
+  // Фото сходки или анкеты: сжатое фото → id на сервере
+  async uploadPhoto(dataUrl: string): Promise<{ id: string }> {
+    const res = await this.request<{ id: string }>('/photos', { method: 'POST', body: JSON.stringify({ dataUrl }) });
+    if (!res?.id) throw new Error('upload failed');
+    return res;
+  }
+
   // Воронка формы «Собрать сходку»: шаги без ожидания ответа
   trackMeetupForm(data: { sessionId: string; step: 'opened' | 'template' | 'published' | 'closed'; template?: string; source?: MeetupFormSource; closedAt?: 'pick' | 'form' }) {
     this.request('/metrics/meetup-form', { method: 'POST', body: JSON.stringify(data) }).catch(() => {});

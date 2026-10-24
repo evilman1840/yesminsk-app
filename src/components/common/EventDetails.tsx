@@ -7,6 +7,7 @@ import { formatEventDate } from '../../screens/MapScreen';
 import { ReportSheet } from './ReportSheet';
 import { JoinSheet } from './JoinSheet';
 import { MEETUP_TEXTS } from '../../texts/meetups';
+import { photoSrc } from './PhotoPicker';
 
 /**
  * Подробности сходки: когда, где, сколько идёт, кнопки «Пойду!», «Позвать друзей» и «Организатору»
@@ -75,6 +76,21 @@ export const EventDetails: React.FC<{
 
   return (
     <div>
+      {/* Фото сходки листаются пальцем */}
+      {event.photos && event.photos.length > 0 && (
+        <div className="-mx-5 mb-4 px-5 flex gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-5">
+          {event.photos.map((url) => (
+            <img
+              key={url}
+              src={photoSrc(url)}
+              alt=""
+              className={`${event.photos!.length > 1 ? 'w-[85%]' : 'w-full'} shrink-0 snap-start aspect-[4/3] object-cover rounded-zine bg-zine-card`}
+              loading="lazy"
+            />
+          ))}
+        </div>
+      )}
+
       {event.isOfficial && <p className="text-sm2 font-bold text-zine-terracotta">⭐ От ДА! МИНСК — тут рады новичкам</p>}
 
       {/* Категория и пометки */}
