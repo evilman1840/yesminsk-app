@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, SlidersHorizontal, ChevronUp, Send, Loader2 } from 'lucide-react';
+import { MapPin, SlidersHorizontal, ChevronUp, ChevronRight, Send, Loader2 } from 'lucide-react';
 import { UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, EMPATH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType } from '../components/common/Reactions';
@@ -73,8 +73,6 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       ? '🧭 Покажут город бесплатно. Об условиях договаривайтесь лично.'
       : selectedGoal === 'empaths'
       ? '🫶 Те, кто отметил: умею слушать и поддерживать.'
-      : tab === 'likes' && filteredUsers.length > 0
-      ? 'Хотят пообщаться: нажми 👋 в ответ, и сможете написать.'
       : '';
 
   return (
@@ -227,6 +225,15 @@ const PersonReel: React.FC<{
     telegramService.haptic('selection');
     setPhotoIndex((i) => (i + step + gallery.length) % gallery.length);
   };
+  // Статусы человека: на связи, хочет пообщаться, гид, эмпат, «поныть», «могу сейчас»
+  const statuses = [
+    user.isMatch && { text: '🤝 На связи', cls: 'bg-zine-sage text-white' },
+    user.likedMe && !user.isMatch && { text: '👋 Хочет пообщаться', cls: 'bg-white text-[#2B2623]' },
+    isAvailableNow(user) && { text: `⚡ Могу сейчас · до ${formatTime(user.availableUntil)}`, cls: 'bg-[#2FA36B] text-white' },
+    isVentingNow(user) && { text: `🫂 Хочется поныть · до ${formatTime(user.ventUntil)}`, cls: 'bg-[#C77D86] text-white' },
+    user.isGuide && { text: '🧭 Покажу город', cls: 'bg-zine-sky text-white' },
+    user.isEmpath && { text: `${EMPATH.emoji} ${EMPATH.label}`, cls: 'bg-black/45 backdrop-blur text-white' }
+  ].filter(Boolean) as { text: string; cls: string }[];
   const canLike = !user.isMatch && !user.iLiked;
   const distance = formatDistance(user.distanceMeters);
 
@@ -315,37 +322,39 @@ const PersonReel: React.FC<{
         }}
         className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white cursor-pointer"
       >
+        {/* Подсказка про жесты — только на первой карточке, в потоке, чтобы не закрывать лицо */}
+        {isFirst && (
+          <div>
+            <SwipeHint inline left={user.isMatch ? undefined : 'скрыть'} right={canLike ? '👋' : undefined} />
+          </div>
+        )}
         {gallery.length > 1 && (
-          <div className="mb-3 flex gap-1" aria-hidden>
+          <div className="mb-3 pr-16 flex gap-1" aria-hidden>
             {gallery.map((src, i) => (
               <span key={src} className={`h-1 flex-1 rounded-full ${i === photoIndex ? 'bg-white' : 'bg-white/35'}`} />
             ))}
           </div>
         )}
-        <div className="pr-16 flex flex-wrap gap-1.5">
-          {user.isMatch && <span className="px-3 py-1 rounded-full bg-zine-sage text-white text-sm2 font-bold">🤝 На связи</span>}
-          {user.likedMe && !user.isMatch && <span className="px-3 py-1 rounded-full bg-white text-[#2B2623] text-sm2 font-bold">👋 Хочет пообщаться</span>}
-          {user.isGuide && <span className="px-3 py-1 rounded-full bg-zine-sky text-white text-sm2 font-bold">🧭 Покажу город</span>}
-          {isVentingNow(user) && (
-            <span className="px-3 py-1 rounded-full bg-[#C77D86] text-white text-sm2 font-bold">🫂 Хочется поныть · до {formatTime(user.ventUntil)}</span>
-          )}
-          {isAvailableNow(user) && (
-            <span className="px-3 py-1 rounded-full bg-[#2FA36B] text-white text-sm2 font-bold">⚡ Могу сейчас · до {formatTime(user.availableUntil)}</span>
-          )}
-        </div>
 
-        <h2 className="mt-2 pr-16 font-serif font-bold text-display leading-tight">
-          {user.firstName}
-          {user.age ? <span className="font-sans font-medium text-white/80">, {user.age}</span> : null}
-          {/* «Эмпат» — подписью рядом с возрастом, без лишней плашки */}
-          {user.isEmpath && (
-            <span className="font-sans font-medium text-white/80 whitespace-nowrap">
-              {' · '}
-              {EMPATH.emoji} {EMPATH.label.toLowerCase()}
-            </span>
-          )}
+        {/* Статусы — компактной строкой */}
+        {statuses.length > 0 && (
+          <div data-no-swipe className="mr-16 flex gap-1.5 overflow-x-auto no-scrollbar">
+            {statuses.map((st) => (
+              <span key={st.text} className={`h-7 px-2.5 shrink-0 whitespace-nowrap rounded-full text-cap font-bold flex items-center ${st.cls}`}>
+                {st.text}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <h2 className="mt-1.5 pr-16 flex items-center gap-1 font-serif font-bold text-display leading-tight">
+          <span className="truncate">
+            {user.firstName}
+            {user.age ? <span className="font-sans font-medium text-white/80">, {user.age}</span> : null}
+          </span>
+          <ChevronRight size={26} className="shrink-0 text-white/70" aria-hidden />
         </h2>
-        <p className="mt-1 pr-16 flex items-center gap-1.5 text-sm2 text-white/85">
+        <p className="mt-0.5 pr-16 flex items-center gap-1.5 text-sm2 text-white/85">
           <MapPin size={16} className="shrink-0" />
           <span className="truncate">
             {user.isTourist ? 'В Минске проездом' : user.areaName || 'Минск'}
@@ -387,19 +396,10 @@ const PersonReel: React.FC<{
               </button>
             </div>
           </div>
-        ) : (
-          <button
-            onClick={onOpen}
-            className="mt-3 h-12 px-5 rounded-full bg-white text-[#2B2623] text-body font-bold cursor-pointer active:scale-[0.98] transition-transform"
-          >
-            Анкета
-          </button>
-        )}
+        ) : null}
         {user.isMatch && !user.username && <p className="mt-2 text-cap text-white/70">🤝 У человека нет @username, ссылку прислал бот в чате.</p>}
       </div>
 
-      {/* Подсказка про свайпы — только на первой карточке */}
-      {isFirst && <SwipeHint left={user.isMatch ? undefined : 'скрыть'} right={canLike ? '👋' : undefined} className="top-52" />}
     </SwipeReel>
   );
 };

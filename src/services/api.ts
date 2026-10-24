@@ -295,6 +295,15 @@ class ApiService {
     this.request('/metrics/meetup-form', { method: 'POST', body: JSON.stringify(data) }).catch(() => {});
   }
 
+  // Одна анкета по ссылке из сообщения бота
+  async getPublicUser(telegramId: number | string): Promise<UserProfile> {
+    return this.request<UserProfile>(`/users/${telegramId}/public`);
+  }
+  // «Кто ещё хочет»: участники группы совпадения
+  async getWishGroupMembers(groupId: string): Promise<{ members: UserProfile[]; eventId: string | null }> {
+    return this.request(`/wishes/groups/${groupId}/members`);
+  }
+
   // «Хочу сходить»
   async getWishes(): Promise<{ mine: WishItem[]; summary: WishSummaryItem[]; maxActive: number }> {
     return this.request('/wishes');

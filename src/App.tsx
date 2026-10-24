@@ -9,6 +9,7 @@ import { OnboardingScreen } from './screens/OnboardingScreen';
 import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
 import { AgePrompt } from './components/common/AgePrompt';
+import { WishMembersSheet } from './components/common/WishMembersSheet';
 import { MatchModal, ReactionType } from './components/common/Reactions';
 import { ServerWakingBanner } from './components/common/ServerWakingBanner';
 import { TabBar, TabId } from './components/ui/TabBar';
@@ -150,6 +151,7 @@ export const App: React.FC = () => {
   // Открыть форму сходки: из карточки места, по ссылке из бота или поста
   const [isAgePromptDismissed, setIsAgePromptDismissed] = useState(false);
   const [pendingWish, setPendingWish] = useState<{ placeId?: string } | null>(null);
+  const [wishMembersGroup, setWishMembersGroup] = useState<string | null>(null);
   const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
@@ -183,7 +185,7 @@ export const App: React.FC = () => {
       // не страшно: счётчик просто покажется снова
     }
   };
-  const [launchNotice, setLaunchNotice] = useState<string | null>(null);
+  const [launchNotice, setLaunchNotice] = useState<{ title: string; text: string; tab: 'events' | 'feed' } | null>(null);
 
   const currentUserCoordsRef = useRef(currentUser.coordinates);
   useEffect(() => {
@@ -343,6 +345,19 @@ export const App: React.FC = () => {
         setMapModeState('places');
         setInitialPlaceId(target.placeId);
       }
+      // «Посмотреть анкету» из сообщения бота: открываем анкету этого человека
+      if (target.userId) {
+        api
+          .getPublicUser(target.userId)
+          .then((u) => {
+            if (!u) return;
+            setCurrentScreen('feed');
+            setSelectedUser(u);
+          })
+          .catch(() => setLaunchNotice({ title: 'Анкета не найдена', text: 'Эта анкета скрыта или удалена. Загляни в «Люди», там есть и другие.', tab: 'feed' }));
+      }
+      // «Кто ещё хочет» из «Хочу сходить»
+      if (target.wishGroupId) setWishMembersGroup(target.wishGroupId);
       // «Хочу сходить» из сообщения бота: лента сходок и сразу шторка желаний
       if (target.want) {
         setPendingWish({ placeId: target.want.placeId });
@@ -364,7 +379,7 @@ export const App: React.FC = () => {
       if (target.eventId) {
         const found = loadedEvents.find(e => String(e.id) === target.eventId);
         if (found) setSharedEvent(found);
-        else setLaunchNotice('Эта сходка уже прошла или отменена. Загляни в «Сходки», там есть другие встречи.');
+        else setLaunchNotice({ title: 'Сходка не найдена', text: 'Эта сходка уже прошла или отменена. Загляни в «Сходки», там есть другие встречи.', tab: 'events' });
       }
     };
 
@@ -815,6 +830,23 @@ export const App: React.FC = () => {
             </BottomSheet>
           )}
 
+          {wishMembersGroup && (
+            <WishMembersSheet
+              groupId={wishMembersGroup}
+              onClose={() => setWishMembersGroup(null)}
+              onOpenUser={(u) => {
+                setWishMembersGroup(null);
+                setCurrentScreen('feed');
+                setSelectedUser(u);
+              }}
+              onOpenEvent={(id) => {
+                setWishMembersGroup(null);
+                const ev = events.find((e) => String(e.id) === id);
+                if (ev) setSharedEvent(ev);
+              }}
+            />
+          )}
+
           {/* Возраст остался по умолчанию: один раз спрашиваем */}
           {isMeLoaded && isTab && currentScreen !== 'profile_edit' && !currentUser.ageConfirmed && !isAgePromptDismissed && !sharedEvent && !matchPopupUser && (
             <AgePrompt
@@ -827,16 +859,17 @@ export const App: React.FC = () => {
           )}
 
           {launchNotice && (
-            <BottomSheet title="Сходка не найдена" onClose={() => setLaunchNotice(null)}>
-              <p className="text-body text-zine-inkMuted">{launchNotice}</p>
+            <BottomSheet title={launchNotice.title} onClose={() => setLaunchNotice(null)}>
+              <p className="text-body text-zine-inkMuted">{launchNotice.text}</p>
               <button
                 onClick={() => {
+                  const tab = launchNotice.tab;
                   setLaunchNotice(null);
-                  handleNavigate('events');
+                  handleNavigate(tab);
                 }}
                 className="mt-5 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer"
               >
-                Посмотреть сходки
+                {launchNotice.tab === 'feed' ? 'Посмотреть людей' : 'Посмотреть сходки'}
               </button>
             </BottomSheet>
           )}

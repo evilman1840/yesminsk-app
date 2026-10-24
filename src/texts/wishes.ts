@@ -39,7 +39,11 @@ export const WISH_TEXTS = {
   placeCounter: (n: number, what: string, when: string) => `🙋 ${people(n)} ${n === 1 ? 'хочет' : 'хотят'} сюда ${what} ${when}`,
   placeWant: '🙋 Хочу сюда',
   emptyWant: '🙋 Отметить, куда хочется',
-  failed: 'Не получилось, попробуй ещё раз'
+  failed: 'Не получилось, попробуй ещё раз',
+  membersTitle: '🙋 Кто ещё хочет',
+  membersHint: 'Эти люди отметили то же желание. Нажми на человека, чтобы открыть анкету и передать 👋.',
+  membersEvent: '🎉 Сходку уже собрали: открыть',
+  membersGone: 'Пока никого не видно: желания могли отменить или анкеты скрыты.'
 };
 
 export const wishLine = (w: { what: string; when: string }) => `${w.what} ${w.when}`;
