@@ -295,6 +295,11 @@ class ApiService {
     this.request('/metrics/meetup-form', { method: 'POST', body: JSON.stringify(data) }).catch(() => {});
   }
 
+  // Удалить себя из приложения
+  async deleteAccount(): Promise<void> {
+    await this.request('/users/me', { method: 'DELETE' });
+  }
+
   // Одна анкета по ссылке из сообщения бота
   async getPublicUser(telegramId: number | string): Promise<UserProfile> {
     return this.request<UserProfile>(`/users/${telegramId}/public`);

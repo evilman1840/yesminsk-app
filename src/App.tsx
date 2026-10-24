@@ -9,6 +9,7 @@ import { OnboardingScreen } from './screens/OnboardingScreen';
 import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
 import { AgePrompt } from './components/common/AgePrompt';
+import { ACCOUNT_TEXTS } from './texts/account';
 import { WishMembersSheet } from './components/common/WishMembersSheet';
 import { MatchModal, ReactionType } from './components/common/Reactions';
 import { ServerWakingBanner } from './components/common/ServerWakingBanner';
@@ -55,7 +56,7 @@ const getSavedCoordinates = (): [number, number] => {
 
 export const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<
-    'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'places' | 'news' | 'profile_edit' | 'banned'
+    'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'places' | 'news' | 'profile_edit' | 'banned' | 'deleted'
   >('main');
 
   const tgUser = telegramService.getUser();
@@ -619,6 +620,18 @@ export const App: React.FC = () => {
     telegramService.haptic('success');
   };
 
+  // Удалить себя из приложения: сервер стирает анкету и всё связанное, тут — местные настройки
+  const handleDeleteAccount = async () => {
+    await api.deleteAccount();
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith('yesminsk'))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch (e) {}
+    setSelectedUser(null);
+    setCurrentScreen('deleted');
+  };
+
   const handleAgreeRules = async () => {
     try {
       await api.agreeToRules();
@@ -719,6 +732,21 @@ export const App: React.FC = () => {
           <div className="flex-1 min-h-0 relative">
             {currentScreen === 'onboarding' && <OnboardingScreen onAgree={handleAgreeRules} />}
 
+            {/* Аккаунт удалён по просьбе человека */}
+            {currentScreen === 'deleted' && (
+              <div className="h-full flex flex-col items-center justify-center text-center px-8 bg-zine-paper">
+                <div className="text-[56px] mb-4">👋</div>
+                <h1 className="font-serif font-bold text-display text-zine-ink">{ACCOUNT_TEXTS.doneTitle}</h1>
+                <p className="mt-3 text-body text-zine-inkMuted">{ACCOUNT_TEXTS.doneText}</p>
+                <button
+                  onClick={() => telegramService.close()}
+                  className="mt-6 h-12 px-8 rounded-full bg-zine-ink text-zine-paper text-body font-bold cursor-pointer"
+                >
+                  {ACCOUNT_TEXTS.close}
+                </button>
+              </div>
+            )}
+
             {currentScreen === 'banned' && (
               <div className="h-full flex flex-col items-center justify-center text-center px-8 bg-zine-paper">
                 <div className="text-[56px] mb-4">🚫</div>
@@ -733,7 +761,15 @@ export const App: React.FC = () => {
 
             {currentScreen === 'profile_edit' &&
               (isMeLoaded ? (
-                <ProfileFormScreen isFirstTime={false} initialData={currentUser} onSave={handleSaveProfile} onPlacesChanged={fetchPlaces} onEventsChanged={fetchEvents} onSetVent={handleSetVent} />
+                <ProfileFormScreen
+                  isFirstTime={false}
+                  initialData={currentUser}
+                  onSave={handleSaveProfile}
+                  onPlacesChanged={fetchPlaces}
+                  onEventsChanged={fetchEvents}
+                  onSetVent={handleSetVent}
+                  onDeleteAccount={handleDeleteAccount}
+                />
               ) : (
                 <ProfileLoading />
               ))}

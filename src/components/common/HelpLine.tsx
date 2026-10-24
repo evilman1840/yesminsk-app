@@ -14,7 +14,7 @@ export const HelpLine: React.FC<{ className?: string }> = ({ className = '' }) =
     (круглосуточно и анонимно) или загляни в{' '}
     <button onClick={() => telegramService.openLink(HELP_URL)} className="font-bold text-zine-terracotta underline underline-offset-2 cursor-pointer">
       экстренную психологическую помощь
-    </button>{' '}
+    </button>
     : там телефоны специалистов для взрослых и детей.
   </p>
 );

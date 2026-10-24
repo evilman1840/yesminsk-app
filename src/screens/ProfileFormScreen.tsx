@@ -7,6 +7,8 @@ import { compressImage, dataUrlBytes } from '../utils/compressImage';
 import { PhotoPicker, PickedPhoto, photoFromUrl } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
 import { AGE_TEXTS } from '../texts/profile';
+import { ACCOUNT_TEXTS } from '../texts/account';
+import { DeleteAccountSheet } from '../components/common/DeleteAccountSheet';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
 import { useBackButton, useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 
@@ -60,7 +62,8 @@ interface ProfileFormScreenProps {
     coordinates?: [number, number];
   }) => Promise<void> | void;
   onBack?: () => void;
-  onSetVent?: (hours: number) => Promise<void>; // «🫂 Хочется поныть» — включается сразу, без «Сохранить»
+  onSetVent?: (hours: number) => Promise<void>;
+  onDeleteAccount?: () => Promise<void>; // «Удалить аккаунт» внизу анкеты // «🫂 Хочется поныть» — включается сразу, без «Сохранить»
   isFirstTime?: boolean;
   onPlacesChanged?: () => void; // вернули скрытое место — обновить список мест
   onEventsChanged?: () => void; // вернули скрытую сходку — обновить список сходок
@@ -89,9 +92,11 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   isFirstTime = false,
   onPlacesChanged,
   onEventsChanged,
-  onSetVent
+  onSetVent,
+  onDeleteAccount
 }) => {
   const tgUser = telegramService.getUser();
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const [name, setName] = useState<string>(
     initialData?.name || tgUser?.first_name || ''
@@ -856,6 +861,18 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               </div>
             )}
           </Section>
+
+          {/* В самом низу: удалить себя из приложения */}
+          {!isFirstTime && onDeleteAccount && (
+            <button
+              type="button"
+              onClick={() => setIsDeleteOpen(true)}
+              className="w-full h-12 text-sm2 font-semibold text-zine-danger cursor-pointer"
+            >
+              {ACCOUNT_TEXTS.deleteLink}
+            </button>
+          )}
+          {isDeleteOpen && onDeleteAccount && <DeleteAccountSheet onConfirm={onDeleteAccount} onClose={() => setIsDeleteOpen(false)} />}
         </div>
       </div>
 

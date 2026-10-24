@@ -425,6 +425,12 @@ export const telegramService = {
     });
   },
 
+  // Закрыть мини-приложение (в браузере — ничего не делаем)
+  close() {
+    const webapp = tg();
+    if (webapp?.initData && webapp.close) webapp.close();
+  },
+
   openLink(url: string) {
     const webapp = tg();
     if (webapp?.initData && webapp.openLink) webapp.openLink(url);
