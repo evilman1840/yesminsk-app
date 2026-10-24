@@ -328,6 +328,10 @@ export const App: React.FC = () => {
       if (target.tab === 'events') {
         setCurrentScreen(prev => (prev === 'main' ? 'events' : prev));
       }
+      // «Заполнить анкету» из напоминания бота
+      if (target.tab === 'profile') {
+        setCurrentScreen(prev => (prev === 'main' ? 'profile_edit' : prev));
+      }
       if (target.tab === 'places') {
         setCurrentScreen(prev => (prev === 'main' ? 'places' : prev));
       }
