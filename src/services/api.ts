@@ -300,6 +300,11 @@ class ApiService {
     this.request('/metrics/meetup-form', { method: 'POST', body: JSON.stringify(data) }).catch(() => {});
   }
 
+  // «Предложи место»: ссылка из Яндекс Карт или название с адресом
+  async suggestPlace(text: string, category?: string, context?: string): Promise<{ ok: boolean; name: string }> {
+    return this.request('/places/suggest', { method: 'POST', body: JSON.stringify({ text, category, context }) });
+  }
+
   // Удалить себя из приложения
   async deleteAccount(): Promise<void> {
     await this.request('/users/me', { method: 'DELETE' });

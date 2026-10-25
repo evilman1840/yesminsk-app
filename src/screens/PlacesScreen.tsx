@@ -8,6 +8,8 @@ import { PlaceSheet } from '../components/places/PlaceSheet';
 import { PlaceTypeFilter } from '../components/places/PlaceTypeFilter';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { UndoToast } from '../components/ui/UndoToast';
+import { SuggestPlaceSheet } from '../components/common/SuggestPlaceSheet';
+import { SUGGEST_TEXTS as SG } from '../texts/suggest';
 import { ChevronRight } from 'lucide-react';
 
 // Места, смахнутые влево («Неинтересно»). На сервере тоже сохраняются —
@@ -32,6 +34,8 @@ export const PlacesScreen: React.FC<{
   const [justHidden, setJustHidden] = useState<PlaceItem | null>(null);
 
   const savedCount = places.filter((p) => p.isSaved).length;
+  const [isSuggestOpen, setIsSuggestOpen] = useState(false);
+  const [suggested, setSuggested] = useState<string | null>(null);
   const shown = (
     mood === 'all'
       ? places
@@ -77,6 +81,11 @@ export const PlacesScreen: React.FC<{
               ? 'Нажимай 🔖 на местах, которые хочешь посетить, они соберутся здесь.'
               : 'Скоро здесь будут самые классные и вайбовые места города.'}
           </p>
+          {mood !== 'saved' && (
+            <button onClick={() => setIsSuggestOpen(true)} className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer">
+              {SG.placesButton}
+            </button>
+          )}
         </div>
       ) : (
         <div ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
@@ -96,7 +105,27 @@ export const PlacesScreen: React.FC<{
               }}
             />
           ))}
+          {/* После последнего места: предложи своё */}
+          <section className="relative h-full w-full snap-start snap-always flex flex-col items-center justify-center text-center px-8 text-white bg-gradient-to-b from-[#2B2623] to-[#141210]">
+            <div className="text-[56px] mb-3">📍</div>
+            <p className="font-serif font-bold text-title">{SG.placesCta}</p>
+            <p className="mt-2 text-body text-white/75">{SG.placesCtaText}</p>
+            <button onClick={() => setIsSuggestOpen(true)} className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer active:scale-95 transition-transform">
+              {SG.placesButton}
+            </button>
+            {suggested && <p className="mt-4 text-sm2 text-white/85">{SG.doneText(suggested)}</p>}
+          </section>
         </div>
+      )}
+
+      {isSuggestOpen && (
+        <SuggestPlaceSheet
+          onClose={() => setIsSuggestOpen(false)}
+          onDone={(name) => {
+            setIsSuggestOpen(false);
+            setSuggested(name);
+          }}
+        />
       )}
 
 

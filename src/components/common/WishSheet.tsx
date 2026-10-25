@@ -6,6 +6,8 @@ import { telegramService } from '../../services/telegram';
 import { loadTemplates, cachedTemplates } from '../../utils/templatesStore';
 import { BottomSheet } from '../ui/BottomSheet';
 import { WISH_TEXTS as T, wishLine } from '../../texts/wishes';
+import { SUGGEST_TEXTS as SG } from '../../texts/suggest';
+import { SuggestPlaceSheet } from './SuggestPlaceSheet';
 
 const WINDOWS: WishWindow[] = ['today', 'tomorrow', 'weekend', 'week'];
 // Счётчики этих желаний не показываем на карточках мест
@@ -41,6 +43,8 @@ export const WishSheet: React.FC<{
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ sameCount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSuggestOpen, setIsSuggestOpen] = useState(false);
+  const [suggested, setSuggested] = useState<string | null>(null); // предложенное место (на проверке)
 
   const kinds = (templates || []).filter((t) => t.key !== CUSTOM_TEMPLATE && t.wishPhrase);
   const tpl = kinds.find((t) => t.key === kind) || null;
@@ -243,8 +247,24 @@ export const WishSheet: React.FC<{
                   </button>
                 )
               )}
+              {/* Нужного места нет в базе — можно предложить своё */}
+              <button type="button" onClick={() => setIsSuggestOpen(true)} className={chip(false)}>
+                {SG.wishButton}
+              </button>
             </div>
+            {suggested && <p className="mt-2 text-sm2 text-zine-ink">{SG.doneText(suggested)}</p>}
           </section>
+          {isSuggestOpen && (
+            <SuggestPlaceSheet
+              category={tpl?.placeTypes?.[0]}
+              context={tpl ? `«Хочу сходить»: ${tpl.wishPhrase}` : undefined}
+              onClose={() => setIsSuggestOpen(false)}
+              onDone={(name) => {
+                setIsSuggestOpen(false);
+                setSuggested(name);
+              }}
+            />
+          )}
 
           {/* Чужие желания: нажать — хотеть того же */}
           {others.length > 0 && (
