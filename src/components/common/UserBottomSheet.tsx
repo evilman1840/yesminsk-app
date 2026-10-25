@@ -52,8 +52,9 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
           className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
           onScroll={(e) => setPhotoIndex(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
         >
+          {/* Без loading="lazy": в горизонтальной ленте «ленивые» фото начинают грузиться, только когда до них долистали */}
           {gallery.map((src) => (
-            <img key={src} src={src} alt={user.firstName} className="w-full shrink-0 snap-center aspect-[4/5] max-h-[52vh] object-cover" loading="lazy" />
+            <img key={src} src={src} alt={user.firstName} className="w-full shrink-0 snap-center aspect-[4/5] max-h-[52vh] object-cover" />
           ))}
         </div>
         {gallery.length > 1 && (

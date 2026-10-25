@@ -271,7 +271,18 @@ const PersonReel: React.FC<{
   // Главное фото и ещё до 5
   const gallery = [user.avatarUrl, ...(user.photos || []).map(photoSrc)];
   const [photoIndex, setPhotoIndex] = useState(0);
+  // Главное фото загрузилось — тихо подгружаем остальные, чтобы листались сразу
+  const preloaded = useRef(false);
+  const preloadGallery = () => {
+    if (preloaded.current || gallery.length < 2) return;
+    preloaded.current = true;
+    gallery.slice(1).forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+  };
   const showPhoto = (step: number) => {
+    preloadGallery();
     telegramService.haptic('selection');
     setPhotoIndex((i) => (i + step + gallery.length) % gallery.length);
   };
@@ -317,7 +328,7 @@ const PersonReel: React.FC<{
         else onSkip();
       }}
     >
-      <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
+      <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} onLoad={preloadGallery} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
       {/* Несколько фото: тап слева и справа листает, как в сторис; по центру — анкета */}
       {gallery.length > 1 && (
         <>
