@@ -17,7 +17,8 @@ document.addEventListener(
   'error',
   (e) => {
     const img = e.target as HTMLImageElement;
-    if (!(img instanceof HTMLImageElement) || img.dataset.fallback) return;
+    // Не трогаем саму заглушку; новое битое фото в той же картинке (листание) — снова заглушка
+    if (!(img instanceof HTMLImageElement) || img.src.startsWith('data:image/svg+xml')) return;
     img.dataset.fallback = '1';
     img.src = fallbackImage(img.alt || '');
   },

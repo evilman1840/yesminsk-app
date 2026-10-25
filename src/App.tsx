@@ -549,7 +549,7 @@ export const App: React.FC = () => {
       ...formData,
       avatarUrl: formData.avatarUrl || prev?.avatarUrl, // фото не меняли — оставляем прежнее
       profileCompleted: prev.profileCompleted || Boolean(formData.ageConfirmed && formData.goals?.length),
-      photos: formData.photos ? formData.photos.map((id) => `/api/photos/${encodeURIComponent(id)}`) : prev.photos,
+      photos: formData.photos ? formData.photos.map((id) => `/api/photos/${encodeURIComponent(id)}?v=2`) : prev.photos,
       coordinates: coords
     }));
 

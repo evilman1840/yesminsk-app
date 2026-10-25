@@ -11,7 +11,8 @@ export interface PickedPhoto {
 }
 
 // Адрес фото с сервера (/api/photos/<id>) → id
-export const photoFromUrl = (url: string): PickedPhoto => ({ id: decodeURIComponent(url.split('/').pop() || ''), url });
+// id — последний кусок адреса без «?v=…» (версия в адресе нужна только для кеша телефона)
+export const photoFromUrl = (url: string): PickedPhoto => ({ id: decodeURIComponent(url.split('?')[0].split('/').pop() || ''), url });
 export const photoSrc = (url: string) => (url.startsWith('/') ? serverUrl(url) : url);
 
 /**
