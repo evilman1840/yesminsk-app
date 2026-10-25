@@ -308,6 +308,11 @@ class ApiService {
     this.request('/metrics/meetup-form', { method: 'POST', body: JSON.stringify(data) }).catch(() => {});
   }
 
+  // «Написать участникам»: бот перешлёт сообщение организатора всем, кто записан
+  async messageEventParticipants(eventId: string, text: string): Promise<{ sent: number; total: number }> {
+    return this.request(`/events/${eventId}/message`, { method: 'POST', body: JSON.stringify({ text }) });
+  }
+
   // «Предложи место»: ссылка из Яндекс Карт или название с адресом
   async suggestPlace(text: string, category?: string, context?: string): Promise<{ ok: boolean; name: string }> {
     return this.request('/places/suggest', { method: 'POST', body: JSON.stringify({ text, category, context }) });

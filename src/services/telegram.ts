@@ -425,6 +425,31 @@ export const telegramService = {
     });
   },
 
+  // Ярлык на экране телефона (Telegram 8.0+): можно ли добавить и добавлен ли уже
+  platform(): string {
+    return tg()?.platform || 'unknown';
+  },
+  canAddToHomeScreen(): boolean {
+    const webapp: any = tg();
+    return Boolean(webapp?.initData && webapp.isVersionAtLeast?.('8.0') && typeof webapp.addToHomeScreen === 'function');
+  },
+  addToHomeScreen() {
+    const webapp: any = tg();
+    if (this.canAddToHomeScreen()) webapp.addToHomeScreen();
+  },
+  // 'added' | 'missed' | 'unknown' | 'unsupported'
+  homeScreenStatus(): Promise<string> {
+    const webapp: any = tg();
+    return new Promise((resolve) => {
+      if (!this.canAddToHomeScreen() || typeof webapp.checkHomeScreenStatus !== 'function') return resolve('unsupported');
+      try {
+        webapp.checkHomeScreenStatus((status: string) => resolve(status));
+      } catch {
+        resolve('unknown');
+      }
+    });
+  },
+
   // Закрыть мини-приложение (в браузере — ничего не делаем)
   close() {
     const webapp = tg();

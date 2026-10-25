@@ -10,6 +10,8 @@ import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
 import { AgePrompt } from './components/common/AgePrompt';
 import { ACCOUNT_TEXTS } from './texts/account';
+import { AddToHomeSheet } from './components/common/AddToHomeSheet';
+import { OpenUserContext } from './context/openUser';
 import { WishMembersSheet } from './components/common/WishMembersSheet';
 import { MatchModal, ReactionType } from './components/common/Reactions';
 import { ServerWakingBanner } from './components/common/ServerWakingBanner';
@@ -152,6 +154,34 @@ export const App: React.FC = () => {
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
   // Открыть форму сходки: из карточки места, по ссылке из бота или поста
   const [isAgePromptDismissed, setIsAgePromptDismissed] = useState(false);
+  // Для openUserById: актуальные списки без пересоздания функции
+  const usersRef = useRef<UserProfile[]>([]);
+  const likedMeRef = useRef<UserProfile[]>([]);
+  const matchesRef = useRef<UserProfile[]>([]);
+  const currentUserIdRef = useRef<number>(0);
+  usersRef.current = users;
+  likedMeRef.current = likedMe;
+  matchesRef.current = matches;
+  currentUserIdRef.current = currentUser.telegramId;
+  // Совет «добавь на экран телефона»: один раз, со второго открытия, если ещё не добавлено
+  const [isHomeTipOpen, setIsHomeTipOpen] = useState(false);
+  useEffect(() => {
+    try {
+      const launches = Number(localStorage.getItem('yesminsk_launches') || '0') + 1;
+      localStorage.setItem('yesminsk_launches', String(launches));
+      if (launches < 2 || localStorage.getItem('yesminsk_home_tip_shown')) return;
+      telegramService.homeScreenStatus().then((status) => {
+        if (status === 'added') return;
+        window.setTimeout(() => setIsHomeTipOpen(true), 4000);
+      });
+    } catch (e) {}
+  }, []);
+  const closeHomeTip = () => {
+    setIsHomeTipOpen(false);
+    try {
+      localStorage.setItem('yesminsk_home_tip_shown', '1');
+    } catch (e) {}
+  };
   const [pendingWish, setPendingWish] = useState<{ placeId?: string } | null>(null);
   const [wishMembersGroup, setWishMembersGroup] = useState<string | null>(null);
   const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
@@ -493,6 +523,20 @@ export const App: React.FC = () => {
   };
 
   // 👋 Пообщаться / 🙈 Скрыть
+  // Открыть анкету по id (аватарки в «Кто идёт» и т.п.): сначала из того, что уже загружено, потом с сервера
+  const openUserById = useCallback((telegramId: number) => {
+    if (!telegramId || telegramId === currentUserIdRef.current) return;
+    const known = [...usersRef.current, ...likedMeRef.current, ...matchesRef.current].find((u) => u.telegramId === telegramId);
+    if (known) {
+      setSelectedUser(known);
+      return;
+    }
+    api
+      .getPublicUser(telegramId)
+      .then((u) => u && setSelectedUser(u))
+      .catch(() => telegramService.alert('Эта анкета скрыта или удалена'));
+  }, []);
+
   // «Пропустить» свайпом: убираем из ленты сейчас, вернётся через 3 дня
   const handleSkip = (user: UserProfile) => {
     const id = user.telegramId;
@@ -714,6 +758,7 @@ export const App: React.FC = () => {
   };
 
   return (
+    <OpenUserContext.Provider value={openUserById}>
     <YMaps
       query={{
         apikey: import.meta.env.VITE_YANDEX_MAPS_KEY || '',
@@ -781,6 +826,7 @@ export const App: React.FC = () => {
                   onEventsChanged={fetchEvents}
                   onSetVent={handleSetVent}
                   onDeleteAccount={handleDeleteAccount}
+                  onAddToHome={() => setIsHomeTipOpen(true)}
                 />
               ) : (
                 <ProfileLoading />
@@ -865,7 +911,7 @@ export const App: React.FC = () => {
             />
           )}
 
-          {selectedUser && (currentScreen === 'feed' || currentScreen === 'main') && (
+          {selectedUser && isTab && (
             <UserBottomSheet
               user={selectedUser}
               myGoals={currentUser.goals}
@@ -903,6 +949,8 @@ export const App: React.FC = () => {
               }}
             />
           )}
+
+          {isHomeTipOpen && isTab && currentUser.ageConfirmed && !sharedEvent && !matchPopupUser && !selectedUser && <AddToHomeSheet onClose={closeHomeTip} />}
 
           {/* Возраст остался по умолчанию: один раз спрашиваем */}
           {isMeLoaded && isTab && currentScreen !== 'profile_edit' && !currentUser.ageConfirmed && !isAgePromptDismissed && !sharedEvent && !matchPopupUser && (
@@ -953,6 +1001,7 @@ export const App: React.FC = () => {
         </div>
       </div>
     </YMaps>
+    </OpenUserContext.Provider>
   );
 };
 

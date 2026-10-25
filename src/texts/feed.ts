@@ -4,5 +4,6 @@
 export const FEED_TEXTS = {
   skipStamp: '⏭ Пропустить',
   skipHint: 'пропустить',
-  skipped: 'вернётся через 3 дня'
+  skipped: 'вернётся через 3 дня',
+  hideForever: 'или скрыть навсегда?'
 };

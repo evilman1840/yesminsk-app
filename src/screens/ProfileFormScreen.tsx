@@ -8,6 +8,7 @@ import { PhotoPicker, PickedPhoto, photoFromUrl } from '../components/common/Pho
 import { PHOTO_TEXTS } from '../texts/photos';
 import { AGE_TEXTS } from '../texts/profile';
 import { ACCOUNT_TEXTS } from '../texts/account';
+import { HOME_TEXTS } from '../texts/home';
 import { DeleteAccountSheet } from '../components/common/DeleteAccountSheet';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
 import { useBackButton, useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
@@ -63,7 +64,8 @@ interface ProfileFormScreenProps {
   }) => Promise<void> | void;
   onBack?: () => void;
   onSetVent?: (hours: number) => Promise<void>;
-  onDeleteAccount?: () => Promise<void>; // «Удалить аккаунт» внизу анкеты // «🫂 Хочется поныть» — включается сразу, без «Сохранить»
+  onDeleteAccount?: () => Promise<void>; // «Удалить аккаунт» внизу анкеты
+  onAddToHome?: () => void;              // совет «добавь на экран телефона» // «🫂 Хочется поныть» — включается сразу, без «Сохранить»
   isFirstTime?: boolean;
   onPlacesChanged?: () => void; // вернули скрытое место — обновить список мест
   onEventsChanged?: () => void; // вернули скрытую сходку — обновить список сходок
@@ -93,7 +95,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   onPlacesChanged,
   onEventsChanged,
   onSetVent,
-  onDeleteAccount
+  onDeleteAccount,
+  onAddToHome
 }) => {
   const tgUser = telegramService.getUser();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -109,12 +112,16 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [preferredGender, setPreferredGender] = useState<PreferredGender>(
     initialData?.preferredGender || 'all'
   );
-  const [minAge, setMinAge] = useState<number>(
-    initialData?.preferredAgeRange?.min || 18
-  );
-  const [maxAge, setMaxAge] = useState<number>(
-    initialData?.preferredAgeRange?.max || 99
-  );
+  // Строкой: поле можно очистить и вписать «25»; в 18–99 приводим, когда уходим с поля и при сохранении
+  const [minAge, setMinAge] = useState<string>(String(initialData?.preferredAgeRange?.min || 18));
+  const [maxAge, setMaxAge] = useState<string>(String(initialData?.preferredAgeRange?.max || 99));
+  const clampAge = (v: string, fallback: number) => Math.min(99, Math.max(18, Number(v) || fallback));
+  const fixAgeRange = () => {
+    const lo = clampAge(minAge, 18);
+    const hi = clampAge(maxAge, 99);
+    setMinAge(String(Math.min(lo, hi)));
+    setMaxAge(String(Math.max(lo, hi)));
+  };
 
   const [bio, setBio] = useState<string>(
     initialData?.bio || ''
@@ -330,8 +337,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         gender,
         preferredGender,
         preferredAgeRange: {
-          min: Number(minAge) || 18,
-          max: Number(maxAge) || 99
+          min: Math.min(clampAge(minAge, 18), clampAge(maxAge, 99)),
+          max: Math.max(clampAge(minAge, 18), clampAge(maxAge, 99))
         },
         bio: bio.trim(),
         goals: selectedGoals,
@@ -841,19 +848,21 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                       type="number"
                       inputMode="numeric"
                       min="18"
-                      max={maxAge}
+                      max="99"
                       value={minAge}
-                      onChange={(e) => setMinAge(Number(e.target.value) || 18)}
+                      onChange={(e) => setMinAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                      onBlur={fixAgeRange}
                       className="field text-center"
                     />
                     <span className="text-body text-zine-inkMuted">-</span>
                     <input
                       type="number"
                       inputMode="numeric"
-                      min={minAge}
+                      min="18"
                       max="99"
                       value={maxAge}
-                      onChange={(e) => setMaxAge(Number(e.target.value) || 99)}
+                      onChange={(e) => setMaxAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                      onBlur={fixAgeRange}
                       className="field text-center"
                     />
                   </div>
@@ -861,6 +870,16 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               </div>
             )}
           </Section>
+
+          {!isFirstTime && onAddToHome && (
+            <button
+              type="button"
+              onClick={onAddToHome}
+              className="w-full p-4 rounded-zine bg-zine-cardElevated border border-zine-border text-left text-body font-semibold text-zine-ink cursor-pointer"
+            >
+              {HOME_TEXTS.profileRow}
+            </button>
+          )}
 
           {/* В самом низу: удалить себя из приложения */}
           {!isFirstTime && onDeleteAccount && (

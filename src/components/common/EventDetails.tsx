@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Clock, MapPin, Users, Send, Share2, Navigation } from 'lucide-react';
+import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2 } from 'lucide-react';
 import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES } from '../../types';
 import { HelpLine } from './HelpLine';
 import { telegramService } from '../../services/telegram';
@@ -8,6 +8,10 @@ import { ReportSheet } from './ReportSheet';
 import { JoinSheet } from './JoinSheet';
 import { MEETUP_TEXTS, priceLabel } from '../../texts/meetups';
 import { photoSrc } from './PhotoPicker';
+import { useOpenUser } from '../../context/openUser';
+import { EVENT_MESSAGE_TEXTS as EM } from '../../texts/eventMessage';
+import { api } from '../../services/api';
+import { BottomSheet } from '../ui/BottomSheet';
 
 /**
  * Подробности сходки: когда, где, сколько идёт, кнопки «Пойду!», «Позвать друзей» и «Организатору»
@@ -62,6 +66,8 @@ export const EventDetails: React.FC<{
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const cat = eventCategoryOf(event);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isMessageOpen, setIsMessageOpen] = useState(false);
+  const openUser = useOpenUser();
   const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
   const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;
 
@@ -140,11 +146,19 @@ export const EventDetails: React.FC<{
       <section className="mt-5">
         <SectionTitle>Кто идёт</SectionTitle>
         <div className="flex items-center gap-3">
-          <Avatar src={event.creator?.avatarUrl} name={event.creator?.name || '?'} />
-          <div className="min-w-0 flex-1">
-            <p className="text-body font-bold text-zine-ink truncate">{isCreator ? 'Ты' : event.creator?.name}</p>
-            <p className="text-sm2 text-zine-inkMuted">собирает сходку</p>
-          </div>
+          {/* Нажать на организатора — его анкета */}
+          <button
+            type="button"
+            disabled={isCreator}
+            onClick={() => openUser(Number(event.creator.telegramId))}
+            className="min-w-0 flex-1 flex items-center gap-3 text-left cursor-pointer disabled:cursor-default"
+          >
+            <Avatar src={event.creator?.avatarUrl} name={event.creator?.name || '?'} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-body font-bold text-zine-ink truncate">{isCreator ? 'Ты' : event.creator?.name}</span>
+              <span className="block text-sm2 text-zine-inkMuted">собирает сходку</span>
+            </span>
+          </button>
           {event.creator?.username && !isCreator && (
             <button
               onClick={() => {
@@ -158,10 +172,51 @@ export const EventDetails: React.FC<{
           )}
         </div>
 
-        {others.length > 0 && (
+        {/* Организатору — список с Telegram участников и «Написать участникам» */}
+        {isCreator && others.length > 0 && (
+          <div className="mt-3 space-y-2">
+            <button
+              type="button"
+              onClick={() => setIsMessageOpen(true)}
+              className="w-full h-12 rounded-zine-sm bg-zine-ink text-zine-paper text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform"
+            >
+              {EM.button(others.length)}
+            </button>
+            {others.map((p) => (
+              <div key={p.telegramId} className="flex items-center gap-3">
+                <button type="button" onClick={() => openUser(p.telegramId)} className="min-w-0 flex-1 flex items-center gap-3 text-left cursor-pointer">
+                  <Avatar src={p.avatarUrl} name={p.name} size="w-10 h-10" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-body font-semibold text-zine-ink truncate">
+                      {p.name}
+                      {p.guests ? ` +${p.guests}` : ''}
+                      {p.withKids ? ' 👶' : ''}
+                    </span>
+                    <span className="block text-cap text-zine-inkMuted truncate">{p.username ? `@${p.username}` : EM.noUsername}</span>
+                  </span>
+                </button>
+                {p.username && (
+                  <button
+                    type="button"
+                    aria-label={EM.writeOne}
+                    onClick={() => {
+                      telegramService.haptic('medium');
+                      telegramService.openChat(p.username);
+                    }}
+                    className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-ink flex items-center justify-center cursor-pointer"
+                  >
+                    <Send size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isCreator && others.length > 0 && (
           <div className="mt-3 -mx-5 px-5 flex gap-3 overflow-x-auto no-scrollbar">
             {others.map((p) => (
-              <div key={p.telegramId} className="w-14 shrink-0 flex flex-col items-center gap-1">
+              <button type="button" key={p.telegramId} onClick={() => openUser(p.telegramId)} className="w-14 shrink-0 flex flex-col items-center gap-1 cursor-pointer">
                 <div className="relative">
                   <Avatar src={p.avatarUrl} name={p.name} size="w-12 h-12" />
                   {(p.guests || p.withKids) && (
@@ -172,7 +227,7 @@ export const EventDetails: React.FC<{
                   )}
                 </div>
                 <span className="w-full text-center text-cap text-zine-ink truncate">{p.name}</span>
-              </div>
+              </button>
             ))}
             {moreGroups > 0 && (
               <div className="w-14 shrink-0 flex flex-col items-center gap-1">
@@ -272,6 +327,8 @@ export const EventDetails: React.FC<{
         </button>
       </div>
 
+      {isMessageOpen && <MessageParticipantsSheet eventId={String(event.id)} onClose={() => setIsMessageOpen(false)} />}
+
       {isJoinOpen && (
         <JoinSheet event={event} onConfirm={async (o) => onJoin(o)} onLeave={async () => onJoin(null)} onClose={() => setIsJoinOpen(false)} />
       )}
@@ -297,3 +354,42 @@ const SmallAction: React.FC<{ onClick: () => void; icon: React.ReactNode; label:
     <span>{label}</span>
   </button>
 );
+
+// Организатор пишет участникам: бот перешлёт всем, кто записан
+const MessageParticipantsSheet: React.FC<{ eventId: string; onClose: () => void }> = ({ eventId, onClose }) => {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <BottomSheet title={EM.title} onClose={onClose}>
+      <p className="text-body text-zine-inkMuted">{EM.hint}</p>
+      <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 800))} rows={4} placeholder={EM.placeholder} className="field mt-4" autoFocus />
+      {error && <p className="mt-2 text-sm2 font-semibold text-zine-danger">{error}</p>}
+      {result && <p className="mt-2 text-sm2 font-semibold text-zine-sage">{result}</p>}
+      <button
+        disabled={!text.trim() || busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            const res = await api.messageEventParticipants(eventId, text.trim());
+            telegramService.haptic('success');
+            setResult(EM.sent(res.sent));
+            setText('');
+            window.setTimeout(onClose, 1500);
+          } catch (err: any) {
+            setError(err?.message || EM.failed);
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className={`mt-4 w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center cursor-pointer ${
+          text.trim() ? 'bg-zine-terracotta text-white' : 'bg-zine-card text-zine-inkMuted cursor-default'
+        }`}
+      >
+        {busy ? <Loader2 size={22} className="animate-spin" /> : EM.send}
+      </button>
+    </BottomSheet>
+  );
+};

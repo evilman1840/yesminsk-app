@@ -13,5 +13,6 @@ export const SUGGEST_TEXTS = {
   wishButton: '＋ Предложить своё',
   placesCta: 'Знаешь классное место?',
   placesCtaText: 'Предложи его, и мы добавим в «Места»',
-  placesButton: '📍 Предложить место'
+  placesButton: '📍 Предложить место',
+  headerButton: '＋ Предложить место'
 };

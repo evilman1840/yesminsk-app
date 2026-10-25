@@ -230,6 +230,14 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
             setScrollToUser(justSkipped.user.telegramId);
             setJustSkipped(null);
           }}
+          secondary={{
+            label: FEED_TEXTS.hideForever,
+            onClick: () => {
+              telegramService.haptic('medium');
+              onReact(justSkipped.user, 'dislike');
+              setJustSkipped(null);
+            }
+          }}
         />
       )}
 

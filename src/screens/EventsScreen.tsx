@@ -174,6 +174,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   // 'kids' — «👶 С детьми»: сходки, куда можно с детьми
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | 'all' | 'kids'>('all');
   const [eventWhen, setEventWhen] = useState<EventWhen>('all'); // сегодня / завтра / выходные
+  const [onlyMine, setOnlyMine] = useState(false); // «⭐ Мои»: собираю или иду
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -276,7 +277,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     : selectedCategory === 'kids'
     ? events.filter((e) => e.tags?.includes('kids'))
     : events.filter((e) => e.category === selectedCategory)
-  ).filter((e) => !notInterestedEvents.has(String(e.id)) && matchesWhen(e.dateTime, eventWhen));
+  )
+    .filter((e) => !notInterestedEvents.has(String(e.id)) && matchesWhen(e.dateTime, eventWhen))
+    // «⭐ Мои»: что я собираю и куда иду
+    .filter((e) => !onlyMine || e.isJoined || Number(e.creator?.telegramId) === Number(currentUserId));
   const detailsEvent = detailsEventId ? events.find((e) => String(e.id) === detailsEventId) || null : null;
   const joinEvent = joinEventId ? events.find((e) => String(e.id) === joinEventId) || null : null;
   // После «Вернуть» — сразу показываем возвращённую карточку
@@ -668,6 +672,17 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </div>
         {/* Когда: сегодня / завтра / выходные — как на карте */}
         <div className="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar px-4">
+          <button
+            onClick={() => {
+              telegramService.haptic('selection');
+              setOnlyMine((v) => !v);
+            }}
+            className={`h-9 px-3.5 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+              onlyMine ? 'bg-zine-mustard text-[#2B2623]' : 'bg-black/35 backdrop-blur text-white border border-white/20'
+            }`}
+          >
+            {M.mineChip}
+          </button>
           {EVENT_WHEN.map(([id, label]) => (
             <button
               key={id}
@@ -708,8 +723,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       {filteredEvents.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-center px-8 text-white">
           <div className="text-[48px] mb-3">🗓</div>
-          <p className="font-serif font-bold text-title">{M.emptyTitle}</p>
-          <p className="mt-2 text-body text-white/70">{M.emptyText}</p>
+          <p className="font-serif font-bold text-title">{onlyMine ? M.mineEmptyTitle : M.emptyTitle}</p>
+          <p className="mt-2 text-body text-white/70">{onlyMine ? M.mineEmptyText : M.emptyText}</p>
           <button
             onClick={() => {
               handleOpenCreateModal(selectedCategory === 'all' || selectedCategory === 'kids' ? undefined : selectedCategory, undefined, 'empty');

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Minus, Plus, Loader2 } from 'lucide-react';
 import { AppEvent, JoinOptions, maxGuestsFor, SUPPORT_RULES } from '../../types';
+import { EVENT_MESSAGE_TEXTS as EM } from '../../texts/eventMessage';
 import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
 import { useMainButton } from '../../hooks/useTelegram';
@@ -149,6 +150,9 @@ export const JoinSheet: React.FC<{
             </span>
           </button>
         )}
+
+        {/* Организатор видит Telegram участников, чтобы написать детали */}
+        {!event.isJoined && <p className="text-cap text-zine-inkMuted">🔔 {EM.joinNote}</p>}
 
         {!hasNativeJoin && (
           <button
