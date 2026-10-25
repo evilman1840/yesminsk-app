@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { AREA_GROUPS } from '../config/areas';
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea, EMPATH, formatTime } from '../types';
 import { HelpLine } from '../components/common/HelpLine';
 import { telegramService, ThemePreference } from '../services/telegram';
@@ -72,19 +73,6 @@ interface ProfileFormScreenProps {
   onEventsChanged?: () => void; // вернули скрытую сходку — обновить список сходок
 }
 
-const MINSK_AREAS = [
-  TOURIST_AREA,
-  'Немига / Центр',
-  'Осмоловка',
-  'Октябрьская',
-  'Золотая Горка',
-  'Троицкое предместье',
-  'Парк Челюскинцев',
-  'Восток / Маяк Минска',
-  'Комаровка',
-  'Площадь Победы',
-  'Парк Победы / Победителей'
-];
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
 
@@ -602,10 +590,15 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               }}
               className="field"
             >
-              {MINSK_AREAS.map((a, idx) => (
-                <option key={a} value={a}>
-                  {idx === 0 ? `🧳 ${a}` : a}
-                </option>
+              <option value={TOURIST_AREA}>🧳 {TOURIST_AREA}</option>
+              {AREA_GROUPS.map((g) => (
+                <optgroup key={g.title} label={g.title}>
+                  {Object.keys(g.areas).map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             <button

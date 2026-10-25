@@ -26,23 +26,9 @@ import { FirstStepsCard } from './components/people/FirstSteps';
 import { ShareSheet } from './components/common/ShareSheet';
 import type { MapMode } from './screens/MapScreen';
 import { NewsItem } from './services/api';
+import { AREA_COORDINATES } from './config/areas';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, placeForMeetup } from './types';
 
-// Примерные координаты районов Минска
-const AREA_COORDINATES: Record<string, [number, number]> = {
-  'Я турист(ка) / не знаю города': [53.9045, 27.5615],
-  'В Минске проездом / не знаю города': [53.9045, 27.5615],
-  'Немига / Центр': [53.9045, 27.5520],
-  'Осмоловка': [53.9115, 27.5612],
-  'Октябрьская': [53.8905, 27.5740],
-  'Золотая Горка': [53.9150, 27.5850],
-  'Троицкое предместье': [53.9080, 27.5555],
-  'Парк Челюскинцев': [53.9240, 27.6150],
-  'Восток / Маяк Минска': [53.9335, 27.6530],
-  'Комаровка': [53.9190, 27.5800],
-  'Площадь Победы': [53.9085, 27.5750],
-  'Парк Победы / Победителей': [53.9240, 27.5450]
-};
 
 const getSavedCoordinates = (): [number, number] => {
   try {
