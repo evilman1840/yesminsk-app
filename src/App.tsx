@@ -493,6 +493,18 @@ export const App: React.FC = () => {
   };
 
   // 👋 Пообщаться / 🙈 Скрыть
+  // «Пропустить» свайпом: убираем из ленты сейчас, вернётся через 3 дня
+  const handleSkip = (user: UserProfile) => {
+    const id = user.telegramId;
+    setUsers(prev => prev.filter(u => u.telegramId !== id));
+    setLikedMe(prev => prev.filter(u => u.telegramId !== id));
+    api.skipUser(id).catch(() => {});
+  };
+  const handleUnskip = (user: UserProfile, index: number) => {
+    setUsers(prev => (prev.some(u => u.telegramId === user.telegramId) ? prev : [...prev.slice(0, index), user, ...prev.slice(index)]));
+    api.skipUser(user.telegramId, true).catch(() => {});
+  };
+
   const handleReact = async (user: UserProfile, type: ReactionType) => {
     try {
       const result = await api.reactToUser(user.telegramId, type);
@@ -814,6 +826,8 @@ export const App: React.FC = () => {
                 onSelectGoal={setSelectedGoal}
                 onSelectUser={(u) => setSelectedUser(u)}
                 onReact={handleReact}
+                onSkip={handleSkip}
+                onUnskip={handleUnskip}
               />
             )}
 

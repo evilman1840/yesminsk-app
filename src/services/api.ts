@@ -182,6 +182,11 @@ class ApiService {
   // ЛАЙКИ / ДИЗЛАЙКИ / МЭТЧИ
   // ==========================================
 
+  // «Пропустить» свайпом: вернётся через 3 дня; undo — вернуть сразу
+  async skipUser(telegramId: number, undo = false): Promise<void> {
+    await this.request(`/users/${telegramId}/skip`, { method: 'POST', body: JSON.stringify({ undo }) });
+  }
+
   async reactToUser(
     targetTelegramId: number,
     type: 'like' | 'dislike'

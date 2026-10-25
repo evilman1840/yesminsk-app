@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2 } from 'lucide-react';
 import { UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, EMPATH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
@@ -8,6 +8,8 @@ import { GoalChips } from '../components/ui/GoalChips';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { photoSrc } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
+import { FEED_TEXTS } from '../texts/feed';
+import { UndoToast } from '../components/ui/UndoToast';
 import {
   PeopleFiltersSheet,
   PeopleFilters,
@@ -24,6 +26,8 @@ export interface FeedScreenProps {
   matches?: UserProfile[];
   onSelectUser: (user: UserProfile) => void;
   onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
+  onSkip?: (user: UserProfile) => void;                    // свайп влево: пропустить на 3 дня
+  onUnskip?: (user: UserProfile, index: number) => void;   // «Вернуть»
   isTourist?: boolean;
   selectedGoal: GoalFilter;
   onSelectGoal: (goal: GoalFilter) => void;
@@ -40,6 +44,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   matches = [],
   onSelectUser,
   onReact,
+  onSkip,
+  onUnskip,
   isTourist = false,
   selectedGoal,
   onSelectGoal,
@@ -53,6 +59,11 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   const activeFilters = countActiveFilters(filters);
 
   const [tab, setTab] = useState<FeedTab>(likedMe.length > 0 ? 'likes' : 'all');
+  // Только что пропущенный — можно вернуть
+  const [justSkipped, setJustSkipped] = useState<{ user: UserProfile; index: number } | null>(null);
+  // После «Вернуть» — сразу показываем вернувшегося человека
+  const listRef = useRef<HTMLDivElement>(null);
+  const [scrollToUser, setScrollToUser] = useState<number | null>(null);
 
   // Фильтры действуют на «Рядом»; тех, кто уже хочет пообщаться или на связи, не прячем
   const nearbyFiltered = applyPeopleFilters(users, filters, myPrefs);
@@ -66,8 +77,21 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     { id: 'matches', label: 'На связи', count: matches.length }
   ];
 
+  useLayoutEffect(() => {
+    if (!scrollToUser) return;
+    const index = filteredUsers.findIndex((u) => u.telegramId === scrollToUser);
+    const list = listRef.current;
+    if (index >= 0 && list) {
+      setScrollToUser(null);
+      list.scrollTo({ top: (index + (hasIntroRef.current ? 1 : 0)) * list.clientHeight });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollToUser, filteredUsers.length]);
+
   const showGuidesBanner = isTourist && tab === 'all' && selectedGoal !== 'guides' && guidesCount > 0;
   const hasIntro = tab === 'all' && (Boolean(topSlot) || showGuidesBanner);
+  const hasIntroRef = useRef(hasIntro);
+  hasIntroRef.current = hasIntro;
   const hint =
     selectedGoal === 'guides'
       ? '🧭 Покажут город бесплатно. Об условиях договаривайтесь лично.'
@@ -145,7 +169,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           )}
         </div>
       ) : (
-        <div key={`${tab}-${selectedGoal}`} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
+        <div key={`${tab}-${selectedGoal}`} ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
           {/* Вступление: «Первые шаги» и подсказка туристам */}
           {hasIntro && (
             <section className="relative h-full w-full snap-start snap-always overflow-y-auto no-scrollbar bg-gradient-to-b from-[#2B2623] to-[#141210] px-4 pt-[200px] pb-6 flex flex-col gap-4">
@@ -187,9 +211,26 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                 onSelectUser(user);
               }}
               onReact={onReact}
+              onSkip={() => {
+                setJustSkipped({ user, index: users.findIndex((u) => u.telegramId === user.telegramId) });
+                onSkip ? onSkip(user) : onReact(user, 'dislike');
+              }}
             />
           ))}
         </div>
+      )}
+
+      {justSkipped && (
+        <UndoToast
+          topClass="top-[188px]"
+          text={`⏭ ${justSkipped.user.firstName} ${FEED_TEXTS.skipped}`}
+          onDone={() => setJustSkipped(null)}
+          onUndo={() => {
+            onUnskip?.(justSkipped.user, Math.max(0, justSkipped.index));
+            setScrollToUser(justSkipped.user.telegramId);
+            setJustSkipped(null);
+          }}
+        />
       )}
 
       {isFiltersOpen && (
@@ -213,7 +254,8 @@ const PersonReel: React.FC<{
   myGoals?: ActivityGoal[];
   onOpen: () => void;
   onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
-}> = ({ user, isFirst, myGoals, onOpen, onReact }) => {
+  onSkip: () => void;
+}> = ({ user, isFirst, myGoals, onOpen, onReact, onSkip }) => {
   const [busy, setBusy] = useState<ReactionType | null>(null);
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
   const common = new Set(commonGoalIds(user, myGoals));
@@ -259,12 +301,12 @@ const PersonReel: React.FC<{
     <SwipeReel
       className="bg-[#2B2623]"
       rightLabel={canLike ? '👋 Привет' : undefined}
-      leftLabel={user.isMatch ? undefined : '🙈 Скрыть'}
+      leftLabel={user.isMatch ? undefined : FEED_TEXTS.skipStamp}
       leftBehavior="remove"
       onSwipe={(dir) => {
         if (dir === 'right') react('like');
-        // Свайп влево — уже осознанное действие, без лишнего подтверждения
-        else onReact(user, 'dislike');
+        // Свайп влево — просто «пропустить»: человек вернётся через несколько дней. Скрыть навсегда — кнопкой 🙈
+        else onSkip();
       }}
     >
       <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
@@ -334,7 +376,7 @@ const PersonReel: React.FC<{
         {/* Подсказка про жесты — только на первой карточке, в потоке, чтобы не закрывать лицо */}
         {isFirst && (
           <div>
-            <SwipeHint inline left={user.isMatch ? undefined : 'скрыть'} right={canLike ? '👋' : undefined} extra={gallery.length > 1 ? PHOTO_TEXTS.tapHint : undefined} />
+            <SwipeHint inline left={user.isMatch ? undefined : FEED_TEXTS.skipHint} right={canLike ? '👋' : undefined} extra={gallery.length > 1 ? PHOTO_TEXTS.tapHint : undefined} />
           </div>
         )}
         {gallery.length > 1 && (
