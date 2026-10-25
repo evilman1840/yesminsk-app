@@ -129,6 +129,12 @@ class ApiService {
     }
   }
 
+  // Сколько анкет видно всего (на карту приходят только самые активные)
+  async getNearbyCount(): Promise<number> {
+    const r = await this.request<{ total: number }>('/users/nearby-count');
+    return Number(r?.total) || 0;
+  }
+
   async getMapUsers(params?: { goal?: string; lat?: number; lng?: number; radiusKm?: number }): Promise<UserProfile[]> {
     return this.getNearbyUsers(params);
   }

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { api } from '../services/api';
 import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, HelpCircle } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
@@ -195,6 +196,12 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   };
 
   const filteredUsers = users.filter((u) => matchesGoalFilter(u, selectedGoal));
+  // Сколько всего анкет: на карте только самые активные, а в шапке — все
+  const [totalPeople, setTotalPeople] = useState(0);
+  useEffect(() => {
+    api.getNearbyCount().then(setTotalPeople).catch(() => {});
+  }, [users.length]);
+  const peopleCount = Math.max(totalPeople, users.length);
   // Для шапки: «⚡ могут сейчас» — первыми, лица с фото
   const freeNowCount = users.filter((u) => isAvailableNow(u)).length;
   const nearbyFaces = [...users]
@@ -279,7 +286,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                       ))}
                     </span>
                     <span className="min-w-0 text-left leading-tight">
-                      <span className="block text-cap font-bold text-zine-ink whitespace-nowrap">{users.length} рядом</span>
+                      <span className="block text-cap font-bold text-zine-ink whitespace-nowrap">{peopleCount} рядом</span>
                       <span className="block text-[11px] text-zine-inkMuted whitespace-nowrap">
                         {freeNowCount > 0 ? `⚡ ${freeNowCount} ${freeNowCount === 1 ? 'может' : 'могут'} сейчас` : 'загляни к ним'}
                       </span>
