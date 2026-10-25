@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Loader2, ChevronRight } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { api } from '../../services/api';
+import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
 import { WISH_TEXTS as T } from '../../texts/wishes';
 
@@ -17,6 +18,12 @@ export const WishMembersSheet: React.FC<{
   const [members, setMembers] = useState<UserProfile[] | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [askingPlace, setAskingPlace] = useState(false);
+  const [placeName, setPlaceName] = useState<string | null>(null);
+  const [placeText, setPlaceText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [placeError, setPlaceError] = useState<string | null>(null);
+  const [placeDone, setPlaceDone] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -24,9 +31,28 @@ export const WishMembersSheet: React.FC<{
       .then((r) => {
         setMembers(r.members || []);
         setEventId(r.eventId || null);
+        setAskingPlace(Boolean(r.askingPlace));
+        setPlaceName(r.placeName || null);
       })
       .catch(() => setError(true));
   }, [groupId]);
+
+  const sendPlace = async () => {
+    if (!placeText.trim() || busy) return;
+    setBusy(true);
+    setPlaceError(null);
+    try {
+      const res = await api.suggestGroupPlace(groupId, placeText.trim());
+      telegramService.haptic('success');
+      setPlaceDone(res.message);
+      setAskingPlace(false);
+    } catch (err: any) {
+      telegramService.haptic('error');
+      setPlaceError(err?.message || T.placeFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <BottomSheet title={T.membersTitle} onClose={onClose}>
@@ -36,6 +62,26 @@ export const WishMembersSheet: React.FC<{
           {T.membersEvent}
         </button>
       )}
+      {askingPlace && (
+        <div className="mt-4 p-4 rounded-zine-sm bg-zine-card">
+          <p className="text-lead font-bold text-zine-ink">{T.placeTitle}</p>
+          <p className="mt-1 text-sm2 text-zine-inkMuted">{T.placeHint}</p>
+          <textarea value={placeText} onChange={(e) => setPlaceText(e.target.value.slice(0, 500))} rows={3} placeholder={T.placePlaceholder} className="field mt-3" />
+          <p className="mt-1.5 text-cap text-zine-inkMuted">{T.placeHowTo}</p>
+          {placeError && <p className="mt-2 text-sm2 font-semibold text-zine-danger">{placeError}</p>}
+          <button
+            onClick={sendPlace}
+            disabled={!placeText.trim() || busy}
+            className={`mt-3 w-full h-12 rounded-zine-sm text-body font-bold flex items-center justify-center cursor-pointer ${
+              placeText.trim() ? 'bg-zine-terracotta text-white' : 'bg-zine-cardElevated text-zine-inkMuted cursor-default'
+            }`}
+          >
+            {busy ? <Loader2 size={20} className="animate-spin" /> : T.placeSend}
+          </button>
+        </div>
+      )}
+      {placeDone && <p className="mt-4 p-3 rounded-zine-sm bg-zine-card text-body font-semibold text-zine-ink">{placeDone}</p>}
+      {!askingPlace && !placeDone && placeName && <p className="mt-4 text-body font-semibold text-zine-ink">{T.placeChosen(placeName)}</p>}
       <div className="mt-4 space-y-2">
         {error ? (
           <p className="text-sm2 text-zine-inkMuted">{T.membersGone}</p>

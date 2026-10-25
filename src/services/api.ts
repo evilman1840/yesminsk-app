@@ -333,8 +333,13 @@ class ApiService {
     return this.request<UserProfile>(`/users/${telegramId}/public`);
   }
   // «Кто ещё хочет»: участники группы совпадения
-  async getWishGroupMembers(groupId: string): Promise<{ members: UserProfile[]; eventId: string | null }> {
+  async getWishGroupMembers(groupId: string): Promise<{ members: UserProfile[]; eventId: string | null; askingPlace?: boolean; placeName?: string | null }> {
     return this.request(`/wishes/groups/${groupId}/members`);
+  }
+
+  // Предложить место группе «Хочу сходить»: бот сразу разошлёт всем место и варианты времени
+  async suggestGroupPlace(groupId: string, text: string): Promise<{ ok: boolean; message: string }> {
+    return this.request(`/wishes/groups/${groupId}/place`, { method: 'POST', body: JSON.stringify({ text }) });
   }
 
   // «Хочу сходить»
