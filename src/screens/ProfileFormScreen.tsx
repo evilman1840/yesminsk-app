@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
-import { AREA_GROUPS } from '../config/areas';
+import { AREA_GROUPS, RENAMED_AREAS } from '../config/areas';
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea, EMPATH, formatTime } from '../types';
 import { HelpLine } from '../components/common/HelpLine';
 import { telegramService, ThemePreference } from '../services/telegram';
@@ -139,7 +139,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [area, setArea] = useState<string>(
-    isTouristArea(initialData?.area) ? TOURIST_AREA : initialData?.area || 'Немига / Центр'
+    isTouristArea(initialData?.area) ? TOURIST_AREA : RENAMED_AREAS[initialData?.area || ''] || initialData?.area || 'Немига / Центр'
   );
   const [coordinates, setCoordinates] = useState<[number, number] | undefined>(
     initialData?.coordinates
