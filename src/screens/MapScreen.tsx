@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, HelpCircle } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
@@ -27,6 +27,8 @@ export interface MapScreenProps {
     age?: string | number;
     isProfileActive?: boolean;
     availableUntil?: string | null;
+    shownCoordinates?: [number, number] | null;
+    locationManual?: boolean;
   } | null;
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile | null) => void;
@@ -35,6 +37,7 @@ export interface MapScreenProps {
   onOpenProfile: () => void;
   onJoinEvent: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
   onUpdateLocation?: (coords: [number, number]) => void;
+  onSetShownLocation?: (coords: [number, number] | null) => Promise<void>; // своя метка; null — случайное смещение
   onSetAvailable: (hours: number) => Promise<void>;
   onOpenNews: () => void;
   unreadNews?: number;
@@ -57,7 +60,7 @@ const HELP_STEPS = [
   { emoji: '📍', title: '«Места»', text: 'Переключи карту на «Места» и выбери настроение, Миша подскажет, куда сходить. Оставляй свои советы!' },
   { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию, это займёт минуту.' },
   { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе, так тебя быстрее заметят.' },
-  { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 300-500 м. Можно включить режим невидимки.' }
+  { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 500-800 м, и её можно передвинуть. Можно включить режим невидимки.' }
 ];
 
 export type MapMode = 'all' | 'people' | 'events' | 'places';
@@ -95,6 +98,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onOpenProfile,
   onJoinEvent,
   onUpdateLocation,
+  onSetShownLocation,
   onSetAvailable,
   onOpenNews,
   unreadNews = 0,
@@ -146,6 +150,28 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [isFewHintClosed, setIsFewHintClosed] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
   const [isMySheetOpen, setIsMySheetOpen] = useState(false);
+  // «Сдвинуть метку»: человек сам выбирает, где его видят на карте
+  const [isPicking, setIsPicking] = useState(false);
+  const [pickBusy, setPickBusy] = useState(false);
+  const [pickError, setPickError] = useState<string | null>(null);
+  const getMapCenter = useRef<() => [number, number] | null>(() => null);
+  const savePick = async (reset = false) => {
+    if (!onSetShownLocation || pickBusy) return;
+    const c = reset ? null : getMapCenter.current();
+    if (!reset && !c) return;
+    setPickBusy(true);
+    setPickError(null);
+    try {
+      await onSetShownLocation(c);
+      telegramService.haptic('success');
+      setIsPicking(false);
+    } catch (err: any) {
+      telegramService.haptic('error');
+      setPickError(err?.message || 'Не получилось сохранить метку');
+    } finally {
+      setPickBusy(false);
+    }
+  };
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   const [isDonateOpen, setIsDonateOpen] = useState(false);
@@ -205,6 +231,29 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           setSelectedEvent(ev);
         }}
         onUpdateLocation={onUpdateLocation}
+        shownCoords={currentUser?.shownCoordinates}
+        picking={isPicking}
+        onPickCenter={(fn) => (getMapCenter.current = fn)}
+        pickHint={
+          <div className="absolute inset-x-4 bottom-4 z-30 p-4 rounded-zine bg-zine-cardElevated shadow-zine-float">
+            <p className="text-body font-bold text-zine-ink">📍 Двигай карту</p>
+            <p className="mt-1 text-sm2 text-zine-inkMuted">Поставь метку там, где тебе спокойно: другие увидят тебя в этой точке. Твой адрес никто не узнает.</p>
+            {pickError && <p className="mt-2 text-sm2 font-semibold text-zine-danger">{pickError}</p>}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button onClick={() => setIsPicking(false)} className="h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer">
+                Отмена
+              </button>
+              <button onClick={() => savePick()} disabled={pickBusy} className="h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold flex items-center justify-center cursor-pointer">
+                {pickBusy ? <Loader2 size={20} className="animate-spin" /> : 'Сохранить'}
+              </button>
+            </div>
+            {currentUser?.locationManual && (
+              <button onClick={() => savePick(true)} disabled={pickBusy} className="mt-2 w-full h-10 text-sm2 font-semibold text-zine-inkMuted cursor-pointer">
+                Вернуть случайное смещение
+              </button>
+            )}
+          </div>
+        }
       />
 
       {/* Шапка поверх карты: логотип и фильтры */}
@@ -601,8 +650,28 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
           <div className={`mt-4 p-3.5 rounded-zine-sm flex items-center gap-3 text-sm2 ${isVisible ? 'bg-zine-sage/15 text-zine-ink' : 'bg-zine-plum/10 text-zine-ink'}`}>
             {isVisible ? <Eye size={22} className="text-zine-sage shrink-0" /> : <EyeOff size={22} className="text-zine-plum shrink-0" />}
-            <span>{isVisible ? 'Тебя видят на карте. Точный адрес скрыт: метка смещена на 300-500 м.' : 'Режим невидимки: другие тебя не видят.'}</span>
+            <span>
+              {!isVisible
+                ? 'Режим невидимки: другие тебя не видят.'
+                : currentUser.locationManual
+                ? 'Тебя видят на карте в выбранной тобой точке. Точный адрес скрыт.'
+                : 'Тебя видят на карте. Точный адрес скрыт: метка смещена на 500-800 м.'}
+            </span>
           </div>
+
+          {isVisible && onSetShownLocation && (
+            <button
+              onClick={() => {
+                setIsMySheetOpen(false);
+                setPickError(null);
+                setIsPicking(true);
+              }}
+              className="mt-2 w-full h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+            >
+              <MapPin size={20} className="text-zine-terracotta" />
+              <span>Сдвинуть метку</span>
+            </button>
+          )}
 
           <button
             onClick={() => {

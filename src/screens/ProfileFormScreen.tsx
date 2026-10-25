@@ -581,7 +581,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           </Section>
 
           {/* Район */}
-          <Section title="Где ты в Минске?" subtitle="Точный адрес никто не увидит: метка смещается на 300-500 м">
+          <Section title="Где ты в Минске?" subtitle="Точный адрес никто не увидит: метка смещается на 500-800 м, а на карте её можно передвинуть">
             <select
               value={area}
               onChange={(e) => {

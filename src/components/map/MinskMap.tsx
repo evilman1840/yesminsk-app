@@ -33,6 +33,10 @@ export interface MinskMapProps {
   userLocation?: [number, number];
   apiKey?: string;
   applyFuzzyOffset?: boolean;
+  shownCoords?: [number, number] | null; // где тебя видят другие: «Ты» стоит там же
+  picking?: boolean;                     // режим «Сдвинуть метку»: булавка в центре карты
+  pickHint?: React.ReactNode;            // панель снизу в этом режиме, получает центр карты
+  onPickCenter?: (getCenter: () => [number, number] | null) => void;
 }
 
 const MINSK_CENTER: [number, number] = [53.9045, 27.5615];
@@ -93,8 +97,8 @@ function separateCoordinates(
 export function obfuscateCoordinates(
   lat: number,
   lng: number,
-  minMeters: number = 300,
-  maxMeters: number = 500
+  minMeters: number = 500,
+  maxMeters: number = 800
 ): [number, number] {
   const EARTH_RADIUS = 6378137;
   const radius = minMeters + Math.random() * (maxMeters - minMeters);
@@ -534,7 +538,11 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   userLocation,
   applyFuzzyOffset = false,
   places = [],
-  onSelectPlace
+  onSelectPlace,
+  shownCoords,
+  picking = false,
+  pickHint,
+  onPickCenter
 }) => {
   const mapRef = useRef<any>(null);
   // Приближена ли карта — от этого зависит размер меток сходок
@@ -584,6 +592,18 @@ export const MinskMap: React.FC<MinskMapProps> = ({
       return { ...user, displayCoords };
     });
   }, [users, applyFuzzyOffset]);
+
+  // Режим «Сдвинуть метку»: приближаем к текущей метке и отдаём наружу, как узнать центр карты
+  useEffect(() => {
+    if (!picking) return;
+    const start = shownCoords ? ensureLatLng(shownCoords) : currentCoords;
+    mapRef.current?.setCenter(start, 15, { duration: 300 });
+    onPickCenter?.(() => {
+      const c = mapRef.current?.getCenter();
+      return c ? [Number(c[0].toFixed(6)), Number(c[1].toFixed(6))] : null;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picking]);
 
   const handleEventClick = (ev: AppEvent) => {
     onSelectEvent?.(ev);
@@ -661,7 +681,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
           users={usersWithSafeCoords}
           events={events}
           currentUser={currentUser}
-          currentUserCoords={currentCoords}
+          currentUserCoords={picking ? null : shownCoords ? ensureLatLng(shownCoords) : currentCoords}
           selectedUser={selectedUser}
           onSelectUser={onSelectUser}
           onSelectCurrentUser={onSelectCurrentUser}
@@ -709,8 +729,22 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         </BottomSheet>
       )}
 
+      {/* «Сдвинуть метку»: двигаешь карту, булавка в центре — там тебя и увидят */}
+      {picking && (
+        <>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full z-30 pointer-events-none flex flex-col items-center">
+            <div className="px-3 py-1 rounded-full bg-zine-terracotta text-white text-sm2 font-bold shadow-zine-float whitespace-nowrap">Тебя увидят здесь</div>
+            <div className="mt-1 w-12 h-12 rounded-full border-[3px] border-zine-terracotta bg-zine-cardElevated overflow-hidden shadow-zine-float">
+              {currentUser?.avatarUrl && <img src={currentUser.avatarUrl} alt="" className="w-full h-full object-cover" />}
+            </div>
+            <div className="w-0 h-0 border-x-[7px] border-x-transparent border-t-[9px] border-t-zine-terracotta" />
+          </div>
+          {pickHint}
+        </>
+      )}
+
       {/* Кнопка "Где я?" (GPS) */}
-      <button
+      {!picking && <button
         onClick={handleLocateGPS}
         disabled={isGpsLoading}
         className="absolute right-4 bottom-14 w-14 h-14 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine-float flex items-center justify-center text-zine-terracotta z-20 active:scale-90 transition-transform cursor-pointer"
@@ -718,7 +752,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         aria-label="Показать, где я"
       >
         <LocateFixed size={26} className={isGpsLoading ? 'animate-spin' : ''} />
-      </button>
+      </button>}
     </div>
   );
 };

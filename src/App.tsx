@@ -75,7 +75,9 @@ export const App: React.FC = () => {
     guideAbout: '',
     photos: [] as string[],
     availableUntil: null as string | null,
-    coordinates: getSavedCoordinates()
+    coordinates: getSavedCoordinates(),
+    shownCoordinates: null as [number, number] | null, // где тебя видят другие (смещённая метка)
+    locationManual: false // метку поставили вручную
   });
 
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -321,7 +323,9 @@ export const App: React.FC = () => {
             guideAbout: me.guideAbout || '',
             photos: me.photos || [],
             availableUntil: me.availableUntil || null,
-            coordinates: userCoords
+            coordinates: userCoords,
+            shownCoordinates: Array.isArray(me.shownCoordinates) ? me.shownCoordinates : null,
+            locationManual: Boolean(me.locationManual)
           }));
 
           // Может ли бот писать: сервер знает про «Старт» в боте, Telegram — про разрешение при запуске
@@ -488,6 +492,7 @@ export const App: React.FC = () => {
 
     // Сверяем: сервер действительно записал то, что отправили? Если нет — покажем, что именно
     const saved = res?.user;
+    if (res?.shownCoordinates) setCurrentUser(prev => ({ ...prev, shownCoordinates: res.shownCoordinates, locationManual: Boolean(res.locationManual) }));
     if (saved) {
       const notSaved: string[] = [];
       if (formData.isEmpath !== undefined && Boolean(saved.isEmpath) !== Boolean(formData.isEmpath)) notSaved.push('«Я эмпат»');
@@ -713,7 +718,9 @@ export const App: React.FC = () => {
       coordinates: coords
     }));
 
-    api.updateProfile({ coordinates: coords }).catch((err) => {
+    api.updateProfile({ coordinates: coords }).then((r: any) => {
+      if (r?.shownCoordinates) setCurrentUser(prev => ({ ...prev, shownCoordinates: r.shownCoordinates, locationManual: Boolean(r.locationManual) }));
+    }).catch((err) => {
       console.warn('Location sync warning:', err);
     });
   }, []);
@@ -850,6 +857,10 @@ export const App: React.FC = () => {
                 onOpenProfile={() => handleNavigate('profile_edit')}
                 onJoinEvent={handleJoinEvent}
                 onUpdateLocation={handleUpdateLocation}
+                onSetShownLocation={async (c) => {
+                  const r = await api.setShownLocation(c);
+                  setCurrentUser(prev => ({ ...prev, shownCoordinates: r.shownCoordinates, locationManual: r.locationManual }));
+                }}
                 onSetAvailable={handleSetAvailable}
                 onOpenNews={() => handleNavigate('news')}
                 fewPeople={isUsersLoaded && !apiError && users.length < 3}

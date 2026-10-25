@@ -131,6 +131,11 @@ class ApiService {
     return this.getNearbyUsers(params);
   }
 
+  // Своя метка на карте: точка, где тебя видят другие; null — вернуть случайное смещение 500-800 м
+  async setShownLocation(coordinates: [number, number] | null): Promise<{ shownCoordinates: [number, number]; locationManual: boolean }> {
+    return this.request('/users/shown-location', { method: 'POST', body: JSON.stringify(coordinates ? { coordinates } : { reset: true }) });
+  }
+
   async updateProfile(data: {
     name?: string;
     firstName?: string;
