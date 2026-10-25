@@ -9,7 +9,7 @@ import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage, dataUrlBytes } from '../utils/compressImage';
 import { PhotoPicker, PickedPhoto, photoFromUrl } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
-import { AGE_TEXTS } from '../texts/profile';
+import { GENDER_TEXTS, AGE_TEXTS } from '../texts/profile';
 import { ACCOUNT_TEXTS } from '../texts/account';
 import { HOME_TEXTS } from '../texts/home';
 import { BotAccessBanner } from '../components/common/BotAccessBanner';
@@ -24,6 +24,7 @@ interface ProfileFormScreenProps {
     ageConfirmed?: boolean;
     profileCompleted?: boolean;
     gender?: Gender;
+    genderConfirmed?: boolean;
     preferredGender?: PreferredGender;
     preferredAgeRange?: { min: number; max: number };
     bio?: string;
@@ -48,6 +49,7 @@ interface ProfileFormScreenProps {
     age: string;
     ageConfirmed?: boolean;
     gender: Gender;
+    genderConfirmed?: boolean;
     preferredGender: PreferredGender;
     preferredAgeRange: { min: number; max: number };
     bio: string;
@@ -98,8 +100,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   );
   // Возраст по умолчанию (25) не подставляем: человек должен указать сам
   const [age, setAge] = useState<string>(initialData?.ageConfirmed && initialData?.age ? String(initialData.age) : '');
-  const [gender, setGender] = useState<Gender>(
-    initialData?.gender || 'not_specified'
+  // Пол не выбран сам (по умолчанию «Не скажу») — пусто, человек выбирает
+  const [gender, setGender] = useState<Gender | ''>(
+    initialData?.genderConfirmed || (initialData?.gender && initialData.gender !== 'not_specified') ? initialData!.gender! : ''
   );
   const [preferredGender, setPreferredGender] = useState<PreferredGender>(
     initialData?.preferredGender || 'all'
@@ -311,6 +314,12 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       return;
     }
 
+    if (!gender) {
+      setErrorText(GENDER_TEXTS.required);
+      telegramService.haptic('warning');
+      return;
+    }
+
     if (selectedGoals.includes('other') && !customGoal.trim()) {
       setErrorText('Напиши свою идею, например «Караоке»');
       telegramService.haptic('warning');
@@ -326,7 +335,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         name: name.trim(),
         age: age.trim(),
         ageConfirmed: true,
-        gender,
+        gender: gender as Gender,
+        genderConfirmed: true,
         preferredGender,
         preferredAgeRange: {
           min: Math.min(clampAge(minAge, 18), clampAge(maxAge, 99)),
@@ -489,6 +499,24 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               </Label>
             </div>
             {!age.trim() && <p className="mt-2 text-cap font-semibold text-zine-terracotta">{AGE_TEXTS.required}</p>}
+
+            {/* Пол — рядом с возрастом: по нему подбираются люди, кому так комфортнее */}
+            <div className="mt-4">
+              <Label text={GENDER_TEXTS.label}>
+                <div className={gender ? '' : 'rounded-zine-sm ring-2 ring-zine-terracotta/60'}>
+                  <Segmented
+                    value={gender}
+                    onChange={(v) => setGender(v as Gender)}
+                    options={[
+                      { id: 'female', label: GENDER_TEXTS.female },
+                      { id: 'male', label: GENDER_TEXTS.male },
+                      { id: 'not_specified', label: GENDER_TEXTS.unset }
+                    ]}
+                  />
+                </div>
+              </Label>
+              {!gender && <p className="mt-2 text-cap font-semibold text-zine-terracotta">{GENDER_TEXTS.required}</p>}
+            </div>
 
             <div className="mt-4">
               <Label text="О себе" hint={`${bio.length}/200`}>
@@ -809,8 +837,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               className="w-full flex items-center justify-between text-left cursor-pointer"
             >
               <span>
-                <span className="block text-body font-bold text-zine-ink">Дополнительно</span>
-                <span className="block text-sm2 text-zine-inkMuted">Пол, с кем комфортно, возраст компании</span>
+                <span className="block text-body font-bold text-zine-ink">{GENDER_TEXTS.prefsTitle}</span>
+                <span className="block text-sm2 text-zine-inkMuted">{GENDER_TEXTS.prefsHint}</span>
               </span>
               <ChevronDown size={24} className={`text-zine-inkMuted transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
             </button>
@@ -820,17 +848,6 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">
                   🛡 Тебя увидят только те, кто подходит под «С кем комфортно» и «Возраст компании». Остальным твоя анкета не покажется.
                 </p>
-                <Label text="Я">
-                  <Segmented
-                    value={gender}
-                    onChange={(v) => setGender(v as Gender)}
-                    options={[
-                      { id: 'male', label: 'Мужчина' },
-                      { id: 'female', label: 'Женщина' },
-                      { id: 'not_specified', label: 'Не скажу' }
-                    ]}
-                  />
-                </Label>
                 <Label text="С кем комфортно встречаться">
                   <Segmented
                     value={preferredGender}

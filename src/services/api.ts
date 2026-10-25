@@ -173,6 +173,7 @@ class ApiService {
     guideAbout?: string;
     photos?: string[];
     ageConfirmed?: boolean;
+    genderConfirmed?: boolean;
   }): Promise<any> {
     try {
       return await this.request<any>('/users/profile', {

@@ -9,6 +9,7 @@ import { OnboardingScreen } from './screens/OnboardingScreen';
 import { ProfileFormScreen } from './screens/ProfileFormScreen';
 import { UserBottomSheet } from './components/common/UserBottomSheet';
 import { AgePrompt } from './components/common/AgePrompt';
+import { GenderPrompt } from './components/common/GenderPrompt';
 import { ACCOUNT_TEXTS } from './texts/account';
 import { AddToHomeSheet } from './components/common/AddToHomeSheet';
 import { OpenUserContext } from './context/openUser';
@@ -81,7 +82,8 @@ export const App: React.FC = () => {
     shownCoordinates: null as [number, number] | null, // где тебя видят другие (смещённая метка)
     locationManual: false, // метку поставили вручную
     legalVersion: '' as string, // какую редакцию Соглашения и Политики человек принял
-    hasAgreedToRules: false
+    hasAgreedToRules: false,
+    genderConfirmed: false // пол выбран самим человеком
   });
 
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -154,6 +156,14 @@ export const App: React.FC = () => {
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
   // Открыть форму сходки: из карточки места, по ссылке из бота или поста
   const [isAgePromptDismissed, setIsAgePromptDismissed] = useState(false);
+  // «Позже» в окне «Кто ты?» — не спрашиваем неделю
+  const [isGenderPromptDismissed, setIsGenderPromptDismissed] = useState(() => {
+    try {
+      return Date.now() - Number(localStorage.getItem('yesminsk_gender_later') || 0) < 7 * 24 * 60 * 60 * 1000;
+    } catch {
+      return false;
+    }
+  });
   // Для openUserById: актуальные списки без пересоздания функции
   const usersRef = useRef<UserProfile[]>([]);
   const likedMeRef = useRef<UserProfile[]>([]);
@@ -352,6 +362,7 @@ export const App: React.FC = () => {
             coordinates: userCoords,
             shownCoordinates: Array.isArray(me.shownCoordinates) ? me.shownCoordinates : null,
             legalVersion: me.legalVersion || '',
+            genderConfirmed: Boolean(me.genderConfirmed) || (Boolean(me.gender) && me.gender !== 'not_specified'),
             hasAgreedToRules: Boolean(me.hasAgreedToRules),
             locationManual: Boolean(me.locationManual)
           }));
@@ -460,6 +471,7 @@ export const App: React.FC = () => {
     name: string;
     age: string;
     ageConfirmed?: boolean;
+    genderConfirmed?: boolean;
     bio: string;
     gender?: Gender;
     preferredGender?: PreferredGender;
@@ -497,6 +509,7 @@ export const App: React.FC = () => {
       ageConfirmed: formData.ageConfirmed,
       bio: formData.bio,
       gender: formData.gender || 'not_specified',
+      genderConfirmed: formData.genderConfirmed,
       preferredGender: formData.preferredGender || 'all',
       preferredAgeRange: formData.preferredAgeRange || { min: 18, max: 99 },
       goal: formData.goal,
@@ -1004,6 +1017,22 @@ export const App: React.FC = () => {
                 setCurrentUser((prev) => ({ ...prev, legalVersion: LEGAL_VERSION }));
               }}
               onDecline={handleDeleteAccount}
+            />
+          )}
+
+          {/* Пол не выбран: спрашиваем после возраста (за вход — не больше одного окна) */}
+          {isMeLoaded && isTab && currentScreen !== 'profile_edit' && currentUser.ageConfirmed && currentUser.profileCompleted && !currentUser.genderConfirmed && currentUser.legalVersion === LEGAL_VERSION && !isGenderPromptDismissed && !isHomeTipOpen && !sharedEvent && !matchPopupUser && (
+            <GenderPrompt
+              onSave={async (gender) => {
+                await api.updateProfile({ gender, genderConfirmed: true });
+                setCurrentUser((prev) => ({ ...prev, gender, genderConfirmed: true }));
+              }}
+              onClose={() => {
+                setIsGenderPromptDismissed(true);
+                try {
+                  localStorage.setItem('yesminsk_gender_later', String(Date.now()));
+                } catch {}
+              }}
             />
           )}
 
