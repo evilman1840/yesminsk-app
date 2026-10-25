@@ -156,6 +156,8 @@ export const App: React.FC = () => {
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
   // Открыть форму сходки: из карточки места, по ссылке из бота или поста
   const [isAgePromptDismissed, setIsAgePromptDismissed] = useState(false);
+  // Пол выбран в окне «Кто ты?»: в анкету кладём, когда окно закроется (иначе оно исчезнет до шага 2)
+  const [genderSavedInPrompt, setGenderSavedInPrompt] = useState<Gender | null>(null);
   // «Позже» в окне «Кто ты?» — не спрашиваем неделю
   const [isGenderPromptDismissed, setIsGenderPromptDismissed] = useState(() => {
     try {
@@ -1024,12 +1026,19 @@ export const App: React.FC = () => {
           {/* Пол не выбран: спрашиваем после возраста (за вход — не больше одного окна) */}
           {isMeLoaded && isTab && currentScreen !== 'profile_edit' && currentUser.ageConfirmed && currentUser.profileCompleted && !currentUser.genderConfirmed && currentUser.legalVersion === LEGAL_VERSION && !isGenderPromptDismissed && !isHomeTipOpen && !sharedEvent && !matchPopupUser && (
             <GenderPrompt
+              myAge={Number(currentUser.age) || 25}
               onSave={async (gender) => {
                 await api.updateProfile({ gender, genderConfirmed: true });
-                setCurrentUser((prev) => ({ ...prev, gender, genderConfirmed: true }));
+                // Пол сохраняем в анкете сразу, но окно не закрываем: дальше шаг «С кем комфортно»
+                setGenderSavedInPrompt(gender);
+              }}
+              onSavePrefs={async (prefs) => {
+                await api.updateProfile(prefs);
+                setCurrentUser((prev) => ({ ...prev, ...prefs }));
               }}
               onClose={() => {
                 setIsGenderPromptDismissed(true);
+                if (genderSavedInPrompt) setCurrentUser((prev) => ({ ...prev, gender: genderSavedInPrompt, genderConfirmed: true }));
                 try {
                   localStorage.setItem('yesminsk_gender_later', String(Date.now()));
                 } catch {}
