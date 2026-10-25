@@ -87,7 +87,14 @@ export const App: React.FC = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isUsersLoaded, setIsUsersLoaded] = useState(false);
   // Анкета пришла с сервера? До этого форму не показываем — иначе она заполнится пустыми значениями и «Сохранить» их перезапишет
+  // Анкета с сервера получена. Пока нет — анкету не показываем и не сохраняем,
+  // иначе значения по умолчанию (25 лет, пустое описание) затрут настоящие
   const [isMeLoaded, setIsMeLoaded] = useState(false);
+  const [meFailed, setMeFailed] = useState(false);
+  const isMeLoadedRef = useRef(false);
+  useEffect(() => {
+    isMeLoadedRef.current = isMeLoaded;
+  }, [isMeLoaded]);
   const [isFirstStepsHidden, setIsFirstStepsHidden] = useState(() => {
     try {
       return localStorage.getItem('yesminsk_first_steps_hidden') === '1';
@@ -277,7 +284,20 @@ export const App: React.FC = () => {
 
     const initUserData = async () => {
       try {
-        const me = await api.getMe();
+        // Сервер перезапускается или просыпается — пробуем ещё, около минуты
+        let me: any = null;
+        for (const delay of [0, 2000, 4000, 6000, 8000, 10000, 15000, 20000]) {
+          if (delay) await new Promise((res) => setTimeout(res, delay));
+          try {
+            me = await api.getMe();
+            break;
+          } catch (e: any) {
+            // 4xx (кроме 408/429) — повтор не поможет
+            const code = Number(e?.status || 0);
+            if (code >= 400 && code < 500 && code !== 408 && code !== 429) throw e;
+          }
+        }
+        if (!me) throw new Error('me unavailable');
         if (me) {
           let userCoords = getSavedCoordinates();
           const hasSaved = Boolean(localStorage.getItem('yesminsk_user_coords'));
@@ -352,10 +372,12 @@ export const App: React.FC = () => {
             setCurrentScreen('profile_create');
           }
         }
+        setIsMeLoaded(true);
+        setMeFailed(false);
       } catch (err) {
-        console.warn('Профиль me не получен (новый пользователь):', err);
+        console.warn('Профиль me не получен:', err);
+        setMeFailed(true);
       }
-      setIsMeLoaded(true);
 
       const [, loadedEvents, , , loadedPlaces] = await Promise.all([
         fetchNearbyUsers(),
@@ -456,6 +478,7 @@ export const App: React.FC = () => {
     coordinates?: [number, number];
     customCoordinates?: [number, number];
   }) => {
+    if (!isMeLoadedRef.current) throw new Error('Анкета ещё не загрузилась, попробуй через минуту');
     const rawCoords = formData.coordinates || formData.customCoordinates;
     const coords: [number, number] = (rawCoords && Array.isArray(rawCoords) && rawCoords.length === 2 && !isNaN(rawCoords[0]))
       ? rawCoords
@@ -827,7 +850,7 @@ export const App: React.FC = () => {
               </div>
             )}
 
-            {currentScreen === 'profile_create' && (isMeLoaded ? <ProfileFormScreen isFirstTime={true} initialData={currentUser} onSave={handleSaveProfile} /> : <ProfileLoading />)}
+            {currentScreen === 'profile_create' && (isMeLoaded ? <ProfileFormScreen isFirstTime={true} initialData={currentUser} onSave={handleSaveProfile} /> : <ProfileLoading failed={meFailed} />)}
 
             {currentScreen === 'profile_edit' &&
               (isMeLoaded ? (
@@ -842,7 +865,7 @@ export const App: React.FC = () => {
                   onAddToHome={() => setIsHomeTipOpen(true)}
                 />
               ) : (
-                <ProfileLoading />
+                <ProfileLoading failed={meFailed} />
               ))}
 
             {currentScreen === 'main' && (
@@ -1025,9 +1048,18 @@ export const App: React.FC = () => {
 export default App;
 
 // Пока анкета грузится с сервера (он может просыпаться до минуты)
-const ProfileLoading: React.FC = () => (
-  <div className="h-full flex flex-col items-center justify-center gap-3 text-zine-inkMuted">
-    <span className="w-8 h-8 rounded-full border-[3px] border-zine-border border-t-zine-terracotta animate-spin" />
-    <p className="text-body">Загружаем анкету…</p>
-  </div>
-);
+const ProfileLoading: React.FC<{ failed?: boolean }> = ({ failed }) =>
+  failed ? (
+    <div className="h-full flex flex-col items-center justify-center gap-3 px-8 text-center text-zine-inkMuted">
+      <p className="text-lead font-bold text-zine-ink">Не получилось загрузить анкету</p>
+      <p className="text-body">Сервер не ответил. Твои данные на месте, просто попробуй ещё раз.</p>
+      <button onClick={() => window.location.reload()} className="mt-2 h-12 px-6 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer">
+        Попробовать ещё раз
+      </button>
+    </div>
+  ) : (
+    <div className="h-full flex flex-col items-center justify-center gap-3 text-zine-inkMuted">
+      <span className="w-8 h-8 rounded-full border-[3px] border-zine-border border-t-zine-terracotta animate-spin" />
+      <p className="text-body">Загружаем анкету…</p>
+    </div>
+  );

@@ -72,7 +72,9 @@ class ApiService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Ошибка сервера (${response.status})`);
+        const err: any = new Error(errorData.error || `Ошибка сервера (${response.status})`);
+        err.status = response.status;
+        throw err;
       }
 
       if (response.status === 204) return undefined as T; // ответ без тела
