@@ -36,6 +36,7 @@ export const MEETUP_TEXTS = {
   moneyFree: 'Бесплатно',
   moneySplit: 'Делим аренду',
   moneyAmountPlaceholder: 'Сколько BYN с человека',
+  seatsMinTwo: 'Ты тоже занимаешь место, поэтому мест минимум 2: ты и ещё один человек',
   seatsHintPair: 'Для пары достаточно 2 мест, для пары на пару 4.',
   duration: (minutes: number) => `≈ ${String(Math.round((minutes / 60) * 10) / 10).replace('.', ',')} ч`,
 

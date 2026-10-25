@@ -199,6 +199,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [dateTime, setDateTime] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('0');
+  const [seatsBumped, setSeatsBumped] = useState(false);
   const [tags, setTags] = useState<EventTag[]>([]);
   // Сходка из карточки места — тогда напишем тем, кто его сохранил
   const [placeId, setPlaceId] = useState<string | null>(null);
@@ -591,7 +592,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         locationName: locationName.trim(),
         coordinates: resolvedCoords,
         dateTime: new Date(dateTime).toISOString(),
-        maxParticipants: Number(maxParticipants) || 0,
+        maxParticipants: Number(maxParticipants) === 1 ? 2 : Number(maxParticipants) || 0,
         tags,
         ...(placeId && !editingEventId ? { placeId } : {}),
         ...(templateKey && !editingEventId ? { templateId: templateKey } : {}),
@@ -1126,11 +1127,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   min={0}
                   value={maxParticipants === '0' ? '' : maxParticipants}
                   onChange={(e) => setMaxParticipants(String(Math.max(0, Math.floor(Number(e.target.value) || 0))))}
+                  // 1 место — сходка сразу полная: организатор занимает его сам
+                  onBlur={() => maxParticipants === '1' && (setMaxParticipants('2'), setSeatsBumped(true))}
                   placeholder="Без ограничений"
                   className="field flex-1"
                 />
               </div>
               <p className="mt-1.5 text-cap text-zine-inkMuted">Вместе с тобой и гостями участников. Пусто: сколько угодно</p>
+              {seatsBumped && <p className="mt-1.5 text-cap font-semibold text-zine-terracotta">{M.seatsMinTwo}</p>}
               {template?.fields.some((f) => f.options?.some((o) => o.seatsHint && o.value === extras[f.key])) && (
                 <p className="mt-1.5 text-cap font-semibold text-zine-ink">💡 {M.seatsHintPair}</p>
               )}
