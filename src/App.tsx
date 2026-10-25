@@ -27,6 +27,8 @@ import { ShareSheet } from './components/common/ShareSheet';
 import type { MapMode } from './screens/MapScreen';
 import { NewsItem } from './services/api';
 import { AREA_COORDINATES } from './config/areas';
+import { LegalUpdateOverlay } from './components/common/Legal';
+import { LEGAL_VERSION } from './texts/legal';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, placeForMeetup } from './types';
 
 
@@ -77,7 +79,9 @@ export const App: React.FC = () => {
     availableUntil: null as string | null,
     coordinates: getSavedCoordinates(),
     shownCoordinates: null as [number, number] | null, // где тебя видят другие (смещённая метка)
-    locationManual: false // метку поставили вручную
+    locationManual: false, // метку поставили вручную
+    legalVersion: '' as string, // какую редакцию Соглашения и Политики человек принял
+    hasAgreedToRules: false
   });
 
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -347,6 +351,8 @@ export const App: React.FC = () => {
             availableUntil: me.availableUntil || null,
             coordinates: userCoords,
             shownCoordinates: Array.isArray(me.shownCoordinates) ? me.shownCoordinates : null,
+            legalVersion: me.legalVersion || '',
+            hasAgreedToRules: Boolean(me.hasAgreedToRules),
             locationManual: Boolean(me.locationManual)
           }));
 
@@ -720,7 +726,8 @@ export const App: React.FC = () => {
     // Первый вход: сразу просим разрешить боту писать (иначе не дойдут ни напоминания, ни совпадения)
     askBotAccess();
     try {
-      await api.agreeToRules();
+      await api.agreeToRules(LEGAL_VERSION);
+      setCurrentUser((prev) => ({ ...prev, legalVersion: LEGAL_VERSION, hasAgreedToRules: true }));
     } catch (e) {
       console.warn('Agree rules warning:', e);
     }
@@ -987,6 +994,16 @@ export const App: React.FC = () => {
           )}
 
           {isHomeTipOpen && isTab && currentUser.ageConfirmed && !sharedEvent && !matchPopupUser && !selectedUser && <AddToHomeSheet onClose={closeHomeTip} />}
+
+          {/* Зарегистрировались до документов (или редакция обновилась) — принять Соглашение и Политику */}
+          {isMeLoaded && currentUser.hasAgreedToRules && currentUser.legalVersion !== LEGAL_VERSION && currentScreen !== 'onboarding' && currentScreen !== 'deleted' && currentScreen !== 'banned' && (
+            <LegalUpdateOverlay
+              onAccept={async () => {
+                await api.acceptLegal(LEGAL_VERSION);
+                setCurrentUser((prev) => ({ ...prev, legalVersion: LEGAL_VERSION }));
+              }}
+            />
+          )}
 
           {/* Возраст остался по умолчанию: один раз спрашиваем */}
           {isMeLoaded && isTab && currentScreen !== 'profile_edit' && !currentUser.ageConfirmed && !isAgePromptDismissed && !sharedEvent && !matchPopupUser && (

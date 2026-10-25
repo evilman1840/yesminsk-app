@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { AREA_GROUPS, RENAMED_AREAS } from '../config/areas';
+import { LegalSheet, LegalKind } from '../components/common/Legal';
+import { LEGAL_UI, PRIVACY } from '../texts/legal';
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea, EMPATH, formatTime } from '../types';
 import { HelpLine } from '../components/common/HelpLine';
 import { telegramService, ThemePreference } from '../services/telegram';
@@ -89,6 +91,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 }) => {
   const tgUser = telegramService.getUser();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<LegalKind | null>(null);
 
   const [name, setName] = useState<string>(
     initialData?.name || tgUser?.first_name || ''
@@ -877,6 +880,19 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               {HOME_TEXTS.profileRow}
             </button>
           )}
+
+          {/* Документы: Соглашение и Политика */}
+          {!isFirstTime && (
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm2">
+              <button type="button" onClick={() => setLegalDoc('terms')} className="h-10 font-semibold text-zine-inkMuted underline underline-offset-2 cursor-pointer">
+                {LEGAL_UI.terms}
+              </button>
+              <button type="button" onClick={() => setLegalDoc('privacy')} className="h-10 font-semibold text-zine-inkMuted underline underline-offset-2 cursor-pointer">
+                {PRIVACY.title}
+              </button>
+            </div>
+          )}
+          {legalDoc && <LegalSheet kind={legalDoc} onClose={() => setLegalDoc(null)} />}
 
           {/* В самом низу: удалить себя из приложения */}
           {!isFirstTime && onDeleteAccount && (

@@ -99,10 +99,16 @@ class ApiService {
     return this.request<any>('/users/me');
   }
 
-  async agreeToRules(): Promise<{ success: boolean; user?: any }> {
+  async agreeToRules(legalVersion?: string): Promise<{ success: boolean; user?: any }> {
     return this.request<{ success: boolean; user?: any }>('/users/agree-rules', {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ legalVersion })
     });
+  }
+
+  // Принять новую редакцию Соглашения и Политики (для уже зарегистрированных)
+  async acceptLegal(version: string): Promise<void> {
+    await this.request('/users/accept-legal', { method: 'POST', body: JSON.stringify({ version }) });
   }
 
   async getNearbyUsers(params?: {

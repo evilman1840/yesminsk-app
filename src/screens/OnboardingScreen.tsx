@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ConsentCheckbox, LegalSheet, LegalKind } from '../components/common/Legal';
+import { LEGAL_UI } from '../texts/legal';
 import { HeartHandshake, ShieldCheck, Cake } from 'lucide-react';
 import { telegramService } from '../services/telegram';
 import { Logo } from '../components/ui/Logo';
@@ -41,7 +43,19 @@ const RULES = [
  * Первый экран для новичка: о чём приложение и два правила
  */
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onAgree }) => {
-  const hasNativeAgree = useMainButton({ text: 'Выходим гулять!', onClick: onAgree });
+  // Согласие с Соглашением и Политикой — отдельной галочкой (так требует закон о персональных данных)
+  const [consent, setConsent] = useState(false);
+  const [highlight, setHighlight] = useState(false);
+  const [doc, setDoc] = useState<LegalKind | null>(null);
+  const tryAgree = () => {
+    if (!consent) {
+      setHighlight(true);
+      telegramService.haptic('error');
+      return;
+    }
+    onAgree();
+  };
+  const hasNativeAgree = useMainButton({ text: 'Выходим гулять!', onClick: tryAgree });
   return (
   <div className="flex flex-col h-full w-full bg-zine-paper overflow-y-auto px-6 pt-7">
     <Logo size="lg" withTagline />
@@ -72,19 +86,24 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onAgree }) =
 
     {/* Кнопка всегда видна внизу: в Telegram — нативная MainButton, в браузере — своя */}
     <div className="sticky bottom-0 mt-auto -mx-6 px-6 pt-5 pb-6 bg-gradient-to-t from-zine-paper via-zine-paper to-zine-paper/0">
+      {/* Согласие — над кнопкой, всегда на виду */}
+      <div className="mb-3">
+        <ConsentCheckbox checked={consent} onChange={setConsent} onOpen={setDoc} highlight={highlight} />
+        {highlight && !consent && <p className="mt-1.5 text-sm2 font-semibold text-zine-danger">{LEGAL_UI.needConsent}</p>}
+      </div>
       {!hasNativeAgree && (
       <button
         onClick={() => {
           telegramService.haptic('medium');
-          onAgree();
+          tryAgree();
         }}
         className="w-full h-14 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-lead font-bold shadow-zine active:scale-[0.98] transition-transform cursor-pointer"
       >
         Выходим гулять!
       </button>
       )}
-      <p className="mt-3 text-cap text-zine-inkMuted text-center">Нажимая кнопку, ты соглашаешься с правилами выше</p>
     </div>
+    {doc && <LegalSheet kind={doc} onClose={() => setDoc(null)} />}
   </div>
 );
 };
