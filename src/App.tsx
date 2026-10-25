@@ -283,10 +283,12 @@ export const App: React.FC = () => {
     telegramService.init();
 
     const initUserData = async () => {
+      // Люди, сходки, места грузятся сразу, не дожидаясь анкеты
+      const dataPromise = Promise.all([fetchNearbyUsers(), fetchEvents(), fetchInbox(true), fetchNews(), fetchPlaces()]);
       try {
-        // Сервер перезапускается или просыпается — пробуем ещё, около минуты
+        // Сервер перезапускается или просыпается — пробуем ещё (около 20 секунд)
         let me: any = null;
-        for (const delay of [0, 2000, 4000, 6000, 8000, 10000, 15000, 20000]) {
+        for (const delay of [0, 1500, 3000, 5000, 8000]) {
           if (delay) await new Promise((res) => setTimeout(res, delay));
           try {
             me = await api.getMe();
@@ -379,13 +381,7 @@ export const App: React.FC = () => {
         setMeFailed(true);
       }
 
-      const [, loadedEvents, , , loadedPlaces] = await Promise.all([
-        fetchNearbyUsers(),
-        fetchEvents(),
-        fetchInbox(true),
-        fetchNews(),
-        fetchPlaces()
-      ]);
+      const [, loadedEvents, , , loadedPlaces] = await dataPromise;
 
 
       // Открыли по ссылке на сходку или из уведомления бота
