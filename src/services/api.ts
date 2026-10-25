@@ -296,7 +296,15 @@ class ApiService {
   }
 
   // Воронка формы «Собрать сходку»: шаги без ожидания ответа
-  trackMeetupForm(data: { sessionId: string; step: 'opened' | 'template' | 'published' | 'closed'; template?: string; source?: MeetupFormSource; closedAt?: 'pick' | 'form' }) {
+  trackMeetupForm(data: {
+    sessionId: string;
+    step: 'opened' | 'template' | 'published' | 'closed' | 'error';
+    template?: string;
+    source?: MeetupFormSource;
+    closedAt?: 'pick' | 'form';
+    missing?: string[];
+    error?: string;
+  }) {
     this.request('/metrics/meetup-form', { method: 'POST', body: JSON.stringify(data) }).catch(() => {});
   }
 

@@ -27,6 +27,12 @@ export const MEETUP_TEXTS = {
   // Поля шаблона
   customOptionPlaceholder: 'Напиши своё',
   fieldRequired: (label: string) => `Заполни поле «${label}»`,
+  missingFields: (list: string) => `Осталось заполнить: ${list}`,
+  fieldNames: { title: 'название', description: 'пару слов о встрече', place: 'где встречаемся', time: 'когда' } as Record<string, string>,
+  placeNotFound: 'Не нашли этот адрес на карте. Выбери место из подсказок, нажми «Указать на карте» или «Я сейчас здесь».',
+  customCategoryRequired: 'Напиши, что будете делать, например «Караоке»',
+  saveFailed: 'Не получилось сохранить сходку, попробуй ещё раз',
+  fromPlaces: 'Из «Мест»:',
   moneyFree: 'Бесплатно',
   moneySplit: 'Делим аренду',
   moneyAmountPlaceholder: 'Сколько BYN с человека',

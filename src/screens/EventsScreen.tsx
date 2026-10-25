@@ -293,12 +293,34 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
   // Одно открытие формы — для воронки «открыли → выбрали идею → опубликовали»
   const formSession = useRef<{ id: string; done: boolean } | null>(null);
-  const track = (step: 'opened' | 'template' | 'published' | 'closed', extra: { template?: string; source?: MeetupFormSource; closedAt?: 'pick' | 'form' } = {}) => {
+  const track = (
+    step: 'opened' | 'template' | 'published' | 'closed' | 'error',
+    extra: { template?: string; source?: MeetupFormSource; closedAt?: 'pick' | 'form'; missing?: string[]; error?: string } = {}
+  ) => {
     if (formSession.current) api.trackMeetupForm({ sessionId: formSession.current.id, step, ...extra });
   };
+  // Места из «Мест» для подсказок в поле «Где встречаемся?»: сначала подходящие по типу шаблону, потом остальные
+  const placeHints = (() => {
+    const types = template && template.key !== CUSTOM_TEMPLATE ? template.placeTypes : [];
+    // У шаблона есть типы мест (кофе → кафе) — только подходящие; парки для кофе не предлагаем
+    if (types.length) return places.filter((p) => types.includes(p.category)).slice(0, 8);
+    return [...places].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 8);
+  })();
+
+  // Какие обязательные поля пустые — для подсказки и воронки
+  const missingFields = () => {
+    const list: string[] = [];
+    if (!title.trim()) list.push('title');
+    if (!description.trim()) list.push('description');
+    if (!locationName.trim()) list.push('place');
+    if (!dateTime) list.push('time');
+    if (template?.fields.some((f) => f.required && !extras[f.key])) list.push('templateField');
+    return list;
+  };
+
   const closeModal = () => {
     // Закрыли новую сходку, не опубликовав: где именно
-    if (!editingEventId && formSession.current && !formSession.current.done) track('closed', { closedAt: formStep });
+    if (!editingEventId && formSession.current && !formSession.current.done) track('closed', { closedAt: formStep, missing: formStep === 'form' ? missingFields() : undefined });
     formSession.current = null;
     setIsModalOpen(false);
   };
@@ -517,23 +539,30 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
   };
 
+  // Ошибка формы: показываем и записываем в воронку (чтобы понять, где бросают)
+  const failForm = (text: string, error: string) => {
+    setFormError(text);
+    if (!editingEventId) track('error', { error, missing: missingFields() });
+  };
+
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim() || !locationName.trim() || !dateTime) {
-      setFormError('Заполните все обязательные поля');
+    const missing = missingFields().filter((f) => f !== 'templateField');
+    if (missing.length) {
+      failForm(M.missingFields(missing.map((f) => M.fieldNames[f]).join(', ')), 'required');
       return;
     }
     if (isPhotoUploading) {
-      setFormError(PHOTO_TEXTS.wait);
+      failForm(PHOTO_TEXTS.wait, 'photoWait');
       return;
     }
     const missingField = template?.fields.find((f) => f.required && (!extras[f.key] || (extras[f.key] === 'other' && f.allowCustom && !extras[`${f.key}Custom`])));
     if (missingField) {
-      setFormError(M.fieldRequired(missingField.label));
+      failForm(M.fieldRequired(missingField.label), 'templateField');
       return;
     }
     if (category === 'other' && !customCategory.trim()) {
-      setFormError('Напиши, что будете делать, например «Караоке»');
+      failForm(M.customCategoryRequired, 'customCategory');
       return;
     }
 
@@ -544,7 +573,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       if (!resolvedCoords || resolvedCoords.length !== 2) {
         const found = await handleGeocodeAddress(locationName.trim());
         if (!found) {
-          setFormError('Не нашли этот адрес на карте. Напиши улицу и номер дома или нажми «Я сейчас здесь».');
+          failForm(M.placeNotFound, 'geocode');
           return;
         }
         resolvedCoords = found.coords;
@@ -593,7 +622,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       telegramService.haptic('success');
       onRefreshEvents?.();
     } catch (err: any) {
-      setFormError(err.message || 'Ошибка сохранения сходки');
+      failForm(err.message || M.saveFailed, 'server');
     } finally {
       setIsSubmitting(false);
     }
@@ -807,7 +836,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
       {isModalOpen && formStep === 'form' && (
         <BottomSheet title={editingEventId ? M.editMeetup : M.newMeetup} onClose={closeModal}>
-          <form ref={formRef} onSubmit={handleSubmitForm} className="space-y-5">
+          {/* noValidate: вместо всплывашек браузера (в Telegram их часто не видно) — наша подсказка, что именно не заполнено */}
+          <form ref={formRef} onSubmit={handleSubmitForm} noValidate className="space-y-5">
             {formError && (
               <div ref={formErrorRef} className="p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">{formError}</div>
             )}
@@ -878,7 +908,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   }
                 }}
                 placeholder="Например: ул. Ленина 5"
-                className="field"
+                className={`field ${formError && !locationName.trim() ? 'ring-2 ring-zine-danger/60' : ''}`}
                 required
               />
 
@@ -919,6 +949,36 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 </p>
               )}
 
+              {/* Подсказки из «Мест»: сначала подходящие под шаблон (кофе → кафе), чтобы не вписывать адрес */}
+              {placeHints.length > 0 && (
+                <div className="mt-3">
+                  <p className="mb-1.5 text-cap font-semibold text-zine-inkMuted">{M.fromPlaces}</p>
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
+                    {placeHints.map((p) => (
+                      <button
+                        type="button"
+                        key={p.id}
+                        onClick={() => {
+                          telegramService.haptic('selection');
+                          setLocationName(p.address && p.address !== p.name ? `${p.name}, ${p.address}` : p.name);
+                          setCustomCoords(p.coordinates);
+                          setPlaceLabel(p.name);
+                          setPlaceNotFound(false);
+                          setIsPickedOnMap(true);
+                          setPlaceId(p.id);
+                          setFormError(null);
+                        }}
+                        className={`h-10 px-3.5 shrink-0 rounded-full border text-sm2 whitespace-nowrap cursor-pointer ${
+                          placeId === p.id ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta font-semibold' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                        }`}
+                      >
+                        📍 {p.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-2 overflow-x-auto no-scrollbar mt-3 -mx-5 px-5">
                 {MINSK_SPOTS_PRESETS.slice(0, 6).map((spot) => (
                   <button
@@ -951,7 +1011,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Прогулка по Осмоловке с кофе"
-                className="field"
+                className={`field ${formError && !title.trim() ? 'ring-2 ring-zine-danger/60' : ''}`}
                 required
               />
             </Field>
@@ -1017,7 +1077,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
                 placeholder="Какой план, кого ждём, во что одеться"
-                className="field"
+                className={`field ${formError && !description.trim() ? 'ring-2 ring-zine-danger/60' : ''}`}
                 required
               />
             </Field>
