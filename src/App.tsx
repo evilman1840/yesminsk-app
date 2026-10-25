@@ -897,6 +897,7 @@ export const App: React.FC = () => {
                 onOpenProfile={() => handleNavigate('profile_edit')}
                 onJoinEvent={handleJoinEvent}
                 onUpdateLocation={handleUpdateLocation}
+                myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange }}
                 onSetShownLocation={async (c) => {
                   const r = await api.setShownLocation(c);
                   setCurrentUser(prev => ({ ...prev, shownCoordinates: r.shownCoordinates, locationManual: r.locationManual }));

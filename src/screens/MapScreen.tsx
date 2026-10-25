@@ -9,6 +9,8 @@ import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
+import { SlidersHorizontal } from 'lucide-react';
+import { PeopleFiltersSheet, PeopleFilters, MyPrefs, loadFilters, saveFilters, applyPeopleFilters, countActiveFilters } from '../components/people/PeopleFilters';
 import { Logo } from '../components/ui/Logo';
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
@@ -39,6 +41,7 @@ export interface MapScreenProps {
   onJoinEvent: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
   onUpdateLocation?: (coords: [number, number]) => void;
   onSetShownLocation?: (coords: [number, number] | null) => Promise<void>; // своя метка; null — случайное смещение
+  myPrefs?: MyPrefs; // «С кем комфортно» и «Возраст компании» из анкеты
   onSetAvailable: (hours: number) => Promise<void>;
   onOpenNews: () => void;
   unreadNews?: number;
@@ -100,6 +103,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onJoinEvent,
   onUpdateLocation,
   onSetShownLocation,
+  myPrefs = {},
   onSetAvailable,
   onOpenNews,
   unreadNews = 0,
@@ -122,7 +126,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
   const isPlaces = mapMode === 'places';
   // Во вкладке «Всё» нет строки фильтров — подсказки поднимаем выше
-  const overlayTop = mapMode === 'all' ? 'top-[150px]' : 'top-[210px]';
+  const overlayTop = 'top-[210px]';
   const filteredPlaces = (
     mood === 'all'
       ? places
@@ -195,7 +199,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     }
   };
 
-  const filteredUsers = users.filter((u) => matchesGoalFilter(u, selectedGoal));
+  // Фильтры людей — общие с «Людьми» (хранятся на устройстве); по умолчанию учитывают мои настройки из анкеты
+  const [peopleFilters, setPeopleFilters] = useState<PeopleFilters>(loadFilters);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  useEffect(() => saveFilters(peopleFilters), [peopleFilters]);
+  const activeFilters = countActiveFilters(peopleFilters);
+  const usersForMe = applyPeopleFilters(users, peopleFilters, myPrefs);
+  const filteredUsers = usersForMe.filter((u) => matchesGoalFilter(u, selectedGoal));
   // Сколько всего анкет: на карте только самые активные, а в шапке — все
   const [totalPeople, setTotalPeople] = useState(0);
   useEffect(() => {
@@ -213,7 +223,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   return (
     <div className="relative h-full w-full overflow-hidden bg-zine-paper">
       <MinskMap
-        users={mapMode === 'people' ? filteredUsers : mapMode === 'all' ? users : []}
+        users={mapMode === 'people' ? filteredUsers : mapMode === 'all' ? usersForMe : []}
         events={mapMode === 'events' ? filteredEvents : mapMode === 'all' ? events : []}
         places={isPlaces ? filteredPlaces : mapMode === 'all' ? places : []}
         onSelectPlace={(p) => {
@@ -352,7 +362,28 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
         {/* Фильтры выбранной вкладки */}
         <div className="pointer-events-auto">
-          {mapMode === 'people' && <GoalChips value={selectedGoal} onChange={onSelectGoal} floating />}
+          {(mapMode === 'people' || mapMode === 'all') && (
+            <div className="flex items-center gap-2 pl-4">
+              {/* Фильтры людей прямо на карте */}
+              <button
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  setIsFiltersOpen(true);
+                }}
+                className={`h-11 px-4 shrink-0 rounded-full text-sm2 font-semibold flex items-center gap-2 shadow-zine cursor-pointer active:scale-95 transition-transform ${
+                  activeFilters > 0 ? 'bg-zine-ink text-zine-paper' : 'bg-zine-cardElevated text-zine-ink border border-zine-border'
+                }`}
+              >
+                <SlidersHorizontal size={18} />
+                <span>Фильтры{activeFilters > 0 ? ` · ${activeFilters}` : ''}</span>
+              </button>
+              {mapMode === 'people' && (
+                <div className="min-w-0 flex-1">
+                  <GoalChips value={selectedGoal} onChange={onSelectGoal} floating wrapperClassName="flex gap-2 overflow-x-auto no-scrollbar pr-4" />
+                </div>
+              )}
+            </div>
+          )}
           {mapMode === 'events' && (
             <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
               {EVENT_WHEN.map(([id, label]) => (
@@ -691,6 +722,15 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             <span>Изменить анкету</span>
           </button>
         </BottomSheet>
+      )}
+
+      {isFiltersOpen && (
+        <PeopleFiltersSheet
+          value={peopleFilters}
+          onChange={setPeopleFilters}
+          resultCount={(mapMode === 'people' ? filteredUsers : usersForMe).length}
+          onClose={() => setIsFiltersOpen(false)}
+        />
       )}
 
       {/* Сходка на карте */}
