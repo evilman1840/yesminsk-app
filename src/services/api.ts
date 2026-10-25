@@ -318,6 +318,11 @@ class ApiService {
     return this.request('/places/suggest', { method: 'POST', body: JSON.stringify({ text, category, context }) });
   }
 
+  // Человек разрешил боту писать — бот пришлёт приветствие, чтобы появился диалог
+  async reportBotAccess(allowed: boolean): Promise<void> {
+    await this.request('/users/bot-access', { method: 'POST', body: JSON.stringify({ allowed }) });
+  }
+
   // Удалить себя из приложения
   async deleteAccount(): Promise<void> {
     await this.request('/users/me', { method: 'DELETE' });

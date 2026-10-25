@@ -425,6 +425,28 @@ export const telegramService = {
     });
   },
 
+  // Может ли бот писать человеку (Telegram сообщает при запуске мини-приложения)
+  allowsWriteToPm(): boolean {
+    const webapp: any = tg();
+    return Boolean(webapp?.initDataUnsafe?.user?.allows_write_to_pm);
+  },
+  // Системное окно «Разрешить боту писать вам?» (Telegram 6.9+). true — разрешили
+  requestWriteAccess(): Promise<boolean> {
+    const webapp: any = tg();
+    return new Promise((resolve) => {
+      if (!webapp?.initData || !webapp.isVersionAtLeast?.('6.9') || typeof webapp.requestWriteAccess !== 'function') return resolve(false);
+      try {
+        webapp.requestWriteAccess((allowed: boolean) => resolve(Boolean(allowed)));
+      } catch {
+        resolve(false);
+      }
+    });
+  },
+  canRequestWriteAccess(): boolean {
+    const webapp: any = tg();
+    return Boolean(webapp?.initData && webapp.isVersionAtLeast?.('6.9') && typeof webapp.requestWriteAccess === 'function');
+  },
+
   // Ярлык на экране телефона (Telegram 8.0+): можно ли добавить и добавлен ли уже
   platform(): string {
     return tg()?.platform || 'unknown';

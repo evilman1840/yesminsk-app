@@ -12,6 +12,7 @@ import { AgePrompt } from './components/common/AgePrompt';
 import { ACCOUNT_TEXTS } from './texts/account';
 import { AddToHomeSheet } from './components/common/AddToHomeSheet';
 import { OpenUserContext } from './context/openUser';
+import { askBotAccess, setBotAccessKnown, botAccessOk } from './services/botAccess';
 import { WishMembersSheet } from './components/common/WishMembersSheet';
 import { MatchModal, ReactionType } from './components/common/Reactions';
 import { ServerWakingBanner } from './components/common/ServerWakingBanner';
@@ -337,6 +338,19 @@ export const App: React.FC = () => {
             coordinates: userCoords
           }));
 
+          // Может ли бот писать: сервер знает про «Старт» в боте, Telegram — про разрешение при запуске
+          setBotAccessKnown(me.canMessage === true);
+          // Уже зарегистрированным, кому бот не может писать, — тоже спрашиваем, но не чаще раза в 3 дня
+          if (me.hasAgreedToRules && !botAccessOk()) {
+            try {
+              const last = Number(localStorage.getItem('yesminsk_bot_ask_at') || '0');
+              if (Date.now() - last > 3 * 24 * 60 * 60 * 1000) {
+                localStorage.setItem('yesminsk_bot_ask_at', String(Date.now()));
+                window.setTimeout(() => askBotAccess(), 2000);
+              }
+            } catch (e) {}
+          }
+
           if (me.isBanned) {
             setCurrentScreen('banned');
             return;
@@ -550,6 +564,8 @@ export const App: React.FC = () => {
   };
 
   const handleReact = async (user: UserProfile, type: ReactionType) => {
+    // 👋 — чтобы бот смог сообщить, когда ответят взаимно
+    if (type === 'like') askBotAccess();
     try {
       const result = await api.reactToUser(user.telegramId, type);
       const id = user.telegramId;
@@ -622,6 +638,8 @@ export const App: React.FC = () => {
   // Записаться на сходку (options — с кем идёшь; повторно — поменять) или отказаться (options = null).
   // Возвращает обновлённую сходку или null, если не получилось (например, закончились места)
   const handleJoinEvent = async (event: AppEvent, options: JoinOptions | null): Promise<AppEvent | null> => {
+    // Записался — пусть бот сможет прислать напоминание
+    if (options) askBotAccess();
     try {
       const mySeats = event.isJoined ? 1 + (event.myGuests || 0) : 0;
       let updated: AppEvent;
@@ -689,6 +707,8 @@ export const App: React.FC = () => {
   };
 
   const handleAgreeRules = async () => {
+    // Первый вход: сразу просим разрешить боту писать (иначе не дойдут ни напоминания, ни совпадения)
+    askBotAccess();
     try {
       await api.agreeToRules();
     } catch (e) {

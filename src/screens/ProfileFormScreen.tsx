@@ -9,6 +9,7 @@ import { PHOTO_TEXTS } from '../texts/photos';
 import { AGE_TEXTS } from '../texts/profile';
 import { ACCOUNT_TEXTS } from '../texts/account';
 import { HOME_TEXTS } from '../texts/home';
+import { BotAccessBanner } from '../components/common/BotAccessBanner';
 import { DeleteAccountSheet } from '../components/common/DeleteAccountSheet';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
 import { useBackButton, useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
@@ -413,6 +414,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
 
         <div className="mt-5 space-y-4">
+          {/* Бот не может писать — просим разрешить (иначе не дойдут напоминания и совпадения) */}
+          {!isFirstTime && <BotAccessBanner />}
+
           {/* Фото */}
           <Section>
             <div className="flex flex-col items-center text-center">

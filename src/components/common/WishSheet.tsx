@@ -8,6 +8,7 @@ import { BottomSheet } from '../ui/BottomSheet';
 import { WISH_TEXTS as T, wishLine } from '../../texts/wishes';
 import { SUGGEST_TEXTS as SG } from '../../texts/suggest';
 import { SuggestPlaceSheet } from './SuggestPlaceSheet';
+import { askBotAccess } from '../../services/botAccess';
 
 const WINDOWS: WishWindow[] = ['today', 'tomorrow', 'weekend', 'week'];
 // Счётчики этих желаний не показываем на карточках мест
@@ -72,6 +73,8 @@ export const WishSheet: React.FC<{
   const create = async (data: { kind: string; sport?: string | null; timeWindow: WishWindow; placeId?: string | null }) => {
     setBusy(true);
     setError(null);
+    // Желание — бот должен суметь написать о совпадении
+    askBotAccess();
     try {
       const res = await api.createWish(data);
       telegramService.haptic('success');
