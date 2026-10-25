@@ -64,12 +64,12 @@ export const PlacesScreen: React.FC<{
       {/* Фильтр настроений поверх карточек */}
       <div className="absolute top-0 inset-x-0 z-20 pt-3 pb-6 bg-gradient-to-b from-black/60 to-transparent">
         <div className="px-4 mb-2 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 shrink-0">
             <h1 className="font-serif font-bold text-title text-white">Места</h1>
-            {/* Сразу наверху: предложить своё место */}
+            {/* Сразу наверху: предложить своё место. Яркая кнопка, чтобы было заметно поверх фото */}
             <button
               onClick={() => setIsSuggestOpen(true)}
-              className="h-9 px-3 shrink-0 rounded-full bg-black/35 backdrop-blur border border-white/20 text-white text-sm2 font-semibold whitespace-nowrap cursor-pointer active:scale-95 transition-transform"
+              className="h-9 px-3.5 shrink-0 rounded-full bg-zine-terracotta text-white text-sm2 font-bold whitespace-nowrap shadow-lg shadow-black/30 cursor-pointer active:scale-95 transition-transform"
             >
               {SG.headerButton}
             </button>
