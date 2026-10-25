@@ -723,14 +723,15 @@ export const App: React.FC = () => {
   };
 
   const handleAgreeRules = async () => {
-    // Первый вход: сразу просим разрешить боту писать (иначе не дойдут ни напоминания, ни совпадения)
-    askBotAccess();
     try {
+      // Запись на сервере создаётся только сейчас, после согласия
       await api.agreeToRules(LEGAL_VERSION);
       setCurrentUser((prev) => ({ ...prev, legalVersion: LEGAL_VERSION, hasAgreedToRules: true }));
     } catch (e) {
       console.warn('Agree rules warning:', e);
     }
+    // Первый вход: просим разрешить боту писать (иначе не дойдут ни напоминания, ни совпадения)
+    askBotAccess();
     setCurrentScreen('profile_create');
   };
 
@@ -1002,6 +1003,7 @@ export const App: React.FC = () => {
                 await api.acceptLegal(LEGAL_VERSION);
                 setCurrentUser((prev) => ({ ...prev, legalVersion: LEGAL_VERSION }));
               }}
+              onDecline={handleDeleteAccount}
             />
           )}
 

@@ -67,7 +67,9 @@ export const ConsentCheckbox: React.FC<{ checked: boolean; onChange: (v: boolean
 /**
  * Для тех, кто зарегистрировался до документов: принять новую редакцию. Закрыть без принятия нельзя
  */
-export const LegalUpdateOverlay: React.FC<{ onAccept: () => Promise<void> }> = ({ onAccept }) => {
+export const LegalUpdateOverlay: React.FC<{ onAccept: () => Promise<void>; onDecline: () => Promise<void> }> = ({ onAccept, onDecline }) => {
+  // Отказаться так же просто, как согласиться: удалить аккаунт (отзыв согласия)
+  const [isDeclining, setIsDeclining] = useState(false);
   const [checked, setChecked] = useState(false);
   const [highlight, setHighlight] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -92,6 +94,37 @@ export const LegalUpdateOverlay: React.FC<{ onAccept: () => Promise<void> }> = (
     }
   };
 
+  const decline = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await onDecline();
+    } catch {
+      setError(T.failed);
+      setBusy(false);
+    }
+  };
+
+  if (isDeclining) {
+    return (
+      <div className="fixed inset-0 z-40 bg-black/50 flex items-end justify-center">
+        <div className="w-full max-w-md bg-zine-paper rounded-t-zine px-5 pt-6 pb-8">
+          <h2 className="font-serif font-bold text-title text-zine-ink">{T.declineTitle}</h2>
+          <p className="mt-2 text-body text-zine-inkMuted">{T.declineText}</p>
+          {error && <p className="mt-2 text-sm2 font-semibold text-zine-danger">{error}</p>}
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <button onClick={() => setIsDeclining(false)} disabled={busy} className="h-12 rounded-zine-sm bg-zine-card text-body font-semibold text-zine-ink cursor-pointer">
+              {T.declineBack}
+            </button>
+            <button onClick={decline} disabled={busy} className="h-12 rounded-zine-sm bg-zine-danger text-white text-body font-bold flex items-center justify-center cursor-pointer">
+              {busy ? <Loader2 size={20} className="animate-spin" /> : T.declineConfirm}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-40 bg-black/50 flex items-end justify-center">
       <div className="w-full max-w-md bg-zine-paper rounded-t-zine px-5 pt-6 pb-8">
@@ -110,6 +143,9 @@ export const LegalUpdateOverlay: React.FC<{ onAccept: () => Promise<void> }> = (
           }`}
         >
           {busy ? <Loader2 size={22} className="animate-spin" /> : T.accept}
+        </button>
+        <button onClick={() => setIsDeclining(true)} disabled={busy} className="mt-2 w-full h-11 text-sm2 font-semibold text-zine-inkMuted cursor-pointer">
+          {T.decline}
         </button>
       </div>
       {doc && <LegalSheet kind={doc} onClose={() => setDoc(null)} />}
