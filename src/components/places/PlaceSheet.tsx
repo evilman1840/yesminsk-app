@@ -10,6 +10,15 @@ import { priceShort } from '../../texts/meetups';
 import { WishSheet, DELICATE_KINDS } from '../common/WishSheet';
 import { WISH_TEXTS } from '../../texts/wishes';
 import { InfoToast } from '../ui/InfoToast';
+import { useOpenUser } from '../../context/openUser';
+
+// Круглая аватарка; без фото — первая буква имени
+const Avatar: React.FC<{ url?: string; name: string }> = ({ url, name }) =>
+  url ? (
+    <img src={url} alt={name} className="w-10 h-10 rounded-full object-cover shrink-0 bg-zine-cardElevated" />
+  ) : (
+    <span className="w-10 h-10 rounded-full bg-zine-cardElevated flex items-center justify-center text-body font-bold text-zine-inkMuted shrink-0">{name.slice(0, 1)}</span>
+  );
 
 // Сходки в этом месте: привязанные к нему или собранные в паре десятков метров
 const eventsAtPlace = (place: PlaceItem, events: AppEvent[]) => {
@@ -79,6 +88,7 @@ export const PlaceSheet: React.FC<{
   const [openedEventId, setOpenedEventId] = useState<string | null>(null);
   const openedEvent = placeEvents.find((ev) => ev.id === openedEventId) || null;
   const [isSaving, setIsSaving] = useState(false);
+  const openUser = useOpenUser();
   const [tips, setTips] = useState<PlaceTipItem[]>([]);
   const [isTipsLoading, setIsTipsLoading] = useState(true);
   const [tipText, setTipText] = useState('');
@@ -273,6 +283,20 @@ export const PlaceSheet: React.FC<{
         </button>
       </section>
 
+      {/* Вайбы места: нажать — статья в блоге */}
+      {place.moods.length > 0 && (
+        <div className="mt-5 -mx-5 pl-5 pr-10 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
+          {place.moods.map((m) => (
+            <button
+              key={m}
+              onClick={() => telegramService.openLink(PLACE_MOODS[m].blog)}
+              className="h-9 px-3 shrink-0 whitespace-nowrap rounded-full bg-zine-sage/15 text-zine-ink text-sm2 font-semibold cursor-pointer"
+            >
+              {PLACE_MOODS[m].emoji} {PLACE_MOODS[m].label}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Куда с детьми */}
       {place.kidsLevel && KIDS_LEVELS[place.kidsLevel] && (
         <div className="mt-5 p-4 rounded-zine bg-zine-sky/10">
@@ -287,6 +311,21 @@ export const PlaceSheet: React.FC<{
           <p className="text-sm2 font-bold text-zine-ink">💡 Совет от Миши</p>
           <p className="mt-1 text-sm2 text-zine-ink">{place.mishaTip}</p>
         </div>
+      )}
+
+      {/* Кто добавил место: нажать — его анкета */}
+      {place.author && (
+        <button
+          onClick={() => openUser(place.author!.telegramId)}
+          className="mt-3 w-full p-3 rounded-zine-sm bg-zine-card flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform"
+        >
+          <Avatar url={place.author.avatarUrl} name={place.author.name} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-cap text-zine-inkMuted">Автор места</span>
+            <span className="block text-body font-bold text-zine-ink truncate">{place.author.name}</span>
+          </span>
+          <ChevronRight size={20} className="shrink-0 text-zine-inkMuted" />
+        </button>
       )}
 
       {/* Адрес, часы, телефон, сайт, цена — одним списком */}
@@ -307,20 +346,6 @@ export const PlaceSheet: React.FC<{
         </section>
       )}
 
-      {/* Настроения и удобства — лёгкой строкой */}
-      {place.moods.length > 0 && (
-        <div className="mt-4 -mx-5 pl-5 pr-10 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
-          {place.moods.map((m) => (
-            <button
-              key={m}
-              onClick={() => telegramService.openLink(PLACE_MOODS[m].blog)}
-              className="h-9 px-3 shrink-0 whitespace-nowrap rounded-full bg-zine-sage/15 text-zine-ink text-sm2 font-semibold cursor-pointer"
-            >
-              {PLACE_MOODS[m].emoji} {PLACE_MOODS[m].label}
-            </button>
-          ))}
-        </div>
-      )}
       {place.amenities && place.amenities.length > 0 && (
         <p className="mt-3 text-sm2 text-zine-inkMuted">{place.amenities.map((a) => `${amenityEmoji(a)} ${a}`).join('  ·  ')}</p>
       )}
@@ -375,15 +400,18 @@ export const PlaceSheet: React.FC<{
           ) : (
             tips.map((tip) => (
               <div key={tip.id} className="flex gap-3">
-                {tip.avatarUrl ? (
-                  <img src={tip.avatarUrl} alt={tip.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
-                ) : (
-                  <span className="w-10 h-10 rounded-full bg-zine-card flex items-center justify-center text-body font-bold text-zine-inkMuted shrink-0">
-                    {tip.name.slice(0, 1)}
-                  </span>
-                )}
+                <button
+                  onClick={() => tip.telegramId && openUser(tip.telegramId)}
+                  disabled={!tip.telegramId}
+                  aria-label={`Анкета: ${tip.name}`}
+                  className="shrink-0 self-start cursor-pointer disabled:cursor-default"
+                >
+                  <Avatar url={tip.avatarUrl} name={tip.name} />
+                </button>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm2 font-bold text-zine-ink">{tip.name}</p>
+                  <button onClick={() => tip.telegramId && openUser(tip.telegramId)} className="text-sm2 font-bold text-zine-ink text-left cursor-pointer">
+                    {tip.name}
+                  </button>
                   <p className="text-body text-zine-ink break-words">{tip.text}</p>
                 </div>
                 {tip.isMine && (

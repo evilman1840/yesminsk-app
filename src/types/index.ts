@@ -454,6 +454,7 @@ export interface PlaceItem {
   kidsLevel?: KidsLevel | null;
   kidsNote?: string;
   savedByOthers?: number; // сколько ещё людей сохранили место
+  author?: { telegramId: number; name: string; avatarUrl: string } | null; // кто добавил место
 }
 
 // Место из «Мест» → место для формы сходки
@@ -466,6 +467,7 @@ export const placeForMeetup = (p: PlaceItem): MeetupPlace => ({
 
 export interface PlaceTipItem {
   id: string;
+  telegramId?: number; // по аватарке открываем анкету
   name: string;
   avatarUrl: string;
   text: string;

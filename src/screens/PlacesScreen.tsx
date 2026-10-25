@@ -288,6 +288,19 @@ const PlaceReel: React.FC<{
           </p>
         )}
         <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight">{place.name}</h2>
+        {/* Вайбы места: первый с названием, остальные эмодзи */}
+        {place.moods.length > 0 && (
+          <div className="mt-2 pr-16 flex gap-1.5">
+            <span className="h-7 px-2.5 rounded-full bg-white/15 backdrop-blur text-cap font-semibold text-white inline-flex items-center gap-1 whitespace-nowrap">
+              {PLACE_MOODS[place.moods[0]].emoji} {PLACE_MOODS[place.moods[0]].label}
+            </span>
+            {place.moods.length > 1 && (
+              <span className="h-7 px-2.5 rounded-full bg-white/15 backdrop-blur text-cap text-white inline-flex items-center gap-1 whitespace-nowrap">
+                {place.moods.slice(1).map((m) => PLACE_MOODS[m].emoji).join(' ')}
+              </span>
+            )}
+          </div>
+        )}
         {place.description && <p className="mt-1.5 pr-16 text-body text-white/85 line-clamp-2">{place.description}</p>}
         <span className="mt-3 inline-flex items-center gap-1 text-sm2 font-bold text-white">
           Подробнее
