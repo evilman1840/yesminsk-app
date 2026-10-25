@@ -207,11 +207,16 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const usersForMe = applyPeopleFilters(users, peopleFilters, myPrefs);
   const filteredUsers = usersForMe.filter((u) => matchesGoalFilter(u, selectedGoal));
   // Сколько всего анкет: на карте только самые активные, а в шапке — все
+  // В шапке — сколько всего людей в приложении (видно, что тут живое сообщество)
   const [totalPeople, setTotalPeople] = useState(0);
   useEffect(() => {
-    api.getNearbyCount().then(setTotalPeople).catch(() => {});
+    api
+      .getNearbyCount()
+      .then((r) => setTotalPeople(r.all || r.total))
+      .catch(() => {});
   }, [users.length]);
   const peopleCount = Math.max(totalPeople, users.length);
+
   // Для шапки: «⚡ могут сейчас» — первыми, лица с фото
   const freeNowCount = users.filter((u) => isAvailableNow(u)).length;
   const nearbyFaces = [...users]
@@ -296,7 +301,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                       ))}
                     </span>
                     <span className="min-w-0 text-left leading-tight">
-                      <span className="block text-cap font-bold text-zine-ink whitespace-nowrap">{peopleCount} рядом</span>
+                      <span className="block text-cap font-bold text-zine-ink whitespace-nowrap">{peopleCount.toLocaleString('ru-RU')} с нами</span>
                       <span className="block text-[11px] text-zine-inkMuted whitespace-nowrap">
                         {freeNowCount > 0 ? `⚡ ${freeNowCount} ${freeNowCount === 1 ? 'может' : 'могут'} сейчас` : 'загляни к ним'}
                       </span>
