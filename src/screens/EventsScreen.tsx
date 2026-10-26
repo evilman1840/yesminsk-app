@@ -1346,11 +1346,11 @@ const EventReel: React.FC<{
           </div>
         )}
         {!ev.photos?.length && <div className="mb-3 text-[72px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>}
-        {/* Одна строка-подпись: от ДА! МИНСК · категория · пометки значками */}
+        {/* Одна строка-подпись: от ГУЛЯЙ! · категория · пометки значками */}
         <p className="pr-16 text-sm2 font-semibold text-white/85 flex items-center gap-x-2 whitespace-nowrap overflow-hidden">
           {ev.isOfficial && (
             <>
-              <span className="text-[#FFD9A8]">⭐ ДА! МИНСК</span>
+              <span className="text-[#FFD9A8]">⭐ Рекомендуем</span>
               <span className="text-white/40">·</span>
             </>
           )}

@@ -864,7 +864,7 @@ export const App: React.FC = () => {
                 <div className="text-[56px] mb-4">🚫</div>
                 <h1 className="font-serif font-bold text-display text-zine-ink">Аккаунт заблокирован</h1>
                 <p className="mt-3 text-body text-zine-inkMuted">
-                  Мы заблокировали аккаунт за нарушение правил ДА! МИНСК. Если считаешь, что это ошибка, напиши боту @yesminsk_app_bot.
+                  Мы заблокировали аккаунт за нарушение правил «ГУЛЯЙ!». Если считаешь, что это ошибка, напиши боту @yesminsk_app_bot.
                 </p>
               </div>
             )}

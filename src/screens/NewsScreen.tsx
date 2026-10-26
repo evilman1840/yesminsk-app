@@ -28,7 +28,7 @@ export const NewsScreen: React.FC<{ news: NewsItem[]; isLoading: boolean; onOpen
           )}
           <h1 className="font-serif font-bold text-display text-zine-ink">Новости проекта</h1>
         </div>
-        <p className="mt-1 text-body text-zine-inkMuted">Что нового в ДА! МИНСК и куда идут донаты</p>
+        <p className="mt-1 text-body text-zine-inkMuted">Что нового в «ГУЛЯЙ!» и куда идут донаты</p>
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">

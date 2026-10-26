@@ -52,7 +52,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
     return (
       <BottomSheet title="Спасибо! 💛" onClose={onClose}>
         <p className="text-body text-zine-ink">
-          Твоя поддержка помогает ДА! МИНСК оставаться бесплатным, а больше половины суммы вернётся людям подарками и приятными сюрпризами. Это очень ценно.
+          Твоя поддержка помогает «ГУЛЯЙ!» оставаться бесплатным, а больше половины суммы вернётся людям подарками и приятными сюрпризами. Это очень ценно.
         </p>
         <button onClick={onClose} className="mt-5 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer">
           Пожалуйста!
@@ -65,7 +65,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
     <BottomSheet title="Поддержать проект" onClose={onClose}>
       <p className="text-lead font-bold text-zine-ink">🔥 Поддержи проект 1 рублём или больше</p>
       <p className="mt-2 text-body text-zine-ink">
-        Привет! Я Миша Спасатель Позднев, автор ДА! МИНСК. Приложение бесплатное и без рекламы, и я хочу, чтобы донаты возвращались к людям.
+        Привет! Я Миша Спасатель Позднев, автор «ГУЛЯЙ!». Приложение бесплатное и без рекламы, и я хочу, чтобы донаты возвращались к людям.
       </p>
 
       {/* Куда идут деньги: 51% — людям, 49% — на проект */}

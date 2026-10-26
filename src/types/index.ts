@@ -223,7 +223,7 @@ export interface AppEvent {
   isJoined: boolean;
   myGuests?: number;         // сколько я веду с собой
   myWithKids?: boolean;
-  isOfficial?: boolean; // «⭐ От ДА! МИНСК» — сходка автора проекта
+  isOfficial?: boolean; // «⭐ От ГУЛЯЙ!» — сходка автора проекта
   placeId?: string;     // сходка в месте из «Мест»
   templateId?: string;  // по какому шаблону собрана
   durationMinutes?: number;

@@ -97,7 +97,7 @@ export const EventDetails: React.FC<{
         </div>
       )}
 
-      {event.isOfficial && <p className="text-sm2 font-bold text-zine-terracotta">⭐ От ДА! МИНСК: тут рады новичкам</p>}
+      {event.isOfficial && <p className="text-sm2 font-bold text-zine-terracotta">⭐ Тут рады новичкам</p>}
 
       {/* Категория и пометки */}
       <div className={`${event.isOfficial ? 'mt-2' : ''} flex flex-wrap gap-1.5`}>

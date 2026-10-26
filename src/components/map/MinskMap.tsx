@@ -494,7 +494,7 @@ const MinskMapContent: React.FC<{
               properties={{
                 eventId: eventIdStr,
                 eventEmoji: catConfig.emoji || '⭐️',
-                // Официальные сходки ДА! МИНСК — терракотовые, остальные — горчичные
+                // Официальные сходки ГУЛЯЙ! — терракотовые, остальные — горчичные
                 accent: ev.isOfficial ? '#D95C3C' : '#E2A03F',
                 displayTitle,
                 displayWhen,
