@@ -570,7 +570,13 @@ export const App: React.FC = () => {
   // 👋 Пообщаться / 🙈 Скрыть
   // Открыть анкету по id (аватарки в «Кто идёт» и т.п.): сначала из того, что уже загружено, потом с сервера
   const openUserById = useCallback((telegramId: number) => {
-    if (!telegramId || telegramId === currentUserIdRef.current) return;
+    if (!telegramId) return;
+    // Своя анкета (например, «Автор места» — это ты) — открываем «Я»
+    if (telegramId === currentUserIdRef.current) {
+      setSelectedUser(null);
+      setCurrentScreen('profile_edit');
+      return;
+    }
     const known = [...usersRef.current, ...likedMeRef.current, ...matchesRef.current].find((u) => u.telegramId === telegramId);
     if (known) {
       setSelectedUser(known);
