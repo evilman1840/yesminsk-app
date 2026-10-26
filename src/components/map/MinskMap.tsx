@@ -1,4 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
+import { thumb } from '../../utils/thumb';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 import { LocateFixed } from 'lucide-react';
 import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, eventCategoryOf, isAvailableNow, isVentingNow, PlaceItem, PLACE_MOODS } from '../../types';
@@ -301,7 +302,7 @@ const MinskMapContent: React.FC<{
           key={`current-user-${currentUserCoords[0]}-${currentUserCoords[1]}`}
           geometry={currentUserCoords}
           properties={{
-            avatarUrl: currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            avatarUrl: thumb(currentUser.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
             name: currentUser.name || currentUser.firstName || 'Ты',
             goalEmoji: (GOALS_CONFIG[currentUser.goal || 'walk'] || { emoji: '☕️' }).emoji
           }}
@@ -423,7 +424,7 @@ const MinskMapContent: React.FC<{
               geometry={coords}
               properties={{
                 userId: userIdStr,
-                avatarUrl: user.avatarUrl,
+                avatarUrl: thumb(user.avatarUrl),
                 name: user.firstName,
                 // «⚡ Свободен сейчас» — зелёная обводка и молния вместо значка цели
                 goalEmoji: available ? '⚡' : user.isGuide ? '🧭' : goalInfo.emoji,
@@ -707,7 +708,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
               };
               const [img, emoji, title, subtitle] =
                 item.kind === 'user'
-                  ? [item.user.avatarUrl, '', item.user.firstName, 'Человек рядом']
+                  ? [thumb(item.user.avatarUrl), '', item.user.firstName, 'Человек рядом']
                   : item.kind === 'event'
                   ? ['', EVENT_CATEGORIES_CONFIG[item.event.category]?.emoji || '📍', item.event.title, 'Сходка']
                   : [item.place.photos[0] ? serverUrl(item.place.photos[0]) : '', PLACE_MOODS[item.place.moods[0]]?.emoji || '📍', item.place.name, 'Место'];

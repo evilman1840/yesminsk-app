@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { thumb } from '../utils/thumb';
 import { api } from '../services/api';
 import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, HelpCircle } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
@@ -297,7 +298,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                   >
                     <span className="flex shrink-0 pl-2">
                       {nearbyFaces.map((u) => (
-                        <img key={u.id} src={u.avatarUrl} alt="" className="-ml-2 w-7 h-7 rounded-full object-cover border-2 border-zine-cardElevated bg-zine-card" />
+                        <img key={u.id} src={thumb(u.avatarUrl)} alt="" className="-ml-2 w-7 h-7 rounded-full object-cover border-2 border-zine-cardElevated bg-zine-card" />
                       ))}
                     </span>
                     <span className="min-w-0 text-left leading-tight">

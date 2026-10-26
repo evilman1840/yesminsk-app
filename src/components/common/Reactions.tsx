@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { thumb } from '../../utils/thumb';
 import { Send, Lock, Loader2 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { telegramService } from '../../services/telegram';
@@ -147,7 +148,7 @@ export const MatchModal: React.FC<{
           <img src={myAvatarUrl} alt="Ты" className="w-24 h-24 rounded-zine object-cover border-4 border-zine-cardElevated shadow-zine -rotate-6" />
         )}
         <span className="text-[32px] -mx-3 z-10">🤝</span>
-        <img src={user.avatarUrl} alt={user.firstName} className="w-24 h-24 rounded-zine object-cover border-4 border-zine-cardElevated shadow-zine rotate-6" />
+        <img src={thumb(user.avatarUrl)} alt={user.firstName} className="w-24 h-24 rounded-zine object-cover border-4 border-zine-cardElevated shadow-zine rotate-6" />
       </div>
       <h2 className="font-serif font-bold text-display text-zine-ink mb-2">Вы на связи!</h2>
       <p className="text-body text-zine-inkMuted mb-6">

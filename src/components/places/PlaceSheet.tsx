@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { thumb } from '../../utils/thumb';
 import { MapPin, Navigation, CalendarPlus, BookOpen, Loader2, Trash2, Bookmark, BookmarkCheck, Star, Clock, Phone, Globe, ChevronRight, Sparkles } from 'lucide-react';
 import { WishSummaryItem, PlaceItem, PlaceTipItem, PLACE_MOODS, PLACE_PRICES, placeTypeEmoji, formatRatingCount, KIDS_LEVELS, AppEvent, JoinOptions, eventCategoryOf } from '../../types';
 import { api, serverUrl } from '../../services/api';
@@ -319,7 +320,7 @@ export const PlaceSheet: React.FC<{
           onClick={() => openUser(place.author!.telegramId)}
           className="mt-3 w-full p-3 rounded-zine-sm bg-zine-card flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform"
         >
-          <Avatar url={place.author.avatarUrl} name={place.author.name} />
+          <Avatar url={thumb(place.author.avatarUrl)} name={place.author.name} />
           <span className="min-w-0 flex-1">
             <span className="block text-cap text-zine-inkMuted">Автор места</span>
             <span className="block text-body font-bold text-zine-ink truncate">{place.author.name}</span>
@@ -406,7 +407,7 @@ export const PlaceSheet: React.FC<{
                   aria-label={`Анкета: ${tip.name}`}
                   className="shrink-0 self-start cursor-pointer disabled:cursor-default"
                 >
-                  <Avatar url={tip.avatarUrl} name={tip.name} />
+                  <Avatar url={thumb(tip.avatarUrl)} name={tip.name} />
                 </button>
                 <div className="min-w-0 flex-1">
                   <button onClick={() => tip.telegramId && openUser(tip.telegramId)} className="text-sm2 font-bold text-zine-ink text-left cursor-pointer">

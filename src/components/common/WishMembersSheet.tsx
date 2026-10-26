@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { thumb } from '../../utils/thumb';
 import { Loader2, ChevronRight } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { api } from '../../services/api';
@@ -92,7 +93,7 @@ export const WishMembersSheet: React.FC<{
         ) : (
           members.map((u) => (
             <button key={u.telegramId} onClick={() => onOpenUser(u)} className="w-full p-3 rounded-zine-sm bg-zine-card flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform">
-              <img src={u.avatarUrl} alt={u.firstName} className="w-14 h-14 rounded-full object-cover bg-zine-cardElevated shrink-0" />
+              <img src={thumb(u.avatarUrl)} alt={u.firstName} className="w-14 h-14 rounded-full object-cover bg-zine-cardElevated shrink-0" />
               <span className="min-w-0 flex-1">
                 <span className="block text-body font-bold text-zine-ink truncate">
                   {u.firstName}

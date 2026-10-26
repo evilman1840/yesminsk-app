@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { thumb } from '../utils/thumb';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem } from '../types';
 import { telegramService } from '../services/telegram';
@@ -1495,7 +1496,7 @@ const EventReel: React.FC<{
               {(people.length ? people.slice(0, 3) : [ev.creator]).map((p, i) => (
                 <img
                   key={`${p?.telegramId}-${i}`}
-                  src={p?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                  src={thumb(p?.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
                   alt=""
                   className="w-8 h-8 rounded-full object-cover border-2 border-black/40"
                 />

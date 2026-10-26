@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { thumb } from '../../utils/thumb';
 import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2 } from 'lucide-react';
 import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES } from '../../types';
 import { HelpLine } from './HelpLine';
@@ -153,7 +154,7 @@ export const EventDetails: React.FC<{
             onClick={() => openUser(Number(event.creator.telegramId))}
             className="min-w-0 flex-1 flex items-center gap-3 text-left cursor-pointer disabled:cursor-default"
           >
-            <Avatar src={event.creator?.avatarUrl} name={event.creator?.name || '?'} />
+            <Avatar src={thumb(event.creator?.avatarUrl)} name={event.creator?.name || '?'} />
             <span className="min-w-0 flex-1">
               <span className="block text-body font-bold text-zine-ink truncate">{isCreator ? 'Ты' : event.creator?.name}</span>
               <span className="block text-sm2 text-zine-inkMuted">собирает сходку</span>
@@ -185,7 +186,7 @@ export const EventDetails: React.FC<{
             {others.map((p) => (
               <div key={p.telegramId} className="flex items-center gap-3">
                 <button type="button" onClick={() => openUser(p.telegramId)} className="min-w-0 flex-1 flex items-center gap-3 text-left cursor-pointer">
-                  <Avatar src={p.avatarUrl} name={p.name} size="w-10 h-10" />
+                  <Avatar src={thumb(p.avatarUrl)} name={p.name} size="w-10 h-10" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-body font-semibold text-zine-ink truncate">
                       {p.name}
@@ -218,7 +219,7 @@ export const EventDetails: React.FC<{
             {others.map((p) => (
               <button type="button" key={p.telegramId} onClick={() => openUser(p.telegramId)} className="w-14 shrink-0 flex flex-col items-center gap-1 cursor-pointer">
                 <div className="relative">
-                  <Avatar src={p.avatarUrl} name={p.name} size="w-12 h-12" />
+                  <Avatar src={thumb(p.avatarUrl)} name={p.name} size="w-12 h-12" />
                   {(p.guests || p.withKids) && (
                     <span className="absolute -bottom-1 -right-1 px-1 rounded-full bg-zine-cardElevated text-[11px] font-bold text-zine-ink shadow">
                       {p.withKids ? '👶' : ''}
