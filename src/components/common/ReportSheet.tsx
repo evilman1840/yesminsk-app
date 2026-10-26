@@ -5,6 +5,7 @@ import { api } from '../../services/api';
 import { telegramService } from '../../services/telegram';
 
 const REASONS = [
+  { id: 'photo', label: '📷 Неприличное фото' },
   { id: 'flirt', label: '💋 Флирт, намёки на свидания' },
   { id: 'rude', label: '😠 Грубость, оскорбления' },
   { id: 'spam', label: '📢 Спам или реклама' },
