@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FundBar } from '../components/common/FundBar';
 import { ArrowLeft } from 'lucide-react';
 import { useBackButton } from '../hooks/useTelegram';
 import { NewsItem, serverUrl } from '../services/api';
@@ -32,6 +33,8 @@ export const NewsScreen: React.FC<{ news: NewsItem[]; isLoading: boolean; onOpen
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">
+        {/* Сколько собрано донатов */}
+        <FundBar />
         <button
           onClick={onOpenDonate}
           className="w-full p-4 rounded-zine bg-zine-terracotta/10 border border-zine-terracotta/25 flex items-center gap-3 text-left cursor-pointer"

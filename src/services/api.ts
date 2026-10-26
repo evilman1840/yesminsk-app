@@ -268,6 +268,11 @@ class ApiService {
   }
 
   // Новости проекта (автор пишет их боту командой /news)
+  // Шкала донатов: всего собрано и сколько из этого в котёл для пользователей (автор обновляет через /fund)
+  async getFund(): Promise<{ total: number; community: number }> {
+    return this.request('/fund');
+  }
+
   async getNews(): Promise<NewsItem[]> {
     return this.request('/news');
   }

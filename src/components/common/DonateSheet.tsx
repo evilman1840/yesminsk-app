@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FundBar } from './FundBar';
 import { Loader2, ExternalLink, Copy, Check } from 'lucide-react';
 import { BottomSheet } from '../ui/BottomSheet';
 import { api } from '../../services/api';
@@ -68,13 +69,12 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
         Привет! Я Миша Спасатель Позднев, автор «ГУЛЯЙ!». Приложение бесплатное и без рекламы, и я хочу, чтобы донаты возвращались к людям.
       </p>
 
+      {/* Сколько уже собрано */}
+      <FundBar className="mt-4" />
+
       {/* Куда идут деньги: 51% — людям, 49% — на проект */}
       <div className="mt-4 p-4 rounded-zine bg-zine-card">
-        <div className="flex h-3 rounded-full overflow-hidden">
-          <span className="bg-zine-terracotta" style={{ width: '51%' }} />
-          <span className="bg-zine-border" style={{ width: '49%' }} />
-        </div>
-        <div className="mt-3 space-y-2.5">
+        <div className="space-y-2.5">
           <p className="flex gap-3">
             <span className="shrink-0 w-14 text-lead font-bold text-zine-terracotta">51%</span>
             <span className="text-sm2 text-zine-ink">
@@ -82,7 +82,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
             </span>
           </p>
           <p className="flex gap-3">
-            <span className="shrink-0 w-14 text-lead font-bold text-zine-inkMuted">49%</span>
+            <span className="shrink-0 w-14 text-lead font-bold text-zine-sage">49%</span>
             <span className="text-sm2 text-zine-inkMuted">Серверы, развитие приложения и зарплата людям, которые его ведут.</span>
           </p>
         </div>
