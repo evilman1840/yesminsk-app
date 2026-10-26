@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight } from 'lucide-react';
+import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff } from 'lucide-react';
 import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
@@ -154,6 +154,27 @@ export interface EventsScreenProps {
   onInitialWishUsed?: () => void;
 }
 
+// Пролистанные сходки (на устройстве): во «Все» показываем их после новых
+const SEEN_KEY = 'yesminsk_seen_events';
+const loadSeenEvents = (): Set<string> => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'));
+  } catch {
+    return new Set();
+  }
+};
+const markEventSeen = (id: string) => {
+  try {
+    const seen = loadSeenEvents();
+    if (seen.has(id)) return;
+    seen.add(id);
+    // Храним последние 300: прошедшие сходки всё равно уходят из ленты
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...seen].slice(-300)));
+  } catch {
+    // без сохранения просто не переставим
+  }
+};
+
 export const EventsScreen: React.FC<EventsScreenProps> = ({
   events,
   currentUserId: propUserId,
@@ -181,6 +202,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [detailsEventId, setDetailsEventId] = useState<string | null>(null);
   const [, setHiddenVersion] = useState(0); // перерисовать после «Неинтересно»
+  // Уже пролистанные сходки — в конец ленты. Список берём при открытии, чтобы карточки не прыгали, пока листаешь
+  const [seenAtOpen] = useState<Set<string>>(() => loadSeenEvents());
   const [justHidden, setJustHidden] = useState<AppEvent | null>(null);
 
   const [title, setTitle] = useState('');
@@ -280,8 +303,15 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     : events.filter((e) => e.category === selectedCategory)
   )
     .filter((e) => !notInterestedEvents.has(String(e.id)) && matchesWhen(e.dateTime, eventWhen))
-    // «⭐ Мои»: что я собираю и куда иду
-    .filter((e) => !onlyMine || e.isJoined || Number(e.creator?.telegramId) === Number(currentUserId));
+    // «⭐ Мои»: что я собираю и куда иду. Во «Все» своих не показываем — они в «Мои»
+    .filter((e) => {
+      const mine = Number(e.creator?.telegramId) === Number(currentUserId);
+      return onlyMine ? e.isJoined || mine : !mine;
+    })
+    // Во «Все»: сначала новые для меня, потом уже пролистанные, в конце — куда я уже записан
+    .map((e, i) => ({ e, i, rank: onlyMine ? 0 : e.isJoined ? 2 : seenAtOpen.has(String(e.id)) ? 1 : 0 }))
+    .sort((a, b) => a.rank - b.rank || a.i - b.i)
+    .map(({ e }) => e);
   const detailsEvent = detailsEventId ? events.find((e) => String(e.id) === detailsEventId) || null : null;
   const joinEvent = joinEventId ? events.find((e) => String(e.id) === joinEventId) || null : null;
   // После «Вернуть» — сразу показываем возвращённую карточку
@@ -764,6 +794,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 onEdit={() => handleOpenEditModal(ev)}
                 onDelete={() => handleDeleteEvent(ev)}
                 onOpenDetails={() => setDetailsEventId(String(ev.id))}
+                onSeen={() => markEventSeen(String(ev.id))}
                 onNotInterested={() => {
                   notInterestedEvents.add(String(ev.id));
                   setHiddenVersion((v) => v + 1);
@@ -1293,8 +1324,29 @@ const EventReel: React.FC<{
   onDelete: () => void;
   onOpenDetails: () => void;
   onNotInterested: () => void;
+  onSeen?: () => void;
   emoji?: string | null;
-}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onEdit, onDelete, onOpenDetails, onNotInterested, emoji }) => {
+}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onEdit, onDelete, onOpenDetails, onNotInterested, onSeen, emoji }) => {
+  // Карточка видна больше секунды — считаем просмотренной
+  const reelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = reelRef.current;
+    if (!el || !onSeen) return;
+    let timer: number | undefined;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) timer = window.setTimeout(onSeen, 1200);
+        else window.clearTimeout(timer);
+      },
+      { threshold: 0.6 }
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const cat = eventCategoryOf(ev);
   const isFull = !ev.isJoined && Boolean(ev.maxParticipants) && (ev.participantsCount || 1) >= ev.maxParticipants;
   const people = (ev.participants || []).slice(0, 4);
@@ -1316,8 +1368,24 @@ const EventReel: React.FC<{
         </>
       ) : null}
 
-      {/* Справа — только «Позвать»; маршрут и жалоба — в подробностях */}
+      <div ref={reelRef} className="absolute inset-0 pointer-events-none" aria-hidden />
+      {/* Справа — «Позвать» и «Неинтересно»; маршрут и жалоба — в подробностях */}
       <div className="absolute right-3 bottom-40 z-20 flex flex-col items-center gap-4 text-white">
+        {!isCreator && !ev.isJoined && (
+          <button
+            onClick={() => {
+              telegramService.haptic('selection');
+              onNotInterested();
+            }}
+            aria-label="Неинтересно"
+            className="flex flex-col items-center gap-1 cursor-pointer"
+          >
+            <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
+              <EyeOff size={22} />
+            </span>
+            <span className="text-cap font-semibold drop-shadow">Неинтересно</span>
+          </button>
+        )}
         <button
           onClick={() => {
             telegramService.haptic('selection');
