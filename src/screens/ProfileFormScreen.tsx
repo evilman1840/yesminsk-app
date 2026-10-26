@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { AREA_GROUPS, RENAMED_AREAS } from '../config/areas';
 import { LegalSheet, LegalKind } from '../components/common/Legal';
+import { UsernameBanner } from '../components/common/UsernameBanner';
 import { LEGAL_UI, PRIVACY } from '../texts/legal';
 import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea, EMPATH, formatTime } from '../types';
 import { HelpLine } from '../components/common/HelpLine';
@@ -28,6 +29,7 @@ interface ProfileFormScreenProps {
     preferredGender?: PreferredGender;
     preferredAgeRange?: { min: number; max: number };
     bio?: string;
+    username?: string;
     goals?: ActivityGoal[];
     goal?: ActivityGoal;
     customGoal?: string;
@@ -417,6 +419,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         <div className="mt-5 space-y-4">
           {/* Бот не может писать — просим разрешить (иначе не дойдут напоминания и совпадения) */}
           {!isFirstTime && <BotAccessBanner />}
+          {/* Нет @username — на связи тебе не смогут написать */}
+          {!isFirstTime && !initialData?.username && <UsernameBanner />}
 
           {/* Фото */}
           <Section>

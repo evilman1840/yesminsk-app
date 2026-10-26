@@ -927,6 +927,7 @@ export const App: React.FC = () => {
                 isTourist={currentUser.isTourist}
                 myGoals={currentUser.goals}
                 myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange }}
+                myUsername={currentUser.username}
                 topSlot={!isFirstStepsHidden && firstSteps.some((s) => !s.done) && <FirstStepsCard steps={firstSteps} onDismiss={hideFirstSteps} />}
                 selectedGoal={selectedGoal}
                 onSelectGoal={setSelectedGoal}

@@ -7,6 +7,7 @@ import { formatDistance } from '../components/common/UserBottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { photoSrc } from '../components/common/PhotoPicker';
+import { USERNAME_TEXTS } from '../texts/profile';
 import { PHOTO_TEXTS } from '../texts/photos';
 import { FEED_TEXTS } from '../texts/feed';
 import { UndoToast } from '../components/ui/UndoToast';
@@ -34,6 +35,7 @@ export interface FeedScreenProps {
   myPrefs: MyPrefs;
   myGoals?: ActivityGoal[]; // подсветить общие интересы
   topSlot?: React.ReactNode; // например, «Первые шаги» для новичков
+  myUsername?: string; // нет — подсказываем завести (иначе на связи не напишут)
 }
 
 type FeedTab = 'all' | 'likes' | 'matches';
@@ -51,7 +53,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   onSelectGoal,
   myPrefs,
   myGoals,
-  topSlot
+  topSlot,
+  myUsername
 }) => {
   const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -97,6 +100,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       ? '🧭 Покажут город бесплатно. Об условиях договаривайтесь лично.'
       : selectedGoal === 'empaths'
       ? '🫶 Те, кто отметил: умею слушать и поддерживать.'
+      : (tab === 'likes' || tab === 'matches') && !myUsername
+      ? USERNAME_TEXTS.feedHint
       : '';
 
   return (
