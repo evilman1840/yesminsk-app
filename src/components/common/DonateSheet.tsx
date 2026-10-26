@@ -93,11 +93,11 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
         <span className="text-[24px] leading-none">📸</span>
         <div className="min-w-0">
           <p className="text-sm2 text-zine-ink">
-            <b>Всё прозрачно.</b> Раз в 2 недели выкладываю скриншоты всех донатов и рассказываю, кому достались подарки. Всё это в «Новостях проекта».
+            <b>Всё прозрачно.</b> На шкале выше видно, сколько всего собрано и какая часть идёт на подарки. А куда потратил деньги, рассказываю в «Новостях проекта».
           </p>
           {onOpenNews && (
             <button onClick={onOpenNews} className="mt-2 text-sm2 font-bold text-zine-sage underline cursor-pointer">
-              Смотреть отчёты →
+              Куда потратили →
             </button>
           )}
         </div>
