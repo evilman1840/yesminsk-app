@@ -10,6 +10,7 @@ import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { MapPicker } from '../components/common/MapPicker';
 import { EventDetails, plural } from '../components/common/EventDetails';
 import { JoinSheet } from '../components/common/JoinSheet';
+import { formatDistance } from '../components/common/UserBottomSheet';
 import { UndoToast } from '../components/ui/UndoToast';
 import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 import { HelpLine } from '../components/common/HelpLine';
@@ -307,7 +308,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     // «⭐ Мои»: что я собираю и куда иду. Во «Все» своих не показываем — они в «Мои»
     .filter((e) => {
       const mine = Number(e.creator?.telegramId) === Number(currentUserId);
-      return onlyMine ? e.isJoined || mine : !mine;
+      // Во «Все» начавшиеся больше получаса назад не показываем — они остаются в «Мои»
+      return onlyMine ? e.isJoined || mine : !mine && new Date(e.dateTime).getTime() > Date.now() - 30 * 60 * 1000;
     })
     // Во «Все»: сначала новые для меня, потом уже пролистанные, в конце — куда я уже записан
     .map((e, i) => ({ e, i, rank: onlyMine ? 0 : e.isJoined ? 2 : seenAtOpen.has(String(e.id)) ? 1 : 0 }))
@@ -1439,7 +1441,10 @@ const EventReel: React.FC<{
           {formatEventDate(ev.dateTime)}
           {ev.durationMinutes ? <span className="font-normal text-white/75"> · {M.duration(ev.durationMinutes)}</span> : null}
         </p>
-        <p className="pr-16 text-sm2 text-white/80 truncate">📍 {ev.locationName}</p>
+        <p className="pr-16 flex text-sm2 text-white/80">
+          <span className="truncate">📍 {ev.locationName}</span>
+          {formatDistance(ev.distanceMeters) && <span className="shrink-0">&nbsp;· {formatDistance(ev.distanceMeters)}</span>}
+        </p>
         {/* Цена и метки шаблона: «💚 Бесплатно», «🏓 Настольный теннис · любой уровень» */}
         <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
           {[priceLabel(ev), ...(ev.badges || [])].map((b) => (
