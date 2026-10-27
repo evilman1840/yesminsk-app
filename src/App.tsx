@@ -636,6 +636,16 @@ export const App: React.FC = () => {
     }
   };
 
+  // «Отменить» в «На связи»: мой 👋 снят, человек остаётся в «Рядом» как обычная анкета
+  const handleUnmatch = async (user: UserProfile) => {
+    const id = user.telegramId;
+    await api.unmatchUser(id);
+    const undone = (u: UserProfile) => (u.telegramId === id ? { ...u, iLiked: false, isMatch: false, username: undefined } : u);
+    setMatches(prev => prev.filter(u => u.telegramId !== id));
+    setUsers(prev => prev.map(undone));
+    setSelectedUser(prev => (prev ? undone(prev) : prev));
+  };
+
   const handleCreateEvent = async (eventData: EventPayload): Promise<AppEvent> => {
     const created = await api.createEvent({
       ...eventData,
@@ -939,6 +949,7 @@ export const App: React.FC = () => {
                 onSelectGoal={setSelectedGoal}
                 onSelectUser={(u) => setSelectedUser(u)}
                 onReact={handleReact}
+                onUnmatch={handleUnmatch}
                 onSkip={handleSkip}
                 onUnskip={handleUnskip}
               />

@@ -77,7 +77,7 @@ export const EventDetails: React.FC<{
   const myNote = companyNote(event.myGuests, event.myWithKids);
   const taken = event.participantsCount || 1;
   const left = event.maxParticipants ? Math.max(0, event.maxParticipants - taken) : null;
-  // Кто идёт, кроме организатора (сервер присылает первых нескольких)
+  // Кто идёт, кроме организатора (сервер присылает всех)
   const others = (event.participants || []).filter((p) => Number(p.telegramId) !== Number(event.creator?.telegramId));
   const moreGroups = Math.max(0, (event.groupsCount ?? event.participantsCount) - 1 - others.length);
 

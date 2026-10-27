@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2 } from 'lucide-react';
+import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2, Undo2 } from 'lucide-react';
 import { UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, EMPATH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType } from '../components/common/Reactions';
@@ -27,6 +27,7 @@ export interface FeedScreenProps {
   matches?: UserProfile[];
   onSelectUser: (user: UserProfile) => void;
   onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
+  onUnmatch?: (user: UserProfile) => Promise<void>;        // «Отменить» в «На связи»
   onSkip?: (user: UserProfile) => void;                    // свайп влево: пропустить на 3 дня
   onUnskip?: (user: UserProfile, index: number) => void;   // «Вернуть»
   isTourist?: boolean;
@@ -46,6 +47,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   matches = [],
   onSelectUser,
   onReact,
+  onUnmatch,
   onSkip,
   onUnskip,
   isTourist = false,
@@ -216,6 +218,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                 onSelectUser(user);
               }}
               onReact={onReact}
+              onUnmatch={onUnmatch ? () => onUnmatch(user) : undefined}
               onSkip={() => {
                 setJustSkipped({ user, index: users.findIndex((u) => u.telegramId === user.telegramId) });
                 onSkip ? onSkip(user) : onReact(user, 'dislike');
@@ -268,9 +271,11 @@ const PersonReel: React.FC<{
   onOpen: () => void;
   onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
   onSkip: () => void;
-}> = ({ user, isFirst, myGoals, onOpen, onReact, onSkip }) => {
-  const [busy, setBusy] = useState<ReactionType | null>(null);
+  onUnmatch?: () => Promise<void>;
+}> = ({ user, isFirst, myGoals, onOpen, onReact, onSkip, onUnmatch }) => {
+  const [busy, setBusy] = useState<ReactionType | 'unmatch' | null>(null);
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
+  const [isConfirmingUnmatch, setIsConfirmingUnmatch] = useState(false);
   const common = new Set(commonGoalIds(user, myGoals));
   const goals = goalsOf(user);
   // Главное фото и ещё до 5
@@ -321,6 +326,21 @@ const PersonReel: React.FC<{
     }
   };
 
+  // «Отменить» в «На связи» — сначала спрашиваем
+  const unmatch = async () => {
+    if (busy || !onUnmatch) return;
+    telegramService.haptic('medium');
+    setBusy('unmatch');
+    try {
+      await onUnmatch();
+    } catch {
+      telegramService.alert(FEED_TEXTS.unmatchFailed);
+    } finally {
+      setBusy(null);
+      setIsConfirmingUnmatch(false);
+    }
+  };
+
   return (
     <SwipeReel
       className="bg-[#2B2623]"
@@ -354,21 +374,38 @@ const PersonReel: React.FC<{
       {/* Кнопки справа, как в Reels */}
       <div className="absolute right-3 bottom-48 z-20 flex flex-col items-center gap-5 text-white">
         {user.isMatch ? (
-          user.username && (
-            <button
-              onClick={() => {
-                telegramService.haptic('medium');
-                telegramService.openChat(user.username);
-              }}
-              aria-label="Написать в Telegram"
-              className="flex flex-col items-center gap-1 cursor-pointer"
-            >
-              <span className="w-12 h-12 rounded-full bg-zine-terracotta flex items-center justify-center">
-                <Send size={22} />
-              </span>
-              <span className="text-cap font-semibold drop-shadow">Написать</span>
-            </button>
-          )
+          <>
+            {user.username && (
+              <button
+                onClick={() => {
+                  telegramService.haptic('medium');
+                  telegramService.openChat(user.username);
+                }}
+                aria-label="Написать в Telegram"
+                className="flex flex-col items-center gap-1 cursor-pointer"
+              >
+                <span className="w-12 h-12 rounded-full bg-zine-terracotta flex items-center justify-center">
+                  <Send size={22} />
+                </span>
+                <span className="text-cap font-semibold drop-shadow">Написать</span>
+              </button>
+            )}
+            {onUnmatch && (
+              <button
+                onClick={() => {
+                  telegramService.haptic('warning');
+                  setIsConfirmingUnmatch(true);
+                }}
+                aria-label={FEED_TEXTS.unmatch}
+                className="flex flex-col items-center gap-1 cursor-pointer"
+              >
+                <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
+                  <Undo2 size={22} />
+                </span>
+                <span className="text-cap font-semibold drop-shadow">{FEED_TEXTS.unmatch}</span>
+              </button>
+            )}
+          </>
         ) : (
           <>
             <button
@@ -456,7 +493,19 @@ const PersonReel: React.FC<{
         </div>
         {user.bio && <p className="mt-2 pr-16 text-body text-white/90 line-clamp-2">{user.bio}</p>}
 
-        {isConfirmingHide ? (
+        {isConfirmingUnmatch ? (
+          <div className="mt-3 p-3 rounded-zine-sm bg-black/50 backdrop-blur">
+            <p className="text-sm2 mb-2.5">{FEED_TEXTS.unmatchConfirm}</p>
+            <div className="flex gap-2">
+              <button onClick={unmatch} className="flex-1 h-12 rounded-full bg-zine-danger text-white text-body font-bold flex items-center justify-center cursor-pointer">
+                {busy === 'unmatch' ? <Loader2 size={20} className="animate-spin" /> : FEED_TEXTS.unmatchYes}
+              </button>
+              <button onClick={() => setIsConfirmingUnmatch(false)} className="flex-1 h-12 rounded-full bg-white text-[#2B2623] text-body font-semibold cursor-pointer">
+                {FEED_TEXTS.unmatchNo}
+              </button>
+            </div>
+          </div>
+        ) : isConfirmingHide ? (
           <div className="mt-3 p-3 rounded-zine-sm bg-black/50 backdrop-blur">
             <p className="text-sm2 mb-2.5">🙈 Скрыть навсегда? Вы больше не увидите друг друга.</p>
             <div className="flex gap-2">

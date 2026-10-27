@@ -217,6 +217,11 @@ class ApiService {
     });
   }
 
+  // «Отменить» в «На связи»: снять свой 👋
+  async unmatchUser(targetTelegramId: number): Promise<void> {
+    await this.request('/reactions/unmatch', { method: 'POST', body: JSON.stringify({ targetTelegramId }) });
+  }
+
   // Места по вайбу и советы людей к ним
   async getPlaces(): Promise<PlaceItem[]> {
     return this.request('/places');

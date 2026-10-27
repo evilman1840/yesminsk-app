@@ -1350,7 +1350,8 @@ const EventReel: React.FC<{
   }, []);
   const cat = eventCategoryOf(ev);
   const isFull = !ev.isJoined && Boolean(ev.maxParticipants) && (ev.participantsCount || 1) >= ev.maxParticipants;
-  const people = (ev.participants || []).slice(0, 4);
+  // Все, кто идёт; если сервер ещё старый и прислал не всех — хотя бы организатор
+  const people = ev.participants?.length ? ev.participants : [ev.creator];
 
   return (
     <SwipeReel
@@ -1491,18 +1492,20 @@ const EventReel: React.FC<{
             </button>
           )}
           {/* Кто идёт: лица и сколько */}
-          <span className="min-w-0 flex items-center gap-2">
-            <span className="flex -space-x-2 shrink-0">
-              {(people.length ? people.slice(0, 3) : [ev.creator]).map((p, i) => (
+          <span className="min-w-0 flex-1 flex items-center gap-2">
+            {/* Лица всех участников; много — ряд листается пальцем (не свайпает карточку) */}
+            <span data-no-swipe className={`min-w-0 flex -space-x-2 overflow-x-auto no-scrollbar py-0.5 ${people.length > 5 ? 'fade-right pr-3' : ''}`}>
+              {people.map((p, i) => (
                 <img
                   key={`${p?.telegramId}-${i}`}
                   src={thumb(p?.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
                   alt=""
-                  className="w-8 h-8 rounded-full object-cover border-2 border-black/40"
+                  loading="lazy"
+                  className="w-8 h-8 shrink-0 rounded-full object-cover border-2 border-black/40"
                 />
               ))}
             </span>
-            <span className="text-sm2 text-white/85 whitespace-nowrap">
+            <span className="shrink-0 text-sm2 text-white/85 whitespace-nowrap">
               {ev.participantsCount || 1}
               {ev.maxParticipants ? ` из ${ev.maxParticipants}` : ''}
             </span>
