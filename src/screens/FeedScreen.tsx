@@ -102,6 +102,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       ? '🧭 Покажут город бесплатно. Об условиях договаривайтесь лично.'
       : selectedGoal === 'empaths'
       ? '🫶 Те, кто отметил: умею слушать и поддерживать.'
+      : selectedGoal === 'venting'
+      ? FEED_TEXTS.ventingHint
       : (tab === 'likes' || tab === 'matches') && !myUsername
       ? USERNAME_TEXTS.feedHint
       : '';

@@ -31,6 +31,7 @@ import { AREA_COORDINATES } from './config/areas';
 import { LegalUpdateOverlay } from './components/common/Legal';
 import { LEGAL_VERSION } from './texts/legal';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, placeForMeetup } from './types';
+import { FEED_TEXTS } from './texts/feed';
 
 
 const getSavedCoordinates = (): [number, number] => {
@@ -243,7 +244,7 @@ export const App: React.FC = () => {
       const coords = currentUserCoordsRef.current || getSavedCoordinates();
       const data = await api.getNearbyUsers({
         // «Покажут город» и «Эмпаты» — не цели встречи: фильтруем на месте, с сервера берём всех
-        goal: selectedGoal === 'guides' || selectedGoal === 'empaths' ? 'all' : selectedGoal,
+        goal: selectedGoal === 'guides' || selectedGoal === 'empaths' || selectedGoal === 'venting' ? 'all' : selectedGoal,
         lat: coords[0],
         lng: coords[1],
         radiusKm: 25
@@ -646,6 +647,15 @@ export const App: React.FC = () => {
     setSelectedUser(prev => (prev ? undone(prev) : prev));
   };
 
+  // Фильтр по цели. «🫂 Хочется поныть» видят только эмпаты — остальным объясняем и предлагаем анкету
+  const handleSelectGoal = (goal: GoalFilter) => {
+    if (goal === 'venting' && !currentUser.isEmpath) {
+      telegramService.confirm(FEED_TEXTS.ventingOnlyEmpaths, { okText: FEED_TEXTS.ventingOpenProfile }).then((ok) => ok && handleNavigate('profile_edit'));
+      return;
+    }
+    setSelectedGoal(goal);
+  };
+
   const handleCreateEvent = async (eventData: EventPayload): Promise<AppEvent> => {
     const created = await api.createEvent({
       ...eventData,
@@ -911,7 +921,7 @@ export const App: React.FC = () => {
                 selectedUser={selectedUser}
                 onSelectUser={(u) => setSelectedUser(u)}
                 selectedGoal={selectedGoal}
-                onSelectGoal={(g) => setSelectedGoal(g)}
+                onSelectGoal={handleSelectGoal}
                 onOpenProfile={() => handleNavigate('profile_edit')}
                 onJoinEvent={handleJoinEvent}
                 onUpdateLocation={handleUpdateLocation}
@@ -946,7 +956,7 @@ export const App: React.FC = () => {
                 myUsername={currentUser.username}
                 topSlot={!isFirstStepsHidden && firstSteps.some((s) => !s.done) && <FirstStepsCard steps={firstSteps} onDismiss={hideFirstSteps} />}
                 selectedGoal={selectedGoal}
-                onSelectGoal={setSelectedGoal}
+                onSelectGoal={handleSelectGoal}
                 onSelectUser={(u) => setSelectedUser(u)}
                 onReact={handleReact}
                 onUnmatch={handleUnmatch}

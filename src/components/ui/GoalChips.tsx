@@ -1,6 +1,7 @@
 import React from 'react';
 import { GOALS_CONFIG, ActivityGoal, GoalFilter, EMPATH } from '../../types';
 import { telegramService } from '../../services/telegram';
+import { FEED_TEXTS } from '../../texts/feed';
 
 /**
  * Крупные кнопки-фильтры по цели встречи. Лента прокручивается вбок
@@ -19,7 +20,8 @@ export const GoalChips: React.FC<{
       emoji: GOALS_CONFIG[id].emoji
     })),
     { id: 'guides', label: 'Покажут город', emoji: '🧭' },
-    { id: 'empaths', label: 'Эмпаты', emoji: EMPATH.emoji }
+    { id: 'empaths', label: 'Эмпаты', emoji: EMPATH.emoji },
+    { id: 'venting', label: FEED_TEXTS.ventingChip, emoji: '🫂' }
   ];
 
   return (

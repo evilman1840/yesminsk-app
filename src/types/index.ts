@@ -108,7 +108,8 @@ export interface UserProfile {
 }
 
 // Фильтр людей: по цели, все или «🧭 Покажут город»
-export type GoalFilter = ActivityGoal | 'all' | 'guides' | 'empaths';
+// venting — у кого сейчас «🫂 Хочется поныть» (статус видят только эмпаты)
+export type GoalFilter = ActivityGoal | 'all' | 'guides' | 'empaths' | 'venting';
 
 export const matchesGoalFilter = (u: UserProfile, filter: GoalFilter) =>
   filter === 'all'
@@ -117,6 +118,8 @@ export const matchesGoalFilter = (u: UserProfile, filter: GoalFilter) =>
     ? Boolean(u.isGuide)
     : filter === 'empaths'
     ? Boolean(u.isEmpath)
+    : filter === 'venting'
+    ? isVentingNow(u)
     : (u.goals?.length ? u.goals : [u.goal]).includes(filter);
 
 // «⚡ Свободен сейчас» ещё действует?
