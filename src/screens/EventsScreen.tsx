@@ -11,6 +11,7 @@ import { MapPicker } from '../components/common/MapPicker';
 import { EventDetails, plural } from '../components/common/EventDetails';
 import { JoinSheet } from '../components/common/JoinSheet';
 import { formatDistance } from '../components/common/UserBottomSheet';
+import { loadSeenEvents, markEventSeen } from '../utils/seenEvents';
 import { UndoToast } from '../components/ui/UndoToast';
 import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 import { HelpLine } from '../components/common/HelpLine';
@@ -155,27 +156,6 @@ export interface EventsScreenProps {
   initialWish?: { placeId?: string } | null; // открыть «Хочу сходить» сразу (из сообщения бота)
   onInitialWishUsed?: () => void;
 }
-
-// Пролистанные сходки (на устройстве): во «Все» показываем их после новых
-const SEEN_KEY = 'yesminsk_seen_events';
-const loadSeenEvents = (): Set<string> => {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'));
-  } catch {
-    return new Set();
-  }
-};
-const markEventSeen = (id: string) => {
-  try {
-    const seen = loadSeenEvents();
-    if (seen.has(id)) return;
-    seen.add(id);
-    // Храним последние 300: прошедшие сходки всё равно уходят из ленты
-    localStorage.setItem(SEEN_KEY, JSON.stringify([...seen].slice(-300)));
-  } catch {
-    // без сохранения просто не переставим
-  }
-};
 
 export const EventsScreen: React.FC<EventsScreenProps> = ({
   events,

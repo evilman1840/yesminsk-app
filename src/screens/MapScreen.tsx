@@ -15,6 +15,7 @@ import { PeopleFiltersSheet, PeopleFilters, MyPrefs, loadFilters, saveFilters, a
 import { Logo } from '../components/ui/Logo';
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
+import { MeetupCallout } from '../components/map/MeetupCallout';
 
 export interface MapScreenProps {
   users: UserProfile[];
@@ -53,6 +54,8 @@ export interface MapScreenProps {
   onOpenEvents: () => void;
   onOpenPeople: () => void;
   onCreateEventAtPlace: (place: PlaceItem) => void;
+  onCreateEvent?: () => void;  // «Собрать →» в призыве, когда сходок нет
+  matchIds?: number[];         // кто у меня «На связи»: «Аня идёт на …»
   onToggleSavePlace: (place: PlaceItem) => Promise<PlaceItem>;
   initialPlaceId?: string | null;
 }
@@ -115,7 +118,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onCreateEventAtPlace,
   initialPlaceId,
   onOpenEvents,
-  onToggleSavePlace
+  onToggleSavePlace,
+  onCreateEvent,
+  matchIds = []
 }) => {
   // Сходки на карте: фильтр по времени
   const [eventWhen, setEventWhen] = useState<EventWhen>('all');
@@ -543,6 +548,16 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             <div className="max-w-[300px] p-3 rounded-zine-sm bg-[#2FA36B] text-white text-sm2 font-semibold shadow-zine-float">
               ⚡ Готово! 3 часа твоя анкета в начале списка с пометкой «Могу сейчас»: люди рядом увидят, что можно встретиться.
             </div>
+          )}
+          {/* Призыв к сходкам: знакомый идёт, ближайшая сходка или «собери свою» */}
+          {!justEnabled && (
+            <MeetupCallout
+              events={events}
+              myId={currentUser?.telegramId}
+              matchIds={matchIds}
+              onOpenEvent={(ev) => setSelectedEvent(ev)}
+              onCreate={() => (onCreateEvent ? onCreateEvent() : onOpenEvents())}
+            />
           )}
           <div className="h-16 pl-4 pr-1 rounded-zine bg-zine-cardElevated text-zine-ink shadow-zine-float flex items-center max-w-full">
             <button

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { YMaps } from '@pbe/react-yandex-maps';
 import { telegramService, ShareData, SHARE_EVENT } from './services/telegram';
 import { api } from './services/api';
@@ -32,6 +32,7 @@ import { LegalUpdateOverlay } from './components/common/Legal';
 import { LEGAL_VERSION } from './texts/legal';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, placeForMeetup } from './types';
 import { FEED_TEXTS } from './texts/feed';
+import { loadBadgeSeenEvents, markBadgeSeenEvents } from './utils/seenEvents';
 
 
 const getSavedCoordinates = (): [number, number] => {
@@ -807,6 +808,23 @@ export const App: React.FC = () => {
     handleNavigate('events');
   };
 
+  // Число на вкладке «Сходки»: новые чужие сходки с прошлого захода на вкладку (куда не записан, ещё не начались)
+  const [eventsBadgeSeen, setEventsBadgeSeen] = useState<Set<string>>(loadBadgeSeenEvents);
+  useEffect(() => {
+    if (currentScreen !== 'events' || !events.length) return;
+    setEventsBadgeSeen(markBadgeSeenEvents(events.map((e) => String(e.id))));
+  }, [currentScreen, events]);
+  const newEventsCount = useMemo(() => {
+    const now = Date.now();
+    return events.filter(
+      (e) =>
+        !e.isJoined &&
+        Number(e.creator?.telegramId) !== Number(currentUser.telegramId) &&
+        new Date(e.dateTime).getTime() > now - 30 * 60 * 1000 &&
+        !eventsBadgeSeen.has(String(e.id))
+    ).length;
+  }, [events, currentUser.telegramId, eventsBadgeSeen]);
+
   // «Первые шаги» для новичков
   const firstSteps = [
     {
@@ -942,6 +960,11 @@ export const App: React.FC = () => {
                 unreadNews={unreadNews}
                 initialPlaceId={initialPlaceId}
                 onCreateEventAtPlace={createEventAtPlace}
+                onCreateEvent={() => {
+                  setPendingCreate({ source: 'map' });
+                  handleNavigate('events');
+                }}
+                matchIds={matches.map((m) => m.telegramId)}
               />
             )}
 
@@ -995,7 +1018,7 @@ export const App: React.FC = () => {
             <TabBar
               current={currentScreen as TabId}
               onNavigate={handleNavigate}
-              badges={{ feed: likedMe.length, news: currentScreen === 'news' ? 0 : unreadNews }}
+              badges={{ feed: likedMe.length, events: currentScreen === 'events' ? 0 : newEventsCount, news: currentScreen === 'news' ? 0 : unreadNews }}
             />
           )}
 

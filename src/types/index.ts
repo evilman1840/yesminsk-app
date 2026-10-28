@@ -340,7 +340,7 @@ export interface MeetupPlace {
   placeType?: string; // тип места: под него подбираются шаблоны
 }
 // Откуда открыли форму сходки — для воронки в /stats
-export type MeetupFormSource = 'feed' | 'empty' | 'place' | 'link';
+export type MeetupFormSource = 'feed' | 'empty' | 'place' | 'link' | 'map';
 export interface MeetupCreateRequest {
   place?: MeetupPlace;
   template?: string;
