@@ -90,15 +90,30 @@ textarea.field {
 }
 
 
-/* Нижнее меню: «Сходки» мягко пульсируют, пока есть новые сходки */
-@keyframes tab-pulse {
-  0% { box-shadow: 0 0 0 0 rgb(var(--c-terracotta) / 0.45); }
-  70% { box-shadow: 0 0 0 10px rgb(var(--c-terracotta) / 0); }
-  100% { box-shadow: 0 0 0 0 rgb(var(--c-terracotta) / 0); }
+/* Нижнее меню: «Сходки» зовут — при новых сходках контур вокруг значка прорисовывается и тает,
+   в остальное время календарик изредка вздрагивает */
+@keyframes tab-draw {
+  0% { stroke-dashoffset: 156; opacity: 1; }
+  35% { stroke-dashoffset: 0; opacity: 1; }
+  75% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
 }
-.tab-pulse {
-  animation: tab-pulse 2.2s ease-out infinite;
+.tab-draw {
+  stroke-dasharray: 156;
+  animation: tab-draw 4s ease-in-out infinite;
+}
+@keyframes tab-wiggle {
+  0%, 90%, 100% { transform: rotate(0); }
+  92% { transform: rotate(-14deg); }
+  94% { transform: rotate(12deg); }
+  96% { transform: rotate(-8deg); }
+  98% { transform: rotate(4deg); }
+}
+.tab-wiggle {
+  transform-origin: 50% 20%;
+  animation: tab-wiggle 10s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .tab-pulse { animation: none; }
+  .tab-draw, .tab-wiggle { animation: none; }
+  .tab-draw { opacity: 0; }
 }
