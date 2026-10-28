@@ -1019,6 +1019,7 @@ export const App: React.FC = () => {
               current={currentScreen as TabId}
               onNavigate={handleNavigate}
               badges={{ feed: likedMe.length, events: currentScreen === 'events' ? 0 : newEventsCount, news: currentScreen === 'news' ? 0 : unreadNews }}
+              highlight="events"
             />
           )}
 

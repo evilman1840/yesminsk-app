@@ -89,3 +89,16 @@ textarea.field {
   mask-image: linear-gradient(to right, #000 80%, transparent);
 }
 
+
+/* Нижнее меню: «Сходки» мягко пульсируют, пока есть новые сходки */
+@keyframes tab-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(var(--c-terracotta) / 0.45); }
+  70% { box-shadow: 0 0 0 10px rgb(var(--c-terracotta) / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(var(--c-terracotta) / 0); }
+}
+.tab-pulse {
+  animation: tab-pulse 2.2s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-pulse { animation: none; }
+}
