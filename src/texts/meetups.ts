@@ -82,3 +82,11 @@ export const MAP_CALLOUT_TEXTS = {
   create: 'Собрать →',
   close: 'Скрыть до завтра'
 };
+
+// Сходки на карте: «На карте» / «Списком»
+export const MAP_EVENTS_TEXTS = {
+  onMap: 'На карте',
+  asList: 'Списком',
+  going: (n: number, max?: number) => `Идут: ${n}${max ? ` из ${max}` : ''}`,
+  joined: 'Я иду'
+};

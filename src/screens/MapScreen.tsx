@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
 import { api } from '../services/api';
-import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, HelpCircle } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, HelpCircle, Map as MapIcon, List } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
@@ -16,6 +16,8 @@ import { Logo } from '../components/ui/Logo';
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
 import { MeetupCallout } from '../components/map/MeetupCallout';
+import { MapEventsList } from '../components/map/MapEventsList';
+import { MAP_EVENTS_TEXTS } from '../texts/meetups';
 
 export interface MapScreenProps {
   users: UserProfile[];
@@ -125,6 +127,33 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   // Сходки на карте: фильтр по времени
   const [eventWhen, setEventWhen] = useState<EventWhen>('all');
   const filteredEvents = events.filter((e) => matchesWhen(e.dateTime, eventWhen));
+  // Сходки кружками на карте или списком — что человек выбрал в прошлый раз
+  const [eventsView, setEventsView] = useState<'map' | 'list'>(() => {
+    try {
+      return localStorage.getItem('yesminsk_map_events_view') === 'list' ? 'list' : 'map';
+    } catch {
+      return 'map';
+    }
+  });
+  const changeEventsView = (view: 'map' | 'list') => {
+    telegramService.haptic('selection');
+    setEventsView(view);
+    try {
+      localStorage.setItem('yesminsk_map_events_view', view);
+    } catch {
+      // не запомним — в следующий раз снова карта
+    }
+  };
+  const isEventsList = mapMode === 'events' && eventsView === 'list';
+  const noEventsCard = (
+    <div className="p-4 rounded-zine bg-zine-cardElevated shadow-zine-float">
+      <p className="text-body font-bold text-zine-ink">{events.length === 0 ? 'Сходок пока нет' : 'На это время сходок нет'}</p>
+      <p className="mt-1 text-sm2 text-zine-inkMuted">Собери свою, это займёт минуту, а люди рядом увидят её на карте.</p>
+      <button onClick={onOpenEvents} className="mt-3 w-full h-11 rounded-zine-sm bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer">
+        Создать сходку
+      </button>
+    </div>
+  );
   // Места по вайбу
   const [mood, setMood] = useState<MoodFilter>('all');
   const [placeType, setPlaceType] = useState<string | null>(null);
@@ -397,6 +426,25 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           )}
           {mapMode === 'events' && (
             <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
+              {/* Как показать: кружками на карте или списком */}
+              <div className="h-11 p-1 shrink-0 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine flex" role="group" aria-label="Как показать сходки">
+                {([
+                  ['map', MapIcon, MAP_EVENTS_TEXTS.onMap],
+                  ['list', List, MAP_EVENTS_TEXTS.asList]
+                ] as const).map(([view, Icon, label]) => (
+                  <button
+                    key={view}
+                    onClick={() => eventsView !== view && changeEventsView(view)}
+                    aria-pressed={eventsView === view}
+                    className={`h-full px-3 rounded-full text-sm2 font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      eventsView === view ? 'bg-zine-terracotta text-white' : 'text-zine-inkMuted'
+                    }`}
+                  >
+                    <Icon size={16} />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
               {EVENT_WHEN.map(([id, label]) => (
                 <button
                   key={id}
@@ -454,15 +502,12 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       )}
 
       {/* Сходок по выбранному времени нет */}
-      {mapMode === 'events' && filteredEvents.length === 0 && (
-        <div className={`absolute left-4 right-[72px] ${overlayTop} z-20 p-4 rounded-zine bg-zine-cardElevated shadow-zine-float`}>
-          <p className="text-body font-bold text-zine-ink">{events.length === 0 ? 'Сходок пока нет' : 'На это время сходок нет'}</p>
-          <p className="mt-1 text-sm2 text-zine-inkMuted">Собери свою, это займёт минуту, а люди рядом увидят её на карте.</p>
-          <button onClick={onOpenEvents} className="mt-3 w-full h-11 rounded-zine-sm bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer">
-            Создать сходку
-          </button>
-        </div>
+      {mapMode === 'events' && filteredEvents.length === 0 && !isEventsList && (
+        <div className={`absolute left-4 right-[72px] ${overlayTop} z-20`}>{noEventsCard}</div>
       )}
+
+      {/* Сходки списком вместо кружочков */}
+      {isEventsList && <MapEventsList events={filteredEvents} topClass="top-[204px]" onOpen={(ev) => setSelectedEvent(ev)} empty={noEventsCard} />}
 
       {selectedPlace && (
         <PlaceSheet
