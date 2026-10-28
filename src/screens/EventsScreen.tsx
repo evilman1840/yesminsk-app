@@ -321,9 +321,18 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const placeHints = (() => {
     const types = template && template.key !== CUSTOM_TEMPLATE ? template.placeTypes : [];
     // У шаблона есть типы мест (кофе → кафе) — только подходящие; парки для кофе не предлагаем
-    if (types.length) return places.filter((p) => types.includes(p.category)).slice(0, 8);
+    const matching = types.length ? places.filter((p) => types.includes(p.category)) : [];
+    // Подходящих нет — лучшие места, чтобы ряд не был пустым
+    if (matching.length) return matching.slice(0, 8);
     return [...places].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 8);
   })();
+  // Один ряд кнопок: места из «Мест» (с placeId), за ними популярные точки Минска
+  const placeChips = [
+    ...placeHints.map((p) => ({ key: `p-${p.id}`, placeId: p.id as string | null, name: p.name, text: p.address && p.address !== p.name ? `${p.name}, ${p.address}` : p.name, coords: p.coordinates })),
+    ...MINSK_SPOTS_PRESETS.slice(0, 6)
+      .filter((spot) => !placeHints.some((p) => p.name === spot.name))
+      .map((spot) => ({ key: `s-${spot.name}`, placeId: null as string | null, name: spot.name, text: spot.name, coords: spot.coords }))
+  ];
 
   // Какие обязательные поля пустые — для подсказки и воронки
   const missingFields = () => {
@@ -506,6 +515,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         setPlaceLabel('Твоё текущее место (по GPS)');
         setPlaceNotFound(false);
         setIsPickedOnMap(true);
+        setPlaceId(null);
         telegramService.haptic('success');
       },
       (err) => {
@@ -921,6 +931,35 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             </Field>
 
             <Field label="Где встречаемся?">
+              {/* Сначала готовые места — одним нажатием, без ввода адреса: подходящие из «Мест», потом популярные точки Минска */}
+              <p className="mb-1.5 text-cap font-semibold text-zine-inkMuted">{M.pickPlaceHint}</p>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 mb-3">
+                {placeChips.map((chip) => {
+                  const active = chip.placeId ? placeId === chip.placeId : !placeId && locationName === chip.name;
+                  return (
+                    <button
+                      type="button"
+                      key={chip.key}
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        setLocationName(chip.text);
+                        setCustomCoords(chip.coords);
+                        setPlaceLabel(chip.name);
+                        setPlaceNotFound(false);
+                        setIsPickedOnMap(Boolean(chip.placeId));
+                        setPlaceId(chip.placeId);
+                        setFormError(null);
+                      }}
+                      className={`h-10 px-3.5 shrink-0 rounded-full border-2 text-sm2 whitespace-nowrap cursor-pointer transition-colors ${
+                        active ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta font-semibold' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                      }`}
+                    >
+                      {chip.placeId ? '📍 ' : ''}{chip.name}
+                    </button>
+                  );
+                })}
+              </div>
+
               <input
                 type="text"
                 value={locationName}
@@ -931,13 +970,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   setCustomCoords(null);
                   setPlaceLabel(null);
                   setPlaceNotFound(false);
+                  setPlaceId(null);
                 }}
                 onBlur={() => {
                   if (locationName.trim() && !customCoords) {
                     handleGeocodeAddress(locationName.trim());
                   }
                 }}
-                placeholder="Например: ул. Ленина 5"
+                placeholder={M.addressPlaceholder}
                 className={`field ${formError && !locationName.trim() ? 'ring-2 ring-zine-danger/60' : ''}`}
                 required
               />
@@ -978,56 +1018,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   Не нашли такой адрес. Напиши улицу и номер дома, например «Юрово-Завальная 15», или нажми «Указать на карте» и тапни нужное место.
                 </p>
               )}
-
-              {/* Подсказки из «Мест»: сначала подходящие под шаблон (кофе → кафе), чтобы не вписывать адрес */}
-              {placeHints.length > 0 && (
-                <div className="mt-3">
-                  <p className="mb-1.5 text-cap font-semibold text-zine-inkMuted">{M.fromPlaces}</p>
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
-                    {placeHints.map((p) => (
-                      <button
-                        type="button"
-                        key={p.id}
-                        onClick={() => {
-                          telegramService.haptic('selection');
-                          setLocationName(p.address && p.address !== p.name ? `${p.name}, ${p.address}` : p.name);
-                          setCustomCoords(p.coordinates);
-                          setPlaceLabel(p.name);
-                          setPlaceNotFound(false);
-                          setIsPickedOnMap(true);
-                          setPlaceId(p.id);
-                          setFormError(null);
-                        }}
-                        className={`h-10 px-3.5 shrink-0 rounded-full border text-sm2 whitespace-nowrap cursor-pointer ${
-                          placeId === p.id ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta font-semibold' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
-                        }`}
-                      >
-                        📍 {p.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2 overflow-x-auto no-scrollbar mt-3 -mx-5 px-5">
-                {MINSK_SPOTS_PRESETS.slice(0, 6).map((spot) => (
-                  <button
-                    type="button"
-                    key={spot.name}
-                    onClick={() => {
-                      telegramService.haptic('selection');
-                      setLocationName(spot.name);
-                      setCustomCoords(spot.coords);
-                      setPlaceLabel(spot.name);
-                      setPlaceNotFound(false);
-                      setIsPickedOnMap(false);
-                    }}
-                    className="h-10 px-3.5 shrink-0 rounded-full border border-zine-border bg-zine-cardElevated text-zine-ink text-sm2 whitespace-nowrap cursor-pointer"
-                  >
-                    {spot.name}
-                  </button>
-                ))}
-              </div>
             </Field>
 
             {/* Доп. поля шаблона: фильм, вид спорта, уровень, что взять, стоимость */}
@@ -1271,6 +1261,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             setPlaceLabel(address || 'точка отмечена');
             setPlaceNotFound(false);
             setIsPickedOnMap(true);
+            setPlaceId(null);
             setFormError(null);
             // Пустое поле заполняем найденным адресом; своё описание места не трогаем
             if (!locationName.trim() || !isPickedOnMap) setLocationName(address || 'Точка на карте');
