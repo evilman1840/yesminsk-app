@@ -22,6 +22,7 @@ import { InfoToast } from '../components/ui/InfoToast';
 import { WISH_TEXTS } from '../texts/wishes';
 import { MEETUP_TEXTS as M, priceLabel } from '../texts/meetups';
 import { confirmAttendance } from '../context/eventUpdates';
+import { areaOf, distanceMeters, farMentionedArea, isKnownPoint } from '../utils/minskAreas';
 import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji, quickTimeFromParam } from '../utils/meetupTemplates';
 
 import { cachedTemplates, loadTemplates } from '../utils/templatesStore';
@@ -154,6 +155,7 @@ export interface EventsScreenProps {
   initialCreate?: MeetupCreateRequest | null;
   onInitialCreateUsed?: () => void;
   places?: PlaceItem[]; // для «Хочу сходить»: выбор места
+  myCoords?: [number, number]; // точка из анкеты [lat, lng]: расстояние до мест в форме сходки
   initialWish?: { placeId?: string } | null; // открыть «Хочу сходить» сразу (из сообщения бота)
   onInitialWishUsed?: () => void;
 }
@@ -169,6 +171,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   initialCreate,
   onInitialCreateUsed,
   places = [],
+  myCoords,
   initialWish,
   onInitialWishUsed
 }) => {
@@ -318,19 +321,25 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   ) => {
     if (formSession.current) api.trackMeetupForm({ sessionId: formSession.current.id, step, ...extra });
   };
+  const me = isKnownPoint(myCoords) ? myCoords : null;
+  // Район и расстояние у места: «Центр · 1,2 км»
+  const whereLine = (coords?: [number, number] | null) =>
+    [areaOf(coords), me && coords ? formatDistance(distanceMeters(me, coords)) : null].filter(Boolean).join(' · ');
   // Места из «Мест» для подсказок в поле «Где встречаемся?»: сначала подходящие по типу шаблону, потом остальные
   const placeHints = (() => {
     const types = template && template.key !== CUSTOM_TEMPLATE ? template.placeTypes : [];
     // У шаблона есть типы мест (кофе → кафе) — только подходящие; парки для кофе не предлагаем
     const matching = types.length ? places.filter((p) => types.includes(p.category)) : [];
     // Подходящих нет — лучшие места, чтобы ряд не был пустым
-    if (matching.length) return matching.slice(0, 8);
-    return [...places].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 8);
+    const list = matching.length ? matching : [...places].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    // Знаем, где человек, — сначала ближайшие
+    return (me ? [...list].sort((a, b) => distanceMeters(me, a.coordinates) - distanceMeters(me, b.coordinates)) : list).slice(0, 8);
   })();
   // Один ряд кнопок: места из «Мест» (с placeId), за ними популярные точки Минска
   const placeChips = [
     ...placeHints.map((p) => ({ key: `p-${p.id}`, placeId: p.id as string | null, name: p.name, text: p.address && p.address !== p.name ? `${p.name}, ${p.address}` : p.name, coords: p.coordinates })),
-    ...MINSK_SPOTS_PRESETS.slice(0, 6)
+    ...(me ? [...MINSK_SPOTS_PRESETS].sort((a, b) => distanceMeters(me, a.coords) - distanceMeters(me, b.coords)) : MINSK_SPOTS_PRESETS)
+      .slice(0, 6)
       .filter((spot) => !placeHints.some((p) => p.name === spot.name))
       .map((spot) => ({ key: `s-${spot.name}`, placeId: null as string | null, name: spot.name, text: spot.name, coords: spot.coords }))
   ];
@@ -606,6 +615,12 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           return;
         }
         resolvedCoords = found.coords;
+      }
+
+      // «Гуляем в Уручье», а точка в центре — переспрашиваем, но не запрещаем
+      const far = farMentionedArea(`${title}\n${description}`, resolvedCoords as [number, number]);
+      if (far && !(await telegramService.confirm(M.areaMismatch(far.mentioned, areaOf(resolvedCoords as [number, number]), far.distanceKm), { okText: M.areaMismatchOk }))) {
+        return;
       }
 
       const payload = {
@@ -960,6 +975,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                       }`}
                     >
                       {chip.placeId ? '📍 ' : ''}{chip.name}
+                      {whereLine(chip.coords) && <span className={`font-normal ${active ? '' : 'text-zine-inkMuted'}`}> · {whereLine(chip.coords)}</span>}
                     </button>
                   );
                 })}
@@ -1011,12 +1027,31 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               </div>
 
               {customCoords && placeLabel && !isGeocoding && (
-                <p className="mt-2 p-3 rounded-zine-sm bg-zine-sage/15 flex items-start gap-2 text-sm2 text-zine-ink">
-                  <Check size={18} strokeWidth={3} className="text-zine-sage shrink-0 mt-0.5" />
-                  <span>
-                    {isPickedOnMap ? 'Точка на карте' : 'Нашли'}: <b>{placeLabel}</b>
+                <div className="mt-2 p-3 rounded-zine-sm bg-zine-sage/15 flex items-center gap-3 text-zine-ink">
+                  <MapPinned size={20} className="text-zine-sage shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-body font-bold truncate">{placeLabel}</span>
+                    {(areaOf(customCoords) || me) && (
+                      <span className="block text-sm2 text-zine-inkMuted">
+                        {[areaOf(customCoords), me ? M.fromYou(formatDistance(distanceMeters(me, customCoords)) || '') : null].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
                   </span>
-                </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      setLocationName('');
+                      setCustomCoords(null);
+                      setPlaceLabel(null);
+                      setPlaceId(null);
+                      setIsPickedOnMap(false);
+                    }}
+                    className="h-9 px-3 shrink-0 rounded-full bg-zine-cardElevated text-sm2 font-semibold text-zine-terracotta cursor-pointer"
+                  >
+                    {M.placeChange}
+                  </button>
+                </div>
               )}
               {placeNotFound && !isGeocoding && (
                 <p className="mt-2 p-3 rounded-zine-sm bg-zine-danger/10 text-sm2 text-zine-ink">

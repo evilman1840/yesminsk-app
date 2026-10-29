@@ -1057,6 +1057,7 @@ export const App: React.FC = () => {
                 onRefreshEvents={fetchEvents}
                 initialCreate={pendingCreate}
                 places={places}
+                myCoords={currentUser.coordinates}
                 initialWish={pendingWish}
                 onInitialWishUsed={() => setPendingWish(null)}
                 onInitialCreateUsed={() => setPendingCreate(null)}
