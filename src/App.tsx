@@ -225,7 +225,7 @@ export const App: React.FC = () => {
   };
   const [pendingWish, setPendingWish] = useState<{ placeId?: string } | null>(null);
   const [wishMembersGroup, setWishMembersGroup] = useState<string | null>(null);
-  const [wishKind, setWishKind] = useState<string | null>(null); // «Тоже хотят» из карточки в «Людях»
+  const [wishKind, setWishKind] = useState<{ kind: string; sport?: string } | null>(null); // «Тоже хотят» из карточки в «Людях»
   const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
@@ -1037,7 +1037,7 @@ export const App: React.FC = () => {
                 onUnmatch={handleUnmatch}
                 onSkip={handleSkip}
                 onUnskip={handleUnskip}
-                onOpenWishKind={(kind) => setWishKind(kind)}
+                onOpenWishKind={(kind, sport) => setWishKind({ kind, sport })}
               />
             )}
 
@@ -1101,7 +1101,8 @@ export const App: React.FC = () => {
 
           {wishKind && (
             <WishKindSheet
-              kind={wishKind}
+              kind={wishKind.kind}
+              sport={wishKind.sport}
               onClose={() => setWishKind(null)}
               onOpenUser={(u) => {
                 setWishKind(null);

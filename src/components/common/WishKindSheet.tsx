@@ -11,17 +11,18 @@ import { WISH_TEXTS as T } from '../../texts/wishes';
  */
 export const WishKindSheet: React.FC<{
   kind: string;
+  sport?: string; // «Своё» желание: его текст
   onOpenUser: (user: UserProfile) => void;
   onBuild: (kind: string, wishGroupId: string | null) => void;
   onOpenEvent: (eventId: string) => void;
   onClose: () => void;
-}> = ({ kind, onOpenUser, onBuild, onOpenEvent, onClose }) => {
+}> = ({ kind, sport, onOpenUser, onBuild, onOpenEvent, onClose }) => {
   const [data, setData] = useState<Awaited<ReturnType<typeof api.getWishKindPeople>> | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    api.getWishKindPeople(kind).then(setData).catch(() => setError(true));
-  }, [kind]);
+    api.getWishKindPeople(kind, sport).then(setData).catch(() => setError(true));
+  }, [kind, sport]);
 
   return (
     <BottomSheet title={data ? T.kindTitle(data.emoji, data.name) : T.membersTitle} onClose={onClose}>

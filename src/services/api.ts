@@ -364,8 +364,8 @@ class ApiService {
   }
   // «Кто ещё хочет»: участники группы совпадения
   // «Тоже хотят»: все с таким же желанием и моя группа совпадения
-  async getWishKindPeople(kind: string): Promise<{ kind: string; name: string; emoji: string; people: UserProfile[]; wishGroupId: string | null; eventId: string | null }> {
-    return this.request(`/wishes/kind/${encodeURIComponent(kind)}/people`);
+  async getWishKindPeople(kind: string, sport?: string): Promise<{ kind: string; name: string; emoji: string; people: UserProfile[]; wishGroupId: string | null; eventId: string | null }> {
+    return this.request(`/wishes/kind/${encodeURIComponent(kind)}/people${sport ? `?sport=${encodeURIComponent(sport)}` : ''}`);
   }
 
   async getWishGroupMembers(groupId: string): Promise<{ members: UserProfile[]; eventId: string | null; askingPlace?: boolean; placeName?: string | null }> {

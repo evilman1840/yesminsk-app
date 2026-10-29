@@ -105,7 +105,7 @@ export interface UserProfile {
   guideAbout?: string;     // что может показать
   activeRecently?: boolean; // заходил(а) за последние 3 дня
   why?: string[];           // «почему показан»: общие планы и сходки (сервер)
-  wishKinds?: { kind: string; name: string }[]; // общие «Хочу сходить» — нажать и увидеть, кто ещё хочет
+  wishKinds?: { kind: string; sport?: string; name: string }[]; // общие «Хочу сходить» — нажать и увидеть, кто ещё хочет (у «Своего» текст в sport)
   photos?: string[];        // ещё до 5 фото в анкете (адреса на сервере)
 }
 

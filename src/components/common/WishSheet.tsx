@@ -46,11 +46,13 @@ export const WishSheet: React.FC<{
   const [error, setError] = useState<string | null>(null);
   const [isSuggestOpen, setIsSuggestOpen] = useState(false);
   const [suggested, setSuggested] = useState<string | null>(null); // предложенное место (на проверке)
+  const [customText, setCustomText] = useState(''); // «Своё»: чего хочется, своими словами
 
   const kinds = (templates || []).filter((t) => t.key !== CUSTOM_TEMPLATE && t.wishPhrase);
   const tpl = kinds.find((t) => t.key === kind) || null;
   const subField = subFieldOf(tpl);
-  const ready = Boolean(kind && timeWindow && (!subField || sport));
+  const isCustom = kind === CUSTOM_TEMPLATE;
+  const ready = Boolean(kind && timeWindow && (!subField || sport) && (!isCustom || customText.trim().replace(/[^a-zа-яё]/gi, '').length >= 2));
 
   const refresh = () =>
     api
@@ -86,6 +88,7 @@ export const WishSheet: React.FC<{
       setDone({ sameCount: res.sameCount });
       setKind(null);
       setSport(null);
+      setCustomText('');
       setTimeWindow(null);
       await refresh();
       onChanged?.();
@@ -130,7 +133,7 @@ export const WishSheet: React.FC<{
           <button
             type="button"
             disabled={!ready || busy || atLimit}
-            onClick={() => kind && timeWindow && create({ kind, sport, timeWindow, placeId: place?.id || null })}
+            onClick={() => kind && timeWindow && create({ kind, sport: isCustom ? customText.trim() : sport, timeWindow, placeId: place?.id || null })}
             className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
               ready && !atLimit ? 'bg-zine-terracotta text-white' : 'bg-zine-card text-zine-inkMuted cursor-default'
             }`}
@@ -195,9 +198,31 @@ export const WishSheet: React.FC<{
                     {t.name}
                   </button>
                 ))}
+                {/* Своё: вписать, чего хочется */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setKind(CUSTOM_TEMPLATE);
+                    setSport(null);
+                    setDone(null);
+                  }}
+                  className={chip(isCustom)}
+                >
+                  <span>✍️</span>
+                  {T.customChip}
+                </button>
               </div>
             )}
           </section>
+
+          {isCustom && (
+            <section>
+              <h4 className="mb-2 text-sm2 font-bold text-zine-ink">{T.customLabel}</h4>
+              <input type="text" value={customText} onChange={(e) => setCustomText(e.target.value.slice(0, 40))} placeholder={T.customPlaceholder} className="field" autoFocus />
+              <p className="mt-1.5 text-cap text-zine-inkMuted">{T.customHint}</p>
+            </section>
+          )}
 
           {subField && (
             <section>

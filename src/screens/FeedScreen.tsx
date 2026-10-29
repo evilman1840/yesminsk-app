@@ -30,7 +30,7 @@ export interface FeedScreenProps {
   onUnmatch?: (user: UserProfile) => Promise<void>;        // «Отменить» в «На связи»
   onSkip?: (user: UserProfile) => void;                    // свайп влево: пропустить на 3 дня
   onUnskip?: (user: UserProfile, index: number) => void;   // «Вернуть»
-  onOpenWishKind?: (kind: string) => void; // нажали «Тоже хочет: …» — кто ещё хочет и «Собрать сходку»
+  onOpenWishKind?: (kind: string, sport?: string) => void; // нажали «Тоже хочет: …» — кто ещё хочет и «Собрать сходку»
   isTourist?: boolean;
   selectedGoal: GoalFilter;
   onSelectGoal: (goal: GoalFilter) => void;
@@ -277,7 +277,7 @@ const PersonReel: React.FC<{
   onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
   onSkip: () => void;
   onUnmatch?: () => Promise<void>;
-  onOpenWishKind?: (kind: string) => void;
+  onOpenWishKind?: (kind: string, sport?: string) => void;
 }> = ({ user, isFirst, myGoals, onOpen, onReact, onSkip, onUnmatch, onOpenWishKind }) => {
   const [busy, setBusy] = useState<ReactionType | 'unmatch' | null>(null);
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
@@ -503,7 +503,7 @@ const PersonReel: React.FC<{
             <button
               onClick={() => {
                 telegramService.haptic('selection');
-                onOpenWishKind(user.wishKinds![0].kind);
+                onOpenWishKind(user.wishKinds![0].kind, user.wishKinds![0].sport);
               }}
               className="mt-2 max-w-full pr-16 flex items-center gap-1 text-sm2 font-semibold text-zine-mustard underline underline-offset-4 decoration-zine-mustard/60 cursor-pointer"
             >
