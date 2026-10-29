@@ -450,6 +450,11 @@ class ApiService {
     }
   }
 
+  // Модератор удаляет чужую сходку; reason — его текст организатору
+  async adminDeleteEvent(eventId: string, reason: string): Promise<{ success: boolean }> {
+    return this.request(`/events/${eventId}/delete`, { method: 'POST', body: JSON.stringify({ reason }) });
+  }
+
   // Записаться или поменять, с кем идёшь (повторный вызов обновляет запись)
   async joinEvent(eventId: string, options: { guests: number; withKids: boolean } = { guests: 0, withKids: false }): Promise<{ success: boolean; event: AppEvent }> {
     return this.request<{ success: boolean; event: AppEvent }>(`/events/${eventId}/join`, {

@@ -71,7 +71,7 @@ export const EventDetails: React.FC<{
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const openUser = useOpenUser();
   const isAdmin = useIsAdmin();
-  const [isAdminDeleting, setIsAdminDeleting] = useState(false);
+  const [isAdminDeleteOpen, setIsAdminDeleteOpen] = useState(false);
   const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
   const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;
 
@@ -295,25 +295,7 @@ export const EventDetails: React.FC<{
         </button>
       )}
       {isAdmin && !isCreator && (
-        <button
-          onClick={async () => {
-            if (!(await telegramService.confirm(MEETUP_TEXTS.adminDeleteConfirm(event.title), { destructive: true }))) return;
-            setIsAdminDeleting(true);
-            try {
-              await api.deleteEvent(String(event.id));
-              telegramService.haptic('success');
-              window.dispatchEvent(new CustomEvent<string>(EVENT_DELETED, { detail: String(event.id) }));
-              onReported?.();
-            } catch (err: any) {
-              telegramService.alert(err?.message || MEETUP_TEXTS.adminDeleteFailed);
-            } finally {
-              setIsAdminDeleting(false);
-            }
-          }}
-          disabled={isAdminDeleting}
-          className="w-full h-10 text-sm2 font-semibold text-zine-danger flex items-center justify-center gap-2 cursor-pointer"
-        >
-          {isAdminDeleting && <Loader2 size={16} className="animate-spin" />}
+        <button onClick={() => setIsAdminDeleteOpen(true)} className="w-full h-10 text-sm2 font-semibold text-zine-danger cursor-pointer">
           {MEETUP_TEXTS.adminDelete}
         </button>
       )}
@@ -354,6 +336,16 @@ export const EventDetails: React.FC<{
         </button>
       </div>
 
+      {isAdminDeleteOpen && (
+        <AdminDeleteSheet
+          event={event}
+          onClose={() => setIsAdminDeleteOpen(false)}
+          onDeleted={() => {
+            window.dispatchEvent(new CustomEvent<string>(EVENT_DELETED, { detail: String(event.id) }));
+            onReported?.();
+          }}
+        />
+      )}
       {isMessageOpen && <MessageParticipantsSheet eventId={String(event.id)} onClose={() => setIsMessageOpen(false)} />}
 
       {isJoinOpen && (
@@ -383,6 +375,42 @@ const SmallAction: React.FC<{ onClick: () => void; icon: React.ReactNode; label:
 );
 
 // Организатор пишет участникам: бот перешлёт всем, кто записан
+// Модератор удаляет чужую сходку и пишет организатору, почему
+const AdminDeleteSheet: React.FC<{ event: AppEvent; onClose: () => void; onDeleted: () => void }> = ({ event, onClose, onDeleted }) => {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <BottomSheet title={MEETUP_TEXTS.adminDeleteTitle} onClose={onClose}>
+      <p className="text-body text-zine-inkMuted">{MEETUP_TEXTS.adminDeleteHint(event.title)}</p>
+      <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 800))} rows={4} placeholder={MEETUP_TEXTS.adminDeletePlaceholder} className="field mt-4" autoFocus />
+      {error && <p className="mt-2 text-sm2 font-semibold text-zine-danger">{error}</p>}
+      <button
+        disabled={!text.trim() || busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            await api.adminDeleteEvent(String(event.id), text.trim());
+            telegramService.haptic('success');
+            onClose();
+            onDeleted();
+          } catch (err: any) {
+            setError(err?.message || MEETUP_TEXTS.adminDeleteFailed);
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className={`mt-4 w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center cursor-pointer ${
+          text.trim() ? 'bg-zine-danger text-white' : 'bg-zine-card text-zine-inkMuted cursor-default'
+        }`}
+      >
+        {busy ? <Loader2 size={22} className="animate-spin" /> : MEETUP_TEXTS.adminDeleteSend}
+      </button>
+    </BottomSheet>
+  );
+};
+
 const MessageParticipantsSheet: React.FC<{ eventId: string; onClose: () => void }> = ({ eventId, onClose }) => {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);

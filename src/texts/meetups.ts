@@ -55,7 +55,10 @@ export const MEETUP_TEXTS = {
 
   // Модератор удаляет чужую сходку
   adminDelete: '🛡 Удалить сходку (модератор)',
-  adminDeleteConfirm: (title: string) => `Удалить сходку «${title}»? Организатору придёт сообщение, что она нарушает правила, участникам, что она отменена.`,
+  adminDeleteTitle: 'Удалить сходку',
+  adminDeleteHint: (title: string) => `«${title}» удалится насовсем. Организатору придёт сообщение с твоим текстом, участникам, что сходка отменена.`,
+  adminDeletePlaceholder: 'Почему удалена (увидит организатор)',
+  adminDeleteSend: 'Удалить и отправить',
   adminDeleteFailed: 'Не получилось удалить сходку',
 
   mineChip: '⭐ Мои',
