@@ -1061,6 +1061,7 @@ export const App: React.FC = () => {
                 initialCreate={pendingCreate}
                 places={places}
                 myCoords={currentUser.coordinates}
+                myGender={currentUser.gender}
                 initialWish={pendingWish}
                 onInitialWishUsed={() => setPendingWish(null)}
                 onInitialCreateUsed={() => setPendingCreate(null)}

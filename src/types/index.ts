@@ -238,6 +238,9 @@ export interface AppEvent {
   badges?: string[];    // метки из доп. полей: «🏓 Настольный теннис · любой уровень»
   photos?: string[];    // до 5 фото: адреса на сервере, первое — обложка
   isPaid?: boolean;     // платная (по умолчанию бесплатная)
+  audienceGender?: AudienceGender; // для кого: все / только девушки / только мужчины
+  ageMin?: number | null; // возраст «от» (пусто — любой)
+  ageMax?: number | null; // возраст «до»
   price?: number;       // примерно сколько, BYN с человека
   participants?: Array<{
     telegramId: number;
@@ -269,7 +272,19 @@ export interface EventPayload {
   isPaid?: boolean;
   price?: number;
   wishGroupId?: string;
+  audienceGender?: AudienceGender;
+  ageMin?: number | null;
+  ageMax?: number | null;
 }
+
+// Для кого сходка по полу; возраст — отдельно, «от–до»
+export type AudienceGender = 'all' | 'female' | 'male';
+// «👩 Только девушки · 25–35 лет» — пусто, если сходка для всех
+export const audienceLabel = (ev: { audienceGender?: AudienceGender; ageMin?: number | null; ageMax?: number | null }) => {
+  const g = ev.audienceGender === 'female' ? '👩 Только девушки' : ev.audienceGender === 'male' ? '👨 Только мужчины' : '';
+  const a = ev.ageMin && ev.ageMax ? `${ev.ageMin}–${ev.ageMax} лет` : ev.ageMin ? `от ${ev.ageMin} лет` : ev.ageMax ? `до ${ev.ageMax} лет` : '';
+  return [g, a ? (g ? a : `🎂 ${a}`) : ''].filter(Boolean).join(' · ');
+};
 
 // Шаблон сходки (правится автором в боте через /templates)
 export interface TemplateOption {

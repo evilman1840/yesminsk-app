@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { thumb } from '../../utils/thumb';
 import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus } from 'lucide-react';
-import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES } from '../../types';
+import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES, audienceLabel } from '../../types';
 import { HelpLine } from './HelpLine';
 import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
@@ -117,6 +117,9 @@ export const EventDetails: React.FC<{
           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold ${cat.badgeBg} ${cat.badgeText}`}>
             {cat.emoji} {cat.label}
           </span>
+        )}
+        {audienceLabel(event) && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-blush/20 text-zine-ink">{audienceLabel(event)}</span>
         )}
         {(event.tags || []).map((t) => (
           <span key={t} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-card text-zine-ink">

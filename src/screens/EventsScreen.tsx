@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff } from 'lucide-react';
-import { AppEvent, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem } from '../types';
+import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -156,6 +156,7 @@ export interface EventsScreenProps {
   onInitialCreateUsed?: () => void;
   places?: PlaceItem[]; // для «Хочу сходить»: выбор места
   myCoords?: [number, number]; // точка из анкеты [lat, lng]: расстояние до мест в форме сходки
+  myGender?: string; // свой пол: «только девушки / мужчины» можно выбрать только свой
   initialWish?: { placeId?: string } | null; // открыть «Хочу сходить» сразу (из сообщения бота)
   onInitialWishUsed?: () => void;
 }
@@ -172,6 +173,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   onInitialCreateUsed,
   places = [],
   myCoords,
+  myGender,
   initialWish,
   onInitialWishUsed
 }) => {
@@ -210,6 +212,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [maxParticipants, setMaxParticipants] = useState('0');
   const [seatsBumped, setSeatsBumped] = useState(false);
   const [tags, setTags] = useState<EventTag[]>([]);
+  // Для кого: пол и возраст «от–до» (по желанию организатора)
+  const [audienceGender, setAudienceGender] = useState<AudienceGender>('all');
+  const [ageMin, setAgeMin] = useState('');
+  const [ageMax, setAgeMax] = useState('');
   // Сходка из карточки места — тогда напишем тем, кто его сохранил
   const [placeId, setPlaceId] = useState<string | null>(null);
   const [joinEventId, setJoinEventId] = useState<string | null>(null);
@@ -393,6 +399,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setDateTime(toLocalInput(quickTimes().find((q) => q.id === 'tomorrowEvening')!.date));
     setMaxParticipants('0');
     setTags([]);
+    setAudienceGender('all');
+    setAgeMin('');
+    setAgeMax('');
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -432,6 +441,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setDateTime(Number.isNaN(d.getTime()) ? '' : toLocalInput(d));
     setMaxParticipants(String(ev.maxParticipants || 0));
     setTags(ev.tags || []);
+    setAudienceGender(ev.audienceGender || 'all');
+    setAgeMin(ev.ageMin ? String(ev.ageMin) : '');
+    setAgeMax(ev.ageMax ? String(ev.ageMax) : '');
     setTemplateKey(ev.templateId || null);
     setExtras(ev.extras || {});
     setDurationMinutes(ev.durationMinutes || 0);
@@ -633,6 +645,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         dateTime: new Date(dateTime).toISOString(),
         maxParticipants: Number(maxParticipants) === 1 ? 2 : Number(maxParticipants) || 0,
         tags,
+        audienceGender,
+        ageMin: ageMin ? Number(ageMin) : null,
+        ageMax: ageMax ? Number(ageMax) : null,
         ...(placeId && !editingEventId ? { placeId } : {}),
         ...(templateKey && !editingEventId ? { templateId: templateKey } : {}),
         ...(wishGroupId && !editingEventId ? { wishGroupId } : {}),
@@ -1255,6 +1270,37 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               </div>
             </Field>
 
+            {/* Для кого по полу и возрасту — по желанию */}
+            <Field label={M.audienceGenderLabel}>
+              <div className="flex flex-wrap gap-2">
+                {(['all', ...(myGender === 'female' || myGender === 'male' ? [myGender] : [])] as AudienceGender[]).map((g) => (
+                  <button
+                    type="button"
+                    key={g}
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      setAudienceGender(g);
+                    }}
+                    className={`h-11 px-4 rounded-full border-2 text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      audienceGender === g ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                    }`}
+                  >
+                    {g === 'female' ? M.audienceFemale : g === 'male' ? M.audienceMale : M.audienceAll}
+                  </button>
+                ))}
+              </div>
+              {myGender !== 'female' && myGender !== 'male' && <p className="mt-1.5 text-cap text-zine-inkMuted">{M.audienceNoGender}</p>}
+            </Field>
+
+            <Field label={M.audienceAgeLabel}>
+              <div className="flex items-center gap-2">
+                <input type="number" inputMode="numeric" min={18} max={99} value={ageMin} onChange={(e) => setAgeMin(e.target.value.slice(0, 2))} placeholder={M.audienceAgeFrom} className="field" />
+                <span className="text-zine-inkMuted">–</span>
+                <input type="number" inputMode="numeric" min={18} max={99} value={ageMax} onChange={(e) => setAgeMax(e.target.value.slice(0, 2))} placeholder={M.audienceAgeTo} className="field" />
+              </div>
+              <p className="mt-1.5 text-cap text-zine-inkMuted">{M.audienceHint}</p>
+            </Field>
+
             {/* Где можно собираться — последним, прямо перед «Опубликовать» */}
             <p className="p-3 rounded-zine-sm bg-zine-terracotta/10 text-sm2 text-zine-ink">⚖️ {M.legalVenueHint}</p>
 
@@ -1465,7 +1511,7 @@ const EventReel: React.FC<{
         </p>
         {/* Цена и метки шаблона: «💚 Бесплатно», «🏓 Настольный теннис · любой уровень» */}
         <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
-          {[priceLabel(ev), ...(ev.badges || [])].map((b) => (
+          {[audienceLabel(ev), priceLabel(ev), ...(ev.badges || [])].filter(Boolean).map((b) => (
             <span key={b} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold flex items-center">
               {b}
             </span>

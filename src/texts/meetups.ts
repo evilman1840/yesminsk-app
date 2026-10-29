@@ -77,6 +77,17 @@ export const MEETUP_TEXTS = {
   confirmedOne: 'точно придёт',
   confirmedBadge: 'Точно придёт',
 
+  // Для кого: пол и возраст (по желанию)
+  audienceGenderLabel: 'Пол',
+  audienceAll: 'Неважно',
+  audienceFemale: '👩 Только девушки',
+  audienceMale: '👨 Только мужчины',
+  audienceNoGender: 'Чтобы собрать только девушек или только мужчин, укажи свой пол в анкете.',
+  audienceAgeLabel: 'Возраст (можно не указывать)',
+  audienceAgeFrom: 'от 18',
+  audienceAgeTo: 'до 99',
+  audienceHint: 'Кому не подходит, тот не увидит сходку в ленте.',
+
   mineChip: '⭐ Мои',
   mineEmptyTitle: 'Своих сходок пока нет',
   mineEmptyText: 'Здесь будут сходки, которые ты собираешь, и те, куда ты идёшь. Собери первую, это займёт минуту.',
