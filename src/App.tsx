@@ -15,6 +15,7 @@ import { AddToHomeSheet } from './components/common/AddToHomeSheet';
 import { OpenUserContext } from './context/openUser';
 import { askBotAccess, setBotAccessKnown, botAccessOk } from './services/botAccess';
 import { WishMembersSheet } from './components/common/WishMembersSheet';
+import { WishKindSheet } from './components/common/WishKindSheet';
 import { MatchModal, ReactionType } from './components/common/Reactions';
 import { ServerWakingBanner } from './components/common/ServerWakingBanner';
 import { TabBar, TabId } from './components/ui/TabBar';
@@ -224,6 +225,7 @@ export const App: React.FC = () => {
   };
   const [pendingWish, setPendingWish] = useState<{ placeId?: string } | null>(null);
   const [wishMembersGroup, setWishMembersGroup] = useState<string | null>(null);
+  const [wishKind, setWishKind] = useState<string | null>(null); // «Тоже хотят» из карточки в «Людях»
   const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
@@ -1035,6 +1037,7 @@ export const App: React.FC = () => {
                 onUnmatch={handleUnmatch}
                 onSkip={handleSkip}
                 onUnskip={handleUnskip}
+                onOpenWishKind={(kind) => setWishKind(kind)}
               />
             )}
 
@@ -1094,6 +1097,27 @@ export const App: React.FC = () => {
                 }}
               />
             </BottomSheet>
+          )}
+
+          {wishKind && (
+            <WishKindSheet
+              kind={wishKind}
+              onClose={() => setWishKind(null)}
+              onOpenUser={(u) => {
+                setWishKind(null);
+                setSelectedUser(u);
+              }}
+              onOpenEvent={(id) => {
+                setWishKind(null);
+                const ev = events.find((e) => String(e.id) === id);
+                if (ev) setSharedEvent(ev);
+              }}
+              onBuild={(kind, groupId) => {
+                setWishKind(null);
+                setPendingCreate({ template: kind, source: 'people', ...(groupId ? { wishGroupId: groupId } : {}) });
+                setCurrentScreen('events');
+              }}
+            />
           )}
 
           {wishMembersGroup && (

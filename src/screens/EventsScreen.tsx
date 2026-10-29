@@ -314,7 +314,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   }, [scrollToId]);
 
   // Одно открытие формы — для воронки «открыли → выбрали идею → опубликовали»
-  const formSession = useRef<{ id: string; done: boolean } | null>(null);
+  const formSession = useRef<{ id: string; done: boolean; source?: MeetupFormSource } | null>(null);
   const track = (
     step: 'opened' | 'template' | 'published' | 'closed' | 'error',
     extra: { template?: string; source?: MeetupFormSource; closedAt?: 'pick' | 'form'; missing?: string[]; error?: string } = {}
@@ -363,7 +363,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   };
 
   const handleOpenCreateModal = (presetCategory?: EventCategory, place?: MeetupPlace, source: MeetupFormSource = 'feed') => {
-    formSession.current = { id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, done: false };
+    formSession.current = { id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, done: false, source };
     track('opened', { source });
     setPlaceId(place?.placeId || null);
     setPickPlaceType(place?.placeType);
@@ -636,6 +636,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         ...(placeId && !editingEventId ? { placeId } : {}),
         ...(templateKey && !editingEventId ? { templateId: templateKey } : {}),
         ...(wishGroupId && !editingEventId ? { wishGroupId } : {}),
+        // Из «Тоже хотят» — бот напишет всем, кто хотел того же на это время
+        ...(formSession.current?.source === 'people' && !editingEventId ? { notifyWishers: true } : {}),
         durationMinutes,
         photos: photos.map((p) => p.id).filter(Boolean),
         isPaid,

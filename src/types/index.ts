@@ -105,6 +105,7 @@ export interface UserProfile {
   guideAbout?: string;     // что может показать
   activeRecently?: boolean; // заходил(а) за последние 3 дня
   why?: string[];           // «почему показан»: общие планы и сходки (сервер)
+  wishKinds?: { kind: string; name: string }[]; // общие «Хочу сходить» — нажать и увидеть, кто ещё хочет
   photos?: string[];        // ещё до 5 фото в анкете (адреса на сервере)
 }
 
@@ -343,7 +344,7 @@ export interface MeetupPlace {
   placeType?: string; // тип места: под него подбираются шаблоны
 }
 // Откуда открыли форму сходки — для воронки в /stats
-export type MeetupFormSource = 'feed' | 'empty' | 'place' | 'link' | 'map';
+export type MeetupFormSource = 'feed' | 'empty' | 'place' | 'link' | 'map' | 'people';
 export interface MeetupCreateRequest {
   place?: MeetupPlace;
   template?: string;

@@ -30,6 +30,7 @@ export interface FeedScreenProps {
   onUnmatch?: (user: UserProfile) => Promise<void>;        // «Отменить» в «На связи»
   onSkip?: (user: UserProfile) => void;                    // свайп влево: пропустить на 3 дня
   onUnskip?: (user: UserProfile, index: number) => void;   // «Вернуть»
+  onOpenWishKind?: (kind: string) => void; // нажали «Тоже хочет: …» — кто ещё хочет и «Собрать сходку»
   isTourist?: boolean;
   selectedGoal: GoalFilter;
   onSelectGoal: (goal: GoalFilter) => void;
@@ -56,7 +57,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   myPrefs,
   myGoals,
   topSlot,
-  myUsername
+  myUsername,
+  onOpenWishKind
 }) => {
   const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -221,6 +223,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               }}
               onReact={onReact}
               onUnmatch={onUnmatch ? () => onUnmatch(user) : undefined}
+              onOpenWishKind={onOpenWishKind}
               onSkip={() => {
                 setJustSkipped({ user, index: users.findIndex((u) => u.telegramId === user.telegramId) });
                 onSkip ? onSkip(user) : onReact(user, 'dislike');
@@ -274,7 +277,8 @@ const PersonReel: React.FC<{
   onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
   onSkip: () => void;
   onUnmatch?: () => Promise<void>;
-}> = ({ user, isFirst, myGoals, onOpen, onReact, onSkip, onUnmatch }) => {
+  onOpenWishKind?: (kind: string) => void;
+}> = ({ user, isFirst, myGoals, onOpen, onReact, onSkip, onUnmatch, onOpenWishKind }) => {
   const [busy, setBusy] = useState<ReactionType | 'unmatch' | null>(null);
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
   const [isConfirmingUnmatch, setIsConfirmingUnmatch] = useState(false);
@@ -494,7 +498,21 @@ const PersonReel: React.FC<{
           ))}
         </div>
         {/* Почему показан: общие «Хочу сходить» и сходки */}
-        {user.why && user.why.length > 0 && <p className="mt-2 pr-16 text-sm2 font-semibold text-zine-mustard truncate">{user.why.join(' · ')}</p>}
+        {user.why && user.why.length > 0 &&
+          (user.wishKinds?.length && onOpenWishKind ? (
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                onOpenWishKind(user.wishKinds![0].kind);
+              }}
+              className="mt-2 max-w-full pr-16 flex items-center gap-1 text-sm2 font-semibold text-zine-mustard underline underline-offset-4 decoration-zine-mustard/60 cursor-pointer"
+            >
+              <span className="truncate">{user.why.join(' · ')}</span>
+              <ChevronRight size={16} className="shrink-0" />
+            </button>
+          ) : (
+            <p className="mt-2 pr-16 text-sm2 font-semibold text-zine-mustard truncate">{user.why.join(' · ')}</p>
+          ))}
         {user.bio && <p className="mt-2 pr-16 text-body text-white/90 line-clamp-2">{user.bio}</p>}
 
         {isConfirmingUnmatch ? (
