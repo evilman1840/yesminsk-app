@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { thumb } from '../../utils/thumb';
-import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2 } from 'lucide-react';
+import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus } from 'lucide-react';
 import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES } from '../../types';
 import { HelpLine } from './HelpLine';
 import { telegramService } from '../../services/telegram';
@@ -11,7 +11,7 @@ import { MEETUP_TEXTS, priceLabel } from '../../texts/meetups';
 import { photoSrc } from './PhotoPicker';
 import { useOpenUser } from '../../context/openUser';
 import { useIsAdmin, EVENT_DELETED } from '../../context/admin';
-import { confirmAttendance } from '../../context/eventUpdates';
+import { confirmAttendance, EVENT_UPDATED } from '../../context/eventUpdates';
 import { EVENT_MESSAGE_TEXTS as EM } from '../../texts/eventMessage';
 import { api } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
@@ -66,10 +66,13 @@ export const EventDetails: React.FC<{
   onJoin: (options: JoinOptions | null) => Promise<unknown> | void;
   onReported?: () => void;
 }> = ({ event: eventProp, onJoin, onReported }) => {
-  // «Точно приду» нажали здесь: шторка на карте держит свою копию сходки, поэтому ответ сервера подмешиваем сами
-  const [confirmedNow, setConfirmedNow] = useState<AppEvent | null>(null);
+  // «Точно приду» или отказ участнику нажали здесь: шторка на карте держит свою копию сходки, поэтому ответ сервера подмешиваем сами.
+  // Пришла новая сходка сверху — своя копия больше не нужна
+  const [localEvent, setLocalEvent] = useState<AppEvent | null>(null);
+  useEffect(() => setLocalEvent(null), [eventProp]);
   const [isConfirming, setIsConfirming] = useState(false);
-  const event = confirmedNow && confirmedNow.id === eventProp.id && eventProp.isJoined ? { ...eventProp, ...confirmedNow } : eventProp;
+  const [removing, setRemoving] = useState<{ telegramId: number; name: string } | null>(null);
+  const event = localEvent && localEvent.id === eventProp.id ? { ...eventProp, ...localEvent } : eventProp;
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const cat = eventCategoryOf(event);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -181,6 +184,11 @@ export const EventDetails: React.FC<{
           )}
         </div>
 
+        {/* Организатору — совет про свой чат (по желанию) */}
+        {isCreator && new Date(event.dateTime).getTime() > Date.now() && (
+          <p className="mt-3 p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{EM.chatTip}</p>
+        )}
+
         {/* Организатору — список с Telegram участников и «Написать участникам» */}
         {isCreator && others.length > 0 && (
           <div className="mt-3 space-y-2">
@@ -206,6 +214,14 @@ export const EventDetails: React.FC<{
                       {p.username ? `@${p.username}` : EM.noUsername}
                     </span>
                   </span>
+                </button>
+                <button
+                  type="button"
+                  aria-label={EM.removeOne}
+                  onClick={() => setRemoving({ telegramId: p.telegramId, name: p.name })}
+                  className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-danger flex items-center justify-center cursor-pointer"
+                >
+                  <UserMinus size={16} />
                 </button>
                 {p.username && (
                   <button
@@ -356,7 +372,7 @@ export const EventDetails: React.FC<{
                 onClick={async () => {
                   setIsConfirming(true);
                   const updated = await confirmAttendance(event);
-                  if (updated) setConfirmedNow(updated);
+                  if (updated) setLocalEvent(updated);
                   setIsConfirming(false);
                 }}
                 disabled={isConfirming}
@@ -378,6 +394,18 @@ export const EventDetails: React.FC<{
         )}
       </div>
 
+      {removing && (
+        <RemoveParticipantSheet
+          eventId={String(event.id)}
+          person={removing}
+          onClose={() => setRemoving(null)}
+          onRemoved={(updated) => {
+            const merged = { ...event, ...updated, id: event.id };
+            setLocalEvent(merged);
+            window.dispatchEvent(new CustomEvent<AppEvent>(EVENT_UPDATED, { detail: merged }));
+          }}
+        />
+      )}
       {isAdminDeleteOpen && (
         <AdminDeleteSheet
           event={event}
@@ -417,6 +445,45 @@ const SmallAction: React.FC<{ onClick: () => void; icon: React.ReactNode; label:
 );
 
 // Организатор пишет участникам: бот перешлёт всем, кто записан
+// Организатор отказывает участнику; причина по желанию
+const RemoveParticipantSheet: React.FC<{ eventId: string; person: { telegramId: number; name: string }; onClose: () => void; onRemoved: (ev: AppEvent) => void }> = ({
+  eventId,
+  person,
+  onClose,
+  onRemoved
+}) => {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <BottomSheet title={EM.removeTitle(person.name)} onClose={onClose}>
+      <p className="text-body text-zine-inkMuted">{EM.removeHint}</p>
+      <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 800))} rows={3} placeholder={EM.removePlaceholder} className="field mt-4" />
+      {error && <p className="mt-2 text-sm2 font-semibold text-zine-danger">{error}</p>}
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            const updated = await api.removeParticipant(eventId, person.telegramId, text.trim());
+            telegramService.haptic('success');
+            onClose();
+            onRemoved(updated);
+          } catch (err: any) {
+            setError(err?.message || EM.removeFailed);
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="mt-4 w-full h-14 rounded-zine-sm bg-zine-danger text-white text-lead font-bold flex items-center justify-center cursor-pointer"
+      >
+        {busy ? <Loader2 size={22} className="animate-spin" /> : EM.removeSend}
+      </button>
+    </BottomSheet>
+  );
+};
+
 // Модератор удаляет чужую сходку и пишет организатору, почему
 const AdminDeleteSheet: React.FC<{ event: AppEvent; onClose: () => void; onDeleted: () => void }> = ({ event, onClose, onDeleted }) => {
   const [text, setText] = useState('');

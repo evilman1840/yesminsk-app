@@ -471,6 +471,11 @@ class ApiService {
     });
   }
 
+  // Организатор отказывает участнику; reason — по желанию, уйдёт человеку в бот
+  async removeParticipant(eventId: string, telegramId: number, reason: string): Promise<AppEvent> {
+    return this.request<AppEvent>(`/events/${eventId}/remove`, { method: 'POST', body: JSON.stringify({ telegramId, reason }) });
+  }
+
   // «✅ Точно приду»
   async confirmEvent(eventId: string): Promise<AppEvent> {
     return this.request<AppEvent>(`/events/${eventId}/confirm`, { method: 'POST' });
