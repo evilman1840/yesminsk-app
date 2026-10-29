@@ -21,6 +21,7 @@ import { WishSheet } from '../components/common/WishSheet';
 import { InfoToast } from '../components/ui/InfoToast';
 import { WISH_TEXTS } from '../texts/wishes';
 import { MEETUP_TEXTS as M, priceLabel } from '../texts/meetups';
+import { confirmAttendance } from '../context/eventUpdates';
 import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji, quickTimeFromParam } from '../utils/meetupTemplates';
 
 import { cachedTemplates, loadTemplates } from '../utils/templatesStore';
@@ -1307,6 +1308,7 @@ const EventReel: React.FC<{
   onSeen?: () => void;
   emoji?: string | null;
 }> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onLeave, onEdit, onDelete, onOpenDetails, onNotInterested, onSeen, emoji }) => {
+  const [isConfirming, setIsConfirming] = useState(false);
   // Карточка видна больше секунды — считаем просмотренной
   const reelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1493,15 +1495,30 @@ const EventReel: React.FC<{
             </span>
           </span>
         </div>
-        {/* Записан(а) — заметная отмена прямо на карточке */}
+        {/* Записан(а) — «Точно приду» и заметная отмена прямо на карточке */}
         {ev.isJoined && !isCreator && (
-          <button
-            onClick={onLeave}
-            disabled={isJoining}
-            className="mt-2 h-9 text-body font-bold text-white underline underline-offset-4 decoration-white/70 cursor-pointer"
-          >
-            {M.notGoing}
-          </button>
+          <div className="mt-2 flex items-center gap-4">
+            {!ev.myConfirmed && (
+              <button
+                onClick={async () => {
+                  setIsConfirming(true);
+                  await confirmAttendance(ev);
+                  setIsConfirming(false);
+                }}
+                disabled={isConfirming}
+                className="h-9 px-4 rounded-full bg-zine-sage text-white text-sm2 font-bold flex items-center cursor-pointer active:scale-[0.98] transition-transform"
+              >
+                {isConfirming ? <Loader2 size={16} className="animate-spin" /> : M.confirmGo}
+              </button>
+            )}
+            <button
+              onClick={onLeave}
+              disabled={isJoining}
+              className="h-9 text-body font-bold text-white underline underline-offset-4 decoration-white/70 cursor-pointer"
+            >
+              {M.notGoing}
+            </button>
+          </div>
         )}
       </div>
 

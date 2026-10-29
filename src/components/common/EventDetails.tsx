@@ -11,6 +11,7 @@ import { MEETUP_TEXTS, priceLabel } from '../../texts/meetups';
 import { photoSrc } from './PhotoPicker';
 import { useOpenUser } from '../../context/openUser';
 import { useIsAdmin, EVENT_DELETED } from '../../context/admin';
+import { confirmAttendance } from '../../context/eventUpdates';
 import { EVENT_MESSAGE_TEXTS as EM } from '../../texts/eventMessage';
 import { api } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
@@ -64,7 +65,11 @@ export const EventDetails: React.FC<{
   // options — с кем идёшь; null — «Не пойду»
   onJoin: (options: JoinOptions | null) => Promise<unknown> | void;
   onReported?: () => void;
-}> = ({ event, onJoin, onReported }) => {
+}> = ({ event: eventProp, onJoin, onReported }) => {
+  // «Точно приду» нажали здесь: шторка на карте держит свою копию сходки, поэтому ответ сервера подмешиваем сами
+  const [confirmedNow, setConfirmedNow] = useState<AppEvent | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const event = confirmedNow && confirmedNow.id === eventProp.id && eventProp.isJoined ? { ...eventProp, ...confirmedNow } : eventProp;
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const cat = eventCategoryOf(event);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -344,7 +349,22 @@ export const EventDetails: React.FC<{
         </button>
         {event.isJoined && !isCreator && (
           <div className="mt-2 flex items-center justify-between gap-3">
-            <span className="min-w-0 text-sm2 text-zine-inkMuted">{event.myConfirmed ? MEETUP_TEXTS.confirmedMine : ''}</span>
+            {event.myConfirmed ? (
+              <span className="min-w-0 text-sm2 text-zine-inkMuted">{MEETUP_TEXTS.confirmedMine}</span>
+            ) : (
+              <button
+                onClick={async () => {
+                  setIsConfirming(true);
+                  const updated = await confirmAttendance(event);
+                  if (updated) setConfirmedNow(updated);
+                  setIsConfirming(false);
+                }}
+                disabled={isConfirming}
+                className="h-10 px-4 rounded-full bg-zine-sage text-white text-body font-bold flex items-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+              >
+                {isConfirming ? <Loader2 size={18} className="animate-spin" /> : MEETUP_TEXTS.confirmGo}
+              </button>
+            )}
             <button
               onClick={async () => {
                 if (!(await telegramService.confirm(MEETUP_TEXTS.notGoingConfirm(event.title), { okText: MEETUP_TEXTS.notGoingOk, destructive: true }))) return;

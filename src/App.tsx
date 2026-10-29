@@ -31,6 +31,7 @@ import { AREA_COORDINATES } from './config/areas';
 import { LegalUpdateOverlay } from './components/common/Legal';
 import { LEGAL_VERSION } from './texts/legal';
 import { AdminContext, EVENT_DELETED } from './context/admin';
+import { EVENT_UPDATED } from './context/eventUpdates';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, placeForMeetup } from './types';
 import { FEED_TEXTS } from './texts/feed';
 import { MEETUP_TEXTS } from './texts/meetups';
@@ -148,6 +149,17 @@ export const App: React.FC = () => {
     };
     window.addEventListener(EVENT_DELETED, onDeleted);
     return () => window.removeEventListener(EVENT_DELETED, onDeleted);
+  }, []);
+
+  // «Точно приду» нажали в шторке — обновляем сходку в списках и в открытой по ссылке
+  useEffect(() => {
+    const onUpdated = (e: Event) => {
+      const ev = (e as CustomEvent<AppEvent>).detail;
+      setEvents((prev) => prev.map((x) => (x.id === ev.id ? { ...x, ...ev } : x)));
+      setSharedEvent((cur) => (cur && cur.id === ev.id ? { ...cur, ...ev } : cur));
+    };
+    window.addEventListener(EVENT_UPDATED, onUpdated);
+    return () => window.removeEventListener(EVENT_UPDATED, onUpdated);
   }, []);
 
   // Места по вайбу

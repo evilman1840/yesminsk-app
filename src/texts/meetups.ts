@@ -66,6 +66,8 @@ export const MEETUP_TEXTS = {
   notGoingConfirm: (title: string) => `Не пойдёшь на «${title}»? Место освободится, организатор увидит, что ты не придёшь.`,
   notGoingOk: 'Не пойду',
   confirmedMine: '✅ Ты точно придёшь, организатор это видит',
+  confirmGo: '✅ Точно приду',
+  confirmFailed: 'Не получилось отметить, попробуй ещё раз',
   confirmedOne: 'точно придёт',
   confirmedBadge: 'Точно придёт',
 
