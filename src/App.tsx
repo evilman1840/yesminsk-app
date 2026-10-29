@@ -186,10 +186,10 @@ export const App: React.FC = () => {
   const [isAgePromptDismissed, setIsAgePromptDismissed] = useState(false);
   // Пол выбран в окне «Кто ты?»: в анкету кладём, когда окно закроется (иначе оно исчезнет до шага 2)
   const [genderSavedInPrompt, setGenderSavedInPrompt] = useState<Gender | null>(null);
-  // «Позже» в окне «Кто ты?» — не спрашиваем неделю
+  // «Позже» в окне «Кто ты?» — не спрашиваем 3 дня
   const [isGenderPromptDismissed, setIsGenderPromptDismissed] = useState(() => {
     try {
-      return Date.now() - Number(localStorage.getItem('yesminsk_gender_later') || 0) < 7 * 24 * 60 * 60 * 1000;
+      return Date.now() - Number(localStorage.getItem('yesminsk_gender_later') || 0) < 3 * 24 * 60 * 60 * 1000;
     } catch {
       return false;
     }
@@ -1125,8 +1125,8 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* Пол не выбран: спрашиваем после возраста (за вход — не больше одного окна) */}
-          {isMeLoaded && isTab && currentScreen !== 'profile_edit' && currentUser.ageConfirmed && currentUser.profileCompleted && !currentUser.genderConfirmed && currentUser.legalVersion === LEGAL_VERSION && !isGenderPromptDismissed && !isHomeTipOpen && !sharedEvent && !matchPopupUser && (
+          {/* Пол не выбран: спрашиваем после возраста, даже если анкета заполнена не до конца (за вход — не больше одного окна) */}
+          {isMeLoaded && isTab && currentScreen !== 'profile_edit' && currentUser.ageConfirmed && !currentUser.genderConfirmed && currentUser.legalVersion === LEGAL_VERSION && !isGenderPromptDismissed && !isHomeTipOpen && !sharedEvent && !matchPopupUser && (
             <GenderPrompt
               myAge={Number(currentUser.age) || 25}
               onSave={async (gender) => {
