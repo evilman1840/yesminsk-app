@@ -11,6 +11,7 @@ import { USERNAME_TEXTS } from '../texts/profile';
 import { PHOTO_TEXTS } from '../texts/photos';
 import { FEED_TEXTS } from '../texts/feed';
 import { UndoToast } from '../components/ui/UndoToast';
+import { markPersonSeen } from '../utils/seenPeople';
 import {
   PeopleFiltersSheet,
   PeopleFilters,
@@ -284,6 +285,25 @@ const PersonReel: React.FC<{
   const [isConfirmingUnmatch, setIsConfirmingUnmatch] = useState(false);
   const common = new Set(commonGoalIds(user, myGoals));
   const goals = goalsOf(user);
+  // Карточка на экране больше секунды — посмотрели: в следующий раз человек будет ниже
+  const seenRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = seenRef.current;
+    if (!el) return;
+    let timer: number | undefined;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) timer = window.setTimeout(() => markPersonSeen(user.telegramId), 1200);
+        else window.clearTimeout(timer);
+      },
+      { threshold: 0.6 }
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      window.clearTimeout(timer);
+    };
+  }, [user.telegramId]);
   // Главное фото и ещё до 5
   const gallery = [user.avatarUrl, ...(user.photos || []).map(photoSrc)];
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -360,6 +380,7 @@ const PersonReel: React.FC<{
       }}
     >
       <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} onLoad={preloadGallery} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
+      <div ref={seenRef} className="absolute inset-0 pointer-events-none" aria-hidden />
       {/* Несколько фото: тап слева и справа листает, как в сторис; по центру — анкета */}
       {gallery.length > 1 && (
         <>
