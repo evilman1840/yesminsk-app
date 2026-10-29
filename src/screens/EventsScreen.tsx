@@ -1097,7 +1097,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                placeholder="Какой план, кого ждём, во что одеться"
+                placeholder="Какой план, кого ждём, что взять с собой"
                 className={`field ${formError && !description.trim() ? 'ring-2 ring-zine-danger/60' : ''}`}
                 required
               />
