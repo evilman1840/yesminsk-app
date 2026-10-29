@@ -493,6 +493,8 @@ const PersonReel: React.FC<{
             </span>
           ))}
         </div>
+        {/* Почему показан: общие «Хочу сходить» и сходки */}
+        {user.why && user.why.length > 0 && <p className="mt-2 pr-16 text-sm2 font-semibold text-zine-mustard truncate">{user.why.join(' · ')}</p>}
         {user.bio && <p className="mt-2 pr-16 text-body text-white/90 line-clamp-2">{user.bio}</p>}
 
         {isConfirmingUnmatch ? (

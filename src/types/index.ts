@@ -104,6 +104,7 @@ export interface UserProfile {
   isGuide?: boolean;       // «🧭 Покажу город» — местный гид-волонтёр
   guideAbout?: string;     // что может показать
   activeRecently?: boolean; // заходил(а) за последние 3 дня
+  why?: string[];           // «почему показан»: общие планы и сходки (сервер)
   photos?: string[];        // ещё до 5 фото в анкете (адреса на сервере)
 }
 
