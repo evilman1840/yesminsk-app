@@ -30,6 +30,7 @@ import { NewsItem } from './services/api';
 import { AREA_COORDINATES } from './config/areas';
 import { LegalUpdateOverlay } from './components/common/Legal';
 import { LEGAL_VERSION } from './texts/legal';
+import { AdminContext, EVENT_DELETED } from './context/admin';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, placeForMeetup } from './types';
 import { FEED_TEXTS } from './texts/feed';
 import { loadBadgeSeenEvents, markBadgeSeenEvents } from './utils/seenEvents';
@@ -90,6 +91,7 @@ export const App: React.FC = () => {
 
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<GoalFilter>('all');
   const [apiError, setApiError] = useState<string | null>(null);
@@ -134,6 +136,17 @@ export const App: React.FC = () => {
     const onShare = (e: Event) => setShareData((e as CustomEvent<ShareData>).detail);
     window.addEventListener(SHARE_EVENT, onShare);
     return () => window.removeEventListener(SHARE_EVENT, onShare);
+  }, []);
+
+  // Модератор удалил сходку из любой шторки — убираем её из списков и закрываем открытую по ссылке
+  useEffect(() => {
+    const onDeleted = (e: Event) => {
+      const id = String((e as CustomEvent<string>).detail);
+      setEvents((prev) => prev.filter((ev) => ev.id !== id && (ev as any)._id !== id));
+      setSharedEvent((cur) => (cur && cur.id === id ? null : cur));
+    };
+    window.addEventListener(EVENT_DELETED, onDeleted);
+    return () => window.removeEventListener(EVENT_DELETED, onDeleted);
   }, []);
 
   // Места по вайбу
@@ -318,6 +331,7 @@ export const App: React.FC = () => {
           }
         }
         if (!me) throw new Error('me unavailable');
+        setIsAdmin(Boolean(me.isAdmin));
         if (me) {
           let userCoords = getSavedCoordinates();
           const hasSaved = Boolean(localStorage.getItem('yesminsk_user_coords'));
@@ -858,6 +872,7 @@ export const App: React.FC = () => {
 
   return (
     <OpenUserContext.Provider value={openUserById}>
+    <AdminContext.Provider value={isAdmin}>
     <YMaps
       query={{
         apikey: import.meta.env.VITE_YANDEX_MAPS_KEY || '',
@@ -1147,6 +1162,7 @@ export const App: React.FC = () => {
         </div>
       </div>
     </YMaps>
+    </AdminContext.Provider>
     </OpenUserContext.Provider>
   );
 };

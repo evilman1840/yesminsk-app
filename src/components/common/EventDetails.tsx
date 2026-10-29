@@ -10,6 +10,7 @@ import { JoinSheet } from './JoinSheet';
 import { MEETUP_TEXTS, priceLabel } from '../../texts/meetups';
 import { photoSrc } from './PhotoPicker';
 import { useOpenUser } from '../../context/openUser';
+import { useIsAdmin, EVENT_DELETED } from '../../context/admin';
 import { EVENT_MESSAGE_TEXTS as EM } from '../../texts/eventMessage';
 import { api } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
@@ -69,6 +70,8 @@ export const EventDetails: React.FC<{
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const openUser = useOpenUser();
+  const isAdmin = useIsAdmin();
+  const [isAdminDeleting, setIsAdminDeleting] = useState(false);
   const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
   const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;
 
@@ -289,6 +292,29 @@ export const EventDetails: React.FC<{
       {!isCreator && (
         <button onClick={() => setIsReportOpen(true)} className="mt-3 w-full h-10 text-sm2 text-zine-inkMuted cursor-pointer">
           Пожаловаться на сходку
+        </button>
+      )}
+      {isAdmin && !isCreator && (
+        <button
+          onClick={async () => {
+            if (!(await telegramService.confirm(MEETUP_TEXTS.adminDeleteConfirm(event.title), { destructive: true }))) return;
+            setIsAdminDeleting(true);
+            try {
+              await api.deleteEvent(String(event.id));
+              telegramService.haptic('success');
+              window.dispatchEvent(new CustomEvent<string>(EVENT_DELETED, { detail: String(event.id) }));
+              onReported?.();
+            } catch (err: any) {
+              telegramService.alert(err?.message || MEETUP_TEXTS.adminDeleteFailed);
+            } finally {
+              setIsAdminDeleting(false);
+            }
+          }}
+          disabled={isAdminDeleting}
+          className="w-full h-10 text-sm2 font-semibold text-zine-danger flex items-center justify-center gap-2 cursor-pointer"
+        >
+          {isAdminDeleting && <Loader2 size={16} className="animate-spin" />}
+          {MEETUP_TEXTS.adminDelete}
         </button>
       )}
       {/* Заходит и на нижний отступ шторки — чтобы под кнопкой не просвечивал текст */}
