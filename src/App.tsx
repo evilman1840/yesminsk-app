@@ -33,6 +33,7 @@ import { LEGAL_VERSION } from './texts/legal';
 import { AdminContext, EVENT_DELETED } from './context/admin';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, placeForMeetup } from './types';
 import { FEED_TEXTS } from './texts/feed';
+import { MEETUP_TEXTS } from './texts/meetups';
 import { loadBadgeSeenEvents, markBadgeSeenEvents } from './utils/seenEvents';
 
 
@@ -472,8 +473,27 @@ export const App: React.FC = () => {
       }
       if (target.eventId) {
         const found = loadedEvents.find(e => String(e.id) === target.eventId);
-        if (found) setSharedEvent(found);
-        else setLaunchNotice({ title: 'Сходка не найдена', text: 'Эта сходка уже прошла или отменена. Загляни в «Сходки», там есть другие встречи.', tab: 'events' });
+        if (found) {
+          setSharedEvent(found);
+          // «✅ Точно приду» / «❌ Отменить» из напоминания или сообщения организатора
+          if (found.isJoined && target.rsvp === 'yes' && !found.myConfirmed) {
+            api.confirmEvent(found.id)
+              .then((ev) => {
+                const updated = { ...found, ...ev, id: found.id };
+                setEvents((prev) => prev.map((e) => (e.id === found.id ? updated : e)));
+                setSharedEvent(updated);
+                telegramService.haptic('success');
+              })
+              .catch((e: any) => telegramService.alert(e?.message || 'Не получилось отметить, попробуй ещё раз'));
+          }
+          if (found.isJoined && target.rsvp === 'no') {
+            telegramService.confirm(MEETUP_TEXTS.notGoingConfirm(found.title), { okText: MEETUP_TEXTS.notGoingOk, destructive: true }).then(async (ok) => {
+              if (!ok) return;
+              const updated = await handleJoinEvent(found, null, 'bot');
+              if (updated) setSharedEvent(updated);
+            });
+          }
+        } else setLaunchNotice({ title: 'Сходка не найдена', text: 'Эта сходка уже прошла или отменена. Загляни в «Сходки», там есть другие встречи.', tab: 'events' });
       }
     };
 
@@ -709,7 +729,7 @@ export const App: React.FC = () => {
 
   // Записаться на сходку (options — с кем идёшь; повторно — поменять) или отказаться (options = null).
   // Возвращает обновлённую сходку или null, если не получилось (например, закончились места)
-  const handleJoinEvent = async (event: AppEvent, options: JoinOptions | null): Promise<AppEvent | null> => {
+  const handleJoinEvent = async (event: AppEvent, options: JoinOptions | null, via: 'app' | 'bot' = 'app'): Promise<AppEvent | null> => {
     // Записался — пусть бот сможет прислать напоминание
     if (options) askBotAccess();
     try {
@@ -728,10 +748,13 @@ export const App: React.FC = () => {
           myWithKids: options.withKids
         };
       } else {
-        await api.leaveEvent(event.id);
+        await api.leaveEvent(event.id, via);
+        const myId = Number(telegramService.getUser()?.id);
         updated = {
           ...event,
           isJoined: false,
+          myConfirmed: false,
+          participants: (event.participants || []).filter((p) => Number(p.telegramId) !== myId),
           participantsCount: Math.max(0, event.participantsCount - mySeats),
           groupsCount: Math.max(0, (event.groupsCount ?? event.participantsCount) - 1),
           withKidsCount: Math.max(0, (event.withKidsCount || 0) - (event.myWithKids ? 1 : 0)),

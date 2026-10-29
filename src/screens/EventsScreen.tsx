@@ -784,6 +784,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 isJoining={joiningId === String(ev.id)}
                 isDeleting={deletingId === String(ev.id)}
                 onJoin={() => setJoinEventId(String(ev.id))}
+                onLeave={async () => {
+                  if (!(await telegramService.confirm(M.notGoingConfirm(ev.title), { okText: M.notGoingOk, destructive: true }))) return;
+                  handleJoin(ev, null);
+                }}
                 onEdit={() => handleOpenEditModal(ev)}
                 onDelete={() => handleDeleteEvent(ev)}
                 onOpenDetails={() => setDetailsEventId(String(ev.id))}
@@ -1295,13 +1299,14 @@ const EventReel: React.FC<{
   isJoining: boolean;
   isDeleting: boolean;
   onJoin: () => void;
+  onLeave: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onOpenDetails: () => void;
   onNotInterested: () => void;
   onSeen?: () => void;
   emoji?: string | null;
-}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onEdit, onDelete, onOpenDetails, onNotInterested, onSeen, emoji }) => {
+}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onLeave, onEdit, onDelete, onOpenDetails, onNotInterested, onSeen, emoji }) => {
   // Карточка видна больше секунды — считаем просмотренной
   const reelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1478,7 +1483,7 @@ const EventReel: React.FC<{
                   src={thumb(p?.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
                   alt=""
                   loading="lazy"
-                  className="w-8 h-8 shrink-0 rounded-full object-cover border-2 border-black/40"
+                  className={`w-8 h-8 shrink-0 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-black/40'}`}
                 />
               ))}
             </span>
@@ -1488,6 +1493,16 @@ const EventReel: React.FC<{
             </span>
           </span>
         </div>
+        {/* Записан(а) — заметная отмена прямо на карточке */}
+        {ev.isJoined && !isCreator && (
+          <button
+            onClick={onLeave}
+            disabled={isJoining}
+            className="mt-2 h-9 text-body font-bold text-white underline underline-offset-4 decoration-white/70 cursor-pointer"
+          >
+            {M.notGoing}
+          </button>
+        )}
       </div>
 
       {/* Подсказка про свайпы — только на первой карточке */}

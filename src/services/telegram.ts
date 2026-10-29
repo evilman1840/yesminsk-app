@@ -383,7 +383,7 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; wishGroupId?: string } {
+  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; wishGroupId?: string } {
     const params = new URLSearchParams(window.location.search);
     const startParam = tg()?.initDataUnsafe?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
@@ -399,8 +399,11 @@ export const telegramService = {
       : startParam.startsWith('create') ? parseCreateParam(startParam) : undefined;
     // «Хочу сходить» из сообщения бота: ?want=1&place=<id>
     const want = params.get('want') === '1' ? { placeId: params.get('place') || undefined } : undefined;
+    // Кнопки «Точно приду» / «Отменить» в напоминаниях: ?event=<id>&rsvp=yes|no
+    const rsvp = params.get('rsvp');
     return {
       eventId,
+      rsvp: rsvp === 'yes' || rsvp === 'no' ? rsvp : undefined,
       tab: params.get('tab') || undefined,
       placeId: create || want ? undefined : params.get('place') || undefined,
       create,

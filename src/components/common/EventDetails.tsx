@@ -196,7 +196,10 @@ export const EventDetails: React.FC<{
                       {p.guests ? ` +${p.guests}` : ''}
                       {p.withKids ? ' 👶' : ''}
                     </span>
-                    <span className="block text-cap text-zine-inkMuted truncate">{p.username ? `@${p.username}` : EM.noUsername}</span>
+                    <span className="block text-cap text-zine-inkMuted truncate">
+                      {p.confirmed && <span className="font-semibold text-zine-sage">✅ {MEETUP_TEXTS.confirmedOne} · </span>}
+                      {p.username ? `@${p.username}` : EM.noUsername}
+                    </span>
                   </span>
                 </button>
                 {p.username && (
@@ -223,6 +226,11 @@ export const EventDetails: React.FC<{
               <button type="button" key={p.telegramId} onClick={() => openUser(p.telegramId)} className="w-14 shrink-0 flex flex-col items-center gap-1 cursor-pointer">
                 <div className="relative">
                   <Avatar src={thumb(p.avatarUrl)} name={p.name} size="w-12 h-12" />
+                  {p.confirmed && (
+                    <span aria-label={MEETUP_TEXTS.confirmedBadge} title={MEETUP_TEXTS.confirmedBadge} className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-zine-sage text-white flex items-center justify-center shadow">
+                      <Check size={12} strokeWidth={3.5} />
+                    </span>
+                  )}
                   {(p.guests || p.withKids) && (
                     <span className="absolute -bottom-1 -right-1 px-1 rounded-full bg-zine-cardElevated text-[11px] font-bold text-zine-ink shadow">
                       {p.withKids ? '👶' : ''}
@@ -334,6 +342,20 @@ export const EventDetails: React.FC<{
             <span>Пойду!</span>
           )}
         </button>
+        {event.isJoined && !isCreator && (
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <span className="min-w-0 text-sm2 text-zine-inkMuted">{event.myConfirmed ? MEETUP_TEXTS.confirmedMine : ''}</span>
+            <button
+              onClick={async () => {
+                if (!(await telegramService.confirm(MEETUP_TEXTS.notGoingConfirm(event.title), { okText: MEETUP_TEXTS.notGoingOk, destructive: true }))) return;
+                await onJoin(null);
+              }}
+              className="h-10 px-1 shrink-0 text-body font-bold text-zine-danger underline underline-offset-4 cursor-pointer"
+            >
+              {MEETUP_TEXTS.notGoing}
+            </button>
+          </div>
+        )}
       </div>
 
       {isAdminDeleteOpen && (

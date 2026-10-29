@@ -227,6 +227,7 @@ export interface AppEvent {
   isJoined: boolean;
   myGuests?: number;         // сколько я веду с собой
   myWithKids?: boolean;
+  myConfirmed?: boolean; // нажал(а) «Точно приду»
   isOfficial?: boolean; // «⭐ От ГУЛЯЙ!» — сходка автора проекта
   placeId?: string;     // сходка в месте из «Мест»
   templateId?: string;  // по какому шаблону собрана
@@ -243,6 +244,7 @@ export interface AppEvent {
     avatarUrl: string;
     guests?: number;
     withKids?: boolean;
+    confirmed?: boolean; // «✅ Точно приду» — значок у аватарки
   }>;
 }
 

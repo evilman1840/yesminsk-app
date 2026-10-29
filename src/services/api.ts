@@ -463,10 +463,17 @@ class ApiService {
     });
   }
 
-  async leaveEvent(eventId: string): Promise<{ success: boolean; message: string }> {
+  // via: 'bot' — отменили по кнопке «Отменить» из сообщения бота (сервер запоминает, кто и откуда отменил)
+  async leaveEvent(eventId: string, via: 'app' | 'bot' = 'app'): Promise<{ success: boolean; message: string }> {
     return this.request<{ success: boolean; message: string }>(`/events/${eventId}/leave`, {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ via })
     });
+  }
+
+  // «✅ Точно приду»
+  async confirmEvent(eventId: string): Promise<AppEvent> {
+    return this.request<AppEvent>(`/events/${eventId}/confirm`, { method: 'POST' });
   }
 
   async toggleJoinEvent(eventId: string, isCurrentlyJoined?: boolean): Promise<any> {
