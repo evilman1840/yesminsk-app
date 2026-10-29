@@ -937,7 +937,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
             <Field label="Где встречаемся?">
               {/* Сначала готовые места — одним нажатием, без ввода адреса: подходящие из «Мест», потом популярные точки Минска */}
-              <p className="mb-2 p-3 rounded-zine-sm bg-zine-terracotta/10 text-sm2 text-zine-ink">⚖️ {M.legalVenueHint}</p>
               <p className="mb-1.5 text-cap font-semibold text-zine-inkMuted">{M.pickPlaceHint}</p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 mb-3">
                 {placeChips.map((chip) => {
@@ -1218,6 +1217,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 })}
               </div>
             </Field>
+
+            {/* Где можно собираться — последним, прямо перед «Опубликовать» */}
+            <p className="p-3 rounded-zine-sm bg-zine-terracotta/10 text-sm2 text-zine-ink">⚖️ {M.legalVenueHint}</p>
 
             {!hasNativeSubmit && (
               <button
