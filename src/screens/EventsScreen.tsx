@@ -159,6 +159,7 @@ export interface EventsScreenProps {
   myGender?: string; // свой пол: «только девушки / мужчины» можно выбрать только свой
   initialWish?: { placeId?: string } | null; // открыть «Хочу сходить» сразу (из сообщения бота)
   onInitialWishUsed?: () => void;
+  onOpenWishPeople?: (item: WishSummaryItem) => void; // «76 человек хотят на кофе»: список людей, 👋 и «Позвать в компанию»
 }
 
 export const EventsScreen: React.FC<EventsScreenProps> = ({
@@ -175,7 +176,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   myCoords,
   myGender,
   initialWish,
-  onInitialWishUsed
+  onInitialWishUsed,
+  onOpenWishPeople
 }) => {
   const currentTgUser = telegramService.getUser();
   const currentUserId = propUserId || currentTgUser?.id;
@@ -233,6 +235,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [isPaid, setIsPaid] = useState(false);
   // «Соберу я» из «Хочу сходить»: после публикации бот напишет остальным
   const [wishGroupId, setWishGroupId] = useState<string | null>(null);
+  const [invite, setInvite] = useState<{ id: number; name: string }[]>([]); // «Позвать в компанию»
   // «Хочу сходить»: плашка в ленте и шторка
   const [isWishOpen, setIsWishOpen] = useState(false);
   const [wishToast, setWishToast] = useState<number | null>(null); // отметили желание: сколько ещё людей хотят того же
@@ -381,6 +384,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setIsPaid(false);
     setPrice('');
     setWishGroupId(null);
+    setInvite([]);
     // Шаблоны не загрузились — сразу обычная форма
     setFormStep(templates && templates.length ? 'pick' : 'form');
     telegramService.haptic('selection');
@@ -417,6 +421,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       applyTemplate(tpl, sub ? { [sub.key]: initialCreate.opt! } : undefined);
     }
     if (initialCreate.wishGroupId) setWishGroupId(initialCreate.wishGroupId);
+    if (initialCreate.invite?.length) setInvite(initialCreate.invite);
     const when = quickTimeFromParam(initialCreate.when);
     if (when) setDateTime(toLocalInput(when));
     onInitialCreateUsed?.();
@@ -651,6 +656,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         ...(placeId && !editingEventId ? { placeId } : {}),
         ...(templateKey && !editingEventId ? { templateId: templateKey } : {}),
         ...(wishGroupId && !editingEventId ? { wishGroupId } : {}),
+        ...(invite.length && !editingEventId ? { inviteIds: invite.map((p) => p.id) } : {}),
         // Из «Тоже хотят» — бот напишет всем, кто хотел того же на это время
         ...(formSession.current?.source === 'people' && !editingEventId ? { notifyWishers: true } : {}),
         durationMinutes,
@@ -761,7 +767,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           <button
             onClick={() => {
               telegramService.haptic('selection');
-              setIsWishOpen(true);
+              // Есть счётчик «76 человек хотят…» — сразу кто это; иначе форма «Куда хочется?»
+              if (topWish && onOpenWishPeople) onOpenWishPeople(topWish);
+              else setIsWishOpen(true);
             }}
             className="w-full p-2 pr-3 rounded-zine-sm bg-black/40 backdrop-blur border border-white/20 text-white text-left flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-transform"
           >
@@ -917,6 +925,16 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           <form ref={formRef} onSubmit={handleSubmitForm} noValidate className="space-y-5">
             {formError && (
               <div ref={formErrorRef} className="p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">{formError}</div>
+            )}
+
+            {/* «Позвать в компанию»: кого бот пригласит после публикации */}
+            {!editingEventId && invite.length > 0 && (
+              <div className="p-3 rounded-zine-sm bg-zine-terracotta/10 flex items-start gap-2">
+                <p className="flex-1 min-w-0 text-sm2 font-semibold text-zine-ink">{WISH_TEXTS.inviteLine(invite.map((p) => p.name).join(', '))}</p>
+                <button type="button" onClick={() => setInvite([])} className="shrink-0 text-sm2 font-bold text-zine-terracotta cursor-pointer">
+                  {WISH_TEXTS.inviteRemove}
+                </button>
+              </div>
             )}
 
             {/* Выбранный шаблон — можно сменить */}
@@ -1327,6 +1345,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             refreshWishes();
           }}
           onChanged={refreshWishes}
+          onOpenPeople={
+            onOpenWishPeople &&
+            ((item) => {
+              setIsWishOpen(false);
+              setWishPlace(null);
+              onOpenWishPeople(item);
+            })
+          }
           onCreated={(sameCount) => {
             setIsWishOpen(false);
             setWishPlace(null);

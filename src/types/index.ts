@@ -272,6 +272,7 @@ export interface EventPayload {
   isPaid?: boolean;
   price?: number;
   wishGroupId?: string;
+  inviteIds?: number[]; // «Позвать в компанию»: бот пришлёт им приглашение от меня
   audienceGender?: AudienceGender;
   ageMin?: number | null;
   ageMax?: number | null;
@@ -367,6 +368,7 @@ export interface MeetupCreateRequest {
   source?: MeetupFormSource;
   wishGroupId?: string; // «Соберу я» из сообщения бота
   opt?: string;         // предвыбранный вариант доп. поля (вид спорта)
+  invite?: { id: number; name: string }[]; // «Позвать в компанию» из «Тоже хотят»
 }
 
 // Сколько ещё можно взять с собой: свободные места минус я сам (моя прошлая запись не в счёт)

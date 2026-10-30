@@ -29,7 +29,8 @@ export const WishSheet: React.FC<{
   onClose: () => void;
   onChanged?: () => void;
   onCreated?: (sameCount: number) => void; // отметили — шторку закрывает родитель и показывает, что дальше
-}> = ({ places = [], presetPlace, onClose, onChanged, onCreated }) => {
+  onOpenPeople?: (item: WishSummaryItem) => void; // «76 человек хотят…» — кто это
+}> = ({ places = [], presetPlace, onClose, onChanged, onCreated, onOpenPeople }) => {
   const [templates, setTemplates] = useState<EventTemplate[] | null>(cachedTemplates());
   const [mine, setMine] = useState<WishItem[]>([]);
   const [summary, setSummary] = useState<WishSummaryItem[]>([]);
@@ -304,8 +305,8 @@ export const WishSheet: React.FC<{
                   <button
                     type="button"
                     key={`${s.kind}-${s.sport}-${s.timeWindow}-${s.placeId}`}
-                    disabled={s.includesMe || busy || atLimit}
-                    onClick={() => create({ kind: s.kind, sport: s.sport, timeWindow: s.timeWindow, placeId: s.placeId })}
+                    disabled={!onOpenPeople && (s.includesMe || busy || atLimit)}
+                    onClick={() => (onOpenPeople ? onOpenPeople(s) : create({ kind: s.kind, sport: s.sport, timeWindow: s.timeWindow, placeId: s.placeId }))}
                     className="w-full p-3 rounded-zine-sm bg-zine-card flex items-center gap-3 text-left cursor-pointer disabled:cursor-default"
                   >
                     <span className="min-w-0 flex-1 text-body text-zine-ink">

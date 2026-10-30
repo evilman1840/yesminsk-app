@@ -374,8 +374,18 @@ class ApiService {
   }
 
   // «Тоже хотят»: все с таким же желанием и моя группа совпадения
-  async getWishKindPeople(kind: string, sport?: string): Promise<{ kind: string; name: string; emoji: string; people: UserProfile[]; wishGroupId: string | null; eventId: string | null }> {
-    return this.request(`/wishes/kind/${encodeURIComponent(kind)}/people${sport ? `?sport=${encodeURIComponent(sport)}` : ''}`);
+  // window и placeId — из счётчика «76 человек хотят на кофе на неделе»: только это окно и место
+  async getWishKindPeople(
+    kind: string,
+    sport?: string,
+    exact?: { window?: string; placeId?: string | null }
+  ): Promise<{ kind: string; name: string; emoji: string; people: UserProfile[]; wishGroupId: string | null; eventId: string | null }> {
+    const q = new URLSearchParams();
+    if (sport) q.set('sport', sport);
+    if (exact?.window) q.set('window', exact.window);
+    if (exact?.placeId) q.set('placeId', exact.placeId);
+    const qs = q.toString();
+    return this.request(`/wishes/kind/${encodeURIComponent(kind)}/people${qs ? `?${qs}` : ''}`);
   }
 
   async getWishGroupMembers(groupId: string): Promise<{ members: UserProfile[]; eventId: string | null; askingPlace?: boolean; placeName?: string | null }> {

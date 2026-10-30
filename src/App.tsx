@@ -38,7 +38,8 @@ import { LegalUpdateOverlay } from './components/common/Legal';
 import { LEGAL_VERSION } from './texts/legal';
 import { AdminContext, EVENT_DELETED } from './context/admin';
 import { EVENT_UPDATED } from './context/eventUpdates';
-import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, placeForMeetup } from './types';
+import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, placeForMeetup } from './types';
+import { WISH_TEXTS } from './texts/wishes';
 import { FEED_TEXTS } from './texts/feed';
 import { MEETUP_TEXTS } from './texts/meetups';
 import { loadBadgeSeenEvents, markBadgeSeenEvents } from './utils/seenEvents';
@@ -252,7 +253,7 @@ export const App: React.FC = () => {
   };
   const [pendingWish, setPendingWish] = useState<{ placeId?: string } | null>(null);
   const [wishMembersGroup, setWishMembersGroup] = useState<string | null>(null);
-  const [wishKind, setWishKind] = useState<{ kind: string; sport?: string } | null>(null); // «Тоже хотят» из карточки в «Людях»
+  const [wishKind, setWishKind] = useState<{ kind: string; sport?: string; exact?: { window: WishWindow; placeId?: string | null; counter: string; includesMe: boolean } } | null>(null); // «Тоже хотят» из карточки в «Людях»
   const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
@@ -1150,6 +1151,13 @@ export const App: React.FC = () => {
                 initialWish={pendingWish}
                 onInitialWishUsed={() => setPendingWish(null)}
                 onInitialCreateUsed={() => setPendingCreate(null)}
+                onOpenWishPeople={(w) =>
+                  setWishKind({
+                    kind: w.kind,
+                    sport: w.sport || undefined,
+                    exact: { window: w.timeWindow, placeId: w.placeId, counter: WISH_TEXTS.barCounter(w.count, w.what, w.when), includesMe: w.includesMe }
+                  })
+                }
               />
             )}
           </div>
@@ -1187,23 +1195,23 @@ export const App: React.FC = () => {
             </BottomSheet>
           )}
 
-          {wishKind && (
+          {/* Пока открыта анкета из списка — список спрятан, после закрытия анкеты вернётся */}
+          {wishKind && !selectedUser && (
             <WishKindSheet
               kind={wishKind.kind}
               sport={wishKind.sport}
+              exact={wishKind.exact}
+              onHello={(u) => handleReact(u, 'like')}
               onClose={() => setWishKind(null)}
-              onOpenUser={(u) => {
-                setWishKind(null);
-                setSelectedUser(u);
-              }}
+              onOpenUser={(u) => setSelectedUser(u)}
               onOpenEvent={(id) => {
                 setWishKind(null);
                 const ev = events.find((e) => String(e.id) === id);
                 if (ev) setSharedEvent(ev);
               }}
-              onBuild={(kind, groupId) => {
+              onBuild={(kind, groupId, invite) => {
                 setWishKind(null);
-                setPendingCreate({ template: kind, source: 'people', ...(groupId ? { wishGroupId: groupId } : {}) });
+                setPendingCreate({ template: kind, source: 'people', ...(groupId ? { wishGroupId: groupId } : {}), ...(invite.length ? { invite } : {}) });
                 setCurrentScreen('events');
               }}
             />
