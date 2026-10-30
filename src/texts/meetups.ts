@@ -103,16 +103,18 @@ export const priceLabel = (ev: { isPaid?: boolean; price?: number }) =>
 export const priceShort = (ev: { isPaid?: boolean; price?: number }) =>
   !ev.isPaid ? 'бесплатно' : ev.price ? `~${String(ev.price).replace('.', ',')} BYN` : 'платно';
 
-// Призыв к сходкам на карте (одна строка над «Хочу сейчас»)
+// Призыв к сходкам в строке подсказок
 const meetupsWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? 'сходка' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'сходки' : 'сходок');
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+// Длинное название сходки обрезаем, чтобы «Пойдёшь? →» влезло в строку подсказок
+const short = (title: string) => (title.length > 28 ? `${title.slice(0, 27).trimEnd()}…` : title);
 export const MAP_CALLOUT_TEXTS = {
   today: 'сегодня в',
   tomorrow: 'завтра в',
   weekday: ['в воскресенье в', 'в понедельник в', 'во вторник в', 'в среду в', 'в четверг в', 'в пятницу в', 'в субботу в'],
-  friend: (name: string, title: string, when: string) => `🤝 ${name} идёт на сходку «${title}» ${when}.`,
+  friend: (name: string, title: string, when: string) => `🤝 ${name} идёт на «${short(title)}» ${when}.`,
   event: (emoji: string, todayCount: number, title: string, when: string) =>
-    todayCount > 1 ? `🗓 Сегодня ${todayCount} ${meetupsWord(todayCount)}. Например, «${title}» ${when.replace(/^сегодня /, '')}.` : `${emoji} ${cap(when)}: «${title}».`,
+    todayCount > 1 ? `🗓 Сегодня ${todayCount} ${meetupsWord(todayCount)}. Например, «${short(title)}» ${when.replace(/^сегодня /, '')}.` : `${emoji} ${cap(when)}: «${short(title)}».`,
   empty: '🌙 В ближайшие дни тихо. Собери сходку, и люди подтянутся.',
   go: 'Пойдёшь? →',
   create: 'Собрать →',

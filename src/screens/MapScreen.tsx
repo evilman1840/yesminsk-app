@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
 import { api } from '../services/api';
-import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Info, Newspaper, HelpCircle, Map as MapIcon, List } from 'lucide-react';
-import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, formatTime, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
+import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Newspaper, HelpCircle, Map as MapIcon, List } from 'lucide-react';
+import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
 import { PlaceTypeFilter } from '../components/places/PlaceTypeFilter';
@@ -15,7 +15,7 @@ import { PeopleFiltersSheet, PeopleFilters, MyPrefs, loadFilters, saveFilters, a
 import { Logo } from '../components/ui/Logo';
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
-import { MeetupCallout } from '../components/map/MeetupCallout';
+import { WantNowButton } from '../components/common/WantNowButton';
 import { MapEventsList } from '../components/map/MapEventsList';
 import { MAP_EVENTS_TEXTS } from '../texts/meetups';
 
@@ -56,8 +56,6 @@ export interface MapScreenProps {
   onOpenEvents: () => void;
   onOpenPeople: () => void;
   onCreateEventAtPlace: (place: PlaceItem) => void;
-  onCreateEvent?: () => void;  // «Собрать →» в призыве, когда сходок нет
-  matchIds?: number[];         // кто у меня «На связи»: «Аня идёт на …»
   onToggleSavePlace: (place: PlaceItem) => Promise<PlaceItem>;
   initialPlaceId?: string | null;
 }
@@ -65,7 +63,7 @@ export interface MapScreenProps {
 const HELP_STEPS = [
   { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото, и откроется анкета.' },
   { emoji: '👋', title: '«Пообщаться»', text: 'Передай человеку привет. Если в ответ тоже нажмут 👋, вы сможете написать друг другу в Telegram.' },
-  { emoji: '⚡', title: '«Хочу сейчас»', text: 'Включи переключатель, если можешь встретиться в ближайшие 3 часа: твою анкету покажут в начале списка.' },
+  { emoji: '⚡', title: '«Хочу сейчас»', text: 'Нажми ⚡ справа, если можешь встретиться в ближайшие 3 часа: твою анкету покажут в начале списка.' },
   { emoji: '🧭', title: '«Покажут город»', text: 'Приехали в Минск? Местные жители с радостью покажут город. А если живёшь здесь, включи «Покажу город» в анкете.' },
   { emoji: '📍', title: '«Места»', text: 'Переключи карту на «Места» и выбери настроение, Миша подскажет, куда сходить. Оставляй свои советы!' },
   { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию, это займёт минуту.' },
@@ -81,9 +79,6 @@ const MAP_TABS: [MapMode, React.FC<any>, string][] = [
   ['events', CalendarDays, 'Сходки'],
   ['places', MapPin, 'Места']
 ];
-
-// На сколько часов включается «⚡ Хочу сейчас»
-const AVAILABLE_HOURS = 3;
 
 export const formatEventDate = (isoString: string) => {
   try {
@@ -121,8 +116,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   initialPlaceId,
   onOpenEvents,
   onToggleSavePlace,
-  onCreateEvent,
-  matchIds = []
 }) => {
   // Сходки на карте: фильтр по времени
   const [eventWhen, setEventWhen] = useState<EventWhen>('all');
@@ -213,27 +206,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     }
   };
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   const [isDonateOpen, setIsDonateOpen] = useState(false);
-  const [isWantNowInfoOpen, setIsWantNowInfoOpen] = useState(false);
-  const [justEnabled, setJustEnabled] = useState(false);
-  const [isSavingAvailability, setIsSavingAvailability] = useState(false);
-  const iAmAvailable = isAvailableNow(currentUser);
-
-  // Возвращает true, если статус изменился
-  const changeAvailability = async (hours: number): Promise<boolean> => {
-    setIsSavingAvailability(true);
-    try {
-      await onSetAvailable(hours);
-      return true;
-    } catch (err: any) {
-      telegramService.alert(err.message || 'Не удалось изменить статус');
-      return false;
-    } finally {
-      setIsSavingAvailability(false);
-    }
-  };
-
   // Фильтры людей — общие с «Людьми» (хранятся на устройстве); по умолчанию учитывают мои настройки из анкеты
   const [peopleFilters, setPeopleFilters] = useState<PeopleFilters>(loadFilters);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -563,14 +536,14 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         )}
       </button>
 
-      {/* Донат — заметная кнопка над «Где я?» */}
+      {/* Донат — заметная кнопка над «⚡» и «Где я?» */}
       <button
         onClick={() => {
           telegramService.haptic('selection');
           setIsDonateOpen(true);
         }}
         aria-label="Поддержать проект"
-        className="absolute right-4 bottom-[128px] z-20 w-14 h-14 rounded-full bg-zine-terracotta text-white shadow-zine-float flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+        className="absolute right-4 bottom-[200px] z-20 w-14 h-14 rounded-full bg-zine-terracotta text-white shadow-zine-float flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
       >
         <span className="absolute inset-0 rounded-full bg-zine-terracotta/40 animate-ping [animation-duration:2.5s]" />
         <span className="relative text-[26px] leading-none">💛</span>
@@ -585,122 +558,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         />
       )}
 
-      {/* «⚡ Хочу сейчас» — переключатель: включает статус на 3 часа или выключает */}
+      {/* «⚡ Хочу сейчас» — круглая кнопка между донатом и «Где я?»: сначала объясняет, потом включает */}
       {(mapMode === 'people' || mapMode === 'all') && (
-        <div className="absolute left-4 right-[88px] bottom-14 z-20 flex flex-col items-start gap-2">
-          {/* Что произошло после включения */}
-          {justEnabled && (
-            <div className="max-w-[300px] p-3 rounded-zine-sm bg-[#2FA36B] text-white text-sm2 font-semibold shadow-zine-float">
-              ⚡ Готово! 3 часа твоя анкета в начале списка с пометкой «Могу сейчас»: люди рядом увидят, что можно встретиться.
-            </div>
-          )}
-          {/* Призыв к сходкам: знакомый идёт, ближайшая сходка или «собери свою» */}
-          {!justEnabled && (
-            <MeetupCallout
-              events={events}
-              myId={currentUser?.telegramId}
-              matchIds={matchIds}
-              onOpenEvent={(ev) => setSelectedEvent(ev)}
-              onCreate={() => (onCreateEvent ? onCreateEvent() : onOpenEvents())}
-            />
-          )}
-          <div className="h-16 pl-4 pr-1 rounded-zine bg-zine-cardElevated text-zine-ink shadow-zine-float flex items-center max-w-full">
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                if (!isVisible && !iAmAvailable) {
-                  setIsAvailabilityOpen(true); // в режиме невидимки сначала объясняем
-                  return;
-                }
-                if (isSavingAvailability) return;
-                const turningOn = !iAmAvailable;
-                changeAvailability(turningOn ? AVAILABLE_HOURS : 0).then((ok) => {
-                  if (ok && turningOn) {
-                    setJustEnabled(true);
-                    setTimeout(() => setJustEnabled(false), 5000);
-                  }
-                });
-              }}
-              role="switch"
-              aria-checked={iAmAvailable}
-              aria-label="Хочу сейчас"
-              className="h-full flex items-center gap-2.5 active:scale-95 transition-transform cursor-pointer"
-            >
-              <span className="text-[22px] leading-none">⚡</span>
-              <span className="flex flex-col items-start leading-tight text-left">
-                <span className="text-body font-bold whitespace-nowrap">Хочу сейчас</span>
-                <span className={`text-cap font-semibold ${iAmAvailable ? 'text-[#2FA36B]' : 'text-zine-inkMuted'}`}>
-                  {iAmAvailable ? `до ${formatTime(currentUser?.availableUntil)}` : 'на 3 часа'}
-                </span>
-              </span>
-              <span className={`ml-1 w-12 h-7 shrink-0 rounded-full p-[3px] transition-colors ${iAmAvailable ? 'bg-[#2FA36B]' : 'bg-zine-border'}`}>
-                <span
-                  className={`flex items-center justify-center w-[22px] h-[22px] rounded-full bg-white shadow transition-transform ${
-                    iAmAvailable ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                >
-                  {isSavingAvailability && <Loader2 size={14} className="animate-spin text-zine-inkMuted" />}
-                </span>
-              </span>
-            </button>
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                setIsWantNowInfoOpen(true);
-              }}
-              aria-label="Что такое «Хочу сейчас»"
-              className="w-11 h-11 ml-1 rounded-full flex items-center justify-center text-zine-inkMuted cursor-pointer"
-            >
-              <Info size={20} />
-            </button>
-          </div>
+        <div className="absolute right-4 bottom-[128px] z-20">
+          <WantNowButton availableUntil={currentUser?.availableUntil} isVisible={isVisible} onSet={onSetAvailable} onOpenProfile={onOpenProfile} look="map" />
         </div>
-      )}
-
-      {/* Пояснение: что делает «Хочу сейчас» */}
-      {isWantNowInfoOpen && (
-        <BottomSheet title="Что такое «Хочу сейчас»?" onClose={() => setIsWantNowInfoOpen(false)}>
-          <div className="space-y-4">
-            {[
-              { emoji: '⚡', title: 'Можешь встретиться прямо сейчас?', text: 'Включи переключатель, например если ты в центре и есть пара свободных часов.' },
-              { emoji: '🟢', title: 'Тебя заметят', text: 'На твоей аватарке появится ⚡ и зелёная рамка, а анкета будет в начале списка «Люди» с пометкой «Могу сейчас».' },
-              { emoji: '👋', title: 'Как познакомиться', text: 'Люди рядом нажмут «Пообщаться». Когда передадите привет друг другу, сможете написать.' },
-              { emoji: '⏱', title: 'Выключится само', text: 'Через 3 часа статус пропадёт. Можно выключить и раньше.' }
-            ].map((item) => (
-              <div key={item.title} className="flex gap-3.5">
-                <span className="w-12 h-12 shrink-0 rounded-zine-sm bg-zine-card flex items-center justify-center text-[24px]">{item.emoji}</span>
-                <div>
-                  <p className="text-body font-bold text-zine-ink">{item.title}</p>
-                  <p className="text-sm2 text-zine-inkMuted mt-0.5">{item.text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={() => setIsWantNowInfoOpen(false)}
-            className="mt-6 w-full h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
-          >
-            Понятно
-          </button>
-        </BottomSheet>
-      )}
-
-      {/* В режиме невидимки статус бесполезен — подсказываем, что сделать */}
-      {isAvailabilityOpen && (
-        <BottomSheet title="Сейчас тебя не видно" onClose={() => setIsAvailabilityOpen(false)}>
-          <p className="text-body text-zine-inkMuted">
-            Включён режим невидимки, поэтому никто не увидит «Хочу сейчас». Выключи невидимку в анкете и включи переключатель снова.
-          </p>
-          <button
-            onClick={() => {
-              setIsAvailabilityOpen(false);
-              onOpenProfile();
-            }}
-            className="mt-5 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer"
-          >
-            Открыть анкету
-          </button>
-        </BottomSheet>
       )}
 
       {/* Как это работает — для тех, кто здесь впервые */}

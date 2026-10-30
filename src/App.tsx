@@ -14,7 +14,9 @@ import { ACCOUNT_TEXTS } from './texts/account';
 import { AddToHomeSheet } from './components/common/AddToHomeSheet';
 import { OpenUserContext } from './context/openUser';
 import { askBotAccess, setBotAccessKnown, botAccessOk, onBotAccessChange } from './services/botAccess';
+import { WantNowButton } from './components/common/WantNowButton';
 import { NoticeBar, Notice } from './components/common/NoticeBar';
+import { pickMeetupCallout } from './components/map/MeetupCallout';
 import { NOTICE_TEXTS } from './texts/notices';
 import { USERNAME_TEXTS } from './texts/profile';
 import { WishMembersSheet } from './components/common/WishMembersSheet';
@@ -899,6 +901,7 @@ export const App: React.FC = () => {
   ];
   // Подсказки вместо рассылок бота — по важности, показывается первая несделанная
   const hasOwnPhoto = Boolean(currentUser.avatarUrl) && !currentUser.avatarUrl.includes('images.unsplash.com');
+  const meetupCallout = pickMeetupCallout(events, currentUser.telegramId, matches.map((m) => m.telegramId));
   const notices: Notice[] = [
     (!isBotOk || isBotBlocked) && {
       id: 'bot',
@@ -907,6 +910,20 @@ export const App: React.FC = () => {
       onClick: async () => {
         // Остановили бота — в чате «Перезапустить»; иначе системное окно Telegram, не вышло — тоже чат
         if (isBotBlocked || !(await askBotAccess(true))) telegramService.openBotChat();
+      }
+    },
+    // Сходка: знакомый идёт, ближайшая подходящая или «собери свою» (во вкладке «Сходки» и так всё видно)
+    currentScreen !== 'events' && {
+      id: 'meetup',
+      text: meetupCallout.text,
+      action: meetupCallout.action,
+      hideDays: 1,
+      onClick: () => {
+        if (meetupCallout.event) setSharedEvent(meetupCallout.event);
+        else {
+          setPendingCreate({ source: 'map' });
+          handleNavigate('events');
+        }
       }
     },
     !currentUser.genderConfirmed && isGenderPromptDismissed && {
@@ -923,7 +940,7 @@ export const App: React.FC = () => {
     },
     !currentUser.username && { id: 'username', text: NOTICE_TEXTS.username, hideDays: 7, onClick: () => setNoticeSheet('username') },
     isBotOk && !isBotBlocked && { id: 'pin', text: NOTICE_TEXTS.pin, hideDays: 365, onClick: () => setNoticeSheet('pin') }
-  ].filter((n): n is Notice => Boolean(n));
+  ].filter(Boolean) as Notice[];
 
   const hideFirstSteps = () => {
     setIsFirstStepsHidden(true);
@@ -1049,11 +1066,6 @@ export const App: React.FC = () => {
                 unreadNews={unreadNews}
                 initialPlaceId={initialPlaceId}
                 onCreateEventAtPlace={createEventAtPlace}
-                onCreateEvent={() => {
-                  setPendingCreate({ source: 'map' });
-                  handleNavigate('events');
-                }}
-                matchIds={matches.map((m) => m.telegramId)}
               />
             )}
 
@@ -1075,6 +1087,15 @@ export const App: React.FC = () => {
                 onSkip={handleSkip}
                 onUnskip={handleUnskip}
                 onOpenWishKind={(kind, sport) => setWishKind({ kind, sport })}
+                wantNowSlot={
+                  <WantNowButton
+                    availableUntil={currentUser.availableUntil}
+                    isVisible={currentUser.isProfileActive !== false}
+                    onSet={handleSetAvailable}
+                    onOpenProfile={() => handleNavigate('profile_edit')}
+                    look="people"
+                  />
+                }
               />
             )}
 

@@ -39,6 +39,7 @@ export interface FeedScreenProps {
   myGoals?: ActivityGoal[]; // подсветить общие интересы
   topSlot?: React.ReactNode; // например, «Первые шаги» для новичков
   myUsername?: string; // нет — подсказываем завести (иначе на связи не напишут)
+  wantNowSlot?: React.ReactNode; // «⚡ Хочу сейчас» рядом с «Фильтры»
 }
 
 type FeedTab = 'all' | 'likes' | 'matches';
@@ -59,7 +60,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   myGoals,
   topSlot,
   myUsername,
-  onOpenWishKind
+  onOpenWishKind,
+  wantNowSlot
 }) => {
   const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -117,23 +119,26 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       <div className="absolute top-0 inset-x-0 z-20 pt-3 pb-6 bg-gradient-to-b from-black/70 via-black/40 to-transparent">
         <div className="px-4 flex items-center justify-between gap-3">
           <h1 className="font-serif font-bold text-title text-white">Люди</h1>
-          <button
-            onClick={() => {
-              telegramService.haptic('selection');
-              setIsFiltersOpen(true);
-            }}
-            className={`h-11 px-4 rounded-full text-sm2 font-bold flex items-center gap-2 transition-colors cursor-pointer ${
-              activeFilters > 0 ? 'bg-white text-[#2B2623]' : 'bg-black/35 backdrop-blur text-white'
-            }`}
-          >
-            <SlidersHorizontal size={18} />
-            <span>Фильтры</span>
-            {activeFilters > 0 && (
-              <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-zine-terracotta text-white text-cap font-bold flex items-center justify-center">
-                {activeFilters}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            {wantNowSlot}
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                setIsFiltersOpen(true);
+              }}
+              className={`h-11 px-4 rounded-full text-sm2 font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+                activeFilters > 0 ? 'bg-white text-[#2B2623]' : 'bg-black/35 backdrop-blur text-white'
+              }`}
+            >
+              <SlidersHorizontal size={18} />
+              <span>Фильтры</span>
+              {activeFilters > 0 && (
+                <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-zine-terracotta text-white text-cap font-bold flex items-center justify-center">
+                  {activeFilters}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Вкладки: рядом / хотят пообщаться / на связи */}
