@@ -282,6 +282,11 @@ class ApiService {
     return this.request('/news');
   }
 
+  // Короткая запись автора для строки подсказок (/tip в боте) или null
+  async getTip(): Promise<{ id: string; text: string } | null> {
+    return this.request('/tip');
+  }
+
   // Ссылка на оплату звёздами Telegram
   async createDonateInvoice(stars: number): Promise<{ url: string }> {
     return this.request('/donate/invoice', {

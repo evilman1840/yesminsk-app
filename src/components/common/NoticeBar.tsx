@@ -7,7 +7,7 @@ export interface Notice {
   id: string;
   text: string;
   action?: string; // ярко справа от текста: «Пойдёшь? →»
-  onClick: () => void;
+  onClick?: () => void; // нет — только прочитать (запись автора)
   hideDays: number; // на сколько дней прячем по крестику
   group?: string; // закрыли вторую из группы (сходки) — спрашиваем «Скрыть все?»
 }
@@ -38,7 +38,37 @@ export const NoticeBar: React.FC<{ notices: Notice[] }> = ({ notices }) => {
   const [active, setActive] = useState(0);
   const [askAll, setAskAll] = useState<Notice | null>(null);
   const left = notices.filter((n) => !(hidden[n.id] > Date.now()));
-  if (!left.length) return null;
+  const hiddenNow = notices.filter((n) => hidden[n.id] > Date.now());
+
+  // Вернуть спрятанные (ещё актуальные) подсказки — с «ручки», когда открытых не осталось
+  const restore = () => {
+    telegramService.haptic('selection');
+    const next = { ...hidden };
+    for (const n of hiddenNow) delete next[n.id];
+    for (const g of Object.keys(closedInGroup)) delete closedInGroup[g];
+    askedGroups.clear();
+    setHidden(next);
+    try {
+      localStorage.setItem(KEY, JSON.stringify(next));
+    } catch {
+      // вернутся до следующего запуска
+    }
+  };
+
+  if (!left.length) {
+    if (!hiddenNow.length) return null;
+    // Узкая «ручка» на границе с меню: высоты не занимает, карта и лента — до самого меню
+    return (
+      <div className="relative h-0 z-30">
+        <button
+          onClick={restore}
+          className="absolute left-1/2 -translate-x-1/2 -top-3 h-6 pl-2 pr-2.5 rounded-full bg-[#2B2623] text-[#FAF7F2] text-[12px] font-semibold flex items-center gap-1 shadow-zine-float cursor-pointer active:scale-95 transition-transform"
+        >
+          💡 {T.restore(hiddenNow.length)}
+        </button>
+      </div>
+    );
+  }
   const many = left.length > 1;
 
   const hide = (list: Notice[], days?: number) => {
@@ -100,10 +130,11 @@ export const NoticeBar: React.FC<{ notices: Notice[] }> = ({ notices }) => {
             >
               <button
                 onClick={() => {
+                  if (!notice.onClick) return;
                   telegramService.haptic('selection');
                   notice.onClick();
                 }}
-                className="flex-1 min-w-0 min-h-[44px] pl-3.5 py-2 flex items-center gap-2 text-left text-[14px] leading-[19px] font-semibold cursor-pointer"
+                className={`flex-1 min-w-0 min-h-[44px] pl-3.5 py-2 flex items-center gap-2 text-left text-[14px] leading-[19px] font-semibold ${notice.onClick ? 'cursor-pointer' : 'cursor-default'}`}
               >
                 <span className="flex-1 min-w-0 line-clamp-2">{notice.text}</span>
                 {/* Действие — отдельно справа: длинный текст обрежется, а «Пойдёшь? →» видно всегда */}

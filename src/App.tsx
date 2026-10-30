@@ -216,6 +216,7 @@ export const App: React.FC = () => {
   const [isBotBlocked, setIsBotBlocked] = useState(false); // бот упёрся в блокировку: человек остановил бота
   useEffect(() => onBotAccessChange(() => setIsBotOk(botAccessOk())), []);
   const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | null>(null);
+  const [tip, setTip] = useState<{ id: string; text: string } | null>(null); // запись автора (/tip в боте)
   useEffect(() => {
     try {
       const launches = Number(localStorage.getItem('yesminsk_launches') || '0') + 1;
@@ -251,6 +252,8 @@ export const App: React.FC = () => {
   const unreadNews = news.filter(n => new Date(n.createdAt).getTime() > newsSeenAt).length;
 
   const fetchNews = useCallback(async () => {
+    // Запись автора для строки подсказок грузим вместе с новостями
+    api.getTip().then(setTip).catch(() => {});
     try {
       setNews(await api.getNews());
     } catch (err) {
@@ -903,6 +906,8 @@ export const App: React.FC = () => {
   const hasOwnPhoto = Boolean(currentUser.avatarUrl) && !currentUser.avatarUrl.includes('images.unsplash.com');
   const meetupCallouts = pickMeetupCallouts(events, currentUser.telegramId, matches.map((m) => m.telegramId));
   const notices: Notice[] = [
+    // Запись автора — первой; нажимать нечего, только прочитать или закрыть
+    tip && { id: `tip:${tip.id}`, text: tip.text, hideDays: 1 },
     (!isBotOk || isBotBlocked) && {
       id: 'bot',
       text: isBotBlocked ? NOTICE_TEXTS.botBlocked : NOTICE_TEXTS.bot,
