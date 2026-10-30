@@ -285,7 +285,7 @@ const PersonReel: React.FC<{
   const [isConfirmingUnmatch, setIsConfirmingUnmatch] = useState(false);
   const common = new Set(commonGoalIds(user, myGoals));
   const goals = goalsOf(user);
-  // Карточка на экране больше секунды — посмотрели: в следующий раз человек будет ниже
+  // Карточка на экране полсекунды — посмотрели (лицо замечаешь и при быстром листании): в следующий раз человек будет ниже
   const seenRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = seenRef.current;
@@ -293,7 +293,7 @@ const PersonReel: React.FC<{
     let timer: number | undefined;
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) timer = window.setTimeout(() => markPersonSeen(user.telegramId), 1200);
+        if (entry.isIntersecting) timer = window.setTimeout(() => markPersonSeen(user.telegramId), 500);
         else window.clearTimeout(timer);
       },
       { threshold: 0.6 }
