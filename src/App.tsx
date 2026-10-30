@@ -16,7 +16,7 @@ import { OpenUserContext } from './context/openUser';
 import { askBotAccess, setBotAccessKnown, botAccessOk, onBotAccessChange } from './services/botAccess';
 import { WantNowButton } from './components/common/WantNowButton';
 import { NoticeBar, Notice } from './components/common/NoticeBar';
-import { pickMeetupCallout } from './components/map/MeetupCallout';
+import { pickMeetupCallouts } from './components/map/MeetupCallout';
 import { NOTICE_TEXTS } from './texts/notices';
 import { USERNAME_TEXTS } from './texts/profile';
 import { WishMembersSheet } from './components/common/WishMembersSheet';
@@ -901,7 +901,7 @@ export const App: React.FC = () => {
   ];
   // Подсказки вместо рассылок бота — по важности, показывается первая несделанная
   const hasOwnPhoto = Boolean(currentUser.avatarUrl) && !currentUser.avatarUrl.includes('images.unsplash.com');
-  const meetupCallout = pickMeetupCallout(events, currentUser.telegramId, matches.map((m) => m.telegramId));
+  const meetupCallouts = pickMeetupCallouts(events, currentUser.telegramId, matches.map((m) => m.telegramId));
   const notices: Notice[] = [
     (!isBotOk || isBotBlocked) && {
       id: 'bot',
@@ -912,21 +912,24 @@ export const App: React.FC = () => {
         if (isBotBlocked || !(await askBotAccess(true))) telegramService.openBotChat();
       }
     },
-    // Сходка: знакомый идёт, ближайшая подходящая или «собери свою» (во вкладке «Сходки» и так всё видно)
-    // Крестик прячет только эту сходку: новая (или «собери свою», когда сходок нет) появится сразу
-    currentScreen !== 'events' && {
-      id: `meetup:${meetupCallout.event?.id ?? 'none'}`,
-      text: meetupCallout.text,
-      action: meetupCallout.action,
-      hideDays: 1,
-      onClick: () => {
-        if (meetupCallout.event) setSharedEvent(meetupCallout.event);
-        else {
-          setPendingCreate({ source: 'map' });
-          handleNavigate('events');
-        }
-      }
-    },
+    // Сходки по одной: из «На связи», самые подходящие, потом «собери свою»; крестик прячет одну — видна следующая.
+    // Во вкладке «Сходки» и так всё видно
+    ...(currentScreen === 'events'
+      ? []
+      : meetupCallouts.map((c) => ({
+          id: `meetup:${c.key}`,
+          group: 'meetup',
+          text: c.text,
+          action: c.action,
+          hideDays: c.event ? 1 : 3,
+          onClick: () => {
+            if (c.event) setSharedEvent(c.event);
+            else {
+              setPendingCreate({ source: 'map' });
+              handleNavigate('events');
+            }
+          }
+        }))),
     !currentUser.genderConfirmed && isGenderPromptDismissed && {
       id: 'gender',
       text: NOTICE_TEXTS.gender,

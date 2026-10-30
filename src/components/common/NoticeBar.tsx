@@ -9,6 +9,7 @@ export interface Notice {
   action?: string; // ярко справа от текста: «Пойдёшь? →»
   onClick: () => void;
   hideDays: number; // на сколько дней прячем по крестику
+  group?: string; // из одной группы показываем только первую не спрятанную (сходки — по одной, закрыл — следующая)
 }
 
 const KEY = 'yesminsk_notice_hidden';
@@ -31,7 +32,14 @@ const loadHidden = (): Record<string, number> => {
 export const NoticeBar: React.FC<{ notices: Notice[] }> = ({ notices }) => {
   const [hidden, setHidden] = useState(loadHidden);
   const [active, setActive] = useState(0);
-  const left = notices.filter((n) => !(hidden[n.id] > Date.now()));
+  const groups = new Set<string>();
+  const left = notices.filter((n) => {
+    if (hidden[n.id] > Date.now()) return false;
+    if (!n.group) return true;
+    if (groups.has(n.group)) return false;
+    groups.add(n.group);
+    return true;
+  });
   if (!left.length) return null;
   const many = left.length > 1;
 

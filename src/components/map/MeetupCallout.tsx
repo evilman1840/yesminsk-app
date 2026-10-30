@@ -2,9 +2,7 @@ import { AppEvent, eventCategoryOf, formatTime } from '../../types';
 import { MAP_CALLOUT_TEXTS as T } from '../../texts/meetups';
 
 /**
- * Призыв к сходкам (в строке подсказок) — одна строка с живыми данными:
- * знакомый из «На связи» идёт на сходку → ближайшая подходящая сходка → «собери свою».
- * Сходки приходят с сервера уже по порядку «насколько подходит человеку»
+ * Призыв к сходкам в строке подсказок: живые данные о сходках, куда можно пойти, и «собери свою»
  */
 
 // «сегодня в 19:00», «завтра в 12:00», «в субботу в 11:00»
@@ -21,24 +19,35 @@ export function whenText(iso: string) {
   return `${T.weekday[d.getDay()]} ${time}`;
 }
 
-// Что сказать: знакомый идёт → ближайшая подходящая сходка → «собери свою»
-export function pickMeetupCallout(events: AppEvent[], myId: number | undefined, matchIds: number[]) {
-  // Куда можно пойти в ближайшие двое суток: не свои, ещё не записан, не начались больше получаса назад
+export interface MeetupCallout {
+  key: string;
+  text: string;
+  action: string;
+  event: AppEvent | null; // null — «собери свою»
+}
+
+// Очередь для строки подсказок: куда идут из «На связи» → самые подходящие мне (сервер уже отдаёт по порядку) → «собери свою».
+// Показывается по одной: закрыл — следующая
+export function pickMeetupCallouts(events: AppEvent[], myId: number | undefined, matchIds: number[]): MeetupCallout[] {
+  // Куда можно пойти в ближайшую неделю: не свои, ещё не записан, есть места, не начались больше получаса назад
   const now = Date.now();
   const candidates = events.filter((e) => {
     const t = new Date(e.dateTime).getTime();
-    return !e.isJoined && Number(e.creator?.telegramId) !== Number(myId) && t > now - 30 * 60 * 1000 && t < now + 48 * 3600 * 1000;
+    const hasSeats = !e.maxParticipants || e.participantsCount < e.maxParticipants;
+    return !e.isJoined && hasSeats && Number(e.creator?.telegramId) !== Number(myId) && t > now - 30 * 60 * 1000 && t < now + 7 * 24 * 3600 * 1000;
   });
   const friends = new Set(matchIds);
-  const withFriend = candidates.find((e) => e.participants?.some((p) => friends.has(Number(p.telegramId))));
-  const friendName = withFriend?.participants?.find((p) => friends.has(Number(p.telegramId)))?.name;
-  const event = withFriend || candidates[0] || null;
-  const todayCount = candidates.filter((e) => new Date(e.dateTime).toDateString() === new Date().toDateString()).length;
+  const friendOf = (e: AppEvent) => e.participants?.find((p) => friends.has(Number(p.telegramId)))?.name;
+  const ordered = [...candidates.filter((e) => friendOf(e)), ...candidates.filter((e) => !friendOf(e))].slice(0, 6);
 
-  const text = withFriend && friendName
-    ? T.friend(friendName, withFriend.title, whenText(withFriend.dateTime))
-    : event
-    ? T.event(eventCategoryOf(event).emoji, todayCount, event.title, whenText(event.dateTime))
-    : T.empty;
-  return { text, action: event ? T.go : T.create, event };
+  const list: MeetupCallout[] = ordered.map((e) => {
+    const friend = friendOf(e);
+    return {
+      key: String(e.id),
+      text: friend ? T.friend(friend, e.title, whenText(e.dateTime)) : T.event(eventCategoryOf(e).emoji, e.title, whenText(e.dateTime)),
+      action: T.go,
+      event: e
+    };
+  });
+  return [...list, { key: 'create', text: ordered.length ? T.createOwn : T.empty, action: T.create, event: null }];
 }

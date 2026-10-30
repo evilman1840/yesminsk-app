@@ -104,7 +104,6 @@ export const priceShort = (ev: { isPaid?: boolean; price?: number }) =>
   !ev.isPaid ? 'бесплатно' : ev.price ? `~${String(ev.price).replace('.', ',')} BYN` : 'платно';
 
 // Призыв к сходкам в строке подсказок
-const meetupsWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? 'сходка' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'сходки' : 'сходок');
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 // Длинное название сходки обрезаем: в строке подсказок две строки
 const short = (title: string) => (title.length > 24 ? `${title.slice(0, 23).trimEnd()}…` : title);
@@ -114,9 +113,9 @@ export const MAP_CALLOUT_TEXTS = {
   weekday: ['в воскресенье в', 'в понедельник в', 'во вторник в', 'в среду в', 'в четверг в', 'в пятницу в', 'в субботу в'],
   // Время — в начале: если строка не влезет, обрежется название, а не когда
   friend: (name: string, title: string, when: string) => `🤝 ${cap(when)} ${name} идёт на «${short(title)}»`,
-  event: (emoji: string, todayCount: number, title: string, when: string) =>
-    todayCount > 1 ? `🗓 Сегодня ${todayCount} ${meetupsWord(todayCount)}, ближайшая ${when.replace(/^сегодня /, '')}: «${short(title)}»` : `${emoji} ${cap(when)}: «${short(title)}»`,
-  empty: '🌙 В ближайшие дни тихо. Собери сходку, и люди подтянутся.',
+  event: (emoji: string, title: string, when: string) => `${emoji} ${cap(when)}: «${short(title)}»`,
+  empty: '🌙 В ближайшие дни тихо. Собери сходку, и люди подтянутся',
+  createOwn: '✨ Не нашлось подходящей? Собери свою, это минута',
   go: 'Пойдёшь? →',
   create: 'Собрать →',
   close: 'Скрыть до завтра'
