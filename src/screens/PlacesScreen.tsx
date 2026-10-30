@@ -4,7 +4,7 @@ import { PlaceItem, AppEvent, JoinOptions, PLACE_MOODS, placeTypeEmoji, placesFo
 import { api, serverUrl } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { MoodChips, MoodFilter } from '../components/places/MoodPicker';
-import { PlaceSheet } from '../components/places/PlaceSheet';
+import { PlaceSheet, eventsAtPlace, shortWhen } from '../components/places/PlaceSheet';
 import { PlaceTypeFilter } from '../components/places/PlaceTypeFilter';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { UndoToast } from '../components/ui/UndoToast';
@@ -106,6 +106,7 @@ export const PlacesScreen: React.FC<{
               onOpen={() => setOpenedPlace(place)}
               onToggleSave={onToggleSave}
               onCreateEvent={onCreateEvent}
+              events={events}
               onNotInterested={() => {
                 notInterestedPlaces.add(place.id);
                 setHiddenVersion((v) => v + 1);
@@ -178,8 +179,10 @@ const PlaceReel: React.FC<{
   onToggleSave: (place: PlaceItem) => Promise<PlaceItem>;
   onCreateEvent: (place: PlaceItem) => void;
   onNotInterested: () => void;
-}> = ({ place, isFirst, onOpen, onToggleSave, onCreateEvent, onNotInterested }) => {
+  events?: AppEvent[];
+}> = ({ place, isFirst, onOpen, onToggleSave, onCreateEvent, onNotInterested, events = [] }) => {
   const [photoIndex, setPhotoIndex] = useState(0);
+  const placeEvents = eventsAtPlace(place, events);
   const [isSaving, setIsSaving] = useState(false);
 
   const save = async () => {
@@ -300,6 +303,13 @@ const PlaceReel: React.FC<{
               </span>
             )}
           </div>
+        )}
+        {/* Сюда собирается сходка — сами сходки в карточке места */}
+        {placeEvents.length > 0 && (
+          <p className="mt-2 pr-16 text-sm2 font-semibold text-zine-mustard truncate">
+            📅 {placeEvents.length > 1 ? `Сходки здесь: ${placeEvents.length} · ближайшая ` : 'Сходка здесь: '}
+            {shortWhen(placeEvents[0].dateTime).toLowerCase()}
+          </p>
         )}
         {place.description && <p className="mt-1.5 pr-16 text-body text-white/85 line-clamp-2">{place.description}</p>}
         <span className="mt-3 inline-flex items-center gap-1 text-sm2 font-bold text-white">

@@ -135,7 +135,7 @@ export const BottomSheet: React.FC<{
             onPointerCancel={onHeaderPointerUp}
           >
             <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-zine-border" />
-            <h3 className="font-serif font-bold text-title text-zine-ink pt-3 line-clamp-2">{title}</h3>
+            <h3 className="font-serif font-bold text-title text-zine-ink pt-3 break-words min-w-0">{title}</h3>
             <button
               onClick={onClose}
               aria-label="Закрыть"

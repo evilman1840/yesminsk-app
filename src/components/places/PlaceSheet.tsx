@@ -22,7 +22,7 @@ const Avatar: React.FC<{ url?: string; name: string }> = ({ url, name }) =>
   );
 
 // Сходки в этом месте: привязанные к нему или собранные в паре десятков метров
-const eventsAtPlace = (place: PlaceItem, events: AppEvent[]) => {
+export const eventsAtPlace = (place: PlaceItem, events: AppEvent[]) => {
   const [lat, lng] = place.coordinates;
   const near = (ev: AppEvent) => {
     const [eLat, eLng] = ev.coordinates || [0, 0];
@@ -36,7 +36,7 @@ const eventsAtPlace = (place: PlaceItem, events: AppEvent[]) => {
 };
 
 // «завтра, 19:00» для ближайших дней, иначе «сб, 24 октября, 19:00»
-const shortWhen = (iso: string) => {
+export const shortWhen = (iso: string) => {
   const rel = relativeDay(iso);
   if (rel.startsWith('через') || rel === 'уже прошла') return formatEventDate(iso);
   return `${rel[0].toUpperCase()}${rel.slice(1)}, ${new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;

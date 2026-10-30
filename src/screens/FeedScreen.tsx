@@ -519,21 +519,33 @@ const PersonReel: React.FC<{
           ))}
         </div>
         {/* Почему показан: общие «Хочу сходить» и сходки */}
-        {user.why && user.why.length > 0 &&
-          (user.wishKinds?.length && onOpenWishKind ? (
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                onOpenWishKind(user.wishKinds![0].kind, user.wishKinds![0].sport);
-              }}
-              className="mt-2 max-w-full pr-16 flex items-center gap-1 text-sm2 font-semibold text-zine-mustard underline underline-offset-4 decoration-zine-mustard/60 cursor-pointer"
-            >
-              <span className="truncate">{user.why.join(' · ')}</span>
-              <ChevronRight size={16} className="shrink-0" />
-            </button>
-          ) : (
-            <p className="mt-2 pr-16 text-sm2 font-semibold text-zine-mustard truncate">{user.why.join(' · ')}</p>
-          ))}
+        {/* Не влезает в ширину — листается вправо; «Тоже хочет» (всегда последний) открывает, кто ещё хочет */}
+        {user.why && user.why.length > 0 && (
+          <div data-no-swipe className="mt-2 -mx-4 px-4 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right text-sm2 font-semibold text-zine-mustard whitespace-nowrap">
+            {user.why.map((reason, i) => {
+              const isWish = i === user.why!.length - 1 && !!user.wishKinds?.length && !!onOpenWishKind;
+              return (
+                <React.Fragment key={reason}>
+                  {i > 0 && <span className="shrink-0 text-zine-mustard/60">·</span>}
+                  {isWish ? (
+                    <button
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        onOpenWishKind!(user.wishKinds![0].kind, user.wishKinds![0].sport);
+                      }}
+                      className="shrink-0 flex items-center gap-1 underline underline-offset-4 decoration-zine-mustard/60 cursor-pointer"
+                    >
+                      {reason}
+                      <ChevronRight size={16} className="shrink-0" />
+                    </button>
+                  ) : (
+                    <span className="shrink-0">{reason}</span>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        )}
         {user.bio && <p className="mt-2 pr-16 text-body text-white/90 line-clamp-2">{user.bio}</p>}
 
         {isConfirmingUnmatch ? (
