@@ -274,15 +274,17 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     refreshWishes();
   }, []);
   // Какое желание показать в баннере: мои (где есть ещё люди) важнее, ближайшее время важнее, больше людей — выше.
-  // Из лучших BAR_WISHES по очереди: при каждом заходе в «Сходки» — следующее
+  // Через раз — самое лучшее, в остальные заходы по очереди следующие из BAR_WISHES.
+  // «Погулять на неделе» в разных местах — одно и то же для баннера: берём то, где больше людей
   const [barTurn] = useState(nextWishBarTurn);
   const barWishes = wishSummary
     .filter((s) => s.count - (s.includesMe ? 1 : 0) > 0)
     .map((s) => ({ s, score: (s.count - (s.includesMe ? 1 : 0)) * WINDOW_BOOST[s.timeWindow] * (s.includesMe ? 2 : 1) }))
     .sort((a, b) => b.score - a.score)
+    .filter((x, i, all) => all.findIndex((y) => y.s.kind === x.s.kind && y.s.sport === x.s.sport && y.s.timeWindow === x.s.timeWindow) === i)
     .slice(0, BAR_WISHES)
     .map((x) => x.s);
-  const topWish = barWishes.length ? barWishes[barTurn % barWishes.length] : undefined;
+  const topWish = barWishes.length < 2 || barTurn % 2 === 0 ? barWishes[0] : barWishes[1 + (Math.floor(barTurn / 2) % (barWishes.length - 1))];
   const [price, setPrice] = useState('');
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   // Последние название и описание, которые заполнил шаблон: пока человек их не правил, обновляем вместе с полями
