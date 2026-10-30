@@ -38,8 +38,8 @@ import { LegalUpdateOverlay } from './components/common/Legal';
 import { LEGAL_VERSION } from './texts/legal';
 import { AdminContext, EVENT_DELETED } from './context/admin';
 import { EVENT_UPDATED } from './context/eventUpdates';
-import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, placeForMeetup } from './types';
-import { wishCounter } from './texts/wishes';
+import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, WishSummaryItem, placeForMeetup } from './types';
+import { WISH_TEXTS, wishCounter, wishNotices } from './texts/wishes';
 import { FEED_TEXTS } from './texts/feed';
 import { MEETUP_TEXTS } from './texts/meetups';
 import { loadBadgeSeenEvents, markBadgeSeenEvents } from './utils/seenEvents';
@@ -268,9 +268,11 @@ export const App: React.FC = () => {
   }, []);
   const unreadNews = news.filter(n => new Date(n.createdAt).getTime() > newsSeenAt).length;
 
+  const [wishSummary, setWishSummary] = useState<WishSummaryItem[]>([]);
   const fetchNews = useCallback(async () => {
-    // Запись автора для строки подсказок грузим вместе с новостями
+    // Запись автора и «Хочу сходить» для строки подсказок грузим вместе с новостями
     api.getTip().then(setTip).catch(() => {});
+    api.getWishes().then((r) => setWishSummary(r.summary || [])).catch(() => {});
     try {
       setNews(await api.getNews());
     } catch (err) {
@@ -953,6 +955,19 @@ export const App: React.FC = () => {
             }
           }
         }))),
+    // «Хочу сходить»: в моих желаниях — сколько ещё хотят того же (до двух), иначе самое популярное. Нажал — список людей
+    ...(currentScreen === 'events' ? [] : wishNotices(wishSummary)).map((w) => ({
+      id: `wish:${w.kind}:${w.sport || ''}:${w.timeWindow}:${w.placeId || ''}`,
+      text: `🙋 ${wishCounter(w)}`,
+      action: w.includesMe ? WISH_TEXTS.noticeWho : WISH_TEXTS.noticeMeToo,
+      hideDays: 3,
+      onClick: () =>
+        setWishKind({
+          kind: w.kind,
+          sport: w.sport || undefined,
+          exact: { window: w.timeWindow, placeId: w.placeId, counter: wishCounter(w), includesMe: w.includesMe }
+        })
+    })),
     !currentUser.genderConfirmed && isGenderPromptDismissed && {
       id: 'gender',
       text: NOTICE_TEXTS.gender,

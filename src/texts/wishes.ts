@@ -10,6 +10,8 @@ export const WISH_TEXTS = {
   barCounter: (n: number, what: string, when: string) => `${people(n)} ${n === 1 ? 'хочет' : 'хотят'} ${what} ${when}`,
   // Моё желание: сколько ещё хотят того же, кроме меня
   barCounterMine: (n: number, what: string, when: string) => `Ещё ${people(n)} ${n === 1 ? 'хочет' : 'хотят'} ${what} ${when}, как и ты`,
+  noticeWho: 'Кто? →',
+  noticeMeToo: 'И ты? →',
   barAll: 'Все',
   barAllMine: (n: number) => `Все · мои ${n}`,
   allLink: '🙋 Все желания и мои →',
@@ -82,5 +84,17 @@ export const WISH_TEXTS = {
 // Счётчик для баннера и шапки списка: в моём желании — «Ещё 47 … как и ты», в чужом — «48 человек хотят …»
 export const wishCounter = (w: { count: number; what: string; when: string; includesMe: boolean }) =>
   w.includesMe ? WISH_TEXTS.barCounterMine(w.count - 1, w.what, w.when) : WISH_TEXTS.barCounter(w.count, w.what, w.when);
+
+// Строка подсказок: мои желания, где есть ещё люди (до двух, где больше людей), а нет таких — одно самое популярное.
+// Одно и то же желание в разных местах — один раз
+export const wishNotices = <W extends { kind: string; sport: string | null; timeWindow: string; count: number; includesMe: boolean }>(summary: W[]): W[] => {
+  const others = (w: W) => w.count - (w.includesMe ? 1 : 0);
+  const sorted = summary
+    .filter((w) => others(w) > 0)
+    .sort((a, b) => others(b) - others(a))
+    .filter((w, i, all) => all.findIndex((x) => x.kind === w.kind && x.sport === w.sport && x.timeWindow === w.timeWindow) === i);
+  const mine = sorted.filter((w) => w.includesMe).slice(0, 2);
+  return mine.length ? mine : sorted.slice(0, 1);
+};
 
 export const wishLine = (w: { what: string; when: string }) => `${w.what} ${w.when}`;
