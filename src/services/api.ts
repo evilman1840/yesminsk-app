@@ -282,8 +282,8 @@ class ApiService {
     return this.request('/news');
   }
 
-  // Короткая запись автора для строки подсказок (/tip в боте) или null
-  async getTip(): Promise<{ id: string; text: string } | null> {
+  // Короткая запись автора для строки подсказок (/tip — в конце, /tiptop — первой) или null
+  async getTip(): Promise<{ id: string; text: string; first?: boolean } | null> {
     return this.request('/tip');
   }
 

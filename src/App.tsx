@@ -216,7 +216,7 @@ export const App: React.FC = () => {
   const [isBotBlocked, setIsBotBlocked] = useState(false); // бот упёрся в блокировку: человек остановил бота
   useEffect(() => onBotAccessChange(() => setIsBotOk(botAccessOk())), []);
   const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | null>(null);
-  const [tip, setTip] = useState<{ id: string; text: string } | null>(null); // запись автора (/tip в боте)
+  const [tip, setTip] = useState<{ id: string; text: string; first?: boolean } | null>(null); // запись автора (/tip, /tiptop в боте)
   // «Закрепи чат»: Telegram не говорит, закреплён ли чат, — верим «Всё сделано» или крестику, больше не показываем
   const [isPinDone, setIsPinDone] = useState(() => {
     try {
@@ -921,9 +921,10 @@ export const App: React.FC = () => {
   // Подсказки вместо рассылок бота — по важности, листаются карточками
   const hasOwnPhoto = Boolean(currentUser.avatarUrl) && !currentUser.avatarUrl.includes('images.unsplash.com');
   const meetupCallouts = pickMeetupCallouts(events, currentUser.telegramId, matches.map((m) => m.telegramId));
+  // Запись автора: нажимать нечего, только прочитать или закрыть. /tiptop — первой, /tip — в конце
+  const tipNotice: Notice | null = tip ? { id: `tip:${tip.id}`, text: tip.text, hideDays: 1 } : null;
   const notices: Notice[] = [
-    // Запись автора — первой; нажимать нечего, только прочитать или закрыть
-    tip && { id: `tip:${tip.id}`, text: tip.text, hideDays: 1 },
+    tip?.first && tipNotice,
     (!isBotOk || isBotBlocked) && {
       id: 'bot',
       text: isBotBlocked ? NOTICE_TEXTS.botBlocked : NOTICE_TEXTS.bot,
@@ -964,7 +965,8 @@ export const App: React.FC = () => {
       onClick: () => handleNavigate('profile_edit')
     },
     !currentUser.username && { id: 'username', text: NOTICE_TEXTS.username, hideDays: 7, onClick: () => setNoticeSheet('username') },
-    isBotOk && !isBotBlocked && !isPinDone && { id: 'pin', text: NOTICE_TEXTS.pin, hideDays: 365, onClick: () => setNoticeSheet('pin'), onDismiss: markPinDone }
+    isBotOk && !isBotBlocked && !isPinDone && { id: 'pin', text: NOTICE_TEXTS.pin, hideDays: 365, onClick: () => setNoticeSheet('pin'), onDismiss: markPinDone },
+    !tip?.first && tipNotice
   ].filter(Boolean) as Notice[];
 
   const hideFirstSteps = () => {
