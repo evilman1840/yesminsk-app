@@ -72,6 +72,7 @@ export const EventDetails: React.FC<{
   const [removing, setRemoving] = useState<{ telegramId: number; name: string } | null>(null);
   const [counting, setCounting] = useState<{ telegramId: number; name: string; people: number } | null>(null); // «По записи»: сколько человек
   const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [noShowBusy, setNoShowBusy] = useState<number | null>(null);
   const event = localEvent && localEvent.id === eventProp.id ? { ...eventProp, ...localEvent } : eventProp;
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const cat = eventCategoryOf(event);
@@ -82,6 +83,8 @@ export const EventDetails: React.FC<{
   const [isAdminDeleteOpen, setIsAdminDeleteOpen] = useState(false);
   const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
   const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;
+  // Сходка началась: организатор отмечает, кто не пришёл; подтверждать и убирать уже незачем
+  const isStarted = new Date(event.dateTime).getTime() <= Date.now();
   // «По записи»: подтверждённую запись меняет только организатор
   const approvedLock = Boolean(event.byRequest && event.myApproved && !isCreator);
   // Ответ сервера после действий организатора: обновляем здесь и в остальных экранах
@@ -227,7 +230,9 @@ export const EventDetails: React.FC<{
             >
               {EM.button(others.length)}
             </button>
-            {event.byRequest && others.some((p) => !p.approved) && (
+            {/* Сходка уже началась — отметить, кто не пришёл (внутренний рейтинг, человеку не сообщаем) */}
+            {isStarted && <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{MEETUP_TEXTS.noShowHint}</p>}
+            {!isStarted && event.byRequest && others.some((p) => !p.approved) && (
               <p className="text-sm2 font-bold text-zine-terracotta">⏳ {MEETUP_TEXTS.pendingCount(others.filter((p) => !p.approved).length)}</p>
             )}
             {others.map((p) => (
@@ -248,7 +253,7 @@ export const EventDetails: React.FC<{
                       </span>
                     </span>
                   </button>
-                  {event.byRequest && (
+                  {event.byRequest && !isStarted && (
                     <button
                       type="button"
                       aria-label={MEETUP_TEXTS.peopleOne}
@@ -258,14 +263,16 @@ export const EventDetails: React.FC<{
                       <Pencil size={16} />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    aria-label={EM.removeOne}
-                    onClick={() => setRemoving({ telegramId: p.telegramId, name: p.name })}
-                    className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-danger flex items-center justify-center cursor-pointer"
-                  >
-                    <UserMinus size={16} />
-                  </button>
+                  {!isStarted && (
+                    <button
+                      type="button"
+                      aria-label={EM.removeOne}
+                      onClick={() => setRemoving({ telegramId: p.telegramId, name: p.name })}
+                      className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-danger flex items-center justify-center cursor-pointer"
+                    >
+                      <UserMinus size={16} />
+                    </button>
+                  )}
                   {p.username && (
                     <button
                       type="button"
@@ -281,7 +288,30 @@ export const EventDetails: React.FC<{
                   )}
                 </div>
                 {/* «По записи»: заявка ждёт — подтвердить */}
-                {event.byRequest && !p.approved && (
+                {isStarted && (
+                  <button
+                    type="button"
+                    disabled={noShowBusy === p.telegramId}
+                    onClick={async () => {
+                      setNoShowBusy(p.telegramId);
+                      try {
+                        applyUpdate(await api.markNoShow(String(event.id), p.telegramId, !p.noShow));
+                        telegramService.haptic('selection');
+                      } catch (err: any) {
+                        telegramService.alert(err?.message || 'Не получилось, попробуй ещё раз');
+                      } finally {
+                        setNoShowBusy(null);
+                      }
+                    }}
+                    className={`mt-1.5 ml-[52px] h-9 px-4 rounded-full text-sm2 font-bold inline-flex items-center gap-1.5 cursor-pointer active:scale-[0.98] transition-transform ${
+                      p.noShow ? 'bg-zine-danger text-white' : 'bg-zine-card text-zine-ink border border-zine-border'
+                    }`}
+                  >
+                    {noShowBusy === p.telegramId ? <Loader2 size={16} className="animate-spin" /> : null}
+                    {p.noShow ? MEETUP_TEXTS.noShowOn : MEETUP_TEXTS.noShowOff}
+                  </button>
+                )}
+                {!isStarted && event.byRequest && !p.approved && (
                   <button
                     type="button"
                     disabled={approvingId === p.telegramId}

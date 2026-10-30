@@ -253,6 +253,7 @@ export interface AppEvent {
     withKids?: boolean;
     confirmed?: boolean; // «✅ Точно приду» — значок у аватарки
     approved?: boolean;  // «По записи»: организатор подтвердил
+    noShow?: boolean;    // организатор отметил «Не пришёл(ла)» (приходит только организатору)
   }>;
 }
 

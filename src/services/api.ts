@@ -506,6 +506,11 @@ class ApiService {
     return this.request<AppEvent>(`/events/${eventId}/participant`, { method: 'POST', body: JSON.stringify({ telegramId, ...data }) });
   }
 
+  // Организатор отмечает «Не пришёл(ла)» (или снимает отметку)
+  async markNoShow(eventId: string, telegramId: number, noShow: boolean): Promise<AppEvent> {
+    return this.request<AppEvent>(`/events/${eventId}/noshow`, { method: 'POST', body: JSON.stringify({ telegramId, noShow }) });
+  }
+
   // «✅ Точно приду»
   async confirmEvent(eventId: string): Promise<AppEvent> {
     return this.request<AppEvent>(`/events/${eventId}/confirm`, { method: 'POST' });
