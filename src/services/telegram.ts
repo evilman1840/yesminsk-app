@@ -487,6 +487,11 @@ export const telegramService = {
     else window.open(url, '_blank');
   },
 
+  // Чат с нашим ботом
+  openBotChat() {
+    this.openChat(BOT);
+  },
+
   openChat(username?: string) {
     if (!username) return;
     const cleanUsername = username.replace(/^@/, '');

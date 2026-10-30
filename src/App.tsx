@@ -13,7 +13,10 @@ import { GenderPrompt } from './components/common/GenderPrompt';
 import { ACCOUNT_TEXTS } from './texts/account';
 import { AddToHomeSheet } from './components/common/AddToHomeSheet';
 import { OpenUserContext } from './context/openUser';
-import { askBotAccess, setBotAccessKnown, botAccessOk } from './services/botAccess';
+import { askBotAccess, setBotAccessKnown, botAccessOk, onBotAccessChange } from './services/botAccess';
+import { NoticeBar, Notice } from './components/common/NoticeBar';
+import { NOTICE_TEXTS } from './texts/notices';
+import { USERNAME_TEXTS } from './texts/profile';
 import { WishMembersSheet } from './components/common/WishMembersSheet';
 import { WishKindSheet } from './components/common/WishKindSheet';
 import { MatchModal, ReactionType } from './components/common/Reactions';
@@ -206,6 +209,11 @@ export const App: React.FC = () => {
   currentUserIdRef.current = currentUser.telegramId;
   // Совет «добавь на экран телефона»: один раз, со второго открытия, если ещё не добавлено
   const [isHomeTipOpen, setIsHomeTipOpen] = useState(false);
+  // Строка подсказок: может ли бот писать и открытые из неё шторки
+  const [isBotOk, setIsBotOk] = useState(botAccessOk);
+  const [isBotBlocked, setIsBotBlocked] = useState(false); // бот упёрся в блокировку: человек остановил бота
+  useEffect(() => onBotAccessChange(() => setIsBotOk(botAccessOk())), []);
+  const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | null>(null);
   useEffect(() => {
     try {
       const launches = Number(localStorage.getItem('yesminsk_launches') || '0') + 1;
@@ -402,6 +410,7 @@ export const App: React.FC = () => {
 
           // Может ли бот писать: сервер знает про «Старт» в боте, Telegram — про разрешение при запуске
           setBotAccessKnown(me.canMessage === true);
+          setIsBotBlocked(me.canMessage === false);
           // Уже зарегистрированным, кому бот не может писать, — тоже спрашиваем, но не чаще раза в 3 дня
           if (me.hasAgreedToRules && !botAccessOk()) {
             try {
@@ -888,6 +897,34 @@ export const App: React.FC = () => {
     { id: 'hello', title: 'Нажми 👋 у того, с кем хочешь пообщаться', done: matches.length > 0 || users.some(u => u.iLiked) },
     { id: 'event', title: 'Запишись на сходку или собери свою', done: events.some(e => e.isJoined), onClick: () => handleNavigate('events') }
   ];
+  // Подсказки вместо рассылок бота — по важности, показывается первая несделанная
+  const hasOwnPhoto = Boolean(currentUser.avatarUrl) && !currentUser.avatarUrl.includes('images.unsplash.com');
+  const notices: Notice[] = [
+    (!isBotOk || isBotBlocked) && {
+      id: 'bot',
+      text: isBotBlocked ? NOTICE_TEXTS.botBlocked : NOTICE_TEXTS.bot,
+      hideDays: 3,
+      onClick: async () => {
+        // Остановили бота — в чате «Перезапустить»; иначе системное окно Telegram, не вышло — тоже чат
+        if (isBotBlocked || !(await askBotAccess(true))) telegramService.openBotChat();
+      }
+    },
+    !currentUser.genderConfirmed && isGenderPromptDismissed && {
+      id: 'gender',
+      text: NOTICE_TEXTS.gender,
+      hideDays: 7,
+      onClick: () => setIsGenderPromptDismissed(false)
+    },
+    (!hasOwnPhoto || currentUser.bio.trim().length < 10) && {
+      id: 'profile',
+      text: NOTICE_TEXTS.profile,
+      hideDays: 7,
+      onClick: () => handleNavigate('profile_edit')
+    },
+    !currentUser.username && { id: 'username', text: NOTICE_TEXTS.username, hideDays: 7, onClick: () => setNoticeSheet('username') },
+    isBotOk && !isBotBlocked && { id: 'pin', text: NOTICE_TEXTS.pin, hideDays: 365, onClick: () => setNoticeSheet('pin') }
+  ].filter((n): n is Notice => Boolean(n));
+
   const hideFirstSteps = () => {
     setIsFirstStepsHidden(true);
     try {
@@ -1069,6 +1106,8 @@ export const App: React.FC = () => {
             )}
           </div>
 
+          {isTab && isMeLoaded && currentScreen !== 'profile_edit' && <NoticeBar notices={notices} />}
+
           {isTab && (
             <TabBar
               current={currentScreen as TabId}
@@ -1137,6 +1176,40 @@ export const App: React.FC = () => {
                 if (ev) setSharedEvent(ev);
               }}
             />
+          )}
+
+          {noticeSheet === 'username' && (
+            <BottomSheet title={NOTICE_TEXTS.usernameTitle} onClose={() => setNoticeSheet(null)}>
+              <p className="text-body text-zine-ink">{NOTICE_TEXTS.usernameText}</p>
+              <p className="mt-3 p-3 rounded-zine-sm bg-zine-card text-body text-zine-ink">{USERNAME_TEXTS.how}</p>
+              <button onClick={() => setNoticeSheet(null)} className="mt-4 w-full h-12 rounded-zine-sm bg-zine-card text-body font-semibold text-zine-ink cursor-pointer">
+                {NOTICE_TEXTS.usernameDone}
+              </button>
+            </BottomSheet>
+          )}
+
+          {noticeSheet === 'pin' && (
+            <BottomSheet title={NOTICE_TEXTS.pinTitle} onClose={() => setNoticeSheet(null)}>
+              <ul className="space-y-2">
+                {NOTICE_TEXTS.pinSteps.map((step) => (
+                  <li key={step} className="p-3 rounded-zine-sm bg-zine-card text-body text-zine-ink">
+                    {step}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  telegramService.openBotChat();
+                }}
+                className="mt-4 w-full h-14 rounded-zine-sm bg-zine-terracotta text-white text-lead font-bold cursor-pointer active:scale-[0.99] transition-transform"
+              >
+                {NOTICE_TEXTS.pinOpen}
+              </button>
+              <button onClick={() => setNoticeSheet(null)} className="mt-2 w-full h-12 rounded-zine-sm bg-zine-card text-body font-semibold text-zine-ink cursor-pointer">
+                {NOTICE_TEXTS.pinDone}
+              </button>
+            </BottomSheet>
           )}
 
           {isHomeTipOpen && isTab && currentUser.ageConfirmed && !sharedEvent && !matchPopupUser && !selectedUser && <AddToHomeSheet onClose={closeHomeTip} />}
