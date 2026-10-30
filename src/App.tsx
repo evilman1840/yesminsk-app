@@ -39,7 +39,7 @@ import { LEGAL_VERSION } from './texts/legal';
 import { AdminContext, EVENT_DELETED } from './context/admin';
 import { EVENT_UPDATED } from './context/eventUpdates';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, placeForMeetup } from './types';
-import { WISH_TEXTS } from './texts/wishes';
+import { wishCounter } from './texts/wishes';
 import { FEED_TEXTS } from './texts/feed';
 import { MEETUP_TEXTS } from './texts/meetups';
 import { loadBadgeSeenEvents, markBadgeSeenEvents } from './utils/seenEvents';
@@ -1155,7 +1155,7 @@ export const App: React.FC = () => {
                   setWishKind({
                     kind: w.kind,
                     sport: w.sport || undefined,
-                    exact: { window: w.timeWindow, placeId: w.placeId, counter: WISH_TEXTS.barCounter(w.count, w.what, w.when), includesMe: w.includesMe }
+                    exact: { window: w.timeWindow, placeId: w.placeId, counter: wishCounter(w), includesMe: w.includesMe }
                   })
                 }
               />

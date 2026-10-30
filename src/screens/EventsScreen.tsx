@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff } from 'lucide-react';
-import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem } from '../types';
+import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -19,7 +19,7 @@ import { PhotoPicker, PickedPhoto, photoFromUrl, photoSrc } from '../components/
 import { PHOTO_TEXTS } from '../texts/photos';
 import { WishSheet } from '../components/common/WishSheet';
 import { InfoToast } from '../components/ui/InfoToast';
-import { WISH_TEXTS } from '../texts/wishes';
+import { WISH_TEXTS, wishCounter } from '../texts/wishes';
 import { MEETUP_TEXTS as M, priceLabel } from '../texts/meetups';
 import { confirmAttendance } from '../context/eventUpdates';
 import { areaOf, distanceMeters, farMentionedArea, isKnownPoint } from '../utils/minskAreas';
@@ -162,6 +162,19 @@ export interface EventsScreenProps {
   onOpenWishPeople?: (item: WishSummaryItem) => void; // «76 человек хотят на кофе»: список людей, 👋 и «Позвать в компанию»
 }
 
+// Баннер «Хочу сходить»: из скольких лучших желаний показываем по очереди и насколько поднимаем ближайшие
+const BAR_WISHES = 4;
+const WINDOW_BOOST: Record<WishWindow, number> = { today: 3, tomorrow: 2, weekend: 1.5, week: 1 };
+const nextWishBarTurn = () => {
+  try {
+    const n = Number(localStorage.getItem('yesminsk_wish_bar_turn') || 0) + 1;
+    localStorage.setItem('yesminsk_wish_bar_turn', String(n));
+    return n;
+  } catch {
+    return Math.floor(Math.random() * BAR_WISHES);
+  }
+};
+
 export const EventsScreen: React.FC<EventsScreenProps> = ({
   events,
   currentUserId: propUserId,
@@ -260,7 +273,16 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   useEffect(() => {
     refreshWishes();
   }, []);
-  const topWish = wishSummary.filter((s) => !s.includesMe).sort((a, b) => b.count - a.count)[0];
+  // Какое желание показать в баннере: мои (где есть ещё люди) важнее, ближайшее время важнее, больше людей — выше.
+  // Из лучших BAR_WISHES по очереди: при каждом заходе в «Сходки» — следующее
+  const [barTurn] = useState(nextWishBarTurn);
+  const barWishes = wishSummary
+    .filter((s) => s.count - (s.includesMe ? 1 : 0) > 0)
+    .map((s) => ({ s, score: (s.count - (s.includesMe ? 1 : 0)) * WINDOW_BOOST[s.timeWindow] * (s.includesMe ? 2 : 1) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, BAR_WISHES)
+    .map((x) => x.s);
+  const topWish = barWishes.length ? barWishes[barTurn % barWishes.length] : undefined;
   const [price, setPrice] = useState('');
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   // Последние название и описание, которые заполнил шаблон: пока человек их не правил, обновляем вместе с полями
@@ -778,7 +800,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               <span className="min-w-0 flex-1">
                 <span className="block text-sm2 font-bold">{WISH_TEXTS.barTitle}</span>
                 <span className="block text-cap text-white/80 line-clamp-2">
-                  {topWish ? WISH_TEXTS.barCounter(topWish.count, topWish.what, topWish.when) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+                  {topWish ? wishCounter(topWish) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
                 </span>
               </span>
               {!(topWish && onOpenWishPeople) && <ChevronRight size={20} className="shrink-0 text-white/70" />}

@@ -8,6 +8,8 @@ export const WISH_TEXTS = {
   barTitle: 'Хочу сходить',
   barPrompt: 'Нет подходящей сходки? Отметь, куда хочется',
   barCounter: (n: number, what: string, when: string) => `${people(n)} ${n === 1 ? 'хочет' : 'хотят'} ${what} ${when}`,
+  // Моё желание: сколько ещё хотят того же, кроме меня
+  barCounterMine: (n: number, what: string, when: string) => `Ещё ${people(n)} ${n === 1 ? 'хочет' : 'хотят'} ${what} ${when}, как и ты`,
   barAll: 'Все',
   barAllMine: (n: number) => `Все · мои ${n}`,
   allLink: '🙋 Все желания и мои →',
@@ -76,5 +78,9 @@ export const WISH_TEXTS = {
   placeChosen: (name: string) => `📍 Место: ${name}. Варианты времени придут в бот.`,
   membersGone: 'Пока никого не видно: желания могли отменить или анкеты скрыты.'
 };
+
+// Счётчик для баннера и шапки списка: в моём желании — «Ещё 47 … как и ты», в чужом — «48 человек хотят …»
+export const wishCounter = (w: { count: number; what: string; when: string; includesMe: boolean }) =>
+  w.includesMe ? WISH_TEXTS.barCounterMine(w.count - 1, w.what, w.when) : WISH_TEXTS.barCounter(w.count, w.what, w.when);
 
 export const wishLine = (w: { what: string; when: string }) => `${w.what} ${w.when}`;
