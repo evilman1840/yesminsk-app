@@ -9,6 +9,7 @@ export interface Notice {
   action?: string; // ярко справа от текста: «Пойдёшь? →»
   onClick?: () => void; // нет — только прочитать (запись автора)
   hideDays: number; // на сколько дней прячем по крестику
+  onDismiss?: () => void; // разовый совет: крестик = «сделано», насовсем (в «💡 Подсказки» не попадает)
   group?: string; // закрыли вторую из группы (сходки) — спрашиваем «Скрыть все?»
 }
 
@@ -38,7 +39,8 @@ export const NoticeBar: React.FC<{ notices: Notice[] }> = ({ notices }) => {
   const [active, setActive] = useState(0);
   const [askAll, setAskAll] = useState<Notice | null>(null);
   const left = notices.filter((n) => !(hidden[n.id] > Date.now()));
-  const hiddenNow = notices.filter((n) => hidden[n.id] > Date.now());
+  // Разовые советы (onDismiss) не возвращаем: закрыл — значит сделано
+  const hiddenNow = notices.filter((n) => hidden[n.id] > Date.now() && !n.onDismiss);
 
   // Вернуть спрятанные (ещё актуальные) подсказки — с «ручки», когда открытых не осталось
   const restore = () => {
@@ -85,6 +87,11 @@ export const NoticeBar: React.FC<{ notices: Notice[] }> = ({ notices }) => {
   };
 
   const close = (notice: Notice) => {
+    if (notice.onDismiss) {
+      telegramService.haptic('light');
+      notice.onDismiss();
+      return;
+    }
     const g = notice.group;
     if (g) {
       closedInGroup[g] = (closedInGroup[g] || 0) + 1;

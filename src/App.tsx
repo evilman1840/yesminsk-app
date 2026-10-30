@@ -217,7 +217,7 @@ export const App: React.FC = () => {
   useEffect(() => onBotAccessChange(() => setIsBotOk(botAccessOk())), []);
   const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | null>(null);
   const [tip, setTip] = useState<{ id: string; text: string } | null>(null); // запись автора (/tip в боте)
-  // «Закрепи чат»: Telegram не говорит, закреплён ли чат, — верим кнопке «Всё сделано», больше не показываем
+  // «Закрепи чат»: Telegram не говорит, закреплён ли чат, — верим «Всё сделано» или крестику, больше не показываем
   const [isPinDone, setIsPinDone] = useState(() => {
     try {
       return localStorage.getItem('yesminsk_pin_done') === '1';
@@ -225,6 +225,14 @@ export const App: React.FC = () => {
       return false;
     }
   });
+  const markPinDone = () => {
+    setIsPinDone(true);
+    try {
+      localStorage.setItem('yesminsk_pin_done', '1');
+    } catch {
+      // не запомнили — подсказка вернётся после перезапуска
+    }
+  };
   useEffect(() => {
     try {
       const launches = Number(localStorage.getItem('yesminsk_launches') || '0') + 1;
@@ -956,7 +964,7 @@ export const App: React.FC = () => {
       onClick: () => handleNavigate('profile_edit')
     },
     !currentUser.username && { id: 'username', text: NOTICE_TEXTS.username, hideDays: 7, onClick: () => setNoticeSheet('username') },
-    isBotOk && !isBotBlocked && !isPinDone && { id: 'pin', text: NOTICE_TEXTS.pin, hideDays: 365, onClick: () => setNoticeSheet('pin') }
+    isBotOk && !isBotBlocked && !isPinDone && { id: 'pin', text: NOTICE_TEXTS.pin, hideDays: 365, onClick: () => setNoticeSheet('pin'), onDismiss: markPinDone }
   ].filter(Boolean) as Notice[];
 
   const hideFirstSteps = () => {
@@ -1247,12 +1255,7 @@ export const App: React.FC = () => {
               <button
                 onClick={() => {
                   setNoticeSheet(null);
-                  setIsPinDone(true);
-                  try {
-                    localStorage.setItem('yesminsk_pin_done', '1');
-                  } catch {
-                    // не запомнили — подсказка вернётся после перезапуска
-                  }
+                  markPinDone();
                 }}
                 className="mt-2 w-full h-12 rounded-zine-sm bg-zine-card text-body font-semibold text-zine-ink cursor-pointer"
               >
