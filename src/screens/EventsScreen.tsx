@@ -1602,7 +1602,7 @@ const EventReel: React.FC<{
         </p>
         {/* Цена и метки шаблона: «💚 Бесплатно», «🏓 Настольный теннис · любой уровень» */}
         <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
-          {[audienceLabel(ev), priceLabel(ev), ...(ev.badges || [])].filter(Boolean).map((b) => (
+          {[ev.byRequest ? M.byRequestBadge : '', audienceLabel(ev), priceLabel(ev), ...(ev.badges || [])].filter(Boolean).map((b) => (
             <span key={b} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold flex items-center">
               {b}
             </span>

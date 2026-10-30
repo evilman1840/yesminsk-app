@@ -161,6 +161,22 @@ export const EventDetails: React.FC<{
         </button>
       </div>
 
+      {/* «По записи»: что это значит и что делать — своё для организатора, нового человека, заявки и подтверждённой записи */}
+      {event.byRequest && (
+        <div className="mt-4 p-3.5 rounded-zine-sm border-2 border-zine-terracotta/40 bg-zine-terracotta/10">
+          <p className="text-body font-bold text-zine-ink">{MEETUP_TEXTS.byRequestInfoTitle}</p>
+          <p className="mt-1 text-sm2 text-zine-ink">
+            {isCreator
+              ? MEETUP_TEXTS.byRequestInfoHost
+              : approvedLock
+                ? MEETUP_TEXTS.byRequestInfoApproved
+                : event.isJoined
+                  ? MEETUP_TEXTS.byRequestInfoPending(event.creator?.username || '')
+                  : MEETUP_TEXTS.byRequestInfoGuest}
+          </p>
+        </div>
+      )}
+
       {event.description && (
         <section className="mt-5">
           <SectionTitle>О сходке</SectionTitle>
