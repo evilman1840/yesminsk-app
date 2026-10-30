@@ -6,7 +6,7 @@ import { NOTICE_TEXTS as T } from '../../texts/notices';
 export interface Notice {
   id: string;
   text: string;
-  action?: string; // ярко в конце текста: «Пойдёшь? →»
+  action?: string; // ярко справа от текста: «Пойдёшь? →»
   onClick: () => void;
   hideDays: number; // на сколько дней прячем по крестику
 }
@@ -45,7 +45,7 @@ export const NoticeBar: React.FC<{ notices: Notice[] }> = ({ notices }) => {
   };
 
   return (
-    <div className="shrink-0 pt-2 pb-1.5 bg-zine-paper">
+    <div className="shrink-0 pt-1.5 pb-1 bg-zine-paper">
       <div
         onScroll={(e) => {
           const el = e.currentTarget;
@@ -64,21 +64,20 @@ export const NoticeBar: React.FC<{ notices: Notice[] }> = ({ notices }) => {
                 telegramService.haptic('selection');
                 notice.onClick();
               }}
-              className="flex-1 min-w-0 min-h-[52px] pl-4 py-2.5 text-left text-sm2 font-semibold leading-snug cursor-pointer"
+              className="flex-1 min-w-0 min-h-[44px] pl-3.5 py-2 flex items-center gap-2 text-left text-[14px] leading-[19px] font-semibold cursor-pointer"
             >
-              <span className={notice.action ? 'line-clamp-3' : 'line-clamp-2'}>
-                {notice.text}
-                {notice.action && <span className="font-bold text-[#F0997B] whitespace-nowrap"> {notice.action}</span>}
-              </span>
+              <span className="flex-1 min-w-0 line-clamp-2">{notice.text}</span>
+              {/* Действие — отдельно справа: длинный текст обрежется, а «Пойдёшь? →» видно всегда */}
+              {notice.action && <span className="shrink-0 font-bold text-[#F0997B] whitespace-nowrap">{notice.action}</span>}
             </button>
-            <button onClick={() => close(notice)} aria-label={T.close} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#B2A9A0] cursor-pointer">
-              <X size={18} />
+            <button onClick={() => close(notice)} aria-label={T.close} className="w-10 h-11 shrink-0 flex items-center justify-center text-[#B2A9A0] cursor-pointer">
+              <X size={16} />
             </button>
           </div>
         ))}
       </div>
       {many && (
-        <div className="mt-1.5 flex justify-center gap-1" aria-hidden>
+        <div className="mt-1 flex justify-center gap-1" aria-hidden>
           {left.map((n, i) => (
             <span key={n.id} className={`h-1 rounded-full transition-all ${i === Math.min(active, left.length - 1) ? 'w-3 bg-zine-terracotta' : 'w-1 bg-zine-border'}`} />
           ))}

@@ -518,17 +518,16 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         </div>
       )}
 
-      {/* Новости проекта — иконка у края карты, со счётчиком новых */}
+      {/* Новости проекта — круглая, как «⚡» и «Где я?», вверху столбика кнопок справа; со счётчиком новых */}
       <button
         onClick={() => {
           telegramService.haptic('selection');
           onOpenNews();
         }}
         aria-label="Новости проекта"
-        className={`absolute right-4 ${overlayTop} z-20 w-12 h-[54px] rounded-[18px] bg-zine-cardElevated border-2 border-zine-terracotta/45 shadow-zine text-zine-terracotta flex flex-col items-center justify-center gap-0.5 active:scale-90 transition-transform cursor-pointer`}
+        className="absolute right-4 bottom-[272px] z-20 w-14 h-14 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine-float text-zine-terracotta flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
       >
-        <Newspaper size={20} strokeWidth={2.2} />
-        <span className="font-hand font-bold text-[15px] leading-none">ньюс</span>
+        <Newspaper size={24} />
         {unreadNews > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1.5 rounded-full bg-zine-terracotta text-white text-cap font-bold flex items-center justify-center border-2 border-zine-cardElevated">
             {unreadNews}
