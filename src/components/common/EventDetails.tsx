@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { thumb } from '../../utils/thumb';
-import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus } from 'lucide-react';
+import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus } from 'lucide-react';
 import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES, audienceLabel } from '../../types';
 import { HelpLine } from './HelpLine';
 import { telegramService } from '../../services/telegram';
@@ -56,9 +56,7 @@ const Avatar: React.FC<{ src?: string; name: string; size?: string }> = ({ src, 
     <span className={`${size} rounded-full bg-zine-card text-zine-inkMuted font-bold flex items-center justify-center shrink-0`}>{name.slice(0, 1)}</span>
   );
 
-const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h4 className="mb-2 text-cap font-bold uppercase tracking-wide text-zine-inkMuted">{children}</h4>
-);
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => <h4 className="mb-2 text-cap font-bold uppercase tracking-wide text-zine-inkMuted">{children}</h4>;
 
 export const EventDetails: React.FC<{
   event: AppEvent;
@@ -72,6 +70,8 @@ export const EventDetails: React.FC<{
   useEffect(() => setLocalEvent(null), [eventProp]);
   const [isConfirming, setIsConfirming] = useState(false);
   const [removing, setRemoving] = useState<{ telegramId: number; name: string } | null>(null);
+  const [counting, setCounting] = useState<{ telegramId: number; name: string; people: number } | null>(null); // «По записи»: сколько человек
+  const [approvingId, setApprovingId] = useState<number | null>(null);
   const event = localEvent && localEvent.id === eventProp.id ? { ...eventProp, ...localEvent } : eventProp;
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const cat = eventCategoryOf(event);
@@ -82,6 +82,14 @@ export const EventDetails: React.FC<{
   const [isAdminDeleteOpen, setIsAdminDeleteOpen] = useState(false);
   const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
   const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;
+  // «По записи»: подтверждённую запись меняет только организатор
+  const approvedLock = Boolean(event.byRequest && event.myApproved && !isCreator);
+  // Ответ сервера после действий организатора: обновляем здесь и в остальных экранах
+  const applyUpdate = (updated: AppEvent) => {
+    const merged = { ...event, ...updated, id: event.id };
+    setLocalEvent(merged);
+    window.dispatchEvent(new CustomEvent<AppEvent>(EVENT_UPDATED, { detail: merged }));
+  };
 
   const [lat, lng] = event.coordinates || [0, 0];
   const routeUrl = `https://yandex.by/maps/?rtext=~${lat},${lng}&rtt=pd`;
@@ -127,6 +135,9 @@ export const EventDetails: React.FC<{
           </span>
         ))}
         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-card text-zine-ink">{priceLabel(event)}</span>
+        {event.byRequest && (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-terracotta/10 text-zine-terracotta">{MEETUP_TEXTS.byRequestBadge}</span>
+        )}
         {(event.badges || []).map((b) => (
           <span key={b} className="inline-flex items-center px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-card text-zine-ink">
             {b}
@@ -188,9 +199,7 @@ export const EventDetails: React.FC<{
         </div>
 
         {/* Организатору — совет про свой чат (по желанию) */}
-        {isCreator && new Date(event.dateTime).getTime() > Date.now() && (
-          <p className="mt-3 p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{EM.chatTip}</p>
-        )}
+        {isCreator && new Date(event.dateTime).getTime() > Date.now() && <p className="mt-3 p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{EM.chatTip}</p>}
 
         {/* Организатору — список с Telegram участников и «Написать участникам» */}
         {isCreator && others.length > 0 && (
@@ -202,41 +211,79 @@ export const EventDetails: React.FC<{
             >
               {EM.button(others.length)}
             </button>
+            {event.byRequest && others.some((p) => !p.approved) && (
+              <p className="text-sm2 font-bold text-zine-terracotta">⏳ {MEETUP_TEXTS.pendingCount(others.filter((p) => !p.approved).length)}</p>
+            )}
             {others.map((p) => (
-              <div key={p.telegramId} className="flex items-center gap-3">
-                <button type="button" onClick={() => openUser(p.telegramId)} className="min-w-0 flex-1 flex items-center gap-3 text-left cursor-pointer">
-                  <Avatar src={thumb(p.avatarUrl)} name={p.name} size="w-10 h-10" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-body font-semibold text-zine-ink truncate">
-                      {p.name}
-                      {p.guests ? ` +${p.guests}` : ''}
-                      {p.withKids ? ' 👶' : ''}
+              <div key={p.telegramId}>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => openUser(p.telegramId)} className="min-w-0 flex-1 flex items-center gap-3 text-left cursor-pointer">
+                    <Avatar src={thumb(p.avatarUrl)} name={p.name} size="w-10 h-10" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-body font-semibold text-zine-ink truncate">
+                        {p.name}
+                        {p.guests && !event.byRequest ? ` +${p.guests}` : ''}
+                        {p.withKids ? ' 👶' : ''}
+                      </span>
+                      <span className="block text-cap text-zine-inkMuted truncate">
+                        {event.byRequest && <span className="font-semibold text-zine-ink">{MEETUP_TEXTS.peopleCount(1 + (p.guests || 0))} · </span>}
+                        {p.confirmed && <span className="font-semibold text-zine-sage">✅ {MEETUP_TEXTS.confirmedOne} · </span>}
+                        {p.username ? `@${p.username}` : EM.noUsername}
+                      </span>
                     </span>
-                    <span className="block text-cap text-zine-inkMuted truncate">
-                      {p.confirmed && <span className="font-semibold text-zine-sage">✅ {MEETUP_TEXTS.confirmedOne} · </span>}
-                      {p.username ? `@${p.username}` : EM.noUsername}
-                    </span>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={EM.removeOne}
-                  onClick={() => setRemoving({ telegramId: p.telegramId, name: p.name })}
-                  className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-danger flex items-center justify-center cursor-pointer"
-                >
-                  <UserMinus size={16} />
-                </button>
-                {p.username && (
+                  </button>
+                  {event.byRequest && (
+                    <button
+                      type="button"
+                      aria-label={MEETUP_TEXTS.peopleOne}
+                      onClick={() => setCounting({ telegramId: p.telegramId, name: p.name, people: 1 + (p.guests || 0) })}
+                      className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-ink flex items-center justify-center cursor-pointer"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    aria-label={EM.writeOne}
-                    onClick={() => {
-                      telegramService.haptic('medium');
-                      telegramService.openChat(p.username);
-                    }}
-                    className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-ink flex items-center justify-center cursor-pointer"
+                    aria-label={EM.removeOne}
+                    onClick={() => setRemoving({ telegramId: p.telegramId, name: p.name })}
+                    className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-danger flex items-center justify-center cursor-pointer"
                   >
-                    <Send size={16} />
+                    <UserMinus size={16} />
+                  </button>
+                  {p.username && (
+                    <button
+                      type="button"
+                      aria-label={EM.writeOne}
+                      onClick={() => {
+                        telegramService.haptic('medium');
+                        telegramService.openChat(p.username);
+                      }}
+                      className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-ink flex items-center justify-center cursor-pointer"
+                    >
+                      <Send size={16} />
+                    </button>
+                  )}
+                </div>
+                {/* «По записи»: заявка ждёт — подтвердить */}
+                {event.byRequest && !p.approved && (
+                  <button
+                    type="button"
+                    disabled={approvingId === p.telegramId}
+                    onClick={async () => {
+                      setApprovingId(p.telegramId);
+                      try {
+                        applyUpdate(await api.updateParticipant(String(event.id), p.telegramId, { approve: true }));
+                        telegramService.haptic('success');
+                      } catch (err: any) {
+                        telegramService.alert(err?.message || 'Не получилось, попробуй ещё раз');
+                      } finally {
+                        setApprovingId(null);
+                      }
+                    }}
+                    className="mt-1.5 ml-[52px] h-9 px-4 rounded-full bg-zine-sage text-white text-sm2 font-bold inline-flex items-center gap-1.5 cursor-pointer active:scale-[0.98] transition-transform"
+                  >
+                    {approvingId === p.telegramId ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />}
+                    {MEETUP_TEXTS.approveOne}
                   </button>
                 )}
               </div>
@@ -251,7 +298,11 @@ export const EventDetails: React.FC<{
                 <div className="relative">
                   <Avatar src={thumb(p.avatarUrl)} name={p.name} size="w-12 h-12" />
                   {p.confirmed && (
-                    <span aria-label={MEETUP_TEXTS.confirmedBadge} title={MEETUP_TEXTS.confirmedBadge} className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-zine-sage text-white flex items-center justify-center shadow">
+                    <span
+                      aria-label={MEETUP_TEXTS.confirmedBadge}
+                      title={MEETUP_TEXTS.confirmedBadge}
+                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-zine-sage text-white flex items-center justify-center shadow"
+                    >
                       <Check size={12} strokeWidth={3.5} />
                     </span>
                   )}
@@ -304,9 +355,7 @@ export const EventDetails: React.FC<{
           <HelpLine className="mt-3" />
         </div>
       )}
-      {(event.tags || []).includes('empaths') && (
-        <p className="mt-3 text-sm2 text-zine-inkMuted">🫶 Записаться могут только те, кто отметил «Эмпат» в анкете.</p>
-      )}
+      {(event.tags || []).includes('empaths') && <p className="mt-3 text-sm2 text-zine-inkMuted">🫶 Записаться могут только те, кто отметил «Эмпат» в анкете.</p>}
 
       {/* Позвать и маршрут */}
       <div className="mt-5 grid grid-cols-2 gap-2">
@@ -342,31 +391,68 @@ export const EventDetails: React.FC<{
             telegramService.haptic('medium');
             setIsJoinOpen(true);
           }}
-          disabled={isFull || isCreator}
+          disabled={isFull || isCreator || approvedLock}
           className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
             isCreator
               ? 'bg-zine-card text-zine-inkMuted cursor-default'
               : event.isJoined
-              ? 'bg-zine-sage/15 text-zine-sage'
-              : isFull
-              ? 'bg-zine-card text-zine-inkMuted cursor-default'
-              : 'bg-zine-terracotta text-white'
+                ? 'bg-zine-sage/15 text-zine-sage'
+                : isFull
+                  ? 'bg-zine-card text-zine-inkMuted cursor-default'
+                  : 'bg-zine-terracotta text-white'
           }`}
         >
           {isCreator ? (
             <span>Ты собираешь эту сходку</span>
           ) : isFull ? (
             <span>Мест нет: все {event.maxParticipants} заняты</span>
+          ) : event.isJoined && event.byRequest ? (
+            approvedLock ? (
+              <>
+                <Check size={22} strokeWidth={3} />
+                <span>{MEETUP_TEXTS.requestApproved(myNote)}</span>
+              </>
+            ) : (
+              <span>{MEETUP_TEXTS.requestPending(myNote)}</span>
+            )
           ) : event.isJoined ? (
             <>
               <Check size={22} strokeWidth={3} />
               <span>Я иду{myNote ? ` (${myNote})` : ''} · изменить</span>
             </>
           ) : (
-            <span>Пойду!</span>
+            <span>{event.byRequest ? MEETUP_TEXTS.requestJoin : 'Пойду!'}</span>
           )}
         </button>
-        {event.isJoined && !isCreator && (
+        {/* «По записи»: заявка ждёт — можно отменить; подтверждена — только через организатора */}
+        {event.isJoined && !isCreator && event.byRequest && (
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <span className="min-w-0 text-sm2 text-zine-inkMuted">
+              {approvedLock ? MEETUP_TEXTS.requestApprovedHint(event.creator?.username || '') : MEETUP_TEXTS.requestPendingHint}
+            </span>
+            {approvedLock ? (
+              event.creator?.username && (
+                <button
+                  onClick={() => telegramService.openChat(event.creator.username!)}
+                  className="h-10 px-4 shrink-0 rounded-full bg-zine-card text-body font-bold text-zine-ink flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Send size={16} /> {MEETUP_TEXTS.requestWriteHost}
+                </button>
+              )
+            ) : (
+              <button
+                onClick={async () => {
+                  if (!(await telegramService.confirm(MEETUP_TEXTS.notGoingConfirm(event.title), { okText: MEETUP_TEXTS.notGoingOk, destructive: true }))) return;
+                  await onJoin(null);
+                }}
+                className="h-10 px-1 shrink-0 text-body font-bold text-zine-danger underline underline-offset-4 cursor-pointer"
+              >
+                {MEETUP_TEXTS.requestCancel}
+              </button>
+            )}
+          </div>
+        )}
+        {event.isJoined && !isCreator && !event.byRequest && (
           <div className="mt-2 flex items-center justify-between gap-3">
             {event.myConfirmed ? (
               <span className="min-w-0 text-sm2 text-zine-inkMuted">{MEETUP_TEXTS.confirmedMine}</span>
@@ -397,6 +483,7 @@ export const EventDetails: React.FC<{
         )}
       </div>
 
+      {counting && <PeopleCountSheet eventId={String(event.id)} person={counting} onClose={() => setCounting(null)} onSaved={applyUpdate} />}
       {removing && (
         <RemoveParticipantSheet
           eventId={String(event.id)}
@@ -421,18 +508,8 @@ export const EventDetails: React.FC<{
       )}
       {isMessageOpen && <MessageParticipantsSheet eventId={String(event.id)} onClose={() => setIsMessageOpen(false)} />}
 
-      {isJoinOpen && (
-        <JoinSheet event={event} onConfirm={async (o) => onJoin(o)} onLeave={async () => onJoin(null)} onClose={() => setIsJoinOpen(false)} />
-      )}
-      {isReportOpen && (
-        <ReportSheet
-          targetType="event"
-          targetId={event.id}
-          targetName={event.title}
-          onClose={() => setIsReportOpen(false)}
-          onReported={() => onReported?.()}
-        />
-      )}
+      {isJoinOpen && <JoinSheet event={event} onConfirm={async (o) => onJoin(o)} onLeave={async () => onJoin(null)} onClose={() => setIsJoinOpen(false)} />}
+      {isReportOpen && <ReportSheet targetType="event" targetId={event.id} targetName={event.title} onClose={() => setIsReportOpen(false)} onReported={() => onReported?.()} />}
     </div>
   );
 };
@@ -446,6 +523,68 @@ const SmallAction: React.FC<{ onClick: () => void; icon: React.ReactNode; label:
     <span>{label}</span>
   </button>
 );
+
+/**
+ * «По записи»: организатор меняет, сколько человек с участником (вместе с детьми)
+ */
+const PeopleCountSheet: React.FC<{
+  eventId: string;
+  person: { telegramId: number; name: string; people: number };
+  onClose: () => void;
+  onSaved: (event: AppEvent) => void;
+}> = ({ eventId, person, onClose, onSaved }) => {
+  const [people, setPeople] = useState(person.people);
+  const [busy, setBusy] = useState(false);
+  const step = (d: number) => {
+    telegramService.haptic('selection');
+    setPeople((n) => Math.min(50, Math.max(1, n + d)));
+  };
+  return (
+    <BottomSheet title={MEETUP_TEXTS.peopleTitle(person.name)} onClose={onClose}>
+      <p className="text-body text-zine-inkMuted">{MEETUP_TEXTS.peopleHint}</p>
+      <div className="mt-4 p-4 rounded-zine bg-zine-card flex items-center justify-between gap-3">
+        <span className="text-lead font-bold text-zine-ink">{MEETUP_TEXTS.peopleCount(people)}</span>
+        <span className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => step(-1)}
+            disabled={people <= 1}
+            aria-label="Меньше"
+            className="w-11 h-11 rounded-full bg-zine-cardElevated border border-zine-border text-zine-ink flex items-center justify-center disabled:opacity-40 cursor-pointer"
+          >
+            <Minus size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={() => step(1)}
+            aria-label="Больше"
+            className="w-11 h-11 rounded-full bg-zine-terracotta text-white flex items-center justify-center cursor-pointer"
+          >
+            <Plus size={20} />
+          </button>
+        </span>
+      </div>
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            onSaved(await api.updateParticipant(eventId, person.telegramId, { people }));
+            telegramService.haptic('success');
+            onClose();
+          } catch (err: any) {
+            telegramService.alert(err?.message || 'Не получилось, попробуй ещё раз');
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="mt-4 w-full h-14 rounded-zine-sm bg-zine-terracotta text-white text-lead font-bold flex items-center justify-center cursor-pointer"
+      >
+        {busy ? <Loader2 size={22} className="animate-spin" /> : MEETUP_TEXTS.peopleSave}
+      </button>
+    </BottomSheet>
+  );
+};
 
 // Организатор пишет участникам: бот перешлёт всем, кто записан
 // Организатор отказывает участнику; причина по желанию

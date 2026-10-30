@@ -230,6 +230,8 @@ export interface AppEvent {
   myGuests?: number;         // сколько я веду с собой
   myWithKids?: boolean;
   myConfirmed?: boolean; // нажал(а) «Точно приду»
+  byRequest?: boolean;   // «По записи»: организатор подтверждает каждого
+  myApproved?: boolean;  // «По записи»: мою запись подтвердили — отменить можно только через организатора
   isOfficial?: boolean; // «⭐ От ГУЛЯЙ!» — сходка автора проекта
   placeId?: string;     // сходка в месте из «Мест»
   templateId?: string;  // по какому шаблону собрана
@@ -250,6 +252,7 @@ export interface AppEvent {
     guests?: number;
     withKids?: boolean;
     confirmed?: boolean; // «✅ Точно приду» — значок у аватарки
+    approved?: boolean;  // «По записи»: организатор подтвердил
   }>;
 }
 
@@ -272,6 +275,7 @@ export interface EventPayload {
   isPaid?: boolean;
   price?: number;
   wishGroupId?: string;
+  byRequest?: boolean;
   inviteIds?: number[]; // «Позвать в компанию»: бот пришлёт им приглашение от меня
   audienceGender?: AudienceGender;
   ageMin?: number | null;

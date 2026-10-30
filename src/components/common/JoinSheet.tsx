@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Minus, Plus, Loader2 } from 'lucide-react';
 import { AppEvent, JoinOptions, maxGuestsFor, SUPPORT_RULES } from '../../types';
 import { EVENT_MESSAGE_TEXTS as EM } from '../../texts/eventMessage';
+import { MEETUP_TEXTS as M } from '../../texts/meetups';
 import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
 import { useMainButton } from '../../hooks/useTelegram';
@@ -37,7 +38,8 @@ export const JoinSheet: React.FC<{
     }
   };
 
-  const joinText = event.isJoined ? 'Сохранить' : guests > 0 ? `Пойдём! Нас ${total}` : 'Пойду!';
+  // «По записи» — заявка организатору, он подтвердит
+  const joinText = event.isJoined ? 'Сохранить' : event.byRequest ? (guests > 0 ? `${M.requestJoin}: нас ${total}` : M.requestJoin) : guests > 0 ? `Пойдём! Нас ${total}` : 'Пойду!';
   const hasNativeJoin = useMainButton({
     text: joinText,
     onClick: () => run('join'),
@@ -56,7 +58,7 @@ export const JoinSheet: React.FC<{
   };
 
   return (
-    <BottomSheet title={event.isJoined ? 'Ты идёшь. Что поменять?' : 'Сколько вас?'} onClose={onClose}>
+    <BottomSheet title={event.isJoined ? (event.byRequest ? 'Что поменять в заявке?' : 'Ты идёшь. Что поменять?') : event.byRequest ? M.requestSheetTitle : 'Сколько вас?'} onClose={onClose}>
       <div className="space-y-4">
         {/* Сколько человек: я + гости */}
         <div className="p-4 rounded-zine bg-zine-card flex items-center justify-between gap-3">
@@ -152,7 +154,7 @@ export const JoinSheet: React.FC<{
         )}
 
         {/* Организатор видит Telegram участников, чтобы написать детали */}
-        {!event.isJoined && <p className="text-cap text-zine-inkMuted">🔔 {EM.joinNote}</p>}
+        {!event.isJoined && <p className="text-cap text-zine-inkMuted">{event.byRequest ? M.requestJoinNote : `🔔 ${EM.joinNote}`}</p>}
 
         {!hasNativeJoin && (
           <button
@@ -170,7 +172,7 @@ export const JoinSheet: React.FC<{
             onClick={() => run('leave')}
             className="w-full h-12 rounded-zine-sm text-body font-semibold text-zine-danger flex items-center justify-center cursor-pointer"
           >
-            {busy === 'leave' ? <Loader2 size={20} className="animate-spin" /> : 'Не пойду'}
+            {busy === 'leave' ? <Loader2 size={20} className="animate-spin" /> : event.byRequest ? M.requestCancel : 'Не пойду'}
           </button>
         )}
       </div>

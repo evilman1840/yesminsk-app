@@ -246,6 +246,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   // Цена: по умолчанию бесплатно
   const [isPaid, setIsPaid] = useState(false);
+  const [byRequest, setByRequest] = useState(false); // «По записи»
   // «Соберу я» из «Хочу сходить»: после публикации бот напишет остальным
   const [wishGroupId, setWishGroupId] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ id: number; name: string }[]>([]); // «Позвать в компанию»
@@ -406,6 +407,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setPhotos([]);
     setIsPhotoUploading(false);
     setIsPaid(false);
+    setByRequest(false);
     setPrice('');
     setWishGroupId(null);
     setInvite([]);
@@ -478,6 +480,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setDurationMinutes(ev.durationMinutes || 0);
     setPhotos((ev.photos || []).map(photoFromUrl));
     setIsPaid(Boolean(ev.isPaid));
+    setByRequest(Boolean(ev.byRequest));
     setPrice(ev.price ? String(ev.price).replace('.', ',') : '');
     setIsPhotoUploading(false);
     autoText.current = { title: ev.title || '', description: ev.description || '' };
@@ -686,6 +689,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         durationMinutes,
         photos: photos.map((p) => p.id).filter(Boolean),
         isPaid,
+        byRequest,
         price: isPaid && price ? Number(price.replace(',', '.')) || undefined : undefined,
         // «Делим аренду» без суммы — просто не указываем
         ...(template?.fields.length ? { extras: Object.fromEntries(Object.entries(extras).filter(([, v]) => v && v !== 'split')) } : {})
@@ -862,7 +866,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 isCreator={isCreator}
                 isJoining={joiningId === String(ev.id)}
                 isDeleting={deletingId === String(ev.id)}
-                onJoin={() => setJoinEventId(String(ev.id))}
+                // «По записи»: подтверждённую запись не меняют — открываем подробности
+                onJoin={() => (ev.myApproved ? setDetailsEventId(String(ev.id)) : setJoinEventId(String(ev.id)))}
                 onLeave={async () => {
                   if (!(await telegramService.confirm(M.notGoingConfirm(ev.title), { okText: M.notGoingOk, destructive: true }))) return;
                   handleJoin(ev, null);
@@ -1257,6 +1262,28 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               )}
             </Field>
 
+            {/* «По записи»: организатор подтверждает каждого, сам отменить подтверждённую запись нельзя */}
+            <Field label={M.byRequestLabel}>
+              <div className="flex gap-2">
+                {[false, true].map((on) => (
+                  <button
+                    type="button"
+                    key={String(on)}
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      setByRequest(on);
+                    }}
+                    className={`h-11 px-4 rounded-full border-2 text-sm2 font-semibold cursor-pointer transition-colors ${
+                      byRequest === on ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                    }`}
+                  >
+                    {on ? M.byRequestOn : M.byRequestOff}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-cap text-zine-inkMuted">{byRequest ? (editingEventId ? M.byRequestEditHint : M.byRequestHint) : M.byRequestOffHint}</p>
+            </Field>
+
             <Field label={M.priceLabel}>
               <div className="flex gap-2">
                 {[false, true].map((paid) => (
@@ -1607,18 +1634,22 @@ const EventReel: React.FC<{
               onClick={onJoin}
               disabled={isJoining || isFull}
               className={`h-12 px-6 shrink-0 rounded-full text-body font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-                ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/25 text-white/80 cursor-default' : 'bg-white text-[#2B2623]'
+                ev.isJoined && ev.byRequest && !ev.myApproved ? 'bg-white/90 text-[#2B2623]' : ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/25 text-white/80 cursor-default' : 'bg-white text-[#2B2623]'
               }`}
             >
               {isFull ? (
                 'Мест нет'
               ) : isJoining ? (
                 <Loader2 size={20} className="animate-spin" />
+              ) : ev.isJoined && ev.byRequest && !ev.myApproved ? (
+                <span>⏳ Заявка</span>
               ) : ev.isJoined ? (
                 <>
                   <Check size={20} strokeWidth={3} />
-                  <span>Я иду{ev.myGuests ? ` +${ev.myGuests}` : ''}{ev.myWithKids ? ' 👶' : ''}</span>
+                  <span>{ev.byRequest ? 'Записан(а)' : 'Я иду'}{ev.myGuests ? ` +${ev.myGuests}` : ''}{ev.myWithKids ? ' 👶' : ''}</span>
                 </>
+              ) : ev.byRequest ? (
+                M.requestJoin
               ) : (
                 'Пойду!'
               )}

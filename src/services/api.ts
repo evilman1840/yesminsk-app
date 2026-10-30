@@ -501,6 +501,11 @@ class ApiService {
     return this.request<AppEvent>(`/events/${eventId}/remove`, { method: 'POST', body: JSON.stringify({ telegramId, reason }) });
   }
 
+  // «По записи»: организатор подтверждает запись и/или меняет, сколько человек
+  async updateParticipant(eventId: string, telegramId: number, data: { approve?: boolean; people?: number }): Promise<AppEvent> {
+    return this.request<AppEvent>(`/events/${eventId}/participant`, { method: 'POST', body: JSON.stringify({ telegramId, ...data }) });
+  }
+
   // «✅ Точно приду»
   async confirmEvent(eventId: string): Promise<AppEvent> {
     return this.request<AppEvent>(`/events/${eventId}/confirm`, { method: 'POST' });
