@@ -899,7 +899,7 @@ export const App: React.FC = () => {
     { id: 'hello', title: 'Нажми 👋 у того, с кем хочешь пообщаться', done: matches.length > 0 || users.some(u => u.iLiked) },
     { id: 'event', title: 'Запишись на сходку или собери свою', done: events.some(e => e.isJoined), onClick: () => handleNavigate('events') }
   ];
-  // Подсказки вместо рассылок бота — по важности, показывается первая несделанная
+  // Подсказки вместо рассылок бота — по важности, листаются карточками
   const hasOwnPhoto = Boolean(currentUser.avatarUrl) && !currentUser.avatarUrl.includes('images.unsplash.com');
   const meetupCallouts = pickMeetupCallouts(events, currentUser.telegramId, matches.map((m) => m.telegramId));
   const notices: Notice[] = [
@@ -912,8 +912,8 @@ export const App: React.FC = () => {
         if (isBotBlocked || !(await askBotAccess(true))) telegramService.openBotChat();
       }
     },
-    // Сходки по одной: из «На связи», самые подходящие, потом «собери свою»; крестик прячет одну — видна следующая.
-    // Во вкладке «Сходки» и так всё видно
+    // Сходки карточками: из «На связи», самые подходящие, потом «собери свою». Крестик прячет одну,
+    // на второй — «Скрыть все?». Во вкладке «Сходки» и так всё видно
     ...(currentScreen === 'events'
       ? []
       : meetupCallouts.map((c) => ({

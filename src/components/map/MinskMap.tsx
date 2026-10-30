@@ -664,7 +664,8 @@ export const MinskMap: React.FC<MinskMapProps> = ({
 
       <Map
         defaultState={{ center: MINSK_CENTER, zoom: 11, controls: [] }}
-        options={{ suppressMapOpenBlock: true }}
+        // autoFitToViewport: карта сама растягивается, когда меняется высота экрана (например, закрыли строку подсказок)
+        options={{ suppressMapOpenBlock: true, autoFitToViewport: 'always' }}
         className="w-full h-full"
         instanceRef={(ref: any) => {
           if (ref && mapRef.current !== ref) {
