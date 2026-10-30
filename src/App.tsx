@@ -913,8 +913,9 @@ export const App: React.FC = () => {
       }
     },
     // Сходка: знакомый идёт, ближайшая подходящая или «собери свою» (во вкладке «Сходки» и так всё видно)
+    // Крестик прячет только эту сходку: новая (или «собери свою», когда сходок нет) появится сразу
     currentScreen !== 'events' && {
-      id: 'meetup',
+      id: `meetup:${meetupCallout.event?.id ?? 'none'}`,
       text: meetupCallout.text,
       action: meetupCallout.action,
       hideDays: 1,

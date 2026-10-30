@@ -13,9 +13,11 @@ export interface Notice {
 
 const KEY = 'yesminsk_notice_hidden';
 
+// Спрятанные крестиком: id → до какого времени. Истёкшие выбрасываем, чтобы список не рос (у сходок свои id)
 const loadHidden = (): Record<string, number> => {
   try {
-    return JSON.parse(localStorage.getItem(KEY) || '{}');
+    const all: Record<string, number> = JSON.parse(localStorage.getItem(KEY) || '{}');
+    return Object.fromEntries(Object.entries(all).filter(([, until]) => until > Date.now()));
   } catch {
     return {};
   }
