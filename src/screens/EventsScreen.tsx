@@ -764,24 +764,38 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
         {/* «Хочу сходить»: нет подходящей сходки — отметь, куда хочется */}
         <div className="px-4 mt-2">
-          <button
-            onClick={() => {
-              telegramService.haptic('selection');
-              // Есть счётчик «76 человек хотят…» — сразу кто это; иначе форма «Куда хочется?»
-              if (topWish && onOpenWishPeople) onOpenWishPeople(topWish);
-              else setIsWishOpen(true);
-            }}
-            className="w-full p-2 pr-3 rounded-zine-sm bg-black/40 backdrop-blur border border-white/20 text-white text-left flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-transform"
-          >
-            <span className="w-10 h-10 shrink-0 rounded-full bg-zine-terracotta flex items-center justify-center text-[20px] leading-none">🙋</span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm2 font-bold">{WISH_TEXTS.barTitle}</span>
-              <span className="block text-cap text-white/80 line-clamp-2">
-                {topWish ? WISH_TEXTS.barCounter(topWish.count, topWish.what, topWish.when) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+          {/* Счётчик «19 человек хотят…» — кто это; справа «Все» — все желания, мои и форма «Куда хочется?» */}
+          <div className="w-full rounded-zine-sm bg-black/40 backdrop-blur border border-white/20 text-white flex items-stretch">
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                if (topWish && onOpenWishPeople) onOpenWishPeople(topWish);
+                else setIsWishOpen(true);
+              }}
+              className="min-w-0 flex-1 p-2 pr-2 text-left flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-transform"
+            >
+              <span className="w-10 h-10 shrink-0 rounded-full bg-zine-terracotta flex items-center justify-center text-[20px] leading-none">🙋</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm2 font-bold">{WISH_TEXTS.barTitle}</span>
+                <span className="block text-cap text-white/80 line-clamp-2">
+                  {topWish ? WISH_TEXTS.barCounter(topWish.count, topWish.what, topWish.when) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+                </span>
               </span>
-            </span>
-            <ChevronRight size={20} className="shrink-0 text-white/70" />
-          </button>
+              {!(topWish && onOpenWishPeople) && <ChevronRight size={20} className="shrink-0 text-white/70" />}
+            </button>
+            {topWish && onOpenWishPeople && (
+              <button
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  setIsWishOpen(true);
+                }}
+                className="shrink-0 my-2 mr-2 px-3 rounded-full bg-white/15 border border-white/20 text-cap font-bold flex items-center gap-0.5 cursor-pointer active:scale-95 transition-transform"
+              >
+                {myWishCount ? WISH_TEXTS.barAllMine(myWishCount) : WISH_TEXTS.barAll}
+                <ChevronRight size={16} className="-mr-1" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

@@ -1202,6 +1202,11 @@ export const App: React.FC = () => {
               sport={wishKind.sport}
               exact={wishKind.exact}
               onHello={(u) => handleReact(u, 'like')}
+              onOpenAll={() => {
+                setWishKind(null);
+                setCurrentScreen('events');
+                setPendingWish({});
+              }}
               onClose={() => setWishKind(null)}
               onOpenUser={(u) => setSelectedUser(u)}
               onOpenEvent={(id) => {

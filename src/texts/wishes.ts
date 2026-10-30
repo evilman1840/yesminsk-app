@@ -8,6 +8,9 @@ export const WISH_TEXTS = {
   barTitle: 'Хочу сходить',
   barPrompt: 'Нет подходящей сходки? Отметь, куда хочется',
   barCounter: (n: number, what: string, when: string) => `${people(n)} ${n === 1 ? 'хочет' : 'хотят'} ${what} ${when}`,
+  barAll: 'Все',
+  barAllMine: (n: number) => `Все · мои ${n}`,
+  allLink: '🙋 Все желания и мои →',
   barMine: (n: number) => (n === 1 ? 'Твоё желание отмечено, ждём совпадений' : `Твоих желаний: ${n}, ждём совпадений`),
 
   sheetTitle: 'Куда хочется?',

@@ -24,13 +24,19 @@ let kept: { key: string; data: People | null; picked: WishInvite[] } | null = nu
 export const WishKindSheet: React.FC<{
   kind: string;
   sport?: string; // «Своё» желание: его текст
-  exact?: { window: WishWindow; placeId?: string | null; counter: string; includesMe: boolean }; // из счётчика: только это окно и место
+  exact?: {
+    window: WishWindow;
+    placeId?: string | null;
+    counter: string;
+    includesMe: boolean;
+  }; // из счётчика: только это окно и место
   onOpenUser: (user: UserProfile) => void;
   onHello: (user: UserProfile) => Promise<void>;
   onBuild: (kind: string, wishGroupId: string | null, invite: WishInvite[]) => void;
   onOpenEvent: (eventId: string) => void;
+  onOpenAll?: () => void; // все желания, мои и форма «Куда хочется?»
   onClose: () => void;
-}> = ({ kind, sport, exact, onOpenUser, onHello, onBuild, onOpenEvent, onClose }) => {
+}> = ({ kind, sport, exact, onOpenUser, onHello, onBuild, onOpenEvent, onOpenAll, onClose }) => {
   const key = [kind, sport, exact?.window, exact?.placeId].join('|');
   const back = kept?.key === key ? kept : null;
   const [data, setData] = useState<People | null>(back?.data || null);
@@ -63,7 +69,13 @@ export const WishKindSheet: React.FC<{
     setHelloBusy(u.telegramId);
     await onHello(u);
     setHelloBusy(null);
-    setData((d) => d && { ...d, people: d.people.map((p) => (p.telegramId === u.telegramId ? { ...p, iLiked: true } : p)) });
+    setData(
+      (d) =>
+        d && {
+          ...d,
+          people: d.people.map((p) => (p.telegramId === u.telegramId ? { ...p, iLiked: true } : p))
+        }
+    );
   };
 
   // «Я тоже хочу»: то же желание на то же время
@@ -71,7 +83,12 @@ export const WishKindSheet: React.FC<{
     if (!exact || meToo !== 'idle') return;
     setMeToo('busy');
     try {
-      await api.createWish({ kind, sport: sport || null, timeWindow: exact.window, placeId: exact.placeId || null });
+      await api.createWish({
+        kind,
+        sport: sport || null,
+        timeWindow: exact.window,
+        placeId: exact.placeId || null
+      });
       telegramService.haptic('success');
       setMeToo('done');
     } catch (err: any) {
@@ -108,15 +125,28 @@ export const WishKindSheet: React.FC<{
       {exact && <p className="text-body font-bold text-zine-ink">🙋 {exact.counter}</p>}
       <p className={`text-sm2 text-zine-inkMuted ${exact ? 'mt-1' : ''}`}>{T.kindHint}</p>
       {exact && (
-        <button
-          onClick={joinWish}
-          disabled={meToo !== 'idle'}
-          className={`mt-3 h-10 px-4 rounded-full text-sm2 font-bold flex items-center gap-1.5 cursor-pointer disabled:cursor-default ${
-            meToo === 'done' ? 'bg-zine-card text-zine-sage' : 'bg-zine-card text-zine-ink border border-zine-border'
-          }`}
-        >
-          {meToo === 'busy' ? <Loader2 size={16} className="animate-spin" /> : meToo === 'done' ? T.meTooDone : T.meTooButton}
-        </button>
+        <div className="mt-3 flex items-center gap-3 flex-wrap">
+          <button
+            onClick={joinWish}
+            disabled={meToo !== 'idle'}
+            className={`h-10 px-4 rounded-full text-sm2 font-bold flex items-center gap-1.5 cursor-pointer disabled:cursor-default ${
+              meToo === 'done' ? 'bg-zine-card text-zine-sage' : 'bg-zine-card text-zine-ink border border-zine-border'
+            }`}
+          >
+            {meToo === 'busy' ? <Loader2 size={16} className="animate-spin" /> : meToo === 'done' ? T.meTooDone : T.meTooButton}
+          </button>
+          {onOpenAll && (
+            <button
+              onClick={() => {
+                kept = null;
+                onOpenAll();
+              }}
+              className="h-10 text-sm2 font-bold text-zine-terracotta cursor-pointer"
+            >
+              {T.allLink}
+            </button>
+          )}
+        </div>
       )}
       <div className="mt-4 space-y-2">
         {error ? (
@@ -130,8 +160,15 @@ export const WishKindSheet: React.FC<{
             const on = picked.some((p) => p.id === u.telegramId);
             return (
               <div key={u.telegramId} className={`p-2 pr-2.5 rounded-zine-sm flex items-center gap-2 transition-colors ${on ? 'bg-zine-terracotta/10' : 'bg-zine-card'}`}>
-                <button onClick={() => toggle(u)} aria-label={T.invitePick(u.firstName)} aria-pressed={on} className="w-9 h-11 shrink-0 flex items-center justify-center cursor-pointer">
-                  <span className={`w-6 h-6 rounded-[7px] flex items-center justify-center border-2 ${on ? 'bg-zine-terracotta border-zine-terracotta text-white' : 'border-zine-border bg-zine-cardElevated'}`}>
+                <button
+                  onClick={() => toggle(u)}
+                  aria-label={T.invitePick(u.firstName)}
+                  aria-pressed={on}
+                  className="w-9 h-11 shrink-0 flex items-center justify-center cursor-pointer"
+                >
+                  <span
+                    className={`w-6 h-6 rounded-[7px] flex items-center justify-center border-2 ${on ? 'bg-zine-terracotta border-zine-terracotta text-white' : 'border-zine-border bg-zine-cardElevated'}`}
+                  >
                     {on && <Check size={16} strokeWidth={3} />}
                   </span>
                 </button>
@@ -152,10 +189,22 @@ export const WishKindSheet: React.FC<{
                   disabled={!u.isMatch && Boolean(u.iLiked)}
                   aria-label={u.isMatch ? T.helloMatch : u.iLiked ? T.helloSent : T.hello}
                   className={`w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-[20px] leading-none cursor-pointer disabled:cursor-default ${
-                    u.isMatch ? 'bg-zine-sage/20' : u.iLiked ? 'bg-zine-cardElevated text-zine-sage' : 'bg-zine-cardElevated border border-zine-border active:scale-90 transition-transform'
+                    u.isMatch
+                      ? 'bg-zine-sage/20'
+                      : u.iLiked
+                        ? 'bg-zine-cardElevated text-zine-sage'
+                        : 'bg-zine-cardElevated border border-zine-border active:scale-90 transition-transform'
                   }`}
                 >
-                  {helloBusy === u.telegramId ? <Loader2 size={18} className="animate-spin text-zine-inkMuted" /> : u.isMatch ? '💬' : u.iLiked ? <Check size={20} strokeWidth={3} /> : '👋'}
+                  {helloBusy === u.telegramId ? (
+                    <Loader2 size={18} className="animate-spin text-zine-inkMuted" />
+                  ) : u.isMatch ? (
+                    '💬'
+                  ) : u.iLiked ? (
+                    <Check size={20} strokeWidth={3} />
+                  ) : (
+                    '👋'
+                  )}
                 </button>
               </div>
             );
