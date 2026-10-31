@@ -730,10 +730,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
   const categoryItems = [['all', 'Все', ''], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji]), ['kids', 'С детьми', '👶']] as [EventCategory | 'all' | 'kids', string, string][];
   const activeCategory = selectedCategory !== 'all' ? categoryItems.find(([id]) => id === selectedCategory) : undefined;
-  const activeFilters = Number(selectedCategory !== 'all') + Number(onlyMine);
+  const activeFilters = Number(selectedCategory !== 'all');
   // Выбранное в шторке — чипами под шапкой, крестик сбрасывает
   const activeChips = [
-    onlyMine && { key: 'mine', label: M.mineChip, onClear: () => setOnlyMine(false) },
     activeCategory && { key: 'cat', label: `${activeCategory[2]} ${activeCategory[1]}`.trim(), onClear: () => setSelectedCategory('all') }
   ].filter(Boolean) as { key: string; label: string; onClear: () => void }[];
 
@@ -741,18 +740,32 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     <div className="h-full w-full bg-[#141210] flex flex-col overflow-hidden">
       {/* Шапка на однотонном фоне, чтобы карточка была чистой. Название экрана уже есть в нижнем меню */}
       <div className="shrink-0 px-3 pt-3 pb-3 text-white">
-        <div className="flex items-center gap-2">
-          {/* Когда: все / сегодня / завтра / выходные — как на карте */}
-          <div className="flex-1 min-w-0 flex gap-0.5 p-[3px] rounded-full bg-white/10">
+        <div className="flex items-center gap-1.5">
+          {/* ⭐ мои (собираю или иду), затем когда: все / сегодня / завтра / выходные — как на карте */}
+          <div className="flex-1 min-w-0 flex p-[3px] rounded-full bg-white/10">
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                setOnlyMine(true);
+                setEventWhen('all');
+              }}
+              aria-label={M.mineFilter}
+              className={`flex-auto min-w-[28px] h-[38px] px-0.5 rounded-full text-[16px] leading-none flex items-center justify-center transition-all cursor-pointer ${
+                onlyMine ? 'bg-white' : ''
+              }`}
+            >
+              ⭐
+            </button>
             {EVENT_WHEN.map(([id, label]) => (
               <button
                 key={id}
                 onClick={() => {
                   telegramService.haptic('selection');
+                  setOnlyMine(false);
                   setEventWhen(id);
                 }}
-                className={`flex-auto min-w-0 h-[38px] px-1 rounded-full text-[14px] font-bold flex items-center justify-center transition-all cursor-pointer ${
-                  eventWhen === id ? 'bg-white text-[#2B2623]' : 'text-white/80'
+                className={`flex-auto min-w-0 h-[38px] px-[3px] rounded-full text-[14px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                  !onlyMine && eventWhen === id ? 'bg-white text-[#2B2623]' : 'text-white/80'
                 }`}
               >
                 <span className="truncate">{label}</span>
@@ -927,17 +940,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               </FilterChip>
             ))}
           </div>
-          <p className="mt-5 mb-2.5 text-body font-bold text-zine-ink">Чьи</p>
-          <div className="flex flex-wrap gap-2">
-            <FilterChip active={!onlyMine} onClick={() => setOnlyMine(false)}>Все</FilterChip>
-            <FilterChip active={onlyMine} onClick={() => setOnlyMine(true)}>{M.mineFilter}</FilterChip>
-          </div>
           <div className="mt-6 grid grid-cols-[auto_1fr] gap-2">
             <button
-              onClick={() => {
-                setSelectedCategory('all');
-                setOnlyMine(false);
-              }}
+              onClick={() => setSelectedCategory('all')}
               className="h-12 px-5 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
             >
               Сбросить

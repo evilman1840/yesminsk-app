@@ -124,7 +124,6 @@ export const MEETUP_TEXTS = {
   audienceAgeTo: 'до 99',
   audienceHint: 'Кому не подходит, тот не увидит сходку в ленте.',
 
-  mineChip: '⭐ Мои',
   mineFilter: '⭐ Мои: собираю или иду',
   goingCount: (n: number, max?: number) => (max ? `${n} из ${max} идут` : `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'идёт' : 'идут'}`),
   mineEmptyTitle: 'Своих сходок пока нет',
