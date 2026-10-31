@@ -1,10 +1,11 @@
 import React from 'react';
-import { UserProfile, PreferredGender, AgeRange, isAvailableNow, GoesWith, GOES_WITH } from '../../types';
+import { UserProfile, PreferredGender, AgeRange, isAvailableNow, GoesWith, GOES_WITH, GoalFilter } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
+import { GoalChips } from '../ui/GoalChips';
 
 /**
- * Фильтры в «Людях»: пол, возраст, расстояние, «Могу сейчас», местные/туристы, «были недавно»
+ * Фильтры в «Людях»: цель встречи, пол, возраст, расстояние, «Могу сейчас», местные/туристы, «были недавно»
  * и учёт моих предпочтений из анкеты. Выбор запоминается на устройстве.
  */
 
@@ -144,15 +145,24 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 export const PeopleFiltersSheet: React.FC<{
   value: PeopleFilters;
   onChange: (f: PeopleFilters) => void;
+  goal?: GoalFilter;           // цель встречи хранится в App; на карте у неё свои чипы — там не передают
+  onGoalChange?: (goal: GoalFilter) => void;
   resultCount: number;
   onClose: () => void;
-}> = ({ value: f, onChange, resultCount, onClose }) => {
+}> = ({ value: f, onChange, goal, onGoalChange, resultCount, onClose }) => {
   const set = (patch: Partial<PeopleFilters>) => onChange({ ...f, ...patch });
   const toggleAge = (id: AgeBucket) => set({ ages: f.ages.includes(id) ? f.ages.filter((a) => a !== id) : [...f.ages, id] });
 
   return (
     <BottomSheet title="Фильтры" onClose={onClose}>
       <div className="divide-y divide-zine-border">
+        {goal && onGoalChange && (
+          <div className="py-3">
+            <p className="mb-2.5 text-body font-bold text-zine-ink">Чем заняться</p>
+            <GoalChips value={goal} onChange={onGoalChange} wrapperClassName="flex flex-wrap gap-2" />
+          </div>
+        )}
+
         <Section title="Пол">
           <Chip active={f.gender === 'all'} onClick={() => set({ gender: 'all' })}>Все</Chip>
           <Chip active={f.gender === 'male'} onClick={() => set({ gender: 'male' })}>Мужчины</Chip>
@@ -209,7 +219,10 @@ export const PeopleFiltersSheet: React.FC<{
 
       <div className="mt-3 grid grid-cols-[auto_1fr] gap-2">
         <button
-          onClick={() => onChange({ ...DEFAULT_FILTERS })}
+          onClick={() => {
+            onChange({ ...DEFAULT_FILTERS });
+            onGoalChange?.('all');
+          }}
           className="h-12 px-5 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
         >
           Сбросить

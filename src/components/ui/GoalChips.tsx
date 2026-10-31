@@ -3,6 +3,19 @@ import { GOALS_CONFIG, ActivityGoal, GoalFilter, EMPATH } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { FEED_TEXTS } from '../../texts/feed';
 
+// Все варианты фильтра по цели: «Все», цели встречи, гиды, эмпаты, «поныть»
+export const goalFilterItems = (): { id: GoalFilter; label: string; emoji?: string }[] => [
+  { id: 'all', label: 'Все' },
+  ...(Object.keys(GOALS_CONFIG) as ActivityGoal[]).filter((id) => id !== 'other').map((id) => ({
+    id,
+    label: GOALS_CONFIG[id].label,
+    emoji: GOALS_CONFIG[id].emoji
+  })),
+  { id: 'guides', label: 'Покажут город', emoji: '🧭' },
+  { id: 'empaths', label: 'Эмпаты', emoji: EMPATH.emoji },
+  { id: 'venting', label: FEED_TEXTS.ventingChip, emoji: '🫂' }
+];
+
 /**
  * Крупные кнопки-фильтры по цели встречи. Лента прокручивается вбок
  */
@@ -12,17 +25,7 @@ export const GoalChips: React.FC<{
   floating?: boolean; // поверх карты — с тенью и плотным фоном
   wrapperClassName?: string;
 }> = ({ value, onChange, floating = false, wrapperClassName = 'flex gap-2 overflow-x-auto no-scrollbar px-4' }) => {
-  const items: { id: GoalFilter; label: string; emoji?: string }[] = [
-    { id: 'all', label: 'Все' },
-    ...(Object.keys(GOALS_CONFIG) as ActivityGoal[]).filter((id) => id !== 'other').map((id) => ({
-      id,
-      label: GOALS_CONFIG[id].label,
-      emoji: GOALS_CONFIG[id].emoji
-    })),
-    { id: 'guides', label: 'Покажут город', emoji: '🧭' },
-    { id: 'empaths', label: 'Эмпаты', emoji: EMPATH.emoji },
-    { id: 'venting', label: FEED_TEXTS.ventingChip, emoji: '🫂' }
-  ];
+  const items = goalFilterItems();
 
   return (
     <div className={wrapperClassName}>

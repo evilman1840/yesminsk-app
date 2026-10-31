@@ -17,7 +17,7 @@ const leftText = (until: number) => {
 /**
  * «⚡ Хочу сейчас» — круглая кнопка. Выключена: нажатие сначала объясняет, что будет, и включает из шторки.
  * Включена: зелёная, с остатком времени; нажатие — до скольки и «Выключить».
- * look: map — светлая на карте, people — полупрозрачная поверх фото в «Людях»
+ * look: map — светлая на карте, people — тёмная в шапке «Людей»
  */
 export const WantNowButton: React.FC<{
   availableUntil?: string | null;
@@ -52,7 +52,7 @@ export const WantNowButton: React.FC<{
   };
 
   const size = look === 'map' ? 'w-14 h-14' : 'w-11 h-11';
-  const offLook = look === 'map' ? 'bg-zine-cardElevated border border-zine-border shadow-zine-float' : 'bg-black/35 backdrop-blur';
+  const offLook = look === 'map' ? 'bg-zine-cardElevated border border-zine-border shadow-zine-float' : 'bg-white/10';
 
   return (
     <>
