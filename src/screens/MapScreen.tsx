@@ -230,7 +230,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const nearbyFaces = [...users]
     .filter((u) => u.avatarUrl)
     .sort((a, b) => Number(isAvailableNow(b)) - Number(isAvailableNow(a)))
-    .slice(0, 4);
+    .slice(0, 3);
   const isVisible = currentUser?.isProfileActive !== false;
 
   return (
@@ -308,7 +308,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                   <span className="min-w-0 text-left leading-tight">
                     <span className="block text-body font-bold text-zine-ink whitespace-nowrap">{peopleCount.toLocaleString('ru-RU')} с нами</span>
                     <span className="block text-cap text-zine-inkMuted whitespace-nowrap truncate">
-                      {freeNowCount > 0 ? `⚡ ${freeNowCount} сейчас` : 'загляни к ним'}
+                      {freeNowCount > 0 ? `⚡ ${freeNowCount} хочет сейчас` : 'загляни к ним'}
                     </span>
                   </span>
                 </button>
