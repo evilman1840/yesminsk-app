@@ -799,37 +799,33 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
         <div className="mt-2.5 flex gap-2">
         {/* «Хочу сходить»: нет подходящей сходки — отметь, куда хочется */}
-        {/* Счётчик «19 человек хотят…» — кто это; справа «Все» — все желания, мои и форма «Куда хочется?» */}
-        <div className="min-w-0 flex-1 rounded-zine-sm bg-white/[0.07] border border-white/10 flex items-stretch">
-          <button
-            onClick={() => {
-              telegramService.haptic('selection');
-              if (topWish && onOpenWishPeople) onOpenWishPeople(topWish);
-              else setIsWishOpen(true);
-            }}
-            className="min-w-0 flex-1 p-2 pr-2 text-left flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-transform"
-          >
-            <span className="w-10 h-10 shrink-0 rounded-full bg-zine-terracotta flex items-center justify-center text-[20px] leading-none">🙋</span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm2 font-bold">{WISH_TEXTS.barTitle}</span>
-              <span className="block text-cap text-white/75 line-clamp-2">
-                {topWish ? wishCounter(topWish) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
-              </span>
-            </span>
-            {!(topWish && onOpenWishPeople) && <ChevronRight size={20} className="shrink-0 text-white/70" />}
-          </button>
-          {topWish && onOpenWishPeople && (
+        {/* Есть счётчик «9 человек хотят…» — он и есть заголовок, нажатие — кто это; ссылка под ним — все желания и форма «Куда хочется?» */}
+        <div className="min-w-0 flex-1 p-2 rounded-zine-sm bg-white/[0.07] border border-white/10 flex items-center gap-2.5">
+          <span className="w-9 h-9 shrink-0 rounded-full bg-zine-terracotta flex items-center justify-center text-[18px] leading-none" aria-hidden>🙋</span>
+          <span className="min-w-0 flex-1 flex flex-col items-start">
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                if (topWish && onOpenWishPeople) onOpenWishPeople(topWish);
+                else setIsWishOpen(true);
+              }}
+              className="w-full text-left text-sm2 font-bold leading-tight line-clamp-2 cursor-pointer"
+            >
+              {topWish && onOpenWishPeople ? wishCounter(topWish) : WISH_TEXTS.barTitle}
+            </button>
             <button
               onClick={() => {
                 telegramService.haptic('selection');
                 setIsWishOpen(true);
               }}
-              className="shrink-0 my-2 mr-2 px-3 rounded-full bg-white/10 border border-white/15 text-cap font-bold flex items-center gap-0.5 cursor-pointer active:scale-95 transition-transform"
+              className="mt-0.5 max-w-full flex items-center text-cap font-semibold text-zine-mustard cursor-pointer"
             >
-              {myWishCount ? WISH_TEXTS.barAllMine(myWishCount) : WISH_TEXTS.barAll}
-              <ChevronRight size={16} className="-mr-1" />
+              <span className="truncate">
+                {topWish && onOpenWishPeople ? WISH_TEXTS.barLink(myWishCount) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+              </span>
+              <ChevronRight size={14} className="shrink-0" />
             </button>
-          )}
+          </span>
         </div>
         {/* Не нашлось подходящей — собрать свою */}
         <button
@@ -1608,24 +1604,28 @@ const EventReel: React.FC<{
         }}
         className="shrink-0 px-4 pt-3 text-white cursor-pointer"
       >
-        {/* Одна строка-подпись: рекомендуем · категория · пометки значками */}
-        <p className="text-sm2 font-semibold text-white/70 flex items-center gap-x-2 whitespace-nowrap overflow-hidden">
+        {/* Одна строка: рекомендуем · категория · пометки значками, затем цена и метки шаблона («💸 Платно»); не влезает — листается */}
+        <div data-no-swipe className="-mx-4 px-4 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right text-sm2 font-semibold text-white/70 whitespace-nowrap">
           {ev.isOfficial && (
             <>
-              <span className="text-zine-mustard">⭐ Рекомендуем</span>
-              <span className="text-white/30">·</span>
+              <span className="shrink-0 text-zine-mustard">⭐ Рекомендуем</span>
+              <span className="shrink-0 text-white/30">·</span>
             </>
           )}
-          <span className="truncate">
+          <span className="shrink-0">
             {cat.emoji} {cat.label}
           </span>
           {(ev.tags || []).length > 0 && (
-            <>
-              <span className="text-white/30">·</span>
-              <span aria-label={(ev.tags || []).map((t) => EVENT_TAGS[t].label).join(', ')}>{(ev.tags || []).map((t) => EVENT_TAGS[t].emoji).join(' ')}</span>
-            </>
+            <span className="shrink-0" aria-label={(ev.tags || []).map((t) => EVENT_TAGS[t].label).join(', ')}>
+              {(ev.tags || []).map((t) => EVENT_TAGS[t].emoji).join(' ')}
+            </span>
           )}
-        </p>
+          {[ev.byRequest ? M.byRequestBadge : '', audienceLabel(ev), priceLabel(ev), ...(ev.badges || [])].filter(Boolean).map((b) => (
+            <span key={b} className="h-7 px-2.5 shrink-0 rounded-full border border-white/20 bg-white/10 text-cap font-semibold text-white flex items-center">
+              {b}
+            </span>
+          ))}
+        </div>
         <h2 className="mt-1 font-serif font-bold text-title leading-tight line-clamp-2">{ev.title}</h2>
         <p className="mt-1 text-body font-semibold">
           {formatEventDate(ev.dateTime)}
@@ -1636,14 +1636,6 @@ const EventReel: React.FC<{
           <MapPin size={16} className="shrink-0" />
           <span className="truncate">{ev.locationName}</span>
         </p>
-        {/* Цена и метки шаблона: «💚 Бесплатно», «🏓 Настольный теннис · любой уровень» */}
-        <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
-          {[ev.byRequest ? M.byRequestBadge : '', audienceLabel(ev), priceLabel(ev), ...(ev.badges || [])].filter(Boolean).map((b) => (
-            <span key={b} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full border border-white/20 bg-white/10 text-sm2 font-semibold flex items-center">
-              {b}
-            </span>
-          ))}
-        </div>
         {/* Кто идёт: лица и сколько; много — ряд листается пальцем (не свайпает карточку) */}
         <div className="mt-2.5 flex items-center gap-2">
           <span data-no-swipe className={`min-w-0 flex -space-x-2 overflow-x-auto no-scrollbar py-0.5 ${people.length > 7 ? 'fade-right pr-3' : ''}`}>
@@ -1703,7 +1695,7 @@ const EventReel: React.FC<{
                     telegramService.haptic('selection');
                     onNotInterested();
                   }}
-                  className="flex-1 min-w-0 h-12 px-3 rounded-full border border-white/25 text-body font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+                  className="shrink-0 h-12 px-4 rounded-full border border-white/25 text-body font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
                 >
                   <EyeOff size={19} className="shrink-0" />
                   <span className="truncate">Скрыть</span>
@@ -1712,7 +1704,7 @@ const EventReel: React.FC<{
               <button
                 onClick={onJoin}
                 disabled={isJoining || isFull}
-                className={`flex-[1.3] min-w-0 h-12 px-4 rounded-full text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
+                className={`flex-1 min-w-0 h-12 px-4 rounded-full text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
                   isPending ? 'bg-white/90 text-[#2B2623]' : ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/15 text-white/70 cursor-default' : 'bg-zine-terracotta text-white'
                 }`}
               >
