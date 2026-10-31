@@ -12,7 +12,6 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
 import { SlidersHorizontal } from 'lucide-react';
 import { PeopleFiltersSheet, PeopleFilters, MyPrefs, loadFilters, saveFilters, applyPeopleFilters, countActiveFilters } from '../components/people/PeopleFilters';
-import { Logo } from '../components/ui/Logo';
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
 import { WantNowButton } from '../components/common/WantNowButton';
@@ -231,7 +230,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const nearbyFaces = [...users]
     .filter((u) => u.avatarUrl)
     .sort((a, b) => Number(isAvailableNow(b)) - Number(isAvailableNow(a)))
-    .slice(0, 3);
+    .slice(0, 4);
   const isVisible = currentUser?.isProfileActive !== false;
 
   return (
@@ -287,11 +286,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         }
       />
 
-      {/* Шапка на однотонном фоне, как в «Людях», «Сходках» и «Местах»: логотип, кто с нами, новости и донат; под ней вкладки карты */}
+      {/* Шапка на однотонном фоне, как в «Людях», «Сходках» и «Местах»: кто с нами, новости и донат (название и так пишет Telegram сверху); под ней вкладки карты */}
       <div className="absolute top-0 inset-x-0 z-20 space-y-2 pointer-events-none">
         <div className="pointer-events-auto px-3 pt-3 pb-2.5 bg-zine-paper border-b border-zine-border space-y-2.5">
           <div className="h-11 flex items-center gap-2">
-            <Logo size="sm" className="pl-1" />
             {isVisible ? (
               users.length > 0 ? (
                 // Кто с нами: лица и сколько их — сразу видно, что тут живые люди
@@ -300,16 +298,16 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                     telegramService.haptic('selection');
                     onOpenPeople();
                   }}
-                  className="flex-1 min-w-0 h-11 pl-1 pr-1 rounded-full flex items-center gap-2 active:bg-zine-card cursor-pointer"
+                  className="flex-1 min-w-0 h-11 pr-2 rounded-full flex items-center gap-2.5 active:bg-zine-card cursor-pointer"
                 >
-                  <span className="flex shrink-0 pl-2">
+                  <span className="flex shrink-0">
                     {nearbyFaces.map((u) => (
-                      <img key={u.id} src={thumb(u.avatarUrl)} alt="" className="-ml-2 w-7 h-7 rounded-full object-cover border-2 border-zine-paper bg-zine-card" />
+                      <img key={u.id} src={thumb(u.avatarUrl)} alt="" className="-ml-2.5 first:ml-0 w-9 h-9 rounded-full object-cover border-2 border-zine-paper bg-zine-card" />
                     ))}
                   </span>
                   <span className="min-w-0 text-left leading-tight">
-                    <span className="block text-cap font-bold text-zine-ink whitespace-nowrap">{peopleCount.toLocaleString('ru-RU')} с нами</span>
-                    <span className="block text-[11px] text-zine-inkMuted whitespace-nowrap truncate">
+                    <span className="block text-body font-bold text-zine-ink whitespace-nowrap">{peopleCount.toLocaleString('ru-RU')} с нами</span>
+                    <span className="block text-cap text-zine-inkMuted whitespace-nowrap truncate">
                       {freeNowCount > 0 ? `⚡ ${freeNowCount} сейчас` : 'загляни к ним'}
                     </span>
                   </span>
@@ -317,7 +315,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               ) : (
                 <button
                   onClick={() => telegramService.shareApp()}
-                  className="flex-1 min-w-0 h-11 px-2 text-left font-hand font-semibold text-[18px] leading-none text-zine-inkMuted cursor-pointer"
+                  className="flex-1 min-w-0 h-11 px-1 text-left font-hand font-semibold text-[18px] leading-none text-zine-inkMuted cursor-pointer"
                 >
                   позови друзей →
                 </button>
@@ -332,14 +330,14 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               </button>
             )}
 
-            {/* Новости проекта — рупор (аватарку тут ждут свою). Новые — рупор оранжевый и счётчик */}
+            {/* Новости проекта — рупор (аватарку тут ждут свою). Новые — оранжевая обводка и счётчик */}
             <button
               onClick={() => {
                 telegramService.haptic('selection');
                 onOpenNews();
               }}
               aria-label="Новости проекта"
-              className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer ${unreadNews > 0 ? 'bg-zine-terracotta text-white' : 'bg-zine-card border border-zine-border text-zine-ink dark:border-white/25'}`}
+              className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer bg-zine-card text-zine-ink ${unreadNews > 0 ? 'border-2 border-zine-terracotta' : 'border border-zine-border dark:border-white/25'}`}
             >
               <Megaphone className="w-[22px] h-[22px] -rotate-12" strokeWidth={2} />
               {unreadNews > 0 && (
