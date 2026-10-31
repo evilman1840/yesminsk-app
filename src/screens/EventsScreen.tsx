@@ -13,6 +13,7 @@ import { JoinSheet } from '../components/common/JoinSheet';
 import { formatDistance } from '../components/common/UserBottomSheet';
 import { loadSeenEvents, markEventSeen } from '../utils/seenEvents';
 import { UndoToast } from '../components/ui/UndoToast';
+import { FilterChip } from '../components/ui/FilterChip';
 import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 import { HelpLine } from '../components/common/HelpLine';
 import { PhotoPicker, PickedPhoto, photoFromUrl, photoSrc } from '../components/common/PhotoPicker';
@@ -1504,21 +1505,6 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     </div>
   );
 };
-
-const FilterChip: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
-  <button
-    type="button"
-    onClick={() => {
-      telegramService.haptic('selection');
-      onClick();
-    }}
-    className={`h-11 px-4 rounded-full text-sm2 font-semibold border flex items-center gap-2 transition-colors cursor-pointer ${
-      active ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-zine-cardElevated text-zine-ink border-zine-border'
-    }`}
-  >
-    {children}
-  </button>
-);
 
 // Фон карточки по категории — у сходок нет фото
 const REEL_BG: Record<EventCategory, string> = {

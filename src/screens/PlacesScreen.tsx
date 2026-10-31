@@ -1,16 +1,16 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { Bookmark, BookmarkCheck, CalendarPlus } from 'lucide-react';
-import { PlaceItem, AppEvent, JoinOptions, PLACE_MOODS, placeTypeEmoji, placesForKids, KIDS_LEVELS } from '../types';
+import { Bookmark, BookmarkCheck, CalendarPlus, ChevronLeft, ChevronRight, Plus, SlidersHorizontal, X } from 'lucide-react';
+import { PlaceItem, PlaceMood, AppEvent, JoinOptions, PLACE_MOODS, PLACE_TYPES, placeTypeEmoji, placesForKids, KIDS_LEVELS } from '../types';
 import { api, serverUrl } from '../services/api';
 import { telegramService } from '../services/telegram';
-import { MoodChips, MoodFilter } from '../components/places/MoodPicker';
+import { MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet, eventsAtPlace, shortWhen } from '../components/places/PlaceSheet';
-import { PlaceTypeFilter } from '../components/places/PlaceTypeFilter';
+import { BottomSheet } from '../components/ui/BottomSheet';
+import { FilterChip } from '../components/ui/FilterChip';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { UndoToast } from '../components/ui/UndoToast';
 import { SuggestPlaceSheet } from '../components/common/SuggestPlaceSheet';
 import { SUGGEST_TEXTS as SG } from '../texts/suggest';
-import { ChevronRight } from 'lucide-react';
 
 // Места, смахнутые влево («Неинтересно»). На сервере тоже сохраняются —
 // при следующем запуске сервер их уже не пришлёт
@@ -18,7 +18,8 @@ const notInterestedPlaces = new Set<string>();
 export const forgetNotInterestedPlace = (id: string) => notInterestedPlaces.delete(id);
 
 /**
- * «Места» как Reels: полноэкранные карточки, листаются вверх-вниз; свайп вправо — сохранить, влево — неинтересно; тап — подробнее
+ * «Места» как Reels: карточки листаются вверх-вниз; свайп вправо — сохранить, влево — неинтересно; тап — подробнее.
+ * Сверху «Все / Сохранённые», настроение и тип места — в шторке фильтров
  */
 export const PlacesScreen: React.FC<{
   places: PlaceItem[];
@@ -30,6 +31,7 @@ export const PlacesScreen: React.FC<{
   const [mood, setMood] = useState<MoodFilter>('all');
   const [placeType, setPlaceType] = useState<string | null>(null); // фильтр по типу: «Парк», «Музей»…
   const [openedPlace, setOpenedPlace] = useState<PlaceItem | null>(null);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [, setHiddenVersion] = useState(0); // перерисовать после «Неинтересно»
   const [justHidden, setJustHidden] = useState<PlaceItem | null>(null);
 
@@ -59,28 +61,100 @@ export const PlacesScreen: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToId]);
 
+  const visiblePlaces = places.filter((p) => !notInterestedPlaces.has(p.id));
+  const kidsCount = places.filter((p) => p.kidsLevel).length;
+  const typeCounts = Object.keys(PLACE_TYPES)
+    .map((t) => [t, visiblePlaces.filter((p) => p.category === t).length] as const)
+    .filter(([, n]) => n > 0);
+  const isSavedTab = mood === 'saved';
+  const activeFilters = Number(mood !== 'all' && !isSavedTab) + Number(Boolean(placeType));
+  // Выбранное в шторке — чипами под шапкой, крестик сбрасывает
+  const activeChips = [
+    mood !== 'all' && !isSavedTab && {
+      key: 'mood',
+      label: mood === 'kids' ? '👶 С детьми' : `${PLACE_MOODS[mood as PlaceMood].emoji} ${PLACE_MOODS[mood as PlaceMood].label}`,
+      onClear: () => setMood('all')
+    },
+    placeType && { key: 'type', label: `${placeTypeEmoji(placeType)} ${placeType}`, onClear: () => setPlaceType(null) }
+  ].filter(Boolean) as { key: string; label: string; onClear: () => void }[];
+
   return (
-    <div className="relative h-full w-full bg-[#141210] overflow-hidden">
-      {/* Фильтр настроений поверх карточек */}
-      <div className="absolute top-0 inset-x-0 z-20 pt-3 pb-6 bg-gradient-to-b from-black/60 to-transparent">
-        <div className="px-4 mb-2 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 shrink-0">
-            <h1 className="font-serif font-bold text-title text-white">Места</h1>
-            {/* Сразу наверху: предложить своё место. Яркая кнопка, чтобы было заметно поверх фото */}
-            <button
-              onClick={() => setIsSuggestOpen(true)}
-              className="h-9 px-3.5 shrink-0 rounded-full bg-zine-terracotta text-white text-sm2 font-bold whitespace-nowrap shadow-lg shadow-black/30 cursor-pointer active:scale-95 transition-transform"
-            >
-              {SG.headerButton}
-            </button>
+    <div className="h-full w-full bg-[#141210] flex flex-col overflow-hidden">
+      {/* Шапка на однотонном фоне, чтобы фото было чистым. Название экрана уже есть в нижнем меню */}
+      <div className="shrink-0 px-3 pt-3 pb-3 text-white">
+        <div className="flex items-center gap-1.5">
+          {/* Предложить своё место */}
+          <button
+            onClick={() => setIsSuggestOpen(true)}
+            aria-label={SG.placesButton}
+            className="w-11 h-11 shrink-0 rounded-full bg-zine-terracotta active:bg-zine-terracottaHover text-white flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+          >
+            <Plus size={24} strokeWidth={2.5} />
+          </button>
+
+          <div className="flex-1 min-w-0 flex p-[3px] rounded-full bg-white/10">
+            {([
+              ['all', 'Все'],
+              ['saved', savedCount > 0 ? `🔖 Сохранённые · ${savedCount}` : '🔖 Сохранённые']
+            ] as const).map(([id, label]) => {
+              const isActive = id === 'saved' ? isSavedTab : !isSavedTab;
+              return (
+                <button
+                  key={id}
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    // «Сохранённые» — без настроения; «Все» — без «Сохранённых»
+                    setMood(id === 'saved' ? 'saved' : isSavedTab ? 'all' : mood);
+                  }}
+                  className={`flex-auto min-w-0 h-[38px] px-2 rounded-full text-[14px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                    isActive ? 'bg-white text-[#2B2623]' : 'text-white/80'
+                  }`}
+                >
+                  <span className="truncate">{label}</span>
+                </button>
+              );
+            })}
           </div>
-          <PlaceTypeFilter places={places.filter((p) => !notInterestedPlaces.has(p.id))} value={placeType} onChange={setPlaceType} />
+
+          <button
+            onClick={() => {
+              telegramService.haptic('selection');
+              setIsFiltersOpen(true);
+            }}
+            aria-label={activeFilters > 0 ? `Фильтры: ${activeFilters}` : 'Фильтры'}
+            className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+              activeFilters > 0 ? 'bg-white text-[#2B2623]' : 'bg-white/10 text-white'
+            }`}
+          >
+            <SlidersHorizontal size={20} />
+            {activeFilters > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center">
+                {activeFilters}
+              </span>
+            )}
+          </button>
         </div>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
-          <MoodChips value={mood} onChange={setMood} savedCount={savedCount} kidsCount={places.filter((p) => p.kidsLevel).length} />
-        </div>
+
+        {activeChips.length > 0 && (
+          <div className="mt-2.5 flex gap-1.5 overflow-x-auto no-scrollbar">
+            {activeChips.map((c) => (
+              <button
+                key={c.key}
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  c.onClear();
+                }}
+                className="h-9 pl-3 pr-2 shrink-0 rounded-full bg-white text-[#2B2623] text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="whitespace-nowrap">{c.label}</span>
+                <X size={16} className="text-[#2B2623]/60" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
+      <div className="relative flex-1 min-h-0">
       {shown.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-center px-8 text-white">
           <div className="text-[48px] mb-3">{mood === 'saved' ? '🔖' : '📍'}</div>
@@ -128,19 +202,9 @@ export const PlacesScreen: React.FC<{
         </div>
       )}
 
-      {isSuggestOpen && (
-        <SuggestPlaceSheet
-          onClose={() => setIsSuggestOpen(false)}
-          onDone={(name) => {
-            setIsSuggestOpen(false);
-            setSuggested(name);
-          }}
-        />
-      )}
-
-
       {justHidden && (
         <UndoToast
+          topClass="top-3"
           text={`Скрыто: ${justHidden.name}`}
           onDone={() => setJustHidden(null)}
           onUndo={() => {
@@ -152,6 +216,65 @@ export const PlacesScreen: React.FC<{
           }}
         />
       )}
+      </div>
+
+      {isFiltersOpen && (
+        <BottomSheet title="Фильтры" onClose={() => setIsFiltersOpen(false)}>
+          <p className="mb-2.5 text-body font-bold text-zine-ink">Настроение</p>
+          <div className="flex flex-wrap gap-2">
+            {([
+              ['all', 'Любое', ''],
+              ...(Object.keys(PLACE_MOODS) as PlaceMood[]).map((m) => [m, PLACE_MOODS[m].label, PLACE_MOODS[m].emoji]),
+              ...(kidsCount > 0 ? [['kids', 'С детьми', '👶']] : [])
+            ] as [MoodFilter, string, string][]).map(([id, label, emoji]) => (
+              <FilterChip key={id} active={mood === id || (id === 'all' && isSavedTab)} onClick={() => setMood(id)}>
+                {emoji && <span className="text-[18px] leading-none">{emoji}</span>}
+                <span>{label}</span>
+              </FilterChip>
+            ))}
+          </div>
+          {typeCounts.length > 0 && (
+            <>
+              <p className="mt-5 mb-2.5 text-body font-bold text-zine-ink">Тип места</p>
+              <div className="flex flex-wrap gap-2">
+                <FilterChip active={!placeType} onClick={() => setPlaceType(null)}>Все типы</FilterChip>
+                {typeCounts.map(([t, n]) => (
+                  <FilterChip key={t} active={placeType === t} onClick={() => setPlaceType(t)}>
+                    <span className="text-[18px] leading-none">{placeTypeEmoji(t)}</span>
+                    <span>{t}</span>
+                    <span className={placeType === t ? 'opacity-70' : 'text-zine-inkMuted'}>{n}</span>
+                  </FilterChip>
+                ))}
+              </div>
+            </>
+          )}
+          <div className="mt-6 grid grid-cols-[auto_1fr] gap-2">
+            <button
+              onClick={() => {
+                if (!isSavedTab) setMood('all');
+                setPlaceType(null);
+              }}
+              className="h-12 px-5 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
+            >
+              Сбросить
+            </button>
+            <button onClick={() => setIsFiltersOpen(false)} className="h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer">
+              {shown.length > 0 ? `Показать (${shown.length})` : 'Ничего не нашлось'}
+            </button>
+          </div>
+        </BottomSheet>
+      )}
+
+      {isSuggestOpen && (
+        <SuggestPlaceSheet
+          onClose={() => setIsSuggestOpen(false)}
+          onDone={(name) => {
+            setIsSuggestOpen(false);
+            setSuggested(name);
+          }}
+        />
+      )}
+
 
       {openedPlace && (
         <PlaceSheet
@@ -196,133 +319,125 @@ const PlaceReel: React.FC<{
     }
   };
 
+  const commentsCount = place.tipsCount + (place.reviews?.length || 0);
+  const showPhoto = (step: number) => {
+    telegramService.haptic('selection');
+    setPhotoIndex((i) => (i + step + place.photos.length) % place.photos.length);
+  };
+
   return (
     <SwipeReel
+      className="flex flex-col"
       rightLabel={place.isSaved ? undefined : '🔖 Сохранить'}
       rightBehavior="next"
       leftLabel={place.isSaved ? undefined : 'Неинтересно'}
       leftBehavior="remove"
       onSwipe={(dir) => (dir === 'right' ? save() : onNotInterested())}
     >
-      {/* Фото: тап по центру — карточка места; если фото несколько, по краям — листать (как в сторис) */}
-      {place.photos.length > 0 ? (
-        <div className="absolute inset-0">
-          {place.photos.map((photo, i) => (
+      {/* Фото — без надписей и кнопок поверх, только точки и стрелки. Тап по центру — карточка места */}
+      <div className="relative mx-3 flex-1 min-h-[42%] rounded-zine overflow-hidden bg-gradient-to-br from-[#5B7B68] to-[#2B2623]">
+        {place.photos.length > 0 ? (
+          place.photos.map((photo, i) => (
             <img
               key={photo}
               src={serverUrl(photo)}
               alt={place.name}
               draggable={false}
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${i === photoIndex ? 'opacity-100' : 'opacity-0'}`}
+              onClick={onOpen}
+              className={`absolute inset-0 h-full w-full object-cover cursor-pointer transition-opacity duration-200 ${i === photoIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
               loading={i === 0 ? 'eager' : 'lazy'}
             />
-          ))}
-          <div className="absolute inset-0 flex">
-            {place.photos.length > 1 && (
-              <button aria-label="Предыдущее фото" className="w-[22%] h-full cursor-pointer" onClick={() => setPhotoIndex((i) => Math.max(0, i - 1))} />
-            )}
-            <button aria-label="Открыть карточку места" className="flex-1 h-full cursor-pointer" onClick={onOpen} />
-            {place.photos.length > 1 && (
-              <button
-                aria-label="Следующее фото"
-                className="w-[22%] h-full cursor-pointer"
-                onClick={() => setPhotoIndex((i) => (i + 1) % place.photos.length)}
-              />
-            )}
+          ))
+        ) : (
+          <div onClick={onOpen} className="absolute inset-0 flex items-center justify-center text-[88px] leading-none cursor-pointer select-none">
+            {PLACE_MOODS[place.moods[0]]?.emoji || '📍'}
           </div>
-        </div>
-      ) : (
-        <div
-          onClick={onOpen}
-          className="absolute inset-0 bg-gradient-to-br from-[#5B7B68] to-[#2B2623] flex items-start justify-center pt-[38%] text-[96px] cursor-pointer"
-        >
-          {PLACE_MOODS[place.moods[0]]?.emoji || '📍'}
-        </div>
-      )}
-
-      {/* Точки — сколько фото */}
-      {place.photos.length > 1 && (
-        <div className="absolute top-28 inset-x-0 z-10 flex justify-center gap-1.5 pointer-events-none">
-          {place.photos.map((photo, i) => (
-            <span key={photo} className={`h-1.5 rounded-full transition-all ${i === photoIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/50'}`} />
-          ))}
-        </div>
-      )}
-
-      {/* Кнопки справа, как в Reels: только главное, маршрут — в подробностях */}
-      <div className="absolute right-3 bottom-40 z-20 flex flex-col items-center gap-5 text-white">
-        <button onClick={save} aria-label={place.isSaved ? 'Убрать из сохранённых' : 'Сохранить'} className="flex flex-col items-center gap-1 cursor-pointer">
-          <span className={`w-12 h-12 rounded-full flex items-center justify-center backdrop-blur ${place.isSaved ? 'bg-zine-sage' : 'bg-black/35'}`}>
-            {place.isSaved ? <BookmarkCheck size={24} /> : <Bookmark size={24} />}
-          </span>
-          <span className="text-cap font-semibold drop-shadow">{place.isSaved ? 'Сохранено' : 'Сохранить'}</span>
-        </button>
-        <button onClick={() => onCreateEvent(place)} aria-label="Собрать сходку сюда" className="flex flex-col items-center gap-1 cursor-pointer">
-          <span className="w-12 h-12 rounded-full bg-zine-terracotta flex items-center justify-center">
-            <CalendarPlus size={22} />
-          </span>
-          <span className="text-cap font-semibold drop-shadow">Сходка</span>
-        </button>
+        )}
+        {/* Несколько фото: точки сверху, по бокам листать (как в сторис) */}
+        {place.photos.length > 1 && (
+          <>
+            <div className="absolute top-2.5 inset-x-0 z-10 flex justify-center gap-1.5 pointer-events-none" aria-hidden>
+              {place.photos.map((photo, i) => (
+                <span key={photo} className={`w-1.5 h-1.5 rounded-full ${i === photoIndex ? 'bg-white' : 'bg-white/45'}`} />
+              ))}
+            </div>
+            <button type="button" aria-label="Предыдущее фото" onClick={() => showPhoto(-1)} className="absolute left-0 inset-y-0 w-[30%] z-10 flex items-center justify-start pl-2 cursor-pointer">
+              <span className="w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm text-white/90 flex items-center justify-center">
+                <ChevronLeft size={22} />
+              </span>
+            </button>
+            <button type="button" aria-label="Следующее фото" onClick={() => showPhoto(1)} className="absolute right-0 inset-y-0 w-[30%] z-10 flex items-center justify-end pr-2 cursor-pointer">
+              <span className="w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm text-white/90 flex items-center justify-center">
+                <ChevronRight size={22} />
+              </span>
+            </button>
+          </>
+        )}
+        {/* Подсказка про свайпы — только на первой карточке, внизу фото */}
+        {isFirst && <SwipeHint className="bottom-3" left={place.isSaved ? undefined : 'неинтересно'} right={place.isSaved ? undefined : 'сохранить'} />}
       </div>
 
-      {/* Текст внизу на затемнении */}
+      {/* Текст на сплошном фоне; нажатие мимо кнопок — карточка места */}
       <div
         onClick={(e) => {
-          // Нажатие на название, описание или фото под затемнением — открыть карточку; кнопки работают сами
           if (!(e.target as HTMLElement).closest('button')) onOpen();
         }}
-        className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white cursor-pointer"
+        className="shrink-0 px-4 pt-3 text-white cursor-pointer"
       >
-        {/* Одна строка-подпись: тип · рейтинг · с детьми */}
-        {(place.category || place.rating || place.kidsLevel) && (
-          <p className="pr-16 text-sm2 font-semibold text-white/85 flex items-center gap-x-2 whitespace-nowrap overflow-hidden">
-            {[
-              place.category ? `${placeTypeEmoji(place.category)} ${place.category}` : '',
-              place.rating ? `★ ${place.rating.toFixed(1).replace('.', ',')}` : '',
-              place.kidsLevel && KIDS_LEVELS[place.kidsLevel] ? `👶 ${KIDS_LEVELS[place.kidsLevel].tiny}` : ''
-            ]
-              .filter(Boolean)
-              .map((part, i) => (
-                <span key={part} className={part.startsWith('★') ? 'text-[#FFD36B]' : ''}>
-                  {i > 0 && <span className="mr-2 text-white/40">·</span>}
-                  {part}
-                </span>
-              ))}
-          </p>
-        )}
-        <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight">{place.name}</h2>
-        {/* Вайбы места: первый с названием, остальные эмодзи */}
-        {place.moods.length > 0 && (
-          <div className="mt-2 pr-16 flex gap-1.5">
-            <span className="h-7 px-2.5 rounded-full bg-white/15 backdrop-blur text-cap font-semibold text-white inline-flex items-center gap-1 whitespace-nowrap">
-              {PLACE_MOODS[place.moods[0]].emoji} {PLACE_MOODS[place.moods[0]].label}
-            </span>
-            {place.moods.length > 1 && (
-              <span className="h-7 px-2.5 rounded-full bg-white/15 backdrop-blur text-cap text-white inline-flex items-center gap-1 whitespace-nowrap">
-                {place.moods.slice(1).map((m) => PLACE_MOODS[m].emoji).join(' ')}
+        {/* Одна строка: тип · рейтинг · с детьми · отзывы, затем вайбы места; не влезает — листается */}
+        <div data-no-swipe className="-mx-4 px-4 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right text-sm2 font-semibold text-white/70 whitespace-nowrap">
+          {[
+            place.category ? `${placeTypeEmoji(place.category)} ${place.category}` : '',
+            place.rating ? `★ ${place.rating.toFixed(1).replace('.', ',')}` : '',
+            place.kidsLevel && KIDS_LEVELS[place.kidsLevel] ? `👶 ${KIDS_LEVELS[place.kidsLevel].tiny}` : '',
+            commentsCount > 0 ? `💬 ${commentsCount}` : ''
+          ]
+            .filter(Boolean)
+            .map((part, i) => (
+              <span key={part} className={`shrink-0 ${part.startsWith('★') ? 'text-[#FFD36B]' : ''}`}>
+                {i > 0 && <span className="mr-2 text-white/30">·</span>}
+                {part}
               </span>
-            )}
-          </div>
-        )}
+            ))}
+          {place.moods.map((m) => (
+            <span key={m} className="h-7 px-2.5 shrink-0 rounded-full border border-white/20 bg-white/10 text-cap font-semibold text-white flex items-center">
+              {PLACE_MOODS[m].emoji} {PLACE_MOODS[m].label}
+            </span>
+          ))}
+        </div>
+        <h2 className="mt-1 flex items-center gap-1 font-serif font-bold text-title leading-tight">
+          <span className="line-clamp-2">{place.name}</span>
+          <ChevronRight size={22} className="shrink-0 text-white/60" aria-hidden />
+        </h2>
         {/* Сюда собирается сходка — сами сходки в карточке места */}
         {placeEvents.length > 0 && (
-          <p className="mt-2 pr-16 text-sm2 font-semibold text-zine-mustard truncate">
+          <p className="mt-1 text-sm2 font-semibold text-zine-mustard truncate">
             📅 {placeEvents.length > 1 ? `Сходки здесь: ${placeEvents.length} · ближайшая ` : 'Сходка здесь: '}
             {shortWhen(placeEvents[0].dateTime).toLowerCase()}
           </p>
         )}
-        {place.description && <p className="mt-1.5 pr-16 text-body text-white/85 line-clamp-2">{place.description}</p>}
-        <span className="mt-3 inline-flex items-center gap-1 text-sm2 font-bold text-white">
-          Подробнее
-          {place.tipsCount + (place.reviews?.length || 0) > 0 && (
-            <span className="font-semibold text-white/70">· 💬 {place.tipsCount + (place.reviews?.length || 0)}</span>
-          )}
-          <ChevronRight size={18} />
-        </span>
+        {place.description && <p className="mt-1.5 text-sm2 text-white/80 line-clamp-2">{place.description}</p>}
       </div>
 
-      {/* Подсказка про свайпы — только на первой карточке */}
-      {isFirst && <SwipeHint left={place.isSaved ? undefined : 'неинтересно'} right={place.isSaved ? undefined : 'сохранить'} />}
+      {/* Кнопки под большим пальцем */}
+      <div className="shrink-0 px-4 pt-3 pb-3 flex gap-2 text-white">
+        <button
+          onClick={save}
+          className={`shrink-0 h-12 px-3.5 rounded-full text-body font-semibold flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition-transform ${
+            place.isSaved ? 'bg-zine-sage' : 'border border-white/25'
+          }`}
+        >
+          {place.isSaved ? <BookmarkCheck size={20} className="shrink-0" /> : <Bookmark size={20} className="shrink-0" />}
+          <span className="truncate">{place.isSaved ? 'Сохранено' : 'Сохранить'}</span>
+        </button>
+        <button
+          onClick={() => onCreateEvent(place)}
+          className="flex-1 min-w-0 h-12 px-2.5 rounded-full bg-zine-terracotta text-body font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition-transform"
+        >
+          <CalendarPlus size={20} className="shrink-0" />
+          <span className="truncate">Сходка сюда</span>
+        </button>
+      </div>
     </SwipeReel>
   );
 };
