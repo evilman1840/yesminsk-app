@@ -749,7 +749,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
       {!picking && <button
         onClick={handleLocateGPS}
         disabled={isGpsLoading}
-        className="absolute right-4 bottom-14 w-14 h-14 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine-float flex items-center justify-center text-zine-terracotta z-20 active:scale-90 transition-transform cursor-pointer"
+        className="absolute right-4 bottom-14 w-14 h-14 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine-float dark:bg-[#433C36] dark:border-white/25 flex items-center justify-center text-zine-terracotta z-20 active:scale-90 transition-transform cursor-pointer"
         title="Где я?"
         aria-label="Показать, где я"
       >

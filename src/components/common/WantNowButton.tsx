@@ -52,7 +52,7 @@ export const WantNowButton: React.FC<{
   };
 
   const size = look === 'map' ? 'w-14 h-14' : 'w-11 h-11';
-  const offLook = look === 'map' ? 'bg-zine-cardElevated border border-zine-border shadow-zine-float' : 'bg-white/10';
+  const offLook = look === 'map' ? 'bg-zine-cardElevated border border-zine-border shadow-zine-float dark:bg-[#433C36] dark:border-white/25' : 'bg-white/10';
 
   return (
     <>

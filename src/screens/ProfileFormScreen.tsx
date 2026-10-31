@@ -15,6 +15,7 @@ import { ACCOUNT_TEXTS } from '../texts/account';
 import { HOME_TEXTS } from '../texts/home';
 import { BotAccessBanner } from '../components/common/BotAccessBanner';
 import { DeleteAccountSheet } from '../components/common/DeleteAccountSheet';
+import { HelpSheet } from '../components/common/HelpSheet';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
 import { useBackButton, useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 
@@ -96,6 +97,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const tgUser = telegramService.getUser();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalKind | null>(null);
+  const [isHelpOpen, setIsHelpOpen] = useState(false); // «Как это работает» — раньше был «?» на карте
 
   const [name, setName] = useState<string>(
     initialData?.name || tgUser?.first_name || ''
@@ -891,6 +893,17 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               </div>
             )}
           </Section>
+
+          {!isFirstTime && (
+            <button
+              type="button"
+              onClick={() => setIsHelpOpen(true)}
+              className="w-full p-4 rounded-zine bg-zine-cardElevated border border-zine-border text-left text-body font-semibold text-zine-ink cursor-pointer"
+            >
+              ❓ Как это работает
+            </button>
+          )}
+          {isHelpOpen && <HelpSheet onClose={() => setIsHelpOpen(false)} />}
 
           {!isFirstTime && onAddToHome && (
             <button

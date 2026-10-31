@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
 import { api } from '../services/api';
-import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Newspaper, HelpCircle, Map as MapIcon, List } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Newspaper, Map as MapIcon, List } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
@@ -16,6 +16,7 @@ import { Logo } from '../components/ui/Logo';
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
 import { WantNowButton } from '../components/common/WantNowButton';
+import { DonateIcon } from '../components/ui/DonateIcon';
 import { MapEventsList } from '../components/map/MapEventsList';
 import { MAP_EVENTS_TEXTS } from '../texts/meetups';
 
@@ -59,17 +60,6 @@ export interface MapScreenProps {
   onToggleSavePlace: (place: PlaceItem) => Promise<PlaceItem>;
   initialPlaceId?: string | null;
 }
-
-const HELP_STEPS = [
-  { emoji: '🗺', title: 'Люди и сходки рядом', text: 'На карте видно, кто рядом и какие встречи скоро. Нажми на фото, и откроется анкета.' },
-  { emoji: '👋', title: '«Пообщаться»', text: 'Передай человеку привет. Если в ответ тоже нажмут 👋, вы сможете написать друг другу в Telegram.' },
-  { emoji: '⚡', title: '«Хочу сейчас»', text: 'Нажми ⚡ справа, если можешь встретиться в ближайшие 3 часа: твою анкету покажут в начале списка.' },
-  { emoji: '🧭', title: '«Покажут город»', text: 'Приехали в Минск? Местные жители с радостью покажут город. А если живёшь здесь, включи «Покажу город» в анкете.' },
-  { emoji: '📍', title: '«Места»', text: 'Переключи карту на «Места» и выбери настроение, Миша подскажет, куда сходить. Оставляй свои советы!' },
-  { emoji: '🗓', title: 'Сходки', text: 'Присоединяйся к прогулкам и встречам или собери свою компанию, это займёт минуту.' },
-  { emoji: '✏️', title: 'Твоя анкета', text: 'Во вкладке «Я» добавь фото и пару слов о себе, так тебя быстрее заметят.' },
-  { emoji: '🛡', title: 'Безопасно', text: 'Твоя метка на карте смещена на 500-800 м, и её можно передвинуть. Можно включить режим невидимки.' }
-];
 
 export type MapMode = 'all' | 'people' | 'events' | 'places';
 
@@ -117,9 +107,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onOpenEvents,
   onToggleSavePlace,
 }) => {
-  // Сходки на карте: фильтр по времени
+  // Сходки на карте: только предстоящие (как в ленте «Сходки» — начавшиеся больше получаса назад не показываем) и фильтр по времени
   const [eventWhen, setEventWhen] = useState<EventWhen>('all');
-  const filteredEvents = events.filter((e) => matchesWhen(e.dateTime, eventWhen));
+  const upcomingEvents = events.filter((e) => new Date(e.dateTime).getTime() > Date.now() - 30 * 60 * 1000);
+  const filteredEvents = upcomingEvents.filter((e) => matchesWhen(e.dateTime, eventWhen));
   // Сходки кружками на карте или списком — что человек выбрал в прошлый раз
   const [eventsView, setEventsView] = useState<'map' | 'list'>(() => {
     try {
@@ -140,7 +131,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const isEventsList = mapMode === 'events' && eventsView === 'list';
   const noEventsCard = (
     <div className="p-4 rounded-zine bg-zine-cardElevated shadow-zine-float">
-      <p className="text-body font-bold text-zine-ink">{events.length === 0 ? 'Сходок пока нет' : 'На это время сходок нет'}</p>
+      <p className="text-body font-bold text-zine-ink">{upcomingEvents.length === 0 ? 'Сходок пока нет' : 'На это время сходок нет'}</p>
       <p className="mt-1 text-sm2 text-zine-inkMuted">Собери свою, это займёт минуту, а люди рядом увидят её на карте.</p>
       <button onClick={onOpenEvents} className="mt-3 w-full h-11 rounded-zine-sm bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer">
         Создать сходку
@@ -153,8 +144,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [isMoodPickerOpen, setIsMoodPickerOpen] = useState(true);
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
   const isPlaces = mapMode === 'places';
-  // Во вкладке «Всё» нет строки фильтров — подсказки поднимаем выше
-  const overlayTop = 'top-[210px]';
+  // Подсказки и списки — под шапкой и строкой фильтров вкладки
+  const overlayTop = 'top-[196px]';
   const filteredPlaces = (
     mood === 'all'
       ? places
@@ -205,7 +196,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       setPickBusy(false);
     }
   };
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isDonateOpen, setIsDonateOpen] = useState(false);
   // Фильтры людей — общие с «Людьми» (хранятся на устройстве); по умолчанию учитывают мои настройки из анкеты
   const [peopleFilters, setPeopleFilters] = useState<PeopleFilters>(loadFilters);
@@ -237,7 +227,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     <div className="relative h-full w-full overflow-hidden bg-zine-paper">
       <MinskMap
         users={mapMode === 'people' ? filteredUsers : mapMode === 'all' ? usersForMe : []}
-        events={mapMode === 'events' ? filteredEvents : mapMode === 'all' ? events : []}
+        events={mapMode === 'events' ? filteredEvents : mapMode === 'all' ? upcomingEvents : []}
         places={isPlaces ? filteredPlaces : mapMode === 'all' ? places : []}
         onSelectPlace={(p) => {
           setIsMoodPickerOpen(false);
@@ -286,117 +276,132 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         }
       />
 
-      {/* Шапка поверх карты: логотип и фильтры */}
-      <div className="absolute top-0 inset-x-0 z-20 pt-3 space-y-3 pointer-events-none">
-        {/* Шапка в одну строку: логотип с подписью │ кто рядом │ «?» */}
-        <div className="px-4">
-          <div className="pointer-events-auto h-[52px] pl-4 pr-2 rounded-full bg-zine-cardElevated/95 backdrop-blur shadow-zine flex items-center gap-2">
-            <Logo size="sm" withTagline />
+      {/* Шапка на однотонном фоне, как в «Людях», «Сходках» и «Местах»: логотип, кто с нами, новости и донат; под ней вкладки карты */}
+      <div className="absolute top-0 inset-x-0 z-20 space-y-2 pointer-events-none">
+        <div className="pointer-events-auto px-3 pt-3 pb-2.5 bg-zine-paper border-b border-zine-border space-y-2.5">
+          <div className="h-11 flex items-center gap-2">
+            <Logo size="sm" className="pl-1" />
             {isVisible ? (
-              <>
-                {users.length > 0 ? (
-                  // Кто рядом: лица и сколько их — сразу видно, что тут живые люди
-                  <button
-                    onClick={() => {
-                      telegramService.haptic('selection');
-                      onOpenPeople();
-                    }}
-                    className="flex-1 min-w-0 h-10 pl-2 pr-1 rounded-full flex items-center justify-end gap-2 active:bg-zine-card cursor-pointer"
-                  >
-                    <span className="flex shrink-0 pl-2">
-                      {nearbyFaces.map((u) => (
-                        <img key={u.id} src={thumb(u.avatarUrl)} alt="" className="-ml-2 w-7 h-7 rounded-full object-cover border-2 border-zine-cardElevated bg-zine-card" />
-                      ))}
-                    </span>
-                    <span className="min-w-0 text-left leading-tight">
-                      <span className="block text-cap font-bold text-zine-ink whitespace-nowrap">{peopleCount.toLocaleString('ru-RU')} с нами</span>
-                      <span className="block text-[11px] text-zine-inkMuted whitespace-nowrap">
-                        {freeNowCount > 0 ? `⚡ ${freeNowCount} ${freeNowCount === 1 ? 'может' : 'могут'} сейчас` : 'загляни к ним'}
-                      </span>
-                    </span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => telegramService.shareApp()}
-                    className="flex-1 min-w-0 h-10 px-2 text-right font-hand font-semibold text-[18px] leading-none text-zine-inkMuted cursor-pointer"
-                  >
-                    позови друзей →
-                  </button>
-                )}
+              users.length > 0 ? (
+                // Кто с нами: лица и сколько их — сразу видно, что тут живые люди
                 <button
                   onClick={() => {
                     telegramService.haptic('selection');
-                    setIsHelpOpen(true);
+                    onOpenPeople();
                   }}
-                  aria-label="Как это работает"
-                  className="shrink-0 w-9 h-9 rounded-full bg-zine-terracotta/10 text-zine-terracotta flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+                  className="flex-1 min-w-0 h-11 pl-1 pr-1 rounded-full flex items-center gap-2 active:bg-zine-card cursor-pointer"
                 >
-                  <HelpCircle size={20} strokeWidth={2.2} />
+                  <span className="flex shrink-0 pl-2">
+                    {nearbyFaces.map((u) => (
+                      <img key={u.id} src={thumb(u.avatarUrl)} alt="" className="-ml-2 w-7 h-7 rounded-full object-cover border-2 border-zine-paper bg-zine-card" />
+                    ))}
+                  </span>
+                  <span className="min-w-0 text-left leading-tight">
+                    <span className="block text-cap font-bold text-zine-ink whitespace-nowrap">{peopleCount.toLocaleString('ru-RU')} с нами</span>
+                    <span className="block text-[11px] text-zine-inkMuted whitespace-nowrap truncate">
+                      {freeNowCount > 0 ? `⚡ ${freeNowCount} ${freeNowCount === 1 ? 'может' : 'могут'} сейчас` : 'загляни к ним'}
+                    </span>
+                  </span>
                 </button>
-              </>
+              ) : (
+                <button
+                  onClick={() => telegramService.shareApp()}
+                  className="flex-1 min-w-0 h-11 px-2 text-left font-hand font-semibold text-[18px] leading-none text-zine-inkMuted cursor-pointer"
+                >
+                  позови друзей →
+                </button>
+              )
             ) : (
               <button
                 onClick={onOpenProfile}
-                className="ml-auto shrink-0 h-10 px-3 rounded-full bg-zine-plum/10 text-zine-plum text-cap font-bold flex items-center gap-1.5 cursor-pointer"
+                className="flex-1 min-w-0 h-10 px-3 rounded-full bg-zine-plum/10 text-zine-plum text-cap font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <EyeOff size={16} className="shrink-0" />
-                <span>Тебя не видно · включить</span>
+                <span className="truncate">Тебя не видно · включить</span>
               </button>
             )}
-          </div>
-        </div>
-        {/* Вкладки карты: Всё / Люди / Сходки / Места */}
-        <div className="pointer-events-auto px-4">
-          <div className="p-1 rounded-[18px] bg-zine-cardElevated/95 backdrop-blur shadow-zine grid grid-cols-4 gap-1">
-            {MAP_TABS.map(([id, Icon, label]) => {
-              const isActive = mapMode === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => {
-                    if (isActive) return;
-                    telegramService.haptic('selection');
-                    onSelectUser(null);
-                    setSelectedEvent(null);
-                    onChangeMapMode(id);
-                  }}
-                  aria-pressed={isActive}
-                  className={`h-[52px] rounded-[14px] flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
-                    isActive ? 'bg-zine-terracotta text-white shadow-zine-sm' : 'text-zine-inkMuted active:bg-zine-card'
-                  }`}
-                >
-                  <Icon size={20} strokeWidth={isActive ? 2.4 : 2} />
-                  <span className={`text-cap ${isActive ? 'font-bold' : 'font-semibold'}`}>{label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Фильтры выбранной вкладки */}
-        <div className="pointer-events-auto">
-          {(mapMode === 'people' || mapMode === 'all') && (
-            <div className="flex items-center gap-2 pl-4">
-              {/* Фильтры людей прямо на карте */}
+            {/* Новости проекта — со счётчиком новых */}
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                onOpenNews();
+              }}
+              aria-label="Новости проекта"
+              className="relative w-11 h-11 shrink-0 rounded-full bg-zine-card text-zine-ink flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+            >
+              <Newspaper size={21} />
+              {unreadNews > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center border-2 border-zine-paper">
+                  {unreadNews}
+                </span>
+              )}
+            </button>
+
+            {/* Донат: сердце со знаком рубля — видно, что это про поддержку деньгами */}
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                setIsDonateOpen(true);
+              }}
+              aria-label="Поддержать проект"
+              className="w-11 h-11 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+            >
+              <DonateIcon size={26} cutout="rgb(var(--c-terracotta))" />
+            </button>
+          </div>
+
+          {/* Вкладки карты: Всё / Люди / Сходки / Места; у «Всё» и «Люди» рядом фильтры людей */}
+          <div className="flex gap-2">
+            <div className="flex-1 min-w-0 p-1 rounded-[18px] bg-zine-card grid grid-cols-4 gap-1">
+              {MAP_TABS.map(([id, Icon, label]) => {
+                const isActive = mapMode === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => {
+                      if (isActive) return;
+                      telegramService.haptic('selection');
+                      onSelectUser(null);
+                      setSelectedEvent(null);
+                      onChangeMapMode(id);
+                    }}
+                    aria-pressed={isActive}
+                    className={`h-12 rounded-[14px] flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                      isActive ? 'bg-zine-terracotta text-white shadow-zine-sm' : 'text-zine-inkMuted active:bg-zine-cardElevated'
+                    }`}
+                  >
+                    <Icon size={19} strokeWidth={isActive ? 2.4 : 2} />
+                    <span className={`text-cap ${isActive ? 'font-bold' : 'font-semibold'}`}>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {(mapMode === 'people' || mapMode === 'all') && (
               <button
                 onClick={() => {
                   telegramService.haptic('selection');
                   setIsFiltersOpen(true);
                 }}
-                className={`h-11 px-4 shrink-0 rounded-full text-sm2 font-semibold flex items-center gap-2 shadow-zine cursor-pointer active:scale-95 transition-transform ${
-                  activeFilters > 0 ? 'bg-zine-ink text-zine-paper' : 'bg-zine-cardElevated text-zine-ink border border-zine-border'
+                aria-label={activeFilters > 0 ? `Фильтры: ${activeFilters}` : 'Фильтры'}
+                className={`relative w-14 shrink-0 rounded-[18px] flex items-center justify-center transition-colors cursor-pointer ${
+                  activeFilters > 0 ? 'bg-zine-ink text-zine-paper' : 'bg-zine-card text-zine-ink'
                 }`}
               >
-                <SlidersHorizontal size={18} />
-                <span>Фильтры{activeFilters > 0 ? ` · ${activeFilters}` : ''}</span>
+                <SlidersHorizontal size={21} />
+                {activeFilters > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center border-2 border-zine-paper">
+                    {activeFilters}
+                  </span>
+                )}
               </button>
-              {mapMode === 'people' && (
-                <div className="min-w-0 flex-1">
-                  <GoalChips value={selectedGoal} onChange={onSelectGoal} floating wrapperClassName="flex gap-2 overflow-x-auto no-scrollbar pr-4" />
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
+        </div>
+
+        {/* Фильтры выбранной вкладки */}
+        <div className="pointer-events-auto">
+          {mapMode === 'people' && <GoalChips value={selectedGoal} onChange={onSelectGoal} floating />}
           {mapMode === 'events' && (
             <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
               {/* Как показать: кружками на карте или списком */}
@@ -480,7 +485,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       )}
 
       {/* Сходки списком вместо кружочков */}
-      {isEventsList && <MapEventsList events={filteredEvents} topClass="top-[204px]" onOpen={(ev) => setSelectedEvent(ev)} empty={noEventsCard} />}
+      {isEventsList && <MapEventsList events={filteredEvents} topClass="top-[192px]" onOpen={(ev) => setSelectedEvent(ev)} empty={noEventsCard} />}
 
       {selectedPlace && (
         <PlaceSheet
@@ -518,35 +523,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         </div>
       )}
 
-      {/* Новости проекта — круглая, как «⚡» и «Где я?», вверху столбика кнопок справа; со счётчиком новых */}
-      <button
-        onClick={() => {
-          telegramService.haptic('selection');
-          onOpenNews();
-        }}
-        aria-label="Новости проекта"
-        className="absolute right-4 bottom-[272px] z-20 w-14 h-14 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine-float text-zine-terracotta flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
-      >
-        <Newspaper size={24} />
-        {unreadNews > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1.5 rounded-full bg-zine-terracotta text-white text-cap font-bold flex items-center justify-center border-2 border-zine-cardElevated">
-            {unreadNews}
-          </span>
-        )}
-      </button>
-
-      {/* Донат — заметная кнопка над «⚡» и «Где я?» */}
-      <button
-        onClick={() => {
-          telegramService.haptic('selection');
-          setIsDonateOpen(true);
-        }}
-        aria-label="Поддержать проект"
-        className="absolute right-4 bottom-[200px] z-20 w-14 h-14 rounded-full bg-zine-terracotta text-white shadow-zine-float flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
-      >
-        <span className="absolute inset-0 rounded-full bg-zine-terracotta/40 animate-ping [animation-duration:2.5s]" />
-        <span className="relative text-[26px] leading-none">💛</span>
-      </button>
       {isDonateOpen && (
         <DonateSheet
           onClose={() => setIsDonateOpen(false)}
@@ -557,45 +533,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         />
       )}
 
-      {/* «⚡ Хочу сейчас» — круглая кнопка между донатом и «Где я?»: сначала объясняет, потом включает */}
+      {/* «⚡ Хочу сейчас» — круглая кнопка над «Где я?»: сначала объясняет, потом включает */}
       {(mapMode === 'people' || mapMode === 'all') && (
         <div className="absolute right-4 bottom-[128px] z-20">
           <WantNowButton availableUntil={currentUser?.availableUntil} isVisible={isVisible} onSet={onSetAvailable} onOpenProfile={onOpenProfile} look="map" />
         </div>
-      )}
-
-      {/* Как это работает — для тех, кто здесь впервые */}
-      {isHelpOpen && (
-        <BottomSheet title="Как это работает" onClose={() => setIsHelpOpen(false)}>
-          <div className="space-y-4">
-            {HELP_STEPS.map((step) => (
-              <div key={step.title} className="flex gap-3.5">
-                <span className="w-12 h-12 shrink-0 rounded-zine-sm bg-zine-card flex items-center justify-center text-[24px]">{step.emoji}</span>
-                <div>
-                  <p className="text-body font-bold text-zine-ink">{step.title}</p>
-                  <p className="text-sm2 text-zine-inkMuted mt-0.5">{step.text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setIsHelpOpen(false)}
-              className="h-12 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
-            >
-              Понятно
-            </button>
-            <button
-              onClick={() => {
-                setIsHelpOpen(false);
-                onOpenProfile();
-              }}
-              className="h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer"
-            >
-              Моя анкета
-            </button>
-          </div>
-        </BottomSheet>
       )}
 
       {/* Моя анкета на карте */}
