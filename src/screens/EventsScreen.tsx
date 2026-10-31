@@ -27,6 +27,7 @@ import { areaOf, distanceMeters, farMentionedArea, isKnownPoint } from '../utils
 import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji, quickTimeFromParam } from '../utils/meetupTemplates';
 
 import { cachedTemplates, loadTemplates } from '../utils/templatesStore';
+import { placeNamedIn } from '../components/places/PlaceSheet';
 
 export const MINSK_SPOTS_PRESETS: Array<{ name: string; aliases: string[]; coords: [number, number] }> = [
   { name: 'ул. Ленина 5', aliases: ['ленина 5', 'ленина, 5', 'ул. ленина 5', 'ленина'], coords: [53.8998, 27.5585] },
@@ -654,6 +655,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     try {
       // Всегда определяем точные координаты по введенному адресу
       let resolvedCoords = customCoords;
+      // В адресе названо место из «Мест» — ставим сходку в его точку и привязываем к нему (геокодер нашёл бы только улицу)
+      const namedPlace = !placeId && !customCoords ? placeNamedIn(locationName, places) : null;
+      if (namedPlace) resolvedCoords = namedPlace.coordinates;
+      const linkedPlaceId = placeId || namedPlace?.id || null;
       if (!resolvedCoords || resolvedCoords.length !== 2) {
         const found = await handleGeocodeAddress(locationName.trim());
         if (!found) {
@@ -682,7 +687,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         audienceGender,
         ageMin: ageMin ? Number(ageMin) : null,
         ageMax: ageMax ? Number(ageMax) : null,
-        ...(placeId && !editingEventId ? { placeId } : {}),
+        ...(linkedPlaceId && !editingEventId ? { placeId: linkedPlaceId } : {}),
         ...(templateKey && !editingEventId ? { templateId: templateKey } : {}),
         ...(wishGroupId && !editingEventId ? { wishGroupId } : {}),
         ...(invite.length && !editingEventId ? { inviteIds: invite.map((p) => p.id) } : {}),

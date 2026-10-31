@@ -25,22 +25,35 @@ const Avatar: React.FC<{ url?: string; name: string }> = ({ url, name }) =>
 const normName = (s: string) =>
   s.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/g, ' ').trim();
 
-// Сходки в этом месте: привязанные к нему, собранные в паре десятков метров
-// или с названием места в адресе (сходку собрали вручную по адресу — точка может стоять у дома на улице, а не у места)
+// Название места целым словом в тексте адреса. Короткие («Парк») совпадут с чем угодно — по ним не ищем
+const nameInText = (name: string, text: string) => {
+  const n = normName(name);
+  return n.length >= 5 && ` ${normName(text)} `.includes(` ${n} `);
+};
+
+// Место из «Мест», названное в адресе сходки («улица Голодеда, Георгиевская кофейня»); самое длинное название — самое точное
+export const placeNamedIn = (text: string, places: PlaceItem[]) =>
+  places.filter((p) => nameInText(p.name, text)).sort((a, b) => b.name.length - a.name.length)[0] || null;
+
+const distanceM = (a: [number, number], b: [number, number]) => {
+  const dy = (a[0] - b[0]) * 111000;
+  const dx = (a[1] - b[1]) * 111000 * Math.cos((a[0] * Math.PI) / 180);
+  return Math.hypot(dx, dy);
+};
+
+// Сходки в этом месте: привязанные к нему, собранные в паре десятков метров или с названием места в адресе.
+// Сходку, собранную вручную по адресу, геокодер ставит на улицу — это может быть и в паре километров от места.
+// Длинные названия («Георгиевская кофейня») уникальны — им расстояние не нужно, короткие — только в пределах 2 км
 export const eventsAtPlace = (place: PlaceItem, events: AppEvent[]) => {
-  const [lat, lng] = place.coordinates;
-  const distance = (ev: AppEvent) => {
-    const [eLat, eLng] = ev.coordinates || [0, 0];
-    const dy = (eLat - lat) * 111000;
-    const dx = (eLng - lng) * 111000 * Math.cos((lat * Math.PI) / 180);
-    return Math.hypot(dx, dy);
-  };
-  const placeName = normName(place.name);
-  // Короткие названия («Парк») совпадут с чем угодно — по ним не ищем; 2 км — чтобы не путать одноимённые места в разных концах города
+  const isLongName = normName(place.name).length >= 12;
   const namedHere = (ev: AppEvent) =>
-    placeName.length >= 5 && ` ${normName(ev.locationName || '')} `.includes(` ${placeName} `) && distance(ev) < 2000;
+    nameInText(place.name, ev.locationName || '') && (isLongName || distanceM(place.coordinates, ev.coordinates || [0, 0]) < 2000);
   return events
-    .filter((ev) => new Date(ev.dateTime).getTime() > Date.now() - 2 * 3600 * 1000 && (ev.placeId === place.id || distance(ev) < 60 || namedHere(ev)))
+    .filter(
+      (ev) =>
+        new Date(ev.dateTime).getTime() > Date.now() - 2 * 3600 * 1000 &&
+        (ev.placeId === place.id || distanceM(place.coordinates, ev.coordinates || [0, 0]) < 60 || namedHere(ev))
+    )
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 };
 
