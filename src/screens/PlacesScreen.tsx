@@ -79,9 +79,9 @@ export const PlacesScreen: React.FC<{
   ].filter(Boolean) as { key: string; label: string; onClear: () => void }[];
 
   return (
-    <div className="h-full w-full bg-[#141210] flex flex-col overflow-hidden">
+    <div className="h-full w-full bg-zine-paper flex flex-col overflow-hidden">
       {/* Шапка на однотонном фоне, чтобы фото было чистым. Название экрана уже есть в нижнем меню */}
-      <div className="shrink-0 px-3 pt-3 pb-3 text-white">
+      <div className="shrink-0 px-3 pt-3 pb-3 text-zine-ink">
         <div className="flex items-center gap-1.5">
           {/* Предложить своё место */}
           <button
@@ -92,7 +92,7 @@ export const PlacesScreen: React.FC<{
             <Plus size={24} strokeWidth={2.5} />
           </button>
 
-          <div className="flex-1 min-w-0 flex p-[3px] rounded-full bg-white/10">
+          <div className="flex-1 min-w-0 flex p-[3px] rounded-full bg-zine-card">
             {([
               ['all', 'Все'],
               ['saved', savedCount > 0 ? `🔖 Сохранённые · ${savedCount}` : '🔖 Сохранённые']
@@ -107,7 +107,7 @@ export const PlacesScreen: React.FC<{
                     setMood(id === 'saved' ? 'saved' : isSavedTab ? 'all' : mood);
                   }}
                   className={`flex-auto min-w-0 h-[38px] px-2 rounded-full text-[14px] font-bold flex items-center justify-center transition-all cursor-pointer ${
-                    isActive ? 'bg-white text-[#2B2623]' : 'text-white/80'
+                    isActive ? 'bg-zine-ink text-zine-paper' : 'text-zine-inkMuted'
                   }`}
                 >
                   <span className="truncate">{label}</span>
@@ -123,7 +123,7 @@ export const PlacesScreen: React.FC<{
             }}
             aria-label={activeFilters > 0 ? `Фильтры: ${activeFilters}` : 'Фильтры'}
             className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-              activeFilters > 0 ? 'bg-white text-[#2B2623]' : 'bg-white/10 text-white'
+              activeFilters > 0 ? 'bg-zine-ink text-zine-paper' : 'bg-zine-card text-zine-ink'
             }`}
           >
             <SlidersHorizontal size={20} />
@@ -144,10 +144,10 @@ export const PlacesScreen: React.FC<{
                   telegramService.haptic('selection');
                   c.onClear();
                 }}
-                className="h-9 pl-3 pr-2 shrink-0 rounded-full bg-white text-[#2B2623] text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer"
+                className="h-9 pl-3 pr-2 shrink-0 rounded-full bg-zine-ink text-zine-paper text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer"
               >
                 <span className="whitespace-nowrap">{c.label}</span>
-                <X size={16} className="text-[#2B2623]/60" />
+                <X size={16} className="opacity-60" />
               </button>
             ))}
           </div>
@@ -156,10 +156,10 @@ export const PlacesScreen: React.FC<{
 
       <div className="relative flex-1 min-h-0">
       {shown.length === 0 ? (
-        <div className="h-full flex flex-col items-center justify-center text-center px-8 text-white">
+        <div className="h-full flex flex-col items-center justify-center text-center px-8 text-zine-ink">
           <div className="text-[48px] mb-3">{mood === 'saved' ? '🔖' : '📍'}</div>
           <p className="font-serif font-bold text-title">{mood === 'saved' ? 'Пока ничего не сохранено' : places.length ? 'Под это настроение мест пока нет' : 'Места скоро появятся'}</p>
-          <p className="mt-2 text-body text-white/70">
+          <p className="mt-2 text-body text-zine-inkMuted">
             {mood === 'saved'
               ? 'Нажимай 🔖 на местах, которые хочешь посетить, они соберутся здесь.'
               : 'Скоро здесь будут самые классные и вайбовые места города.'}
@@ -190,14 +190,14 @@ export const PlacesScreen: React.FC<{
             />
           ))}
           {/* После последнего места: предложи своё */}
-          <section className="relative h-full w-full snap-start snap-always flex flex-col items-center justify-center text-center px-8 text-white bg-gradient-to-b from-[#2B2623] to-[#141210]">
+          <section className="relative h-full w-full snap-start snap-always flex flex-col items-center justify-center text-center px-8 text-zine-ink bg-zine-paper">
             <div className="text-[56px] mb-3">📍</div>
             <p className="font-serif font-bold text-title">{SG.placesCta}</p>
-            <p className="mt-2 text-body text-white/75">{SG.placesCtaText}</p>
+            <p className="mt-2 text-body text-zine-inkMuted">{SG.placesCtaText}</p>
             <button onClick={() => setIsSuggestOpen(true)} className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer active:scale-95 transition-transform">
               {SG.placesButton}
             </button>
-            {suggested && <p className="mt-4 text-sm2 text-white/85">{SG.doneText(suggested)}</p>}
+            {suggested && <p className="mt-4 text-sm2 text-zine-inkMuted">{SG.doneText(suggested)}</p>}
           </section>
         </div>
       )}
@@ -382,10 +382,10 @@ const PlaceReel: React.FC<{
         onClick={(e) => {
           if (!(e.target as HTMLElement).closest('button')) onOpen();
         }}
-        className="shrink-0 px-4 pt-3 text-white cursor-pointer"
+        className="shrink-0 px-4 pt-3 text-zine-ink cursor-pointer"
       >
         {/* Одна строка: тип · рейтинг · с детьми · отзывы, затем вайбы места; не влезает — листается */}
-        <div data-no-swipe className="-mx-4 px-4 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right text-sm2 font-semibold text-white/70 whitespace-nowrap">
+        <div data-no-swipe className="-mx-4 px-4 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right text-sm2 font-semibold text-zine-inkMuted whitespace-nowrap">
           {[
             place.category ? `${placeTypeEmoji(place.category)} ${place.category}` : '',
             place.rating ? `★ ${place.rating.toFixed(1).replace('.', ',')}` : '',
@@ -394,20 +394,20 @@ const PlaceReel: React.FC<{
           ]
             .filter(Boolean)
             .map((part, i) => (
-              <span key={part} className={`shrink-0 ${part.startsWith('★') ? 'text-[#FFD36B]' : ''}`}>
-                {i > 0 && <span className="mr-2 text-white/30">·</span>}
+              <span key={part} className={`shrink-0 ${part.startsWith('★') ? 'text-zine-mustardInk' : ''}`}>
+                {i > 0 && <span className="mr-2 text-zine-inkMuted/70">·</span>}
                 {part}
               </span>
             ))}
           {place.moods.map((m) => (
-            <span key={m} className="h-7 px-2.5 shrink-0 rounded-full border border-white/20 bg-white/10 text-cap font-semibold text-white flex items-center">
+            <span key={m} className="h-7 px-2.5 shrink-0 rounded-full border border-zine-border bg-zine-card text-cap font-semibold text-zine-ink flex items-center">
               {PLACE_MOODS[m].emoji} {PLACE_MOODS[m].label}
             </span>
           ))}
         </div>
         <h2 className="mt-1 flex items-center gap-1 font-serif font-bold text-title leading-tight">
           <span className="line-clamp-2">{place.name}</span>
-          <ChevronRight size={22} className="shrink-0 text-white/60" aria-hidden />
+          <ChevronRight size={22} className="shrink-0 text-zine-inkMuted/70" aria-hidden />
         </h2>
         {/* Сюда собирается сходка — сами сходки в карточке места */}
         {placeEvents.length > 0 && (
@@ -416,15 +416,15 @@ const PlaceReel: React.FC<{
             {shortWhen(placeEvents[0].dateTime).toLowerCase()}
           </p>
         )}
-        {place.description && <p className="mt-1.5 text-sm2 text-white/80 line-clamp-2">{place.description}</p>}
+        {place.description && <p className="mt-1.5 text-sm2 text-zine-inkMuted line-clamp-2">{place.description}</p>}
       </div>
 
       {/* Кнопки под большим пальцем */}
-      <div className="shrink-0 px-4 pt-3 pb-3 flex gap-2 text-white">
+      <div className="shrink-0 px-4 pt-3 pb-3 flex gap-2 text-zine-ink">
         <button
           onClick={save}
           className={`shrink-0 h-12 px-3.5 rounded-full text-body font-semibold flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition-transform ${
-            place.isSaved ? 'bg-zine-sage' : 'border border-white/25'
+            place.isSaved ? 'bg-zine-sage text-white' : 'border border-zine-border'
           }`}
         >
           {place.isSaved ? <BookmarkCheck size={20} className="shrink-0" /> : <Bookmark size={20} className="shrink-0" />}
@@ -432,7 +432,7 @@ const PlaceReel: React.FC<{
         </button>
         <button
           onClick={() => onCreateEvent(place)}
-          className="flex-1 min-w-0 h-12 px-2.5 rounded-full bg-zine-terracotta text-body font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition-transform"
+          className="flex-1 min-w-0 h-12 px-2.5 rounded-full bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition-transform"
         >
           <CalendarPlus size={20} className="shrink-0" />
           <span className="truncate">Сходка сюда</span>

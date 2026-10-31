@@ -738,12 +738,12 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   ].filter(Boolean) as { key: string; label: string; onClear: () => void }[];
 
   return (
-    <div className="h-full w-full bg-[#141210] flex flex-col overflow-hidden">
+    <div className="h-full w-full bg-zine-paper flex flex-col overflow-hidden">
       {/* Шапка на однотонном фоне, чтобы карточка была чистой. Название экрана уже есть в нижнем меню */}
-      <div className="shrink-0 px-3 pt-3 pb-3 text-white">
+      <div className="shrink-0 px-3 pt-3 pb-3 text-zine-ink">
         <div className="flex items-center gap-1.5">
           {/* ⭐ мои (собираю или иду), затем когда: все / сегодня / завтра / выходные — как на карте */}
-          <div className="flex-1 min-w-0 flex p-[3px] rounded-full bg-white/10">
+          <div className="flex-1 min-w-0 flex p-[3px] rounded-full bg-zine-card">
             <button
               onClick={() => {
                 telegramService.haptic('selection');
@@ -766,7 +766,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   setEventWhen(id);
                 }}
                 className={`flex-auto min-w-0 h-[38px] px-[3px] rounded-full text-[14px] font-bold flex items-center justify-center transition-all cursor-pointer ${
-                  !onlyMine && eventWhen === id ? 'bg-white text-[#2B2623]' : 'text-white/80'
+                  !onlyMine && eventWhen === id ? 'bg-zine-ink text-zine-paper' : 'text-zine-inkMuted'
                 }`}
               >
                 <span className="truncate">{label}</span>
@@ -781,7 +781,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             }}
             aria-label={activeFilters > 0 ? `Фильтры: ${activeFilters}` : 'Фильтры'}
             className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-              activeFilters > 0 ? 'bg-white text-[#2B2623]' : 'bg-white/10 text-white'
+              activeFilters > 0 ? 'bg-zine-ink text-zine-paper' : 'bg-zine-card text-zine-ink'
             }`}
           >
             <SlidersHorizontal size={20} />
@@ -802,10 +802,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   telegramService.haptic('selection');
                   c.onClear();
                 }}
-                className="h-9 pl-3 pr-2 shrink-0 rounded-full bg-white text-[#2B2623] text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer"
+                className="h-9 pl-3 pr-2 shrink-0 rounded-full bg-zine-ink text-zine-paper text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer"
               >
                 <span className="whitespace-nowrap">{c.label}</span>
-                <X size={16} className="text-[#2B2623]/60" />
+                <X size={16} className="opacity-60" />
               </button>
             ))}
           </div>
@@ -814,8 +814,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         <div className="mt-2.5 flex gap-2">
         {/* «Хочу сходить»: нет подходящей сходки — отметь, куда хочется */}
         {/* Есть счётчик «9 человек хотят…» — он и есть заголовок, нажатие — кто это; ссылка под ним — все желания и форма «Куда хочется?» */}
-        <div className="min-w-0 flex-1 p-2 rounded-zine-sm bg-white/[0.07] border border-white/10 flex items-center gap-2.5">
-          <span className="w-9 h-9 shrink-0 rounded-full bg-zine-terracotta flex items-center justify-center text-[18px] leading-none" aria-hidden>🙋</span>
+        <div className="min-w-0 flex-1 p-2 rounded-zine-sm bg-zine-card border border-zine-border flex items-center gap-2.5">
+          <span className="w-9 h-9 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center text-[18px] leading-none" aria-hidden>🙋</span>
           <span className="min-w-0 flex-1 flex flex-col items-start">
             <button
               onClick={() => {
@@ -854,10 +854,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
       <div className="relative flex-1 min-h-0">
       {filteredEvents.length === 0 ? (
-        <div className="h-full flex flex-col items-center justify-center text-center px-8 text-white">
+        <div className="h-full flex flex-col items-center justify-center text-center px-8 text-zine-ink">
           <div className="text-[48px] mb-3">🗓</div>
           <p className="font-serif font-bold text-title">{onlyMine ? M.mineEmptyTitle : M.emptyTitle}</p>
-          <p className="mt-2 text-body text-white/70">{onlyMine ? M.mineEmptyText : M.emptyText}</p>
+          <p className="mt-2 text-body text-zine-inkMuted">{onlyMine ? M.mineEmptyText : M.emptyText}</p>
           <button
             onClick={() => {
               handleOpenCreateModal(selectedCategory === 'all' || selectedCategory === 'kids' ? undefined : selectedCategory, undefined, 'empty');
@@ -869,7 +869,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </button>
           <button
             onClick={() => setIsWishOpen(true)}
-            className="mt-3 h-12 px-6 rounded-full bg-white/15 text-white text-body font-semibold cursor-pointer"
+            className="mt-3 h-12 px-6 rounded-full bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
           >
             {WISH_TEXTS.emptyWant}
           </button>
@@ -1593,14 +1593,14 @@ const EventReel: React.FC<{
         onClick={(e) => {
           if (!(e.target as HTMLElement).closest('button')) onOpenDetails();
         }}
-        className="shrink-0 px-4 pt-3 text-white cursor-pointer"
+        className="shrink-0 px-4 pt-3 text-zine-ink cursor-pointer"
       >
         {/* Одна строка: рекомендуем · категория · пометки значками, затем цена и метки шаблона («💸 Платно»); не влезает — листается */}
-        <div data-no-swipe className="-mx-4 px-4 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right text-sm2 font-semibold text-white/70 whitespace-nowrap">
+        <div data-no-swipe className="-mx-4 px-4 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right text-sm2 font-semibold text-zine-inkMuted whitespace-nowrap">
           {ev.isOfficial && (
             <>
               <span className="shrink-0 text-zine-mustard">⭐ Рекомендуем</span>
-              <span className="shrink-0 text-white/30">·</span>
+              <span className="shrink-0 text-zine-inkMuted/70">·</span>
             </>
           )}
           <span className="shrink-0">
@@ -1612,7 +1612,7 @@ const EventReel: React.FC<{
             </span>
           )}
           {[ev.byRequest ? M.byRequestBadge : '', audienceLabel(ev), priceLabel(ev), ...(ev.badges || [])].filter(Boolean).map((b) => (
-            <span key={b} className="h-7 px-2.5 shrink-0 rounded-full border border-white/20 bg-white/10 text-cap font-semibold text-white flex items-center">
+            <span key={b} className="h-7 px-2.5 shrink-0 rounded-full border border-zine-border bg-zine-card text-cap font-semibold text-zine-ink flex items-center">
               {b}
             </span>
           ))}
@@ -1620,10 +1620,10 @@ const EventReel: React.FC<{
         <h2 className="mt-1 font-serif font-bold text-title leading-tight line-clamp-2">{ev.title}</h2>
         <p className="mt-1 text-body font-semibold">
           {formatEventDate(ev.dateTime)}
-          {ev.durationMinutes ? <span className="font-normal text-white/70"> · {M.duration(ev.durationMinutes)}</span> : null}
+          {ev.durationMinutes ? <span className="font-normal text-zine-inkMuted"> · {M.duration(ev.durationMinutes)}</span> : null}
         </p>
         {/* Только место: расстояние часто не сходится с жизнью */}
-        <p className="mt-0.5 flex items-center gap-1.5 text-sm2 text-white/70">
+        <p className="mt-0.5 flex items-center gap-1.5 text-sm2 text-zine-inkMuted">
           <MapPin size={16} className="shrink-0" />
           <span className="truncate">{ev.locationName}</span>
         </p>
@@ -1636,18 +1636,18 @@ const EventReel: React.FC<{
                 src={thumb(p?.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
                 alt=""
                 loading="lazy"
-                className={`w-8 h-8 shrink-0 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-[#141210]'}`}
+                className={`w-8 h-8 shrink-0 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-zine-paper'}`}
               />
             ))}
           </span>
-          <span className="shrink-0 text-sm2 text-white/70 whitespace-nowrap">
+          <span className="shrink-0 text-sm2 text-zine-inkMuted whitespace-nowrap">
             {M.goingCount(ev.participantsCount || 1, ev.maxParticipants)}
           </span>
         </div>
       </div>
 
       {/* Кнопки под большим пальцем: «Позвать», «Неинтересно» и главное действие */}
-      <div className="shrink-0 px-4 pt-3 pb-3 text-white">
+      <div className="shrink-0 px-4 pt-3 pb-3 text-zine-ink">
         <div className="flex gap-2">
           <button
             onClick={() => {
@@ -1655,7 +1655,7 @@ const EventReel: React.FC<{
               telegramService.shareEvent(ev);
             }}
             aria-label="Позвать друзей"
-            className="w-12 h-12 shrink-0 rounded-full border border-white/25 flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+            className="w-12 h-12 shrink-0 rounded-full border border-zine-border flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
           >
             <Share2 size={20} />
           </button>
@@ -1664,7 +1664,7 @@ const EventReel: React.FC<{
             <>
               <button
                 onClick={onEdit}
-                className="flex-1 h-12 rounded-full bg-white text-[#2B2623] text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+                className="flex-1 h-12 rounded-full bg-zine-ink text-zine-paper text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
               >
                 <Edit2 size={19} />
                 <span>Изменить</span>
@@ -1673,7 +1673,7 @@ const EventReel: React.FC<{
                 onClick={onDelete}
                 disabled={isDeleting}
                 aria-label="Удалить сходку"
-                className="w-12 h-12 shrink-0 rounded-full border border-white/25 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+                className="w-12 h-12 shrink-0 rounded-full border border-zine-border flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
               >
                 {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
               </button>
@@ -1686,7 +1686,7 @@ const EventReel: React.FC<{
                     telegramService.haptic('selection');
                     onNotInterested();
                   }}
-                  className="shrink-0 h-12 px-4 rounded-full border border-white/25 text-body font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+                  className="shrink-0 h-12 px-4 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
                 >
                   <EyeOff size={19} className="shrink-0" />
                   <span className="truncate">Скрыть</span>
@@ -1696,7 +1696,7 @@ const EventReel: React.FC<{
                 onClick={onJoin}
                 disabled={isJoining || isFull}
                 className={`flex-1 min-w-0 h-12 px-4 rounded-full text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-                  isPending ? 'bg-white/90 text-[#2B2623]' : ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/15 text-white/70 cursor-default' : 'bg-zine-terracotta text-white'
+                  isPending ? 'bg-zine-card text-zine-ink' : ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'bg-zine-terracotta text-white'
                 }`}
               >
                 {isFull ? (
@@ -1738,7 +1738,7 @@ const EventReel: React.FC<{
             <button
               onClick={onLeave}
               disabled={isJoining}
-              className="h-9 text-body font-bold text-white/85 underline underline-offset-4 decoration-white/50 cursor-pointer"
+              className="h-9 text-body font-bold text-zine-inkMuted underline underline-offset-4 decoration-zine-inkMuted cursor-pointer"
             >
               {M.notGoing}
             </button>

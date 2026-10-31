@@ -143,7 +143,7 @@ export const SwipeReel: React.FC<{
   const progress = Math.min(Math.abs(dx) / THRESHOLD, 1);
 
   return (
-    <section ref={ref} className="relative h-full w-full snap-start snap-always overflow-hidden bg-[#141210]">
+    <section ref={ref} className="relative h-full w-full snap-start snap-always overflow-hidden bg-zine-paper">
       <div
         className={`absolute inset-0 touch-pan-y select-none ${className}`}
         style={{

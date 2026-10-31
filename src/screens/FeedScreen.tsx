@@ -115,14 +115,14 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       : '';
 
   return (
-    <div className="h-full w-full bg-[#141210] flex flex-col overflow-hidden">
+    <div className="h-full w-full bg-zine-paper flex flex-col overflow-hidden">
       {/* Шапка на однотонном фоне, чтобы фото было чистым. Название экрана уже есть в нижнем меню */}
       <div className="shrink-0 px-3 pt-3 pb-3">
         <div className="flex items-center gap-1.5">
           {wantNowSlot}
 
           {/* Вкладки: рядом / хотят пообщаться / на связи */}
-          <div className="flex-1 min-w-0 flex gap-0.5 p-[3px] rounded-full bg-white/10">
+          <div className="flex-1 min-w-0 flex gap-0.5 p-[3px] rounded-full bg-zine-card">
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -131,7 +131,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                   setTab(t.id);
                 }}
                 className={`flex-auto min-w-0 h-[38px] px-1 rounded-full text-[14px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                  tab === t.id ? 'bg-white text-[#2B2623]' : 'text-white/80'
+                  tab === t.id ? 'bg-zine-ink text-zine-paper' : 'text-zine-inkMuted'
                 }`}
               >
                 <span className="truncate">{t.label}</span>
@@ -151,7 +151,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
             }}
             aria-label={activeFilters > 0 ? `Фильтры: ${activeFilters}` : 'Фильтры'}
             className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-              activeFilters > 0 ? 'bg-white text-[#2B2623]' : 'bg-white/10 text-white'
+              activeFilters > 0 ? 'bg-zine-ink text-zine-paper' : 'bg-zine-card text-zine-ink'
             }`}
           >
             <SlidersHorizontal size={20} />
@@ -170,14 +170,14 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               telegramService.haptic('selection');
               onSelectGoal('all');
             }}
-            className="mt-2.5 h-9 pl-3 pr-2 rounded-full bg-white text-[#2B2623] text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer"
+            className="mt-2.5 h-9 pl-3 pr-2 rounded-full bg-zine-ink text-zine-paper text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer"
           >
             {activeGoal.emoji && <span className="text-[16px] leading-none">{activeGoal.emoji}</span>}
             <span>{activeGoal.label}</span>
-            <X size={16} className="text-[#2B2623]/60" />
+            <X size={16} className="opacity-60" />
           </button>
         )}
-        {hint && <p className="mt-2 px-1 text-cap font-semibold text-white/75">{hint}</p>}
+        {hint && <p className="mt-2 px-1 text-cap font-semibold text-zine-inkMuted">{hint}</p>}
       </div>
 
       <div className="relative flex-1 min-h-0">
@@ -200,7 +200,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
         <div key={`${tab}-${selectedGoal}`} ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
           {/* Вступление: «Первые шаги» и подсказка туристам */}
           {hasIntro && (
-            <section className="relative h-full w-full snap-start snap-always overflow-y-auto no-scrollbar bg-gradient-to-b from-[#2B2623] to-[#141210] px-4 pt-4 pb-6 flex flex-col gap-4">
+            <section className="relative h-full w-full snap-start snap-always overflow-y-auto no-scrollbar bg-zine-paper px-4 pt-4 pb-6 flex flex-col gap-4">
               {topSlot}
               {showGuidesBanner && (
                 <section className="p-4 rounded-zine bg-zine-cardElevated border border-zine-sky/25">
@@ -218,7 +218,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                 </section>
               )}
               {filteredUsers.length > 0 ? (
-                <div className="mt-auto flex flex-col items-center text-white/80 animate-bounce pointer-events-none">
+                <div className="mt-auto flex flex-col items-center text-zine-inkMuted animate-bounce pointer-events-none">
                   <ChevronUp size={22} />
                   <span className="text-cap font-semibold">листай, там люди</span>
                 </div>
@@ -348,7 +348,7 @@ const PersonReel: React.FC<{
   // На своей вкладке «На связи» и «Хочет пообщаться» не повторяем; «Эмпат» — в анкете
   const statuses = [
     user.isMatch && tab !== 'matches' && { text: '🤝 На связи', cls: 'bg-zine-sage text-white' },
-    user.likedMe && !user.isMatch && tab !== 'likes' && { text: '👋 Хочет пообщаться', cls: 'bg-white text-[#2B2623]' },
+    user.likedMe && !user.isMatch && tab !== 'likes' && { text: '👋 Хочет пообщаться', cls: 'bg-zine-ink text-zine-paper' },
     isAvailableNow(user) && { text: `⚡ Могу сейчас · до ${formatTime(user.availableUntil)}`, cls: 'bg-[#2FA36B] text-white' },
     isVentingNow(user) && { text: `🫂 Хочется поныть · до ${formatTime(user.ventUntil)}`, cls: 'bg-[#C77D86] text-white' },
     user.isGuide && { text: '🧭 Покажу город', cls: 'bg-zine-sky text-white' }
@@ -389,13 +389,13 @@ const PersonReel: React.FC<{
   };
 
   const confirmBox = (text: string, yes: React.ReactNode, onYes: () => void, no: string, onNo: () => void) => (
-    <div className="p-3 rounded-zine-sm bg-white/10">
+    <div className="p-3 rounded-zine-sm bg-zine-card">
       <p className="text-sm2 mb-2.5">{text}</p>
       <div className="flex gap-2">
         <button onClick={onYes} className="flex-1 h-12 rounded-full bg-zine-danger text-white text-body font-bold flex items-center justify-center cursor-pointer">
           {yes}
         </button>
-        <button onClick={onNo} className="flex-1 h-12 rounded-full bg-white text-[#2B2623] text-body font-semibold cursor-pointer">
+        <button onClick={onNo} className="flex-1 h-12 rounded-full bg-zine-ink text-zine-paper text-body font-semibold cursor-pointer">
           {no}
         </button>
       </div>
@@ -415,7 +415,7 @@ const PersonReel: React.FC<{
       }}
     >
       {/* Фото — без надписей и кнопок поверх, только точки и стрелки */}
-      <div ref={seenRef} className="relative mx-3 flex-1 min-h-[42%] rounded-zine overflow-hidden bg-[#2B2623]">
+      <div ref={seenRef} className="relative mx-3 flex-1 min-h-[42%] rounded-zine overflow-hidden bg-zine-card">
         <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} onLoad={preloadGallery} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
         {/* Несколько фото: тап слева и справа листает, как в сторис; по центру — анкета */}
         {gallery.length > 1 && (
@@ -448,7 +448,7 @@ const PersonReel: React.FC<{
         onClick={(e) => {
           if (!(e.target as HTMLElement).closest('button')) onOpen();
         }}
-        className="shrink-0 px-4 pt-3 text-white cursor-pointer"
+        className="shrink-0 px-4 pt-3 text-zine-ink cursor-pointer"
       >
         {/* Статусы — компактной строкой */}
         {statuses.length > 0 && (
@@ -464,29 +464,29 @@ const PersonReel: React.FC<{
         <h2 className="flex items-center gap-1 font-serif font-bold text-title leading-tight">
           <span className="truncate">
             {user.firstName}
-            {user.age ? <span className="font-sans font-medium text-white/75">, {user.age}</span> : null}
+            {user.age ? <span className="font-sans font-medium text-zine-inkMuted">, {user.age}</span> : null}
           </span>
-          <ChevronRight size={22} className="shrink-0 text-white/60" aria-hidden />
+          <ChevronRight size={22} className="shrink-0 text-zine-inkMuted/70" aria-hidden />
         </h2>
         {/* Только район: расстояние считается от центра района и часто не сходится с жизнью */}
-        <p className="mt-0.5 flex items-center gap-1.5 text-sm2 text-white/70">
+        <p className="mt-0.5 flex items-center gap-1.5 text-sm2 text-zine-inkMuted">
           <MapPin size={16} className="shrink-0" />
           <span className="truncate">{user.isTourist ? 'В Минске проездом' : user.areaName || 'Минск'}</span>
         </p>
         <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
           {/* Общие со мной интересы — первыми, с горчичной обводкой; затем «обычно хожу» и остальное */}
           {goals.filter((g) => common.has(g.id)).map((goal) => (
-            <span key={goal.id} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full border border-zine-mustard bg-zine-mustard/15 text-[#F6D9A8] text-sm2 font-semibold flex items-center gap-1.5">
+            <span key={goal.id} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full border border-zine-mustard bg-zine-mustard/15 text-zine-mustardInk text-sm2 font-semibold flex items-center gap-1.5">
               {goal.emoji} {goal.label}
             </span>
           ))}
           {user.goesWith && GOES_WITH[user.goesWith] && (
-            <span className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full border border-white/20 bg-white/10 text-sm2 font-semibold flex items-center gap-1.5">
+            <span className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full border border-zine-border bg-zine-card text-sm2 font-semibold flex items-center gap-1.5">
               {GOES_WITH[user.goesWith].emoji} {GOES_WITH[user.goesWith].label}
             </span>
           )}
           {goals.filter((g) => !common.has(g.id)).map((goal) => (
-            <span key={goal.id} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full border border-white/20 bg-white/10 text-sm2 font-semibold flex items-center gap-1.5">
+            <span key={goal.id} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full border border-zine-border bg-zine-card text-sm2 font-semibold flex items-center gap-1.5">
               {goal.emoji} {goal.label}
             </span>
           ))}
@@ -519,12 +519,12 @@ const PersonReel: React.FC<{
             })}
           </div>
         )}
-        {user.bio && <p className="mt-2 text-sm2 text-white/80 line-clamp-2">{user.bio}</p>}
-        {user.isMatch && !user.username && <p className="mt-2 text-cap text-white/60">🤝 У человека нет @username, ссылку прислал бот в чате.</p>}
+        {user.bio && <p className="mt-2 text-sm2 text-zine-inkMuted line-clamp-2">{user.bio}</p>}
+        {user.isMatch && !user.username && <p className="mt-2 text-cap text-zine-inkMuted/70">🤝 У человека нет @username, ссылку прислал бот в чате.</p>}
       </div>
 
       {/* Кнопки под большим пальцем; подтверждения — на их месте */}
-      <div className="shrink-0 px-4 pt-3 pb-3 text-white">
+      <div className="shrink-0 px-4 pt-3 pb-3 text-zine-ink">
         {isConfirmingUnmatch ? (
           confirmBox(FEED_TEXTS.unmatchConfirm, busy === 'unmatch' ? <Loader2 size={20} className="animate-spin" /> : FEED_TEXTS.unmatchYes, unmatch, FEED_TEXTS.unmatchNo, () => setIsConfirmingUnmatch(false))
         ) : isConfirmingHide ? (
@@ -537,7 +537,7 @@ const PersonReel: React.FC<{
                   telegramService.haptic('warning');
                   setIsConfirmingUnmatch(true);
                 }}
-                className="flex-1 h-12 rounded-full border border-white/25 text-body font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 h-12 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Undo2 size={20} />
                 {FEED_TEXTS.unmatch}
@@ -549,7 +549,7 @@ const PersonReel: React.FC<{
                   telegramService.haptic('medium');
                   telegramService.openChat(user.username);
                 }}
-                className="flex-[1.6] h-12 rounded-full bg-zine-terracotta text-body font-bold flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-[1.6] h-12 rounded-full bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Send size={20} />
                 Написать
@@ -558,14 +558,14 @@ const PersonReel: React.FC<{
           </div>
         ) : (
           <div className="flex gap-2">
-            <button onClick={() => react('dislike')} className="flex-1 h-12 rounded-full border border-white/25 text-body font-semibold flex items-center justify-center gap-2 cursor-pointer">
+            <button onClick={() => react('dislike')} className="flex-1 h-12 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer">
               <span className="text-[20px] leading-none">🙈</span>
               Скрыть
             </button>
             <button
               onClick={() => react('like')}
               disabled={user.iLiked}
-              className={`flex-[1.6] h-12 rounded-full text-body font-bold flex items-center justify-center gap-2 cursor-pointer ${user.iLiked ? 'bg-zine-sage' : 'bg-zine-terracotta'}`}
+              className={`flex-[1.6] h-12 rounded-full text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer ${user.iLiked ? 'bg-zine-sage' : 'bg-zine-terracotta'}`}
             >
               {busy === 'like' ? <Loader2 size={20} className="animate-spin" /> : <span className="text-[20px] leading-none">👋</span>}
               {user.iLiked ? 'Привет отправлен' : 'Пообщаться'}

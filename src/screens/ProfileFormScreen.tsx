@@ -400,22 +400,24 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           <p className="mt-2 text-body text-zine-inkMuted">Пара минут, и тебя увидят люди рядом.</p>
         )}
 
+        {/* «Как это работает» — сразу наверху: раньше был «?» на карте */}
         {!isFirstTime && (
           <button
             type="button"
             onClick={() => {
               telegramService.haptic('selection');
-              telegramService.shareApp();
+              setIsHelpOpen(true);
             }}
             className="mt-4 w-full p-4 rounded-zine bg-zine-terracotta/10 border border-zine-terracotta/25 flex items-center gap-3 text-left cursor-pointer"
           >
-            <span className="text-[28px] leading-none">💌</span>
+            <span className="text-[28px] leading-none">❓</span>
             <span>
-              <span className="block text-body font-bold text-zine-ink">Позвать друзей</span>
-              <span className="block text-sm2 text-zine-inkMuted">Чем больше знакомых рядом, тем проще найти компанию</span>
+              <span className="block text-body font-bold text-zine-ink">Как это работает</span>
+              <span className="block text-sm2 text-zine-inkMuted">Карта, «Пообщаться», сходки и места за минуту</span>
             </span>
           </button>
         )}
+        {isHelpOpen && <HelpSheet onClose={() => setIsHelpOpen(false)} />}
 
 
         <div className="mt-5 space-y-4">
@@ -893,17 +895,6 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               </div>
             )}
           </Section>
-
-          {!isFirstTime && (
-            <button
-              type="button"
-              onClick={() => setIsHelpOpen(true)}
-              className="w-full p-4 rounded-zine bg-zine-cardElevated border border-zine-border text-left text-body font-semibold text-zine-ink cursor-pointer"
-            >
-              ❓ Как это работает
-            </button>
-          )}
-          {isHelpOpen && <HelpSheet onClose={() => setIsHelpOpen(false)} />}
 
           {!isFirstTime && onAddToHome && (
             <button
