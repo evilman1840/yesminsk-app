@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
-import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff } from 'lucide-react';
+import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff, SlidersHorizontal, X, MapPin } from 'lucide-react';
 import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
@@ -199,6 +199,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | 'all' | 'kids'>('all');
   const [eventWhen, setEventWhen] = useState<EventWhen>('all'); // сегодня / завтра / выходные
   const [onlyMine, setOnlyMine] = useState(false); // «⭐ Мои»: собираю или иду
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false); // категория и «Мои» — в шторке
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -727,106 +728,121 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     (c) => c !== 'other' || events.some((e) => e.category === 'other')
   );
 
+  const categoryItems = [['all', 'Все', ''], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji]), ['kids', 'С детьми', '👶']] as [EventCategory | 'all' | 'kids', string, string][];
+  const activeCategory = selectedCategory !== 'all' ? categoryItems.find(([id]) => id === selectedCategory) : undefined;
+  const activeFilters = Number(selectedCategory !== 'all') + Number(onlyMine);
+  // Выбранное в шторке — чипами под шапкой, крестик сбрасывает
+  const activeChips = [
+    onlyMine && { key: 'mine', label: M.mineChip, onClear: () => setOnlyMine(false) },
+    activeCategory && { key: 'cat', label: `${activeCategory[2]} ${activeCategory[1]}`.trim(), onClear: () => setSelectedCategory('all') }
+  ].filter(Boolean) as { key: string; label: string; onClear: () => void }[];
+
   return (
-    <div className="relative h-full w-full bg-[#141210] overflow-hidden">
-      {/* Заголовок и фильтры поверх карточек */}
-      <div className="absolute top-0 inset-x-0 z-20 pt-3 pb-6 bg-gradient-to-b from-black/60 to-transparent">
-        <div className="px-4 mb-2 flex items-center justify-between gap-3">
-          <h1 className="font-serif font-bold text-title text-white">Сходки</h1>
-          <button
-            onClick={() => handleOpenCreateModal(undefined, undefined, 'feed')}
-            className="h-11 px-4 rounded-full bg-zine-terracotta active:bg-zine-terracottaHover text-white text-body font-bold flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
-          >
-            <Plus size={20} strokeWidth={2.5} />
-            <span>{M.createButtonShort}</span>
-          </button>
-        </div>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
-          {([['all', 'Все', ''], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji]), ['kids', 'С детьми', '👶']] as [EventCategory | 'all' | 'kids', string, string][]).map(([id, label, emoji]) => {
-            const isActive = selectedCategory === id;
-            return (
+    <div className="h-full w-full bg-[#141210] flex flex-col overflow-hidden">
+      {/* Шапка на однотонном фоне, чтобы карточка была чистой. Название экрана уже есть в нижнем меню */}
+      <div className="shrink-0 px-3 pt-3 pb-3 text-white">
+        <div className="flex items-center gap-2">
+          {/* Когда: все / сегодня / завтра / выходные — как на карте */}
+          <div className="flex-1 min-w-0 flex gap-0.5 p-[3px] rounded-full bg-white/10">
+            {EVENT_WHEN.map(([id, label]) => (
               <button
                 key={id}
                 onClick={() => {
                   telegramService.haptic('selection');
-                  setSelectedCategory(id);
+                  setEventWhen(id);
                 }}
-                className={`h-11 px-4 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap flex items-center gap-2 border transition-colors cursor-pointer ${
-                  isActive ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-zine-cardElevated text-zine-ink border-zine-border shadow-zine'
+                className={`flex-auto min-w-0 h-[38px] px-1 rounded-full text-[14px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                  eventWhen === id ? 'bg-white text-[#2B2623]' : 'text-white/80'
                 }`}
               >
-                {emoji && <span className="text-[18px] leading-none">{emoji}</span>}
-                <span>{label}</span>
+                <span className="truncate">{label}</span>
               </button>
-            );
-          })}
-        </div>
-        {/* Когда: сегодня / завтра / выходные — как на карте */}
-        <div className="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar px-4">
+            ))}
+          </div>
+
           <button
             onClick={() => {
               telegramService.haptic('selection');
-              setOnlyMine((v) => !v);
+              setIsFiltersOpen(true);
             }}
-            className={`h-9 px-3.5 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-              onlyMine ? 'bg-zine-mustard text-[#2B2623]' : 'bg-black/35 backdrop-blur text-white border border-white/20'
+            aria-label={activeFilters > 0 ? `Фильтры: ${activeFilters}` : 'Фильтры'}
+            className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+              activeFilters > 0 ? 'bg-white text-[#2B2623]' : 'bg-white/10 text-white'
             }`}
           >
-            {M.mineChip}
+            <SlidersHorizontal size={20} />
+            {activeFilters > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center">
+                {activeFilters}
+              </span>
+            )}
           </button>
-          {EVENT_WHEN.map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => {
-                telegramService.haptic('selection');
-                setEventWhen(id);
-              }}
-              className={`h-9 px-3.5 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                eventWhen === id ? 'bg-white text-[#2B2623]' : 'bg-black/35 backdrop-blur text-white border border-white/20'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
         </div>
 
+        {activeChips.length > 0 && (
+          <div className="mt-2.5 flex gap-1.5 overflow-x-auto no-scrollbar">
+            {activeChips.map((c) => (
+              <button
+                key={c.key}
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  c.onClear();
+                }}
+                className="h-9 pl-3 pr-2 shrink-0 rounded-full bg-white text-[#2B2623] text-sm2 font-semibold flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="whitespace-nowrap">{c.label}</span>
+                <X size={16} className="text-[#2B2623]/60" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-2.5 flex gap-2">
         {/* «Хочу сходить»: нет подходящей сходки — отметь, куда хочется */}
-        <div className="px-4 mt-2">
-          {/* Счётчик «19 человек хотят…» — кто это; справа «Все» — все желания, мои и форма «Куда хочется?» */}
-          <div className="w-full rounded-zine-sm bg-black/40 backdrop-blur border border-white/20 text-white flex items-stretch">
+        {/* Счётчик «19 человек хотят…» — кто это; справа «Все» — все желания, мои и форма «Куда хочется?» */}
+        <div className="min-w-0 flex-1 rounded-zine-sm bg-white/[0.07] border border-white/10 flex items-stretch">
+          <button
+            onClick={() => {
+              telegramService.haptic('selection');
+              if (topWish && onOpenWishPeople) onOpenWishPeople(topWish);
+              else setIsWishOpen(true);
+            }}
+            className="min-w-0 flex-1 p-2 pr-2 text-left flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-transform"
+          >
+            <span className="w-10 h-10 shrink-0 rounded-full bg-zine-terracotta flex items-center justify-center text-[20px] leading-none">🙋</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm2 font-bold">{WISH_TEXTS.barTitle}</span>
+              <span className="block text-cap text-white/75 line-clamp-2">
+                {topWish ? wishCounter(topWish) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+              </span>
+            </span>
+            {!(topWish && onOpenWishPeople) && <ChevronRight size={20} className="shrink-0 text-white/70" />}
+          </button>
+          {topWish && onOpenWishPeople && (
             <button
               onClick={() => {
                 telegramService.haptic('selection');
-                if (topWish && onOpenWishPeople) onOpenWishPeople(topWish);
-                else setIsWishOpen(true);
+                setIsWishOpen(true);
               }}
-              className="min-w-0 flex-1 p-2 pr-2 text-left flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-transform"
+              className="shrink-0 my-2 mr-2 px-3 rounded-full bg-white/10 border border-white/15 text-cap font-bold flex items-center gap-0.5 cursor-pointer active:scale-95 transition-transform"
             >
-              <span className="w-10 h-10 shrink-0 rounded-full bg-zine-terracotta flex items-center justify-center text-[20px] leading-none">🙋</span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm2 font-bold">{WISH_TEXTS.barTitle}</span>
-                <span className="block text-cap text-white/80 line-clamp-2">
-                  {topWish ? wishCounter(topWish) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
-                </span>
-              </span>
-              {!(topWish && onOpenWishPeople) && <ChevronRight size={20} className="shrink-0 text-white/70" />}
+              {myWishCount ? WISH_TEXTS.barAllMine(myWishCount) : WISH_TEXTS.barAll}
+              <ChevronRight size={16} className="-mr-1" />
             </button>
-            {topWish && onOpenWishPeople && (
-              <button
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setIsWishOpen(true);
-                }}
-                className="shrink-0 my-2 mr-2 px-3 rounded-full bg-white/15 border border-white/20 text-cap font-bold flex items-center gap-0.5 cursor-pointer active:scale-95 transition-transform"
-              >
-                {myWishCount ? WISH_TEXTS.barAllMine(myWishCount) : WISH_TEXTS.barAll}
-                <ChevronRight size={16} className="-mr-1" />
-              </button>
-            )}
-          </div>
+          )}
+        </div>
+        {/* Не нашлось подходящей — собрать свою */}
+        <button
+          onClick={() => handleOpenCreateModal(undefined, undefined, 'feed')}
+          className="w-[76px] shrink-0 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-cap font-bold flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+        >
+          <Plus size={22} strokeWidth={2.5} />
+          <span>{M.createButtonShort}</span>
+        </button>
         </div>
       </div>
 
+      <div className="relative flex-1 min-h-0">
       {filteredEvents.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-center px-8 text-white">
           <div className="text-[48px] mb-3">🗓</div>
@@ -890,7 +906,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
       {justHidden && (
         <UndoToast
-          topClass="top-[244px]"
+          topClass="top-3"
           text={`Скрыто: ${justHidden.title}`}
           onDone={() => setJustHidden(null)}
           onUndo={() => {
@@ -901,6 +917,40 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             setHiddenVersion((v) => v + 1);
           }}
         />
+      )}
+      </div>
+
+      {isFiltersOpen && (
+        <BottomSheet title="Фильтры" onClose={() => setIsFiltersOpen(false)}>
+          <p className="mb-2.5 text-body font-bold text-zine-ink">Что за сходка</p>
+          <div className="flex flex-wrap gap-2">
+            {categoryItems.map(([id, label, emoji]) => (
+              <FilterChip key={id} active={selectedCategory === id} onClick={() => setSelectedCategory(id)}>
+                {emoji && <span className="text-[18px] leading-none">{emoji}</span>}
+                <span>{label}</span>
+              </FilterChip>
+            ))}
+          </div>
+          <p className="mt-5 mb-2.5 text-body font-bold text-zine-ink">Чьи</p>
+          <div className="flex flex-wrap gap-2">
+            <FilterChip active={!onlyMine} onClick={() => setOnlyMine(false)}>Все</FilterChip>
+            <FilterChip active={onlyMine} onClick={() => setOnlyMine(true)}>{M.mineFilter}</FilterChip>
+          </div>
+          <div className="mt-6 grid grid-cols-[auto_1fr] gap-2">
+            <button
+              onClick={() => {
+                setSelectedCategory('all');
+                setOnlyMine(false);
+              }}
+              className="h-12 px-5 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
+            >
+              Сбросить
+            </button>
+            <button onClick={() => setIsFiltersOpen(false)} className="h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer">
+              {filteredEvents.length > 0 ? `Показать (${filteredEvents.length})` : 'Ничего не нашлось'}
+            </button>
+          </div>
+        </BottomSheet>
       )}
 
       {/* «Пойду!» — сколько вас и с детьми ли */}
@@ -1454,6 +1504,21 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   );
 };
 
+const FilterChip: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
+  <button
+    type="button"
+    onClick={() => {
+      telegramService.haptic('selection');
+      onClick();
+    }}
+    className={`h-11 px-4 rounded-full text-sm2 font-semibold border flex items-center gap-2 transition-colors cursor-pointer ${
+      active ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-zine-cardElevated text-zine-ink border-zine-border'
+    }`}
+  >
+    {children}
+  </button>
+);
+
 // Фон карточки по категории — у сходок нет фото
 const REEL_BG: Record<EventCategory, string> = {
   walk: 'from-[#C2603F] to-[#3A2620]',
@@ -1467,7 +1532,7 @@ const REEL_BG: Record<EventCategory, string> = {
 };
 
 /**
- * Сходка как Reels: на весь экран, кнопки справа, текст внизу
+ * Сходка: сверху чистая обложка (фото или цвет категории со значком), под ней текст на сплошном фоне и кнопки под большим пальцем
  */
 const EventReel: React.FC<{
   event: AppEvent;
@@ -1510,75 +1575,45 @@ const EventReel: React.FC<{
   // Все, кто идёт; если сервер ещё старый и прислал не всех — хотя бы организатор
   const people = ev.participants?.length ? ev.participants : [ev.creator];
 
+  const isPending = ev.isJoined && ev.byRequest && !ev.myApproved;
+
   return (
     <SwipeReel
-      className={`bg-gradient-to-br ${REEL_BG[ev.category] || REEL_BG.walk}`}
+      className="flex flex-col"
       rightLabel="Подробнее"
       rightBehavior="stay"
       leftLabel={isCreator || ev.isJoined ? undefined : 'Неинтересно'}
       leftBehavior="remove"
       onSwipe={(dir) => (dir === 'right' ? onOpenDetails() : onNotInterested())}
     >
-      {/* Обложка: первое фото сходки; без фото значок стоит над названием (внизу), чтобы не наезжать на шапку */}
-      {ev.photos?.length ? (
-        <>
+      {/* Обложка: первое фото сходки, без фото — цвет категории и крупный значок. Без надписей поверх */}
+      <div
+        ref={reelRef}
+        onClick={onOpenDetails}
+        className={`relative mx-3 flex-1 min-h-[30%] rounded-zine overflow-hidden bg-gradient-to-br cursor-pointer ${REEL_BG[ev.category] || REEL_BG.walk}`}
+      >
+        {ev.photos?.length ? (
           <img src={photoSrc(ev.photos[0])} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
-        </>
-      ) : null}
-
-      <div ref={reelRef} className="absolute inset-0 pointer-events-none" aria-hidden />
-      {/* Справа — «Позвать» и «Неинтересно»; маршрут и жалоба — в подробностях */}
-      <div className="absolute right-3 bottom-40 z-20 flex flex-col items-center gap-4 text-white">
-        {!isCreator && !ev.isJoined && (
-          <button
-            onClick={() => {
-              telegramService.haptic('selection');
-              onNotInterested();
-            }}
-            aria-label="Неинтересно"
-            className="flex flex-col items-center gap-1 cursor-pointer"
-          >
-            <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
-              <EyeOff size={22} />
-            </span>
-            <span className="text-cap font-semibold drop-shadow">Неинтересно</span>
-          </button>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-[88px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>
         )}
-        <button
-          onClick={() => {
-            telegramService.haptic('selection');
-            telegramService.shareEvent(ev);
-          }}
-          aria-label="Позвать друзей"
-          className="flex flex-col items-center gap-1 cursor-pointer"
-        >
-          <span className="w-12 h-12 rounded-full bg-black/35 backdrop-blur flex items-center justify-center">
-            <Share2 size={22} />
-          </span>
-          <span className="text-cap font-semibold drop-shadow">Позвать</span>
-        </button>
+        {/* Подсказка про свайпы — только на первой карточке, внизу обложки */}
+        {isFirst && <SwipeHint className="bottom-3" left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" />}
       </div>
 
-      {/* Текст внизу на затемнении; нажатие мимо кнопок — подробности */}
+      {/* Текст на сплошном фоне; нажатие мимо кнопок — подробности */}
       <div
         onClick={(e) => {
           if (!(e.target as HTMLElement).closest('button')) onOpenDetails();
         }}
-        className="absolute inset-x-0 bottom-0 z-10 px-4 pt-24 pb-5 bg-gradient-to-t from-black/85 via-black/50 to-transparent text-white cursor-pointer"
+        className="shrink-0 px-4 pt-3 text-white cursor-pointer"
       >
-        {isFirst && (
-          <div>
-            <SwipeHint inline left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" />
-          </div>
-        )}
-        {!ev.photos?.length && <div className="mb-3 text-[72px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>}
-        {/* Одна строка-подпись: от ГУЛЯЙ! · категория · пометки значками */}
-        <p className="pr-16 text-sm2 font-semibold text-white/85 flex items-center gap-x-2 whitespace-nowrap overflow-hidden">
+        {/* Одна строка-подпись: рекомендуем · категория · пометки значками */}
+        <p className="text-sm2 font-semibold text-white/70 flex items-center gap-x-2 whitespace-nowrap overflow-hidden">
           {ev.isOfficial && (
             <>
-              <span className="text-[#FFD9A8]">⭐ Рекомендуем</span>
-              <span className="text-white/40">·</span>
+              <span className="text-zine-mustard">⭐ Рекомендуем</span>
+              <span className="text-white/30">·</span>
             </>
           )}
           <span className="truncate">
@@ -1586,36 +1621,67 @@ const EventReel: React.FC<{
           </span>
           {(ev.tags || []).length > 0 && (
             <>
-              <span className="text-white/40">·</span>
+              <span className="text-white/30">·</span>
               <span aria-label={(ev.tags || []).map((t) => EVENT_TAGS[t].label).join(', ')}>{(ev.tags || []).map((t) => EVENT_TAGS[t].emoji).join(' ')}</span>
             </>
           )}
         </p>
-        <h2 className="mt-1 pr-16 font-serif font-bold text-display leading-tight line-clamp-2">{ev.title}</h2>
-        <p className="mt-1.5 pr-16 text-body font-semibold">
+        <h2 className="mt-1 font-serif font-bold text-title leading-tight line-clamp-2">{ev.title}</h2>
+        <p className="mt-1 text-body font-semibold">
           {formatEventDate(ev.dateTime)}
-          {ev.durationMinutes ? <span className="font-normal text-white/75"> · {M.duration(ev.durationMinutes)}</span> : null}
+          {ev.durationMinutes ? <span className="font-normal text-white/70"> · {M.duration(ev.durationMinutes)}</span> : null}
         </p>
-        <p className="pr-16 flex text-sm2 text-white/80">
-          <span className="truncate">📍 {ev.locationName}</span>
-          {formatDistance(ev.distanceMeters) && <span className="shrink-0">&nbsp;· {formatDistance(ev.distanceMeters)}</span>}
+        {/* Только место: расстояние часто не сходится с жизнью */}
+        <p className="mt-0.5 flex items-center gap-1.5 text-sm2 text-white/70">
+          <MapPin size={16} className="shrink-0" />
+          <span className="truncate">{ev.locationName}</span>
         </p>
         {/* Цена и метки шаблона: «💚 Бесплатно», «🏓 Настольный теннис · любой уровень» */}
         <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
           {[ev.byRequest ? M.byRequestBadge : '', audienceLabel(ev), priceLabel(ev), ...(ev.badges || [])].filter(Boolean).map((b) => (
-            <span key={b} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full bg-white/20 backdrop-blur text-sm2 font-semibold flex items-center">
+            <span key={b} className="h-8 px-3 shrink-0 whitespace-nowrap rounded-full border border-white/20 bg-white/10 text-sm2 font-semibold flex items-center">
               {b}
             </span>
           ))}
         </div>
+        {/* Кто идёт: лица и сколько; много — ряд листается пальцем (не свайпает карточку) */}
+        <div className="mt-2.5 flex items-center gap-2">
+          <span data-no-swipe className={`min-w-0 flex -space-x-2 overflow-x-auto no-scrollbar py-0.5 ${people.length > 7 ? 'fade-right pr-3' : ''}`}>
+            {people.map((p, i) => (
+              <img
+                key={`${p?.telegramId}-${i}`}
+                src={thumb(p?.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                alt=""
+                loading="lazy"
+                className={`w-8 h-8 shrink-0 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-[#141210]'}`}
+              />
+            ))}
+          </span>
+          <span className="shrink-0 text-sm2 text-white/70 whitespace-nowrap">
+            {M.goingCount(ev.participantsCount || 1, ev.maxParticipants)}
+          </span>
+        </div>
+      </div>
 
-        <div className="mt-3 flex items-center gap-3">
+      {/* Кнопки под большим пальцем: «Позвать», «Неинтересно» и главное действие */}
+      <div className="shrink-0 px-4 pt-3 pb-3 text-white">
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              telegramService.haptic('selection');
+              telegramService.shareEvent(ev);
+            }}
+            aria-label="Позвать друзей"
+            className="w-12 h-12 shrink-0 rounded-full border border-white/25 flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+          >
+            <Share2 size={20} />
+          </button>
           {isCreator ? (
-            // Своя сходка: организатор и так идёт — вместо «Я иду» управление
+            // Своя сходка: организатор и так идёт — вместо «Пойду» управление
             <>
               <button
                 onClick={onEdit}
-                className="h-12 px-5 rounded-full bg-white text-[#2B2623] text-body font-bold inline-flex items-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+                className="flex-1 h-12 rounded-full bg-white text-[#2B2623] text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
               >
                 <Edit2 size={19} />
                 <span>Изменить</span>
@@ -1624,60 +1690,55 @@ const EventReel: React.FC<{
                 onClick={onDelete}
                 disabled={isDeleting}
                 aria-label="Удалить сходку"
-                className="w-12 h-12 shrink-0 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+                className="w-12 h-12 shrink-0 rounded-full border border-white/25 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
               >
                 {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
               </button>
             </>
           ) : (
-            <button
-              onClick={onJoin}
-              disabled={isJoining || isFull}
-              className={`h-12 px-6 shrink-0 rounded-full text-body font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-                ev.isJoined && ev.byRequest && !ev.myApproved ? 'bg-white/90 text-[#2B2623]' : ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/25 text-white/80 cursor-default' : 'bg-white text-[#2B2623]'
-              }`}
-            >
-              {isFull ? (
-                'Мест нет'
-              ) : isJoining ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : ev.isJoined && ev.byRequest && !ev.myApproved ? (
-                <span>⏳ Заявка</span>
-              ) : ev.isJoined ? (
-                <>
-                  <Check size={20} strokeWidth={3} />
-                  <span>{ev.byRequest ? 'Записан(а)' : 'Я иду'}{ev.myGuests ? ` +${ev.myGuests}` : ''}{ev.myWithKids ? ' 👶' : ''}</span>
-                </>
-              ) : ev.byRequest ? (
-                M.requestJoin
-              ) : (
-                'Пойду!'
+            <>
+              {!ev.isJoined && (
+                <button
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    onNotInterested();
+                  }}
+                  className="flex-1 min-w-0 h-12 px-3 rounded-full border border-white/25 text-body font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+                >
+                  <EyeOff size={19} className="shrink-0" />
+                  <span className="truncate">Скрыть</span>
+                </button>
               )}
-            </button>
+              <button
+                onClick={onJoin}
+                disabled={isJoining || isFull}
+                className={`flex-[1.3] min-w-0 h-12 px-4 rounded-full text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
+                  isPending ? 'bg-white/90 text-[#2B2623]' : ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-white/15 text-white/70 cursor-default' : 'bg-zine-terracotta text-white'
+                }`}
+              >
+                {isFull ? (
+                  'Мест нет'
+                ) : isJoining ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : isPending ? (
+                  <span>⏳ Заявка</span>
+                ) : ev.isJoined ? (
+                  <>
+                    <Check size={20} strokeWidth={3} />
+                    <span className="truncate">{ev.byRequest ? 'Записан(а)' : 'Я иду'}{ev.myGuests ? ` +${ev.myGuests}` : ''}{ev.myWithKids ? ' 👶' : ''}</span>
+                  </>
+                ) : ev.byRequest ? (
+                  <span className="truncate">{M.requestJoin}</span>
+                ) : (
+                  'Пойду!'
+                )}
+              </button>
+            </>
           )}
-          {/* Кто идёт: лица и сколько */}
-          <span className="min-w-0 flex-1 flex items-center gap-2">
-            {/* Лица всех участников; много — ряд листается пальцем (не свайпает карточку) */}
-            <span data-no-swipe className={`min-w-0 flex -space-x-2 overflow-x-auto no-scrollbar py-0.5 ${people.length > 5 ? 'fade-right pr-3' : ''}`}>
-              {people.map((p, i) => (
-                <img
-                  key={`${p?.telegramId}-${i}`}
-                  src={thumb(p?.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-                  alt=""
-                  loading="lazy"
-                  className={`w-8 h-8 shrink-0 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-black/40'}`}
-                />
-              ))}
-            </span>
-            <span className="shrink-0 text-sm2 text-white/85 whitespace-nowrap">
-              {ev.participantsCount || 1}
-              {ev.maxParticipants ? ` из ${ev.maxParticipants}` : ''}
-            </span>
-          </span>
         </div>
         {/* Записан(а) — «Точно приду» и заметная отмена прямо на карточке */}
         {ev.isJoined && !isCreator && (
-          <div className="mt-2 flex items-center gap-4">
+          <div className="mt-2 flex items-center justify-center gap-5">
             {!ev.myConfirmed && (
               <button
                 onClick={async () => {
@@ -1694,15 +1755,13 @@ const EventReel: React.FC<{
             <button
               onClick={onLeave}
               disabled={isJoining}
-              className="h-9 text-body font-bold text-white underline underline-offset-4 decoration-white/70 cursor-pointer"
+              className="h-9 text-body font-bold text-white/85 underline underline-offset-4 decoration-white/50 cursor-pointer"
             >
               {M.notGoing}
             </button>
           </div>
         )}
       </div>
-
-      {/* Подсказка про свайпы — только на первой карточке */}
     </SwipeReel>
   );
 };
