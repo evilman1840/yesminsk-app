@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
 import { api } from '../services/api';
 import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Megaphone } from 'lucide-react';
@@ -81,6 +81,11 @@ export const formatEventDate = (isoString: string) => {
   }
 };
 
+// Пустые списки — одни и те же, чтобы карта не пересобирала метки
+const NO_USERS: UserProfile[] = [];
+const NO_EVENTS: AppEvent[] = [];
+const NO_PLACES: PlaceItem[] = [];
+
 export const MapScreen: React.FC<MapScreenProps> = ({
   users,
   onOpenPeople,
@@ -109,8 +114,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 }) => {
   // Сходки на карте: только предстоящие (как в ленте «Сходки» — начавшиеся больше получаса назад не показываем) и фильтр по времени
   const [eventWhen, setEventWhen] = useState<EventWhen>('all');
-  const upcomingEvents = events.filter((e) => new Date(e.dateTime).getTime() > Date.now() - 30 * 60 * 1000);
-  const filteredEvents = upcomingEvents.filter((e) => matchesWhen(e.dateTime, eventWhen));
+  // Списки — через useMemo: карта перерисовывает метки, только когда массив новый
+  const upcomingEvents = useMemo(() => events.filter((e) => new Date(e.dateTime).getTime() > Date.now() - 30 * 60 * 1000), [events]);
+  const filteredEvents = useMemo(() => upcomingEvents.filter((e) => matchesWhen(e.dateTime, eventWhen)), [upcomingEvents, eventWhen]);
   // Сходки кружками на карте или списком — что человек выбрал в прошлый раз
   const [eventsView, setEventsView] = useState<'map' | 'list'>(() => {
     try {
@@ -146,15 +152,18 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const isPlaces = mapMode === 'places';
   // Подсказки и списки — под шапкой и строкой фильтров вкладки
   const overlayTop = 'top-[196px]';
-  const filteredPlaces = (
-    mood === 'all'
-      ? places
-      : mood === 'saved'
-      ? places.filter((p) => p.isSaved)
-      : mood === 'kids'
-      ? placesForKids(places)
-      : places.filter((p) => p.moods.includes(mood))
-  ).filter((p) => !placeType || p.category === placeType);
+  const filteredPlaces = useMemo(
+    () =>
+      (mood === 'all'
+        ? places
+        : mood === 'saved'
+        ? places.filter((p) => p.isSaved)
+        : mood === 'kids'
+        ? placesForKids(places)
+        : places.filter((p) => p.moods.includes(mood))
+      ).filter((p) => !placeType || p.category === placeType),
+    [places, mood, placeType]
+  );
   const kidsCount = places.filter((p) => p.kidsLevel).length;
   const savedCount = places.filter((p) => p.isSaved).length;
   const moodCounts = places.reduce<Partial<Record<PlaceMood, number>>>((acc, p) => {
@@ -202,8 +211,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   useEffect(() => saveFilters(peopleFilters), [peopleFilters]);
   const activeFilters = countActiveFilters(peopleFilters);
-  const usersForMe = applyPeopleFilters(users, peopleFilters, myPrefs);
-  const filteredUsers = usersForMe.filter((u) => matchesGoalFilter(u, selectedGoal));
+  const prefsKey = JSON.stringify(myPrefs); // myPrefs приходит новым объектом на каждый рендер App
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const usersForMe = useMemo(() => applyPeopleFilters(users, peopleFilters, myPrefs), [users, peopleFilters, prefsKey]);
+  const filteredUsers = useMemo(() => usersForMe.filter((u) => matchesGoalFilter(u, selectedGoal)), [usersForMe, selectedGoal]);
   // Сколько всего анкет: на карте только самые активные, а в шапке — все
   // В шапке — сколько всего людей в приложении (видно, что тут живое сообщество)
   const [totalPeople, setTotalPeople] = useState(0);
@@ -226,9 +237,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   return (
     <div className="relative h-full w-full overflow-hidden bg-zine-paper">
       <MinskMap
-        users={mapMode === 'people' ? filteredUsers : mapMode === 'all' ? usersForMe : []}
-        events={mapMode === 'events' ? filteredEvents : mapMode === 'all' ? upcomingEvents : []}
-        places={isPlaces ? filteredPlaces : mapMode === 'all' ? places : []}
+        users={mapMode === 'people' ? filteredUsers : mapMode === 'all' ? usersForMe : NO_USERS}
+        events={mapMode === 'events' ? filteredEvents : mapMode === 'all' ? upcomingEvents : NO_EVENTS}
+        places={isPlaces ? filteredPlaces : mapMode === 'all' ? places : NO_PLACES}
         onSelectPlace={(p) => {
           setIsMoodPickerOpen(false);
           setSelectedPlace(p);

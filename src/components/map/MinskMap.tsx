@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import { thumb } from '../../utils/thumb';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 import { LocateFixed } from 'lucide-react';
@@ -290,129 +290,55 @@ const MinskMapContent: React.FC<{
     });
   }, [events, otherUsers, currentUserCoords]);
 
-  if (!ymaps || !avatarLayout || !clusterLayout || !eventLayout || !currentUserLayout) {
-    return null;
-  }
 
-  return (
-    <>
-      {/* 1. Маркер запускающего приложение ("⭐️ ТЫ") */}
-      {currentUser && currentUserCoords && (
-        <Placemark
-          key={`current-user-${currentUserCoords[0]}-${currentUserCoords[1]}`}
-          geometry={currentUserCoords}
-          properties={{
-            avatarUrl: thumb(currentUser.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-            name: currentUser.name || currentUser.firstName || 'Ты',
-            goalEmoji: (GOALS_CONFIG[currentUser.goal || 'walk'] || { emoji: '☕️' }).emoji
-          }}
-          options={{
-            iconLayout: currentUserLayout,
-            iconOffset: [-27, -76],
-            iconShape: { type: 'Rectangle', coordinates: [[0, 0], [54, 76]] } as any,
-            interactivityModel: 'default#opaque',
-            cursor: 'pointer',
-            zIndex: 1000,
-            hasBalloon: false
-          } as any}
-          onClick={() => {
-            telegramService.haptic('selection');
-            if (onSelectCurrentUser) onSelectCurrentUser();
-            if (mapInstance && currentUserCoords) {
-              mapInstance.panTo(currentUserCoords, { flying: true, duration: 400 });
-            }
-          }}
-        />
-      )}
+  // Свежие данные и обработчики — через ref. Метки собираются заново, только когда меняются сами данные:
+  // библиотека перерисовывает метку на каждый новый объект properties/options, и раньше любой рендер экрана
+  // (открыли карточку, тапнули аватарку) перерисовывал все аватарки разом — зум и анимация подтормаживали
+  const latest = useRef({ users, events, places, onSelectUser, onSelectCurrentUser, onSelectEvent, onSelectPlace, onClusterItems, mapInstance });
+  latest.current = { users, events, places, onSelectUser, onSelectCurrentUser, onSelectEvent, onSelectPlace, onClusterItems, mapInstance };
+  // Без flying: «перелёт» отдаляет и снова приближает карту, и детальные тайлы не успевают прогрузиться
+  const panTo = (coords: [number, number]) => latest.current.mapInstance?.panTo(coords, { duration: 300 });
 
-      {/* 2. Кластеризация аватарок остальных участников */}
-      <Clusterer
-        options={{
-          clusterIconLayout: clusterLayout,
-          clusterIconOffset: [-26, -26],
-          clusterIconShape: { type: 'Circle', coordinates: [26, 26], radius: 28 } as any,
-          gridSize: 64,
-          groupByCoordinates: false,
-          clusterDisableClickZoom: true, // приближаем сами — аккуратнее
-          clusterOpenBalloonOnClick: false,
-          clusterHideIconOnBalloonOpen: false,
-          hasBalloon: false
-        } as any}
-        onClick={(e: any) => {
-          const target = e.get('target');
-          if (!target) return;
-
-          const clustered = typeof target.getGeoObjects === 'function' ? target.getGeoObjects() : null;
-
-          // Обработка клика по самому кластеру (группе)
-          if (clustered && Array.isArray(clustered)) {
-            if (clustered.length > 1) {
+  const currentMark = useMemo(
+    () => (
+      <>
+        {currentUser && currentUserCoords && (
+          <Placemark
+            key={`current-user-${currentUserCoords[0]}-${currentUserCoords[1]}`}
+            geometry={currentUserCoords}
+            properties={{
+              avatarUrl: thumb(currentUser.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+              name: currentUser.name || currentUser.firstName || 'Ты',
+              goalEmoji: (GOALS_CONFIG[currentUser.goal || 'walk'] || { emoji: '☕️' }).emoji
+            }}
+            options={{
+              iconLayout: currentUserLayout,
+              iconOffset: [-27, -76],
+              iconShape: { type: 'Rectangle', coordinates: [[0, 0], [54, 76]] } as any,
+              interactivityModel: 'default#geoObject', // жесты с метки уходят карте: щипок по аватарке тоже приближает
+              cursor: 'pointer',
+              zIndex: 1000,
+              hasBalloon: false
+            } as any}
+            onClick={() => {
               telegramService.haptic('selection');
-              const bounds = typeof target.getBounds === 'function' ? target.getBounds() : null;
-              const span = bounds ? Math.max(Math.abs(bounds[1][0] - bounds[0][0]), Math.abs(bounds[1][1] - bounds[0][1])) : 0;
-              // Метки почти в одной точке (< ~60 м) — приближать бесполезно, показываем список
-              if (!bounds || span < 0.0006 || (mapInstance && mapInstance.getZoom() >= 17)) {
-                const items: ClusterItem[] = clustered
-                  .map((obj: any): ClusterItem | null => {
-                    const p = obj.properties;
-                    const ev = p.get('eventId') ? events.find((x) => String(x.id) === String(p.get('eventId'))) : null;
-                    if (ev) return { kind: 'event', event: ev };
-                    const pl = p.get('placeId') ? places.find((x) => x.id === p.get('placeId')) : null;
-                    if (pl) return { kind: 'place', place: pl };
-                    const u = users.find((x) => String(x.id || (x as any).telegramId) === String(p.get('userId')));
-                    return u ? { kind: 'user', user: u } : null;
-                  })
-                  .filter(Boolean) as ClusterItem[];
-                onClusterItems?.(items);
-                return;
-              }
-              if (mapInstance) {
-                mapInstance.setBounds(bounds, { checkZoomRange: true, zoomMargin: 90, duration: 300 }).then(() => {
-                  if (mapInstance.getZoom() > 17) mapInstance.setZoom(17, { duration: 200 });
-                });
-              }
-              return;
-            } else if (clustered.length === 1) {
-              const props = clustered[0]?.properties;
-              const evId = props?.get('eventId');
-              const plId = props?.get('placeId');
-              if (evId) {
-                const ev = events.find((x) => String(x.id) === String(evId));
-                if (ev) onSelectEvent?.(ev);
-                return;
-              }
-              if (plId) {
-                const pl = places.find((x) => x.id === plId);
-                if (pl) onSelectPlace?.(pl);
-                return;
-              }
-              const userId = props?.get('userId');
-              const found = users.find((u: UserProfile) => String(u.id || (u as any).telegramId || (u as any)._id) === String(userId));
-              if (found) {
-                telegramService.haptic('selection');
-                onSelectUser(found);
-                if (mapInstance && found.displayCoords) mapInstance.panTo(found.displayCoords, { flying: true, duration: 400 });
-              }
-              return;
-            }
-          }
+              latest.current.onSelectCurrentUser?.();
+              panTo(currentUserCoords);
+            }}
+          />
+        )}
+      </>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentUserLayout, currentUser?.avatarUrl, currentUser?.name, currentUser?.firstName, currentUser?.goal, currentUserCoords?.[0], currentUserCoords?.[1]]
+  );
 
-          // Обработка клика по одиночному маркеру
-          const userId = target.properties?.get('userId');
-          if (userId) {
-            const found = users.find((u: UserProfile) => String(u.id || (u as any).telegramId || (u as any)._id) === String(userId));
-            if (found) {
-              telegramService.haptic('selection');
-              onSelectUser(found);
-              if (mapInstance && found.displayCoords) {
-                mapInstance.panTo(found.displayCoords, { flying: true, duration: 400 });
-              }
-            }
-          }
-        }}
-      >
+  const selectedUserId = selectedUser?.id;
+  const userMarks = useMemo(
+    () => (
+      <>
         {otherUsers.map((user: UserProfile & { displayCoords: [number, number] }, idx: number) => {
-          const isSelected = selectedUser?.id === user.id;
+          const isSelected = selectedUserId === user.id;
           const goalInfo = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг' };
           const available = isAvailableNow(user);
           const coords = ensureLatLng(user.displayCoords);
@@ -437,19 +363,28 @@ const MinskMapContent: React.FC<{
                 iconLayout: avatarLayout,
                 iconOffset: [-23, -52],
                 iconShape: { type: 'Rectangle', coordinates: [[0, 0], [46, 58]] } as any,
-                interactivityModel: 'default#opaque',
+                interactivityModel: 'default#geoObject', // жесты с метки уходят карте: щипок по аватарке тоже приближает
                 cursor: 'pointer',
                 hasBalloon: false
               } as any}
               onClick={() => {
                 telegramService.haptic('selection');
-                onSelectUser(user);
-                if (mapInstance) mapInstance.panTo(coords, { flying: true, duration: 400 });
+                latest.current.onSelectUser(user);
+                panTo(coords);
               }}
             />
           );
         })}
+      </>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [avatarLayout, otherUsers, selectedUserId]
+  );
 
+  // Места и сходки — в той же группировке: близкие метки сливаются в кружок с числом
+  const placeMarks = useMemo(
+    () => (
+      <>
         {/* Места и сходки — в той же группировке: близкие метки сливаются в кружок с числом */}
         {/* Места по вайбу */}
         {placeLayout &&
@@ -466,19 +401,27 @@ const MinskMapContent: React.FC<{
                 iconLayout: placeLayout,
                 iconOffset: [-29, -66],
                 iconShape: { type: 'Rectangle', coordinates: [[0, 0], [58, 66]] } as any,
-                interactivityModel: 'default#opaque',
+                interactivityModel: 'default#geoObject', // жесты с метки уходят карте: щипок по аватарке тоже приближает
                 cursor: 'pointer',
                 zIndex: 900,
                 hasBalloon: false
               } as any}
               onClick={() => {
                 telegramService.haptic('selection');
-                onSelectPlace?.(place);
-                if (mapInstance) mapInstance.panTo(place.coordinates, { flying: true, duration: 400 });
+                latest.current.onSelectPlace?.(place);
+                panTo(place.coordinates);
               }}
             />
           ))}
+      </>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [placeLayout, places]
+  );
 
+  const eventMarks = useMemo(
+    () => (
+      <>
         {/* 3. Маркеры событий (Сходок) */}
         {eventsWithSeparatedCoords.map((ev: AppEvent & { separatedCoords: [number, number] }) => {
           const catConfig = eventCategoryOf(ev);
@@ -506,21 +449,128 @@ const MinskMapContent: React.FC<{
                 iconLayout: isZoomedIn ? eventLayout : eventCompactLayout,
                 iconOffset: isZoomedIn ? [-28, -66] : [-26, -60],
                 iconShape: { type: 'Rectangle', coordinates: isZoomedIn ? [[0, 0], [240, 66]] : [[0, 0], [52, 60]] } as any,
-                interactivityModel: 'default#opaque',
+                interactivityModel: 'default#geoObject', // жесты с метки уходят карте: щипок по аватарке тоже приближает
                 cursor: 'pointer',
                 zIndex: 1100,
                 hasBalloon: false
               } as any}
               onClick={() => {
                 telegramService.haptic('medium');
-                if (onSelectEvent) onSelectEvent(ev);
-                if (mapInstance) mapInstance.panTo(coords, { flying: true, duration: 400 });
+                latest.current.onSelectEvent?.(ev);
+                panTo(coords);
               }}
             />
           );
         })}
-      </Clusterer>
+      </>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [eventLayout, eventCompactLayout, eventsWithSeparatedCoords, isZoomedIn]
+  );
 
+  const clusterOptions = useMemo(
+    () =>
+      ({
+        clusterIconLayout: clusterLayout,
+        clusterIconOffset: [-26, -26],
+        clusterIconShape: { type: 'Circle', coordinates: [26, 26], radius: 28 } as any,
+        gridSize: 64,
+        groupByCoordinates: false,
+        clusterDisableClickZoom: true, // приближаем сами — аккуратнее
+        clusterOpenBalloonOnClick: false,
+        clusterHideIconOnBalloonOpen: false,
+        hasBalloon: false
+      }) as any,
+    [clusterLayout]
+  );
+
+  const handleClusterClick = useCallback((e: any) => {
+    const map = latest.current.mapInstance;
+    const target = e.get('target');
+    if (!target) return;
+
+    const clustered = typeof target.getGeoObjects === 'function' ? target.getGeoObjects() : null;
+
+    // Обработка клика по самому кластеру (группе)
+    if (clustered && Array.isArray(clustered)) {
+      if (clustered.length > 1) {
+        telegramService.haptic('selection');
+        const bounds = typeof target.getBounds === 'function' ? target.getBounds() : null;
+        const span = bounds ? Math.max(Math.abs(bounds[1][0] - bounds[0][0]), Math.abs(bounds[1][1] - bounds[0][1])) : 0;
+        // Метки почти в одной точке (< ~60 м) — приближать бесполезно, показываем список
+        if (!bounds || span < 0.0006 || (map && map.getZoom() >= 17)) {
+          const items: ClusterItem[] = clustered
+            .map((obj: any): ClusterItem | null => {
+              const p = obj.properties;
+              const ev = p.get('eventId') ? latest.current.events.find((x) => String(x.id) === String(p.get('eventId'))) : null;
+              if (ev) return { kind: 'event', event: ev };
+              const pl = p.get('placeId') ? latest.current.places.find((x) => x.id === p.get('placeId')) : null;
+              if (pl) return { kind: 'place', place: pl };
+              const u = latest.current.users.find((x) => String(x.id || (x as any).telegramId) === String(p.get('userId')));
+              return u ? { kind: 'user', user: u } : null;
+            })
+            .filter(Boolean) as ClusterItem[];
+          latest.current.onClusterItems?.(items);
+          return;
+        }
+        if (map) {
+          map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 90, duration: 300 }).then(() => {
+            if (map.getZoom() > 17) map.setZoom(17, { duration: 200 });
+          });
+        }
+        return;
+      } else if (clustered.length === 1) {
+        const props = clustered[0]?.properties;
+        const evId = props?.get('eventId');
+        const plId = props?.get('placeId');
+        if (evId) {
+          const ev = latest.current.events.find((x) => String(x.id) === String(evId));
+          if (ev) latest.current.onSelectEvent?.(ev);
+          return;
+        }
+        if (plId) {
+          const pl = latest.current.places.find((x) => x.id === plId);
+          if (pl) latest.current.onSelectPlace?.(pl);
+          return;
+        }
+        const userId = props?.get('userId');
+        const found = latest.current.users.find((u: UserProfile) => String(u.id || (u as any).telegramId || (u as any)._id) === String(userId));
+        if (found) {
+          telegramService.haptic('selection');
+          latest.current.onSelectUser(found);
+          if (found.displayCoords) panTo(found.displayCoords);
+        }
+        return;
+      }
+    }
+
+    // Обработка клика по одиночному маркеру
+    const userId = target.properties?.get('userId');
+    if (userId) {
+      const found = latest.current.users.find((u: UserProfile) => String(u.id || (u as any).telegramId || (u as any)._id) === String(userId));
+      if (found) {
+        telegramService.haptic('selection');
+        latest.current.onSelectUser(found);
+        if (found.displayCoords) panTo(found.displayCoords);
+      }
+    }
+  }, []);
+
+  if (!ymaps || !avatarLayout || !clusterLayout || !eventLayout || !currentUserLayout) {
+    return null;
+  }
+
+  return (
+    <>
+      {/* 1. Маркер запускающего приложение ("⭐️ ТЫ") */}
+      {currentMark}
+
+      {/* 2. Кластеризация: аватарки остальных, места и сходки */}
+      <Clusterer options={clusterOptions} onClick={handleClusterClick}>
+        {userMarks}
+        {placeMarks}
+        {eventMarks}
+      </Clusterer>
     </>
   );
 };
@@ -606,6 +656,14 @@ export const MinskMap: React.FC<MinskMapProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picking]);
 
+  // Где показываем мою метку — тем же массивом, пока точка не сдвинулась (иначе метки пересобираются на каждый рендер)
+  const shownLat = shownCoords ? ensureLatLng(shownCoords)[0] : null;
+  const shownLng = shownCoords ? ensureLatLng(shownCoords)[1] : null;
+  const myCoords = useMemo<[number, number] | null>(
+    () => (picking ? null : shownLat !== null && shownLng !== null ? [shownLat, shownLng] : currentCoords),
+    [picking, shownLat, shownLng, currentCoords]
+  );
+
   const handleEventClick = (ev: AppEvent) => {
     onSelectEvent?.(ev);
   };
@@ -683,7 +741,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
           users={usersWithSafeCoords}
           events={events}
           currentUser={currentUser}
-          currentUserCoords={picking ? null : shownCoords ? ensureLatLng(shownCoords) : currentCoords}
+          currentUserCoords={myCoords}
           selectedUser={selectedUser}
           onSelectUser={onSelectUser}
           onSelectCurrentUser={onSelectCurrentUser}
