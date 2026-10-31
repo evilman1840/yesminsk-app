@@ -21,17 +21,26 @@ const Avatar: React.FC<{ url?: string; name: string }> = ({ url, name }) =>
     <span className="w-10 h-10 rounded-full bg-zine-cardElevated flex items-center justify-center text-body font-bold text-zine-inkMuted shrink-0">{name.slice(0, 1)}</span>
   );
 
-// Сходки в этом месте: привязанные к нему или собранные в паре десятков метров
+// Сравнение названий: без регистра, «ё», кавычек и знаков
+const normName = (s: string) =>
+  s.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/g, ' ').trim();
+
+// Сходки в этом месте: привязанные к нему, собранные в паре десятков метров
+// или с названием места в адресе (сходку собрали вручную по адресу — точка может стоять у дома на улице, а не у места)
 export const eventsAtPlace = (place: PlaceItem, events: AppEvent[]) => {
   const [lat, lng] = place.coordinates;
-  const near = (ev: AppEvent) => {
+  const distance = (ev: AppEvent) => {
     const [eLat, eLng] = ev.coordinates || [0, 0];
     const dy = (eLat - lat) * 111000;
     const dx = (eLng - lng) * 111000 * Math.cos((lat * Math.PI) / 180);
-    return Math.hypot(dx, dy) < 60;
+    return Math.hypot(dx, dy);
   };
+  const placeName = normName(place.name);
+  // Короткие названия («Парк») совпадут с чем угодно — по ним не ищем; 2 км — чтобы не путать одноимённые места в разных концах города
+  const namedHere = (ev: AppEvent) =>
+    placeName.length >= 5 && ` ${normName(ev.locationName || '')} `.includes(` ${placeName} `) && distance(ev) < 2000;
   return events
-    .filter((ev) => new Date(ev.dateTime).getTime() > Date.now() - 2 * 3600 * 1000 && (ev.placeId === place.id || near(ev)))
+    .filter((ev) => new Date(ev.dateTime).getTime() > Date.now() - 2 * 3600 * 1000 && (ev.placeId === place.id || distance(ev) < 60 || namedHere(ev)))
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 };
 
