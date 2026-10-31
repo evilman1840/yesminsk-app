@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
 import { api } from '../services/api';
-import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Megaphone } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
@@ -60,9 +60,6 @@ export interface MapScreenProps {
   onToggleSavePlace: (place: PlaceItem) => Promise<PlaceItem>;
   initialPlaceId?: string | null;
 }
-
-// Фото автора новостей («Миша Спасатель») — файл в public; пока его нет, на кнопке буква «М»
-const NEWS_AUTHOR_PHOTO = '/news-author.jpg';
 
 export type MapMode = 'all' | 'people' | 'events' | 'places';
 
@@ -200,7 +197,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     }
   };
   const [isDonateOpen, setIsDonateOpen] = useState(false);
-  const [isAuthorPhotoOk, setIsAuthorPhotoOk] = useState(true); // нет файла — буква «М»
   // Фильтры людей — общие с «Людьми» (хранятся на устройстве); по умолчанию учитывают мои настройки из анкеты
   const [peopleFilters, setPeopleFilters] = useState<PeopleFilters>(loadFilters);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -325,22 +321,16 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               </button>
             )}
 
-            {/* Новости проекта — лицом автора, как сторис: новости пишутся от первого лица. Новые — оранжевое кольцо и счётчик */}
+            {/* Новости проекта — рупор (аватарку тут ждут свою). Новые — рупор оранжевый и счётчик */}
             <button
               onClick={() => {
                 telegramService.haptic('selection');
                 onOpenNews();
               }}
               aria-label="Новости проекта"
-              className={`relative w-11 h-11 shrink-0 rounded-full p-[2px] active:scale-90 transition-transform cursor-pointer ${unreadNews > 0 ? 'bg-zine-terracotta' : 'bg-zine-border'}`}
+              className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer ${unreadNews > 0 ? 'bg-zine-terracotta text-white' : 'bg-zine-card border border-zine-border text-zine-ink dark:border-white/25'}`}
             >
-              <span className="block w-full h-full rounded-full border-2 border-zine-paper overflow-hidden bg-zine-card">
-                {isAuthorPhotoOk ? (
-                  <img src={NEWS_AUTHOR_PHOTO} alt="" onError={() => setIsAuthorPhotoOk(false)} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="w-full h-full flex items-center justify-center font-serif font-bold text-[16px] text-zine-ink">М</span>
-                )}
-              </span>
+              <Megaphone className="w-[22px] h-[22px] -rotate-12" strokeWidth={2} />
               {unreadNews > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center border-2 border-zine-paper">
                   {unreadNews}
@@ -357,7 +347,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               aria-label="Поддержать проект"
               className="w-11 h-11 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
             >
-              <DonateIcon size={26} cutout="rgb(var(--c-terracotta))" />
+              <span className="heartbeat flex"><DonateIcon size={26} cutout="rgb(var(--c-terracotta))" /></span>
             </button>
           </div>
 

@@ -113,7 +113,17 @@ textarea.field {
   transform-origin: 50% 20%;
   animation: tab-wiggle 10s ease-in-out infinite;
 }
+/* Донат: сердце бьётся раз в секунду — двойной толчок «тук-тук» и пауза */
+@keyframes heartbeat {
+  0%, 40%, 100% { transform: scale(1); }
+  12% { transform: scale(1.14); }
+  24% { transform: scale(1); }
+  32% { transform: scale(1.08); }
+}
+.heartbeat {
+  animation: heartbeat 1s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .tab-draw, .tab-wiggle { animation: none; }
+  .tab-draw, .tab-wiggle, .heartbeat { animation: none; }
   .tab-draw { opacity: 0; }
 }
