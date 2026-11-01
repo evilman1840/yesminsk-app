@@ -212,6 +212,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [isDonateOpen, setIsDonateOpen] = useState(false);
   const isPollPending = Boolean(poll && !poll.myVote);
   const pollLeader = poll ? pollLeaderText(poll) : null;
+  // После голоса строка под счётчиком по очереди: «Донаты → приют» и «⚡ хочет сейчас», по 3 секунды
+  const [isLeaderShown, setIsLeaderShown] = useState(true);
+  useEffect(() => {
+    if (!pollLeader) return;
+    const t = window.setInterval(() => setIsLeaderShown((v) => !v), 3000);
+    return () => window.clearInterval(t);
+  }, [pollLeader]);
   // Фильтры людей — общие с «Людьми» (хранятся на устройстве); по умолчанию учитывают мои настройки из анкеты
   const [peopleFilters, setPeopleFilters] = useState<PeopleFilters>(loadFilters);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -334,19 +341,20 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                       >
                         {POLL_TEXTS.headerPill}
                       </button>
-                    ) : pollLeader ? (
+                    ) : pollLeader && isLeaderShown ? (
                       // Проголосовал: куда пока идут донаты; нажал — итоги
                       <button
+                        key="leader"
                         onClick={() => {
                           telegramService.haptic('selection');
                           onOpenPoll?.();
                         }}
-                        className="block max-w-full text-cap text-zine-inkMuted whitespace-nowrap truncate cursor-pointer"
+                        className="fade-swap block max-w-full text-cap text-zine-inkMuted whitespace-nowrap truncate cursor-pointer"
                       >
                         {pollLeader}
                       </button>
                     ) : (
-                      <span className="block text-cap text-zine-inkMuted whitespace-nowrap truncate">
+                      <span key="now" className={`${pollLeader ? 'fade-swap ' : ''}block text-cap text-zine-inkMuted whitespace-nowrap truncate`}>
                         {freeNowCount > 0 ? `⚡ ${freeNowCount} хочет сейчас` : 'загляни к ним'}
                       </span>
                     )}
