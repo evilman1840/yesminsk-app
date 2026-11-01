@@ -15,7 +15,6 @@ import { PeopleFiltersSheet, PeopleFilters, MyPrefs, loadFilters, saveFilters, a
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
 import { WantNowButton } from '../components/common/WantNowButton';
-import { DonateIcon } from '../components/ui/DonateIcon';
 import { MapEventsList } from '../components/map/MapEventsList';
 import { MAP_EVENTS_TEXTS } from '../texts/meetups';
 
@@ -230,7 +229,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const nearbyFaces = [...users]
     .filter((u) => u.avatarUrl)
     .sort((a, b) => Number(isAvailableNow(b)) - Number(isAvailableNow(a)))
-    .slice(0, 3);
+    .slice(0, 4);
   const isVisible = currentUser?.isProfileActive !== false;
 
   return (
@@ -345,18 +344,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                   {unreadNews}
                 </span>
               )}
-            </button>
-
-            {/* Донат: сердце со знаком рубля — видно, что это про поддержку деньгами */}
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                setIsDonateOpen(true);
-              }}
-              aria-label="Поддержать проект"
-              className="w-11 h-11 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
-            >
-              <span className="heartbeat flex"><DonateIcon size={26} cutout="rgb(var(--c-terracotta))" /></span>
             </button>
           </div>
 
@@ -541,6 +528,21 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           }}
         />
       )}
+
+      {/* Донат: бьющееся сердце над ⚡, в общем стиле круглых кнопок карты; подпись снизу — как время у ⚡ */}
+      <button
+        onClick={() => {
+          telegramService.haptic('selection');
+          setIsDonateOpen(true);
+        }}
+        aria-label="Поддержать проект"
+        className="absolute right-4 bottom-[204px] z-20 w-14 h-14 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine-float dark:bg-[#433C36] dark:border-white/25 flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+      >
+        <span className="heartbeat block text-[26px] leading-none">❤️</span>
+        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-5 px-1.5 rounded-full bg-zine-terracotta text-white text-[11px] font-bold leading-5 whitespace-nowrap shadow-zine-sm">
+          поддержи
+        </span>
+      </button>
 
       {/* «⚡ Хочу сейчас» — круглая кнопка над «Где я?»: сначала объясняет, потом включает */}
       {(mapMode === 'people' || mapMode === 'all') && (
