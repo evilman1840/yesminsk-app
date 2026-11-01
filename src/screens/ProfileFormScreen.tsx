@@ -16,6 +16,7 @@ import { HOME_TEXTS } from '../texts/home';
 import { BotAccessBanner } from '../components/common/BotAccessBanner';
 import { DeleteAccountSheet } from '../components/common/DeleteAccountSheet';
 import { HelpSheet } from '../components/common/HelpSheet';
+import { DonateSheet } from '../components/common/DonateSheet';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
 import { useBackButton, useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 
@@ -98,6 +99,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalKind | null>(null);
   const [isHelpOpen, setIsHelpOpen] = useState(false); // «Как это работает» — раньше был «?» на карте
+  const [isDonateOpen, setIsDonateOpen] = useState(false);
 
   const [name, setName] = useState<string>(
     initialData?.name || tgUser?.first_name || ''
@@ -418,6 +420,25 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           </button>
         )}
         {isHelpOpen && <HelpSheet onClose={() => setIsHelpOpen(false)} />}
+
+        {/* Донат — сразу под «Как это работает»: сюда приходят те, кто уже решил поддержать */}
+        {!isFirstTime && (
+          <button
+            type="button"
+            onClick={() => {
+              telegramService.haptic('selection');
+              setIsDonateOpen(true);
+            }}
+            className="mt-2 w-full p-4 rounded-zine bg-zine-cardElevated border border-zine-border flex items-center gap-3 text-left cursor-pointer"
+          >
+            <span className="heartbeat block text-[28px] leading-none">❤️</span>
+            <span>
+              <span className="block text-body font-bold text-zine-ink">Поддержать «ГУЛЯЙ!»</span>
+              <span className="block text-sm2 text-zine-inkMuted">Чтобы приложение оставалось бесплатным</span>
+            </span>
+          </button>
+        )}
+        {isDonateOpen && <DonateSheet onClose={() => setIsDonateOpen(false)} />}
 
 
         <div className="mt-5 space-y-4">
