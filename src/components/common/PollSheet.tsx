@@ -1,0 +1,178 @@
+import React, { useState } from 'react';
+import { Loader2, Pencil } from 'lucide-react';
+import { BottomSheet } from '../ui/BottomSheet';
+import { api } from '../../services/api';
+import { telegramService } from '../../services/telegram';
+import { PollData, POLL_CUSTOM } from '../../types';
+import { POLL_TEXTS as T } from '../../texts/poll';
+
+const CUSTOM_MAX = 200;
+
+/**
+ * Опрос автора: один тап — голос принят, «Свой вариант» раскрывает поле.
+ * После голоса — итоги полосками и мягкий призыв к донату
+ */
+export const PollSheet: React.FC<{
+  poll: PollData;
+  onClose: () => void;
+  onVoted: (poll: PollData) => void;
+  onDonate: () => void;
+}> = ({ poll, onClose, onVoted, onDonate }) => {
+  const [isRevoting, setIsRevoting] = useState(false);
+  const [isCustomOpen, setIsCustomOpen] = useState(false);
+  const [custom, setCustom] = useState(poll.myVote?.custom || '');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const vote = async (option: string) => {
+    if (busy) return;
+    if (option === POLL_CUSTOM && !custom.trim()) {
+      setError('Напиши свой вариант');
+      return;
+    }
+    setError(null);
+    setBusy(option);
+    try {
+      const next = await api.votePoll(poll.id, option, option === POLL_CUSTOM ? custom.trim() : undefined);
+      telegramService.haptic('success');
+      setIsRevoting(false);
+      setIsCustomOpen(false);
+      onVoted(next);
+    } catch (err: any) {
+      setError(err?.message || 'Не получилось сохранить голос, попробуй ещё раз');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const showResults = Boolean(poll.myVote && poll.results) && !isRevoting;
+  const labelOf = (key: string) =>
+    key === POLL_CUSTOM ? { emoji: '✏️', label: T.ownIdeas } : poll.options.find((o) => o.key === key) || { emoji: '', label: key };
+
+  if (showResults) {
+    return (
+      <BottomSheet
+        title={T.title}
+        onClose={onClose}
+        footer={
+          <div className="space-y-2">
+            <button
+              onClick={onDonate}
+              className="w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span className="heartbeat block">❤️</span>
+              {T.donate}
+            </button>
+            <button onClick={onClose} className="w-full h-11 rounded-zine-sm bg-zine-card text-zine-ink text-sm2 font-bold cursor-pointer">
+              {T.done}
+            </button>
+          </div>
+        }
+      >
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-lead font-bold text-zine-ink">{T.thanks}</p>
+          <span className="shrink-0 h-6 px-2.5 rounded-full bg-zine-sage/15 text-zine-sage text-cap font-bold leading-6">{T.counted}</span>
+        </div>
+        <p className="mt-1 text-sm2 text-zine-inkMuted">{poll.question}</p>
+
+        <div className="mt-4 space-y-3.5">
+          {poll.results!.map(({ key, percent }) => {
+            const o = labelOf(key);
+            const isMine = poll.myVote!.option === key;
+            return (
+              <div key={key}>
+                <div className="flex items-baseline justify-between gap-3 text-sm2">
+                  <span className="min-w-0 text-zine-ink">
+                    {o.emoji && <span className="mr-1.5">{o.emoji}</span>}
+                    {o.label}
+                    {isMine && <span className="font-bold text-zine-terracotta"> · {T.mine}</span>}
+                  </span>
+                  <span className={`shrink-0 tabular-nums ${isMine ? 'font-bold text-zine-ink' : 'text-zine-inkMuted'}`}>{percent}%</span>
+                </div>
+                <div className="mt-1.5 h-2 rounded-full bg-zine-card overflow-hidden">
+                  <div className={`h-full rounded-full bg-zine-terracotta ${isMine ? '' : 'opacity-40'}`} style={{ width: `${percent}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {poll.myVote!.option === POLL_CUSTOM && poll.myVote!.custom && <p className="mt-3 text-sm2 text-zine-inkMuted">{T.myIdea(poll.myVote!.custom)}</p>}
+        <p className="mt-3 text-cap text-zine-inkMuted">{T.votes(poll.total)}</p>
+
+        <div className="mt-4 p-3.5 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{T.donateNote}</div>
+        <button onClick={() => setIsRevoting(true)} className="mt-3 h-10 text-sm2 font-semibold text-zine-inkMuted underline underline-offset-2 cursor-pointer">
+          {T.revote}
+        </button>
+      </BottomSheet>
+    );
+  }
+
+  const optionClass = (selected: boolean) =>
+    `w-full p-3 rounded-zine-sm border-2 flex items-center gap-3 text-left transition-colors cursor-pointer active:scale-[0.99] ${
+      selected ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
+    }`;
+  const icon = (content: React.ReactNode) => (
+    <span className="shrink-0 w-10 h-10 rounded-[12px] bg-zine-card flex items-center justify-center text-[20px] leading-none">{content}</span>
+  );
+
+  return (
+    <BottomSheet title={T.title} onClose={onClose}>
+      <p className="text-lead font-bold text-zine-ink">{poll.question}</p>
+      {poll.note && <p className="mt-1.5 text-sm2 text-zine-inkMuted">{poll.note}</p>}
+
+      <div className="mt-4 space-y-2">
+        {poll.options.map((o) => (
+          <button key={o.key} onClick={() => vote(o.key)} className={optionClass(poll.myVote?.option === o.key)}>
+            {icon(o.emoji || '•')}
+            <span className="flex-1 min-w-0 text-body font-semibold text-zine-ink">{o.label}</span>
+            {busy === o.key && <Loader2 size={18} className="shrink-0 animate-spin text-zine-inkMuted" />}
+          </button>
+        ))}
+
+        {poll.allowCustom && (
+          <div className={`${optionClass(isCustomOpen)} flex-col !items-stretch`}>
+            <button
+              type="button"
+              onClick={() => {
+                telegramService.haptic('selection');
+                setIsCustomOpen(true);
+              }}
+              className="flex items-center gap-3 text-left cursor-pointer"
+            >
+              {icon(<Pencil size={18} className="text-zine-ink" />)}
+              <span className="flex-1 min-w-0 text-body font-semibold text-zine-ink">{T.custom}</span>
+            </button>
+            {isCustomOpen && (
+              <>
+                <textarea
+                  value={custom}
+                  onChange={(e) => {
+                    setCustom(e.target.value.slice(0, CUSTOM_MAX));
+                    setError(null);
+                  }}
+                  placeholder={T.customPlaceholder}
+                  rows={3}
+                  autoFocus
+                  className="field mt-3 resize-none"
+                />
+                <div className="mt-1 text-right text-cap text-zine-inkMuted tabular-nums">
+                  {custom.length}/{CUSTOM_MAX}
+                </div>
+                <button
+                  onClick={() => vote(POLL_CUSTOM)}
+                  className="mt-2 w-full h-11 rounded-zine-sm bg-zine-terracotta text-white text-sm2 font-bold flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {busy === POLL_CUSTOM && <Loader2 size={16} className="animate-spin" />}
+                  {T.sendIdea}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {error && <p className="mt-3 text-sm2 text-zine-danger">{error}</p>}
+      <p className="mt-4 text-center text-cap text-zine-inkMuted">{T.votes(poll.total)}</p>
+    </BottomSheet>
+  );
+};

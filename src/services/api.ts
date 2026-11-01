@@ -1,5 +1,5 @@
 import { telegramService } from './telegram';
-import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow } from '../types';
+import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData } from '../types';
 
 /**
  * Нормализация базового URL бэкенда.
@@ -285,6 +285,15 @@ class ApiService {
   // Короткая запись автора для строки подсказок (/tip — в конце, /tiptop — первой) или null
   async getTip(): Promise<{ id: string; text: string; first?: boolean } | null> {
     return this.request('/tip');
+  }
+
+  // Опрос автора (или null) — итоги приходят только после своего голоса
+  async getPoll(): Promise<PollData | null> {
+    return this.request('/poll');
+  }
+
+  async votePoll(pollId: string, option: string, custom?: string): Promise<PollData> {
+    return this.request('/poll/vote', { method: 'POST', body: JSON.stringify({ pollId, option, custom }) });
   }
 
   // Ссылка на оплату звёздами Telegram

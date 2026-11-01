@@ -506,3 +506,16 @@ export interface PlaceTipItem {
   createdAt: string;
   isMine: boolean;
 }
+
+// Опрос автора (/poll в боте): варианты; итоги — только после своего голоса
+export const POLL_CUSTOM = 'custom';
+export interface PollData {
+  id: string;
+  question: string;
+  note: string;
+  options: { key: string; label: string; emoji: string }[];
+  allowCustom: boolean;
+  total: number;
+  myVote: { option: string; custom: string } | null;
+  results: { key: string; percent: number }[] | null;
+}

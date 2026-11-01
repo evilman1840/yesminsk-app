@@ -38,7 +38,7 @@ import { LegalUpdateOverlay } from './components/common/Legal';
 import { LEGAL_VERSION } from './texts/legal';
 import { AdminContext, EVENT_DELETED } from './context/admin';
 import { EVENT_UPDATED } from './context/eventUpdates';
-import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, WishSummaryItem, placeForMeetup } from './types';
+import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, WishSummaryItem, placeForMeetup, PollData } from './types';
 import { WISH_TEXTS, wishCounter, wishNotices } from './texts/wishes';
 import { FEED_TEXTS } from './texts/feed';
 import { MEETUP_TEXTS } from './texts/meetups';
@@ -218,6 +218,7 @@ export const App: React.FC = () => {
   useEffect(() => onBotAccessChange(() => setIsBotOk(botAccessOk())), []);
   const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | null>(null);
   const [tip, setTip] = useState<{ id: string; text: string; first?: boolean } | null>(null); // запись автора (/tip, /tiptop в боте)
+  const [poll, setPoll] = useState<PollData | null>(null); // опрос автора (/poll в боте)
   // «Закрепи чат»: Telegram не говорит, закреплён ли чат, — верим «Всё сделано» или крестику, больше не показываем
   const [isPinDone, setIsPinDone] = useState(() => {
     try {
@@ -272,6 +273,7 @@ export const App: React.FC = () => {
   const fetchNews = useCallback(async () => {
     // Запись автора и «Хочу сходить» для строки подсказок грузим вместе с новостями
     api.getTip().then(setTip).catch(() => {});
+    api.getPoll().then(setPoll).catch(() => {});
     api.getWishes().then((r) => setWishSummary(r.summary || [])).catch(() => {});
     try {
       setNews(await api.getNews());
@@ -1020,7 +1022,7 @@ export const App: React.FC = () => {
           <ServerWakingBanner />
 
           {apiError && (
-            <div className="absolute top-[196px] inset-x-3 z-50 p-3.5 rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-float flex items-center justify-between gap-3">
+            <div className="absolute top-[208px] inset-x-3 z-50 p-3.5 rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-float flex items-center justify-between gap-3">
               <span className="text-sm2 text-zine-ink">{apiError}</span>
               <button
                 onClick={() => {
@@ -1108,6 +1110,8 @@ export const App: React.FC = () => {
                 onToggleSavePlace={toggleSavePlace}
                 unreadNews={unreadNews}
                 initialPlaceId={initialPlaceId}
+                poll={poll}
+                onPollChange={setPoll}
                 onCreateEventAtPlace={createEventAtPlace}
               />
             )}

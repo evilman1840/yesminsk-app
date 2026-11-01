@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
 import { api } from '../services/api';
 import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Megaphone } from 'lucide-react';
-import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood } from '../types';
+import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood, PollData } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
 import { PlaceTypeFilter } from '../components/places/PlaceTypeFilter';
@@ -14,6 +14,8 @@ import { SlidersHorizontal } from 'lucide-react';
 import { PeopleFiltersSheet, PeopleFilters, MyPrefs, loadFilters, saveFilters, applyPeopleFilters, countActiveFilters } from '../components/people/PeopleFilters';
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
+import { PollSheet } from '../components/common/PollSheet';
+import { POLL_TEXTS } from '../texts/poll';
 import { WantNowButton } from '../components/common/WantNowButton';
 import { MapEventsList } from '../components/map/MapEventsList';
 import { MAP_EVENTS_TEXTS } from '../texts/meetups';
@@ -57,6 +59,8 @@ export interface MapScreenProps {
   onCreateEventAtPlace: (place: PlaceItem) => void;
   onToggleSavePlace: (place: PlaceItem) => Promise<PlaceItem>;
   initialPlaceId?: string | null;
+  poll?: PollData | null;               // опрос автора: пока не проголосовал, подпись в шапке зовёт голосовать
+  onPollChange?: (poll: PollData) => void;
 }
 
 export type MapMode = 'all' | 'people' | 'events' | 'places';
@@ -107,6 +111,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onChangeMapMode,
   onCreateEventAtPlace,
   initialPlaceId,
+  poll,
+  onPollChange,
   onOpenEvents,
   onToggleSavePlace,
 }) => {
@@ -149,7 +155,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
   const isPlaces = mapMode === 'places';
   // Подсказки и списки — под шапкой и строкой фильтров вкладки
-  const overlayTop = 'top-[196px]';
+  const overlayTop = 'top-[208px]';
   const filteredPlaces = useMemo(
     () =>
       (mood === 'all'
@@ -204,6 +210,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     }
   };
   const [isDonateOpen, setIsDonateOpen] = useState(false);
+  const [isPollOpen, setIsPollOpen] = useState(false);
+  const isPollPending = Boolean(poll && !poll.myVote);
   // Фильтры людей — общие с «Людьми» (хранятся на устройстве); по умолчанию учитывают мои настройки из анкеты
   const [peopleFilters, setPeopleFilters] = useState<PeopleFilters>(loadFilters);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -288,29 +296,50 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       {/* Шапка на однотонном фоне, как в «Людях», «Сходках» и «Местах»: кто с нами, новости и донат (название и так пишет Telegram сверху); под ней вкладки карты */}
       <div className="absolute top-0 inset-x-0 z-20 space-y-2 pointer-events-none">
         <div className="pointer-events-auto px-3 pt-3 pb-2.5 bg-zine-paper border-b border-zine-border space-y-2.5">
-          <div className="h-11 flex items-center gap-2">
+          <div className="h-14 flex items-center gap-2">
             {isVisible ? (
               users.length > 0 ? (
-                // Кто с нами: лица и сколько их — сразу видно, что тут живые люди
-                <button
-                  onClick={() => {
-                    telegramService.haptic('selection');
-                    onOpenPeople();
-                  }}
-                  className="flex-1 min-w-0 h-11 pr-2 rounded-full flex items-center gap-2.5 active:bg-zine-card cursor-pointer"
-                >
-                  <span className="flex shrink-0">
+                // Кто с нами: лица и сколько их — сразу видно, что тут живые люди. Пока идёт опрос, вторая строка зовёт голосовать
+                <div className="flex-1 min-w-0 h-14 flex items-center gap-2.5">
+                  <button
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      onOpenPeople();
+                    }}
+                    aria-label="Люди"
+                    className="flex shrink-0 rounded-full active:opacity-80 cursor-pointer"
+                  >
                     {nearbyFaces.map((u) => (
                       <img key={u.id} src={thumb(u.avatarUrl)} alt="" className="-ml-2.5 first:ml-0 w-9 h-9 rounded-full object-cover border-2 border-zine-paper bg-zine-card" />
                     ))}
+                  </button>
+                  <span className="flex-1 min-w-0 text-left leading-tight">
+                    <button
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        onOpenPeople();
+                      }}
+                      className="block text-body font-bold text-zine-ink whitespace-nowrap cursor-pointer"
+                    >
+                      {peopleCount.toLocaleString('ru-RU')} с нами
+                    </button>
+                    {isPollPending ? (
+                      <button
+                        onClick={() => {
+                          telegramService.haptic('selection');
+                          setIsPollOpen(true);
+                        }}
+                        className="block max-w-full text-cap font-bold text-zine-terracotta whitespace-nowrap truncate cursor-pointer"
+                      >
+                        {POLL_TEXTS.headerLink}
+                      </button>
+                    ) : (
+                      <span className="block text-cap text-zine-inkMuted whitespace-nowrap truncate">
+                        {freeNowCount > 0 ? `⚡ ${freeNowCount} хочет сейчас` : 'загляни к ним'}
+                      </span>
+                    )}
                   </span>
-                  <span className="min-w-0 text-left leading-tight">
-                    <span className="block text-body font-bold text-zine-ink whitespace-nowrap">{peopleCount.toLocaleString('ru-RU')} с нами</span>
-                    <span className="block text-cap text-zine-inkMuted whitespace-nowrap truncate">
-                      {freeNowCount > 0 ? `⚡ ${freeNowCount} хочет сейчас` : 'загляни к ним'}
-                    </span>
-                  </span>
-                </button>
+                </div>
               ) : (
                 <button
                   onClick={() => telegramService.shareApp()}
@@ -336,7 +365,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 onOpenNews();
               }}
               aria-label="Новости проекта"
-              className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer bg-zine-card text-zine-ink ${unreadNews > 0 ? 'border-2 border-zine-terracotta' : 'border border-zine-border dark:border-white/25'}`}
+              className={`relative w-14 h-14 shrink-0 rounded-[18px] flex items-center justify-center active:scale-95 transition-transform cursor-pointer bg-zine-card text-zine-ink ${unreadNews > 0 ? 'ring-2 ring-inset ring-zine-terracotta' : ''}`}
             >
               <Megaphone className="w-[22px] h-[22px] -rotate-12" strokeWidth={2} />
               {unreadNews > 0 && (
@@ -481,7 +510,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       )}
 
       {/* Сходки списком вместо кружочков */}
-      {isEventsList && <MapEventsList events={filteredEvents} topClass="top-[192px]" onOpen={(ev) => setSelectedEvent(ev)} empty={noEventsCard} />}
+      {isEventsList && <MapEventsList events={filteredEvents} topClass="top-[204px]" onOpen={(ev) => setSelectedEvent(ev)} empty={noEventsCard} />}
 
       {selectedPlace && (
         <PlaceSheet
@@ -517,6 +546,18 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             💌 Позвать друзей
           </button>
         </div>
+      )}
+
+      {isPollOpen && poll && (
+        <PollSheet
+          poll={poll}
+          onClose={() => setIsPollOpen(false)}
+          onVoted={(p) => onPollChange?.(p)}
+          onDonate={() => {
+            setIsPollOpen(false);
+            setIsDonateOpen(true);
+          }}
+        />
       )}
 
       {isDonateOpen && (
