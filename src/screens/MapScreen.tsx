@@ -539,7 +539,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         className="absolute right-4 bottom-[204px] z-20 w-14 h-14 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine-float dark:bg-[#433C36] dark:border-white/25 flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
       >
         <span className="heartbeat block text-[26px] leading-none">❤️</span>
-        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-5 px-1.5 rounded-full bg-zine-terracotta text-white text-[11px] font-bold leading-5 whitespace-nowrap shadow-zine-sm">
+        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-5 px-1.5 rounded-full bg-zine-ink text-zine-paper text-[11px] font-bold leading-5 whitespace-nowrap shadow-zine-sm">
           поддержи
         </span>
       </button>
