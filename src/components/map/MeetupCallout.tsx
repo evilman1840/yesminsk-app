@@ -29,12 +29,13 @@ export interface MeetupCallout {
 // Очередь для строки подсказок: куда идут из «На связи» → самые подходящие мне (сервер уже отдаёт по порядку) → «собери свою».
 // Листаются карточками; сходок — не больше 4, чтобы строка не разрасталась
 export function pickMeetupCallouts(events: AppEvent[], myId: number | undefined, matchIds: number[]): MeetupCallout[] {
-  // Куда можно пойти в ближайшую неделю: не свои, ещё не записан, есть места, не начались больше получаса назад
+  // Куда можно пойти в ближайшую неделю: не свои, ещё не записан, есть места, с начала прошло меньше часа и ещё не закончились
   const now = Date.now();
   const candidates = events.filter((e) => {
     const t = new Date(e.dateTime).getTime();
     const hasSeats = !e.maxParticipants || e.participantsCount < e.maxParticipants;
-    return !e.isJoined && hasSeats && Number(e.creator?.telegramId) !== Number(myId) && t > now - 30 * 60 * 1000 && t < now + 7 * 24 * 3600 * 1000;
+    const isOver = e.durationMinutes ? t + e.durationMinutes * 60 * 1000 <= now : false;
+    return !e.isJoined && hasSeats && !isOver && Number(e.creator?.telegramId) !== Number(myId) && t > now - 60 * 60 * 1000 && t < now + 7 * 24 * 3600 * 1000;
   });
   const friends = new Set(matchIds);
   const friendOf = (e: AppEvent) => e.participants?.find((p) => friends.has(Number(p.telegramId)))?.name;

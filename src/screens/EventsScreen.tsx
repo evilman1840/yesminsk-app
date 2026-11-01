@@ -1519,6 +1519,8 @@ const REEL_BG: Record<EventCategory, string> = {
   trip_outdoors: 'from-[#5B7B68] to-[#1F2A23]',
   boardgames: 'from-[#4A7396] to-[#1C2732]',
   sport: 'from-[#3F8A8C] to-[#1A2B2C]',
+  relax: 'from-[#5E8FA8] to-[#1B2830]',
+  learn: 'from-[#8A6A3E] to-[#2B2218]',
   support: 'from-[#9A7BA8] to-[#2A2230]',
   other: 'from-[#C77D86] to-[#33222A]'
 };

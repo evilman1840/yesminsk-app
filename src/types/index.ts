@@ -1,7 +1,7 @@
 export type ActivityGoal = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'other';
 export type Gender = 'male' | 'female' | 'not_specified';
 export type PreferredGender = 'all' | 'male' | 'female';
-export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'support' | 'other';
+export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'relax' | 'learn' | 'support' | 'other';
 
 export interface AgeRange {
   min: number;
@@ -62,6 +62,8 @@ export const EVENT_CATEGORIES_CONFIG: Record<EventCategory, { label: string; emo
   trip_outdoors: { label: 'За город', emoji: '🌲', ...badge('sage') },
   boardgames: { label: 'Настолки', emoji: '🎲', ...badge('sky') },
   sport: { label: 'Спорт, вело', emoji: '🚴', ...badge('sky') },
+  relax: { label: 'Релакс', emoji: '🧖', ...badge('sage') },
+  learn: { label: 'Просвещение', emoji: '🧭', ...badge('mustard') },
   support: { label: 'Поныть', emoji: '🫂', ...badge('blush') },
   other: { label: 'Своя идея', emoji: '✨', ...badge('blush') }
 };
