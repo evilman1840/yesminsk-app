@@ -718,8 +718,9 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         .ymaps-2-1-79-inner-panes { background-color: #F4EFE7 !important; }
         html.dark [class*="ground-pane"] { filter: invert(92%) hue-rotate(180deg) brightness(95%) contrast(88%) sepia(12%) !important; }
         html.dark .ymaps-2-1-79-inner-panes { background-color: #1C1917 !important; }
-        /* «Как добраться» / «Открыть в Картах»: suppressMapOpenBlock в 2.1.79 его уже не прячет */
-        [class*="gotoymaps"] { display: none !important; }
+        /* Промо Яндекса: «Как добраться» (suppressMapOpenBlock в 2.1.79 его уже не прячет) и «Создать свою карту» / «API».
+           Логотип и «Условия» не трогаем — их требуют правила API */
+        [class*="gotoymaps"], [class*="gototech"] { display: none !important; }
       `}</style>
 
       <Map

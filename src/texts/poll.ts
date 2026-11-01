@@ -1,6 +1,12 @@
 // Опрос автора: подпись в шапке карты и шторка с вариантами и итогами
 export const POLL_TEXTS = {
-  headerLink: '🗳 Новый опрос →',
+  headerPill: 'Нужен твой совет 🙏',
+  notice: (question: string) => `🗳 ${question} Решаю вместе с вами`,
+  noticeAction: 'Ответить',
+  // После голоса — строка в шапке: куда пока идут донаты
+  leader: (what: string) => `Донаты → ${what}`,
+  leaderTie: 'пока поровну',
+  leaderIdeas: 'ваши идеи',
   title: 'Опрос',
   custom: 'Свой вариант',
   customPlaceholder: 'Например: книги в детский дом',

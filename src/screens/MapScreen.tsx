@@ -14,7 +14,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { PeopleFiltersSheet, PeopleFilters, MyPrefs, loadFilters, saveFilters, applyPeopleFilters, countActiveFilters } from '../components/people/PeopleFilters';
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
-import { PollSheet } from '../components/common/PollSheet';
+import { pollLeaderText } from '../components/common/PollSheet';
 import { POLL_TEXTS } from '../texts/poll';
 import { WantNowButton } from '../components/common/WantNowButton';
 import { MapEventsList } from '../components/map/MapEventsList';
@@ -60,7 +60,7 @@ export interface MapScreenProps {
   onToggleSavePlace: (place: PlaceItem) => Promise<PlaceItem>;
   initialPlaceId?: string | null;
   poll?: PollData | null;               // опрос автора: пока не проголосовал, подпись в шапке зовёт голосовать
-  onPollChange?: (poll: PollData) => void;
+  onOpenPoll?: () => void;
 }
 
 export type MapMode = 'all' | 'people' | 'events' | 'places';
@@ -112,7 +112,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onCreateEventAtPlace,
   initialPlaceId,
   poll,
-  onPollChange,
+  onOpenPoll,
   onOpenEvents,
   onToggleSavePlace,
 }) => {
@@ -210,8 +210,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     }
   };
   const [isDonateOpen, setIsDonateOpen] = useState(false);
-  const [isPollOpen, setIsPollOpen] = useState(false);
   const isPollPending = Boolean(poll && !poll.myVote);
+  const pollLeader = poll ? pollLeaderText(poll) : null;
   // Фильтры людей — общие с «Людьми» (хранятся на устройстве); по умолчанию учитывают мои настройки из анкеты
   const [peopleFilters, setPeopleFilters] = useState<PeopleFilters>(loadFilters);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -324,14 +324,26 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                       {peopleCount.toLocaleString('ru-RU')} с нами
                     </button>
                     {isPollPending ? (
+                      // Опрос: плашка-кнопка, чтобы заметили; спрашиваем по-человечески
                       <button
                         onClick={() => {
                           telegramService.haptic('selection');
-                          setIsPollOpen(true);
+                          onOpenPoll?.();
                         }}
-                        className="block max-w-full text-cap font-bold text-zine-terracotta whitespace-nowrap truncate cursor-pointer"
+                        className="mt-1 max-w-full h-6 px-2.5 rounded-full bg-zine-terracotta text-white text-cap font-bold whitespace-nowrap truncate flex items-center cursor-pointer active:scale-95 transition-transform"
                       >
-                        {POLL_TEXTS.headerLink}
+                        {POLL_TEXTS.headerPill}
+                      </button>
+                    ) : pollLeader ? (
+                      // Проголосовал: куда пока идут донаты; нажал — итоги
+                      <button
+                        onClick={() => {
+                          telegramService.haptic('selection');
+                          onOpenPoll?.();
+                        }}
+                        className="block max-w-full text-cap text-zine-inkMuted whitespace-nowrap truncate cursor-pointer"
+                      >
+                        {pollLeader}
                       </button>
                     ) : (
                       <span className="block text-cap text-zine-inkMuted whitespace-nowrap truncate">
@@ -546,18 +558,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             💌 Позвать друзей
           </button>
         </div>
-      )}
-
-      {isPollOpen && poll && (
-        <PollSheet
-          poll={poll}
-          onClose={() => setIsPollOpen(false)}
-          onVoted={(p) => onPollChange?.(p)}
-          onDonate={() => {
-            setIsPollOpen(false);
-            setIsDonateOpen(true);
-          }}
-        />
       )}
 
       {isDonateOpen && (

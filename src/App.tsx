@@ -27,6 +27,8 @@ import { TabBar, TabId } from './components/ui/TabBar';
 import { BottomSheet } from './components/ui/BottomSheet';
 import { EventDetails } from './components/common/EventDetails';
 import { DonateSheet } from './components/common/DonateSheet';
+import { PollSheet } from './components/common/PollSheet';
+import { POLL_TEXTS } from './texts/poll';
 import { NewsScreen } from './screens/NewsScreen';
 import { PlacesScreen } from './screens/PlacesScreen';
 import { FirstStepsCard } from './components/people/FirstSteps';
@@ -138,6 +140,7 @@ export const App: React.FC = () => {
     }
   });
   const [isDonateOpen, setIsDonateOpen] = useState(false);
+  const [isPollOpen, setIsPollOpen] = useState(false);
 
   // Окно «Поделиться» (позвать друзей, позвать на сходку)
   const [shareData, setShareData] = useState<ShareData | null>(null);
@@ -929,6 +932,14 @@ export const App: React.FC = () => {
   // Запись автора: нажимать нечего, только прочитать или закрыть. /tiptop — первой, /tip — в конце
   const tipNotice: Notice | null = tip ? { id: `tip:${tip.id}`, text: tip.text, hideDays: 1 } : null;
   const notices: Notice[] = [
+    // Опрос автора — первым, пока не проголосовал (после голоса строка с лидером остаётся в шапке карты)
+    poll && !poll.myVote && {
+      id: `poll:${poll.id}`,
+      text: POLL_TEXTS.notice(poll.question),
+      action: POLL_TEXTS.noticeAction,
+      hideDays: 2,
+      onClick: () => setIsPollOpen(true)
+    },
     tip?.first && tipNotice,
     (!isBotOk || isBotBlocked) && {
       id: 'bot',
@@ -1111,7 +1122,7 @@ export const App: React.FC = () => {
                 unreadNews={unreadNews}
                 initialPlaceId={initialPlaceId}
                 poll={poll}
-                onPollChange={setPoll}
+                onOpenPoll={() => setIsPollOpen(true)}
                 onCreateEventAtPlace={createEventAtPlace}
               />
             )}
@@ -1359,6 +1370,18 @@ export const App: React.FC = () => {
                 {launchNotice.tab === 'feed' ? 'Посмотреть людей' : 'Посмотреть сходки'}
               </button>
             </BottomSheet>
+          )}
+
+          {isPollOpen && poll && (
+            <PollSheet
+              poll={poll}
+              onClose={() => setIsPollOpen(false)}
+              onVoted={setPoll}
+              onDonate={() => {
+                setIsPollOpen(false);
+                setIsDonateOpen(true);
+              }}
+            />
           )}
 
           {isDonateOpen && (
