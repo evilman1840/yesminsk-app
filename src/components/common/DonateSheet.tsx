@@ -53,7 +53,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
     return (
       <BottomSheet title="Спасибо! 💛" onClose={onClose}>
         <p className="text-body text-zine-ink">
-          Твоя поддержка помогает «ГУЛЯЙ!» оставаться бесплатным, а больше половины суммы вернётся людям подарками и приятными сюрпризами. Это очень ценно.
+          Твоя поддержка помогает «ГУЛЯЙ!» оставаться бесплатным, а больше половины суммы вернётся людям или животным: куда именно, решаем вместе в опросе. Это очень ценно.
         </p>
         <button onClick={onClose} className="mt-5 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer">
           Пожалуйста!
@@ -66,7 +66,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
     <BottomSheet title="Поддержать проект" onClose={onClose}>
       <p className="text-lead font-bold text-zine-ink">🔥 Поддержи проект 1 рублём или больше</p>
       <p className="mt-2 text-body text-zine-ink">
-        Привет! Я Миша Спасатель Позднев, автор «ГУЛЯЙ!». Приложение бесплатное и без рекламы, и я хочу, чтобы донаты возвращались к людям.
+        Привет! Я Миша Спасатель Позднев, автор «ГУЛЯЙ!». Приложение бесплатное и без рекламы, и я хочу, чтобы донаты возвращались к людям или животным.
       </p>
 
       {/* Сколько уже собрано */}
@@ -78,7 +78,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
           <p className="flex gap-3">
             <span className="shrink-0 w-14 text-lead font-bold text-zine-terracotta">51%</span>
             <span className="text-sm2 text-zine-ink">
-              <b>Обещаю: на вас.</b> Бесплатные подарки пользователям приложения: кофе на сходках, билеты в кино и на выставки и другие приятные сюрпризы 🎁
+              <b>Обещаю: на вас.</b> Бесплатные подарки пользователям приложения: кофе на сходках, билеты в кино и на выставки и другие приятные сюрпризы 🎁 Или помощь приюту, если так решим вместе.
             </span>
           </p>
           <p className="flex gap-3">
