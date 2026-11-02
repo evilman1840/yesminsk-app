@@ -17,6 +17,24 @@ export const WISH_TEXTS = {
   // Ссылка под счётчиком в «Сходках»
   barLink: (n: number) => (n ? `Все желания · мои ${n}` : 'Все желания'),
   allLink: '🙋 Все желания и мои →',
+  // Строка быстрых желаний под карточкой: вид в одно нажатие
+  quickOther: 'Своё',
+  quickHint: 'Нажми, когда удобно, и готово',
+  quickMore: 'Место и мои желания',
+  // Карточка в ленте между сходками
+  reelMeToo: '🙋 И я хочу',
+  reelWho: 'Кто это?',
+  reelAsk: 'И ты?',
+  reelPromptTitle: 'Не нашлось подходящей сходки?',
+  reelPromptText: 'Отметь, куда хочется. Когда найдутся люди с таким же желанием, бот предложит собрать компанию.',
+  reelPromptButton: '🙋 Хочу сходить',
+  // Пустая лента с фильтром: «🙋 Хочу на кофе завтра»
+  emptyWantFor: (what: string, when: string) => `🙋 Хочу ${what} ${when}`.replace(/\s+/g, ' ').trim(),
+  whenPhrase: { today: 'сегодня', tomorrow: 'завтра', weekend: 'на выходных', week: 'на неделе' } as Record<string, string>,
+  // Что будет дальше: прогресс группы до предложения бота
+  progressAlone: 'Пока только ты. Как найдётся ещё кто-то, бот напишет',
+  progressSome: (n: number, of: number) => `Вас ${n} из ${of}. Ещё ${people(of - n)}, и бот предложит время и место`,
+  progressFull: (n: number) => `Вас ${n}: бот предлагает время и место в Telegram`,
   barMine: (n: number) => (n === 1 ? 'Твоё желание отмечено, ждём совпадений' : `Твоих желаний: ${n}, ждём совпадений`),
 
   sheetTitle: 'Куда хочется?',
@@ -45,7 +63,6 @@ export const WISH_TEXTS = {
   othersHint: 'Нажми, чтобы увидеть, кто это, передать 👋 или позвать в компанию',
   meToo: '✓ и ты',
   mineTitle: 'Мои желания',
-  matched: (n: number) => `совпало: вас уже ${n}`,
   cancel: 'Убрать желание',
   limit: (max: number) => `Можно держать до ${max} желаний сразу`,
 
@@ -100,3 +117,10 @@ export const wishNotices = <W extends { kind: string; sport: string | null; time
 };
 
 export const wishLine = (w: { what: string; when: string }) => `${w.what} ${w.when}`;
+
+// Что будет дальше с желанием: «Пока только ты», «Вас 2 из 3…», «Вас 3: бот предлагает…»
+export const wishProgress = (groupSize: number, proposeAt: number) =>
+  groupSize < 2 ? WISH_TEXTS.progressAlone : groupSize < proposeAt ? WISH_TEXTS.progressSome(groupSize, proposeAt) : WISH_TEXTS.progressFull(groupSize);
+
+// Фраза желания без метки поля: «поиграть в {спорт}» → «поиграть»
+export const bareWishPhrase = (phrase: string) => phrase.replace(/\s*\S*\s*\{[^}]+\}/, '').trim();

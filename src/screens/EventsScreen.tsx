@@ -18,9 +18,10 @@ import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 import { HelpLine } from '../components/common/HelpLine';
 import { PhotoPicker, PickedPhoto, photoFromUrl, photoSrc } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
-import { WishSheet } from '../components/common/WishSheet';
+import { WishSheet, DELICATE_KINDS } from '../components/common/WishSheet';
+import { askBotAccess } from '../services/botAccess';
 import { InfoToast } from '../components/ui/InfoToast';
-import { WISH_TEXTS, wishCounter } from '../texts/wishes';
+import { WISH_TEXTS, wishCounter, wishProgress, bareWishPhrase } from '../texts/wishes';
 import { MEETUP_TEXTS as M, priceLabel } from '../texts/meetups';
 import { confirmAttendance } from '../context/eventUpdates';
 import { areaOf, distanceMeters, farMentionedArea, isKnownPoint } from '../utils/minskAreas';
@@ -255,7 +256,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [invite, setInvite] = useState<{ id: number; name: string }[]>([]); // «Позвать в компанию»
   // «Хочу сходить»: плашка в ленте и шторка
   const [isWishOpen, setIsWishOpen] = useState(false);
-  const [wishToast, setWishToast] = useState<number | null>(null); // отметили желание: сколько ещё людей хотят того же
+  const [wishToast, setWishToast] = useState<{ sameCount: number; groupSize: number } | null>(null); // отметили желание: что дальше
+  // Шторка открыта с уже выбранным видом (чип, пустой фильтр): быстрый режим — осталось «когда»
+  const [wishPreset, setWishPreset] = useState<{ kind: string | null; window: WishWindow | null; quick: boolean } | null>(null);
+  const openWish = (preset?: { kind: string | null; window?: WishWindow | null }) => {
+    telegramService.haptic('selection');
+    setWishPreset(preset ? { kind: preset.kind, window: preset.window || null, quick: true } : null);
+    setIsWishOpen(true);
+  };
   const [wishPlace, setWishPlace] = useState<PlaceItem | null>(null);
   useEffect(() => {
     if (!initialWish) return;
@@ -266,12 +274,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   }, [initialWish]);
   const [wishSummary, setWishSummary] = useState<WishSummaryItem[]>([]);
   const [myWishCount, setMyWishCount] = useState(0);
+  const [proposeAt, setProposeAt] = useState(3);
   const refreshWishes = () =>
     api
       .getWishes()
       .then((r) => {
         setWishSummary(r.summary || []);
         setMyWishCount((r.mine || []).length);
+        setProposeAt(r.proposeAt || 3);
       })
       .catch(() => {});
   useEffect(() => {
@@ -288,6 +298,21 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     .filter((x, i, all) => all.findIndex((y) => y.s.kind === x.s.kind && y.s.sport === x.s.sport && y.s.timeWindow === x.s.timeWindow) === i)
     .slice(0, BAR_WISHES)
     .map((x) => x.s);
+  // «И ты?» в ленте: чужие желания, к которым я ещё не присоединился(ась)
+  const reelWishes = barWishes.filter((s) => !s.includesMe);
+  const joinWish = async (s: WishSummaryItem) => {
+    telegramService.haptic('light');
+    askBotAccess();
+    try {
+      const res = await api.createWish({ kind: s.kind, sport: s.sport, timeWindow: s.timeWindow, placeId: s.placeId });
+      telegramService.haptic('success');
+      setWishToast({ sameCount: res.sameCount, groupSize: res.wish?.groupSize || 0 });
+      refreshWishes();
+    } catch (err: any) {
+      telegramService.haptic('error');
+      telegramService.alert(err?.message || WISH_TEXTS.failed);
+    }
+  };
   const topWish = barWishes.length < 2 || barTurn % 2 === 0 ? barWishes[0] : barWishes[1 + (Math.floor(barTurn / 2) % (barWishes.length - 1))];
   const [price, setPrice] = useState('');
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
@@ -336,6 +361,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     .map((e, i) => ({ e, i, rank: onlyMine ? 0 : e.isJoined ? 2 : seenAtOpen.has(String(e.id)) ? 1 : 0 }))
     .sort((a, b) => a.rank - b.rank || a.i - b.i)
     .map(({ e }) => e);
+  // Лента: сходки и между ними карточки «Хочу сходить» (после 4-й и 10-й; сходок меньше — одна в конце). В «⭐ Мои» — без них
+  type FeedItem = { type: 'event'; ev: AppEvent } | { type: 'wish'; slot: number };
+  const feedItems: FeedItem[] = [];
+  filteredEvents.forEach((ev, i) => {
+    feedItems.push({ type: 'event', ev });
+    if (!onlyMine && (i === 3 || i === 9)) feedItems.push({ type: 'wish', slot: i === 3 ? 0 : 1 });
+  });
+  if (!onlyMine && filteredEvents.length > 0 && filteredEvents.length < 4) feedItems.push({ type: 'wish', slot: 0 });
   const detailsEvent = detailsEventId ? events.find((e) => String(e.id) === detailsEventId) || null : null;
   const joinEvent = joinEventId ? events.find((e) => String(e.id) === joinEventId) || null : null;
   // После «Вернуть» — сразу показываем возвращённую карточку
@@ -343,7 +376,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [scrollToId, setScrollToId] = useState<string | null>(null);
   useLayoutEffect(() => {
     if (!scrollToId) return;
-    const index = filteredEvents.findIndex((item) => String(item.id) === scrollToId);
+    const index = feedItems.findIndex((item) => item.type === 'event' && String(item.ev.id) === scrollToId);
     const list = listRef.current;
     if (list && index >= 0) list.scrollTo({ top: index * list.clientHeight });
     setScrollToId(null);
@@ -737,6 +770,13 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const categoryItems = [['all', 'Все', ''], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji]), ['kids', 'С детьми', '👶']] as [EventCategory | 'all' | 'kids', string, string][];
   const activeCategory = selectedCategory !== 'all' ? categoryItems.find(([id]) => id === selectedCategory) : undefined;
   const activeFilters = Number(selectedCategory !== 'all');
+  // «Хочу сходить» в одно нажатие: виды желаний чипами, у каждого — сколько людей уже хотят (кроме меня; «поныть» без счётчика)
+  const wishKinds = (templates || []).filter((t) => t.key !== CUSTOM_TEMPLATE && t.wishPhrase);
+  const wishKindCount = (kind: string) =>
+    DELICATE_KINDS.includes(kind) ? 0 : wishSummary.filter((s) => s.kind === kind).reduce((n, s) => n + s.count - (s.includesMe ? 1 : 0), 0);
+  // Пустая лента с фильтром: желание с тем же видом и временем, что выбраны в фильтре
+  const emptyWishKind = selectedCategory !== 'all' && selectedCategory !== 'kids' ? wishKinds.find((t) => t.category === selectedCategory) || null : null;
+  const emptyWishWindow: WishWindow | null = eventWhen === 'all' ? null : eventWhen;
   // Выбранное в шторке — чипами под шапкой, крестик сбрасывает
   const activeChips = [
     activeCategory && { key: 'cat', label: `${activeCategory[2]} ${activeCategory[1]}`.trim(), onClear: () => setSelectedCategory('all') }
@@ -817,35 +857,21 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         )}
 
         <div className="mt-2.5 flex gap-2">
-        {/* «Хочу сходить»: нет подходящей сходки — отметь, куда хочется */}
-        {/* Есть счётчик «9 человек хотят…» — он и есть заголовок, нажатие — кто это; ссылка под ним — все желания и форма «Куда хочется?» */}
-        <div className="min-w-0 flex-1 p-2 rounded-zine-sm bg-zine-card border border-zine-border flex items-center gap-2.5">
+        {/* «Хочу сходить»: нет подходящей сходки — отметь, куда хочется. Вся карточка — одна цель: шторка желаний,
+            а в ней уже «Уже хотят» и кто это. Счётчик — подписью, как приманка */}
+        <button
+          onClick={() => openWish()}
+          className="min-w-0 flex-1 p-2 rounded-zine-sm bg-zine-card border border-zine-border flex items-center gap-2.5 text-left active:scale-[0.98] transition-transform cursor-pointer"
+        >
           <span className="w-9 h-9 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center text-[18px] leading-none" aria-hidden>🙋</span>
-          <span className="min-w-0 flex-1 flex flex-col items-start">
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                if (topWish && onOpenWishPeople) onOpenWishPeople(topWish);
-                else setIsWishOpen(true);
-              }}
-              className="w-full text-left text-sm2 font-bold leading-tight line-clamp-2 cursor-pointer"
-            >
-              {topWish && onOpenWishPeople ? wishCounter(topWish) : WISH_TEXTS.barTitle}
-            </button>
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                setIsWishOpen(true);
-              }}
-              className="mt-0.5 max-w-full flex items-center text-cap font-semibold text-zine-mustard cursor-pointer"
-            >
-              <span className="truncate">
-                {topWish && onOpenWishPeople ? WISH_TEXTS.barLink(myWishCount) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
-              </span>
-              <ChevronRight size={14} className="shrink-0" />
-            </button>
+          <span className="min-w-0 flex-1">
+            <span className="block text-body font-bold leading-tight text-zine-ink">{WISH_TEXTS.barTitle}</span>
+            <span className="mt-0.5 block text-cap font-semibold text-zine-inkMuted line-clamp-2">
+              {topWish ? wishCounter(topWish) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+            </span>
           </span>
-        </div>
+          <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />
+        </button>
         {/* Не нашлось подходящей — собрать свою */}
         <button
           onClick={() => handleOpenCreateModal(undefined, undefined, 'feed')}
@@ -855,6 +881,32 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           <span>{M.createButtonShort}</span>
         </button>
         </div>
+        {/* Быстрые желания: вид в одно нажатие, дальше только «когда» */}
+        {wishKinds.length > 0 && (
+          <div className="mt-2 -mx-3 px-3 flex gap-1.5 overflow-x-auto no-scrollbar">
+            {wishKinds.map((t) => {
+              const n = wishKindCount(t.key);
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => openWish({ kind: t.key })}
+                  className="h-9 pl-2.5 pr-3 shrink-0 rounded-full bg-zine-card border border-zine-border text-sm2 font-semibold text-zine-ink flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
+                >
+                  <span aria-hidden>{t.emoji}</span>
+                  <span className="whitespace-nowrap">{t.name}</span>
+                  {n > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-zine-terracotta/15 text-zine-terracotta text-cap font-bold flex items-center justify-center">{n}</span>}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => openWish({ kind: CUSTOM_TEMPLATE })}
+              className="h-9 px-3 shrink-0 rounded-full bg-zine-card border border-zine-border text-sm2 font-semibold text-zine-ink flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
+            >
+              <span aria-hidden>✍️</span>
+              <span className="whitespace-nowrap">{WISH_TEXTS.quickOther}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="relative flex-1 min-h-0">
@@ -872,16 +924,34 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           >
             {M.createButton}
           </button>
-          <button
-            onClick={() => setIsWishOpen(true)}
-            className="mt-3 h-12 px-6 rounded-full bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
-          >
-            {WISH_TEXTS.emptyWant}
-          </button>
+          {/* Фильтр пустой — желание с тем же видом и временем: осталось подтвердить */}
+          {!onlyMine && (
+            <button
+              onClick={() => openWish(emptyWishKind || emptyWishWindow ? { kind: emptyWishKind?.key || null, window: emptyWishWindow } : undefined)}
+              className="mt-3 h-12 px-6 rounded-full bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
+            >
+              {emptyWishKind || emptyWishWindow
+                ? WISH_TEXTS.emptyWantFor(emptyWishKind ? bareWishPhrase(emptyWishKind.wishPhrase) : 'сходить', emptyWishWindow ? WISH_TEXTS.whenPhrase[emptyWishWindow] : '')
+                : WISH_TEXTS.emptyWant}
+            </button>
+          )}
         </div>
       ) : (
         <div key={`${selectedCategory}-${eventWhen}`} ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
-          {filteredEvents.map((ev, index) => {
+          {feedItems.map((item, index) => {
+            if (item.type === 'wish') {
+              const w = reelWishes[item.slot] || null;
+              return (
+                <WishReel
+                  key={`wish-${item.slot}`}
+                  wish={w}
+                  onMeToo={() => w && joinWish(w)}
+                  onWho={w && onOpenWishPeople ? () => onOpenWishPeople(w) : undefined}
+                  onOpen={() => openWish()}
+                />
+              );
+            }
+            const ev = item.ev;
             const isCreator = Boolean(
               currentUserId && (
                 Number(ev.creator?.telegramId) === Number(currentUserId) ||
@@ -1461,9 +1531,13 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         <WishSheet
           places={places}
           presetPlace={wishPlace}
+          presetKind={wishPreset?.kind}
+          presetWindow={wishPreset?.window}
+          quick={wishPreset?.quick}
           onClose={() => {
             setIsWishOpen(false);
             setWishPlace(null);
+            setWishPreset(null);
             refreshWishes();
           }}
           onChanged={refreshWishes}
@@ -1475,17 +1549,23 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               onOpenWishPeople(item);
             })
           }
-          onCreated={(sameCount) => {
+          onCreated={(sameCount, groupSize) => {
             setIsWishOpen(false);
             setWishPlace(null);
-            setWishToast(sameCount);
+            setWishPreset(null);
+            setWishToast({ sameCount, groupSize });
+            refreshWishes();
           }}
         />
       )}
       {wishToast !== null && (
         <InfoToast
           title={WISH_TEXTS.toastTitle}
-          text={[WISH_TEXTS.toastText, wishToast > 0 ? WISH_TEXTS.sameCount(wishToast) : ''].filter(Boolean).join(' ')}
+          text={
+            wishToast.groupSize >= 2
+              ? wishProgress(wishToast.groupSize, proposeAt)
+              : [WISH_TEXTS.toastText, wishToast.sameCount > 0 ? WISH_TEXTS.sameCount(wishToast.sameCount) : ''].filter(Boolean).join(' ')
+          }
           onDone={() => setWishToast(null)}
         />
       )}
@@ -1837,3 +1917,34 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
 );
 
 export default EventsScreen;
+
+// Карточка «Хочу сходить» между сходками: чужое желание — «И я хочу» в одно нажатие; чужих нет — позвать отметить своё
+const WishReel: React.FC<{ wish: WishSummaryItem | null; onMeToo: () => void; onWho?: () => void; onOpen: () => void }> = ({ wish, onMeToo, onWho, onOpen }) => (
+  <section className="h-full w-full snap-start snap-always p-3">
+    <div className="h-full rounded-zine bg-zine-card border border-zine-border flex flex-col items-center justify-center text-center px-6 text-zine-ink">
+      <div className="text-[56px] leading-none mb-4" aria-hidden>🙋</div>
+      {wish ? (
+        <>
+          <p className="font-serif font-bold text-title">{WISH_TEXTS.barCounter(wish.count, wish.what, wish.when)}</p>
+          <p className="mt-2 text-lead text-zine-inkMuted">{WISH_TEXTS.reelAsk}</p>
+          <button onClick={onMeToo} className="mt-6 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold active:scale-95 transition-transform cursor-pointer">
+            {WISH_TEXTS.reelMeToo}
+          </button>
+          {onWho && (
+            <button onClick={onWho} className="mt-3 h-11 px-5 rounded-full text-zine-ink text-body font-semibold cursor-pointer">
+              {WISH_TEXTS.reelWho}
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <p className="font-serif font-bold text-title">{WISH_TEXTS.reelPromptTitle}</p>
+          <p className="mt-2 text-body text-zine-inkMuted">{WISH_TEXTS.reelPromptText}</p>
+          <button onClick={onOpen} className="mt-6 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold active:scale-95 transition-transform cursor-pointer">
+            {WISH_TEXTS.reelPromptButton}
+          </button>
+        </>
+      )}
+    </div>
+  </section>
+);

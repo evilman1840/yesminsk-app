@@ -5,7 +5,7 @@ import { api } from '../../services/api';
 import { telegramService } from '../../services/telegram';
 import { loadTemplates, cachedTemplates } from '../../utils/templatesStore';
 import { BottomSheet } from '../ui/BottomSheet';
-import { WISH_TEXTS as T, wishLine } from '../../texts/wishes';
+import { WISH_TEXTS as T, wishLine, wishProgress } from '../../texts/wishes';
 import { SUGGEST_TEXTS as SG } from '../../texts/suggest';
 import { SuggestPlaceSheet } from './SuggestPlaceSheet';
 import { askBotAccess } from '../../services/botAccess';
@@ -21,24 +21,30 @@ const subFieldOf = (tpl?: EventTemplate | null) => {
 };
 
 /**
- * «Хочу сходить»: что, когда, где (необязательно) → «Хочу!». Тут же свои желания и чужие счётчики
+ * «Хочу сходить»: что, когда, где (необязательно) → «Хочу!». Тут же свои желания и чужие счётчики.
+ * Быстрый режим (quick): вид уже выбран, остаётся нажать «когда», и желание сохранено; место и списки по ссылке
  */
 export const WishSheet: React.FC<{
   places?: PlaceItem[];
   presetPlace?: PlaceItem | null;
   onClose: () => void;
   onChanged?: () => void;
-  onCreated?: (sameCount: number) => void; // отметили — шторку закрывает родитель и показывает, что дальше
+  onCreated?: (sameCount: number, groupSize: number) => void; // отметили — шторку закрывает родитель и показывает, что дальше
   onOpenPeople?: (item: WishSummaryItem) => void; // «76 человек хотят…» — кто это
-}> = ({ places = [], presetPlace, onClose, onChanged, onCreated, onOpenPeople }) => {
+  presetKind?: string | null; // вид желания уже выбран: чип в ленте, пустой фильтр
+  presetWindow?: WishWindow | null;
+  quick?: boolean;
+}> = ({ places = [], presetPlace, onClose, onChanged, onCreated, onOpenPeople, presetKind = null, presetWindow = null, quick: quickStart = false }) => {
   const [templates, setTemplates] = useState<EventTemplate[] | null>(cachedTemplates());
   const [mine, setMine] = useState<WishItem[]>([]);
   const [summary, setSummary] = useState<WishSummaryItem[]>([]);
   const [maxActive, setMaxActive] = useState(3);
+  const [proposeAt, setProposeAt] = useState(3);
+  const [quick, setQuick] = useState(quickStart);
 
-  const [kind, setKind] = useState<string | null>(null);
+  const [kind, setKind] = useState<string | null>(presetKind);
   const [sport, setSport] = useState<string | null>(null);
-  const [timeWindow, setTimeWindow] = useState<WishWindow | null>(null);
+  const [timeWindow, setTimeWindow] = useState<WishWindow | null>(presetWindow);
   const [place, setPlace] = useState<PlaceItem | null>(presetPlace || null);
   const [isPlacePicker, setIsPlacePicker] = useState(false);
   const [query, setQuery] = useState('');
@@ -62,6 +68,7 @@ export const WishSheet: React.FC<{
         setMine(r.mine || []);
         setSummary(r.summary || []);
         setMaxActive(r.maxActive || 3);
+        setProposeAt(r.proposeAt || 3);
       })
       .catch(() => {});
 
@@ -83,7 +90,7 @@ export const WishSheet: React.FC<{
       telegramService.haptic('success');
       if (onCreated) {
         onChanged?.();
-        onCreated(res.sameCount);
+        onCreated(res.sameCount, res.wish?.groupSize || 0);
         return;
       }
       setDone({ sameCount: res.sameCount });
@@ -124,13 +131,20 @@ export const WishSheet: React.FC<{
       on ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
     }`;
   const atLimit = mine.length >= maxActive;
+  // Быстрый режим: всё выбрано — сразу сохраняем, без кнопки внизу (свой текст — по кнопке, его ещё печатают)
+  const quickSubmit = (next: { sport?: string | null; timeWindow?: WishWindow | null }) => {
+    const w = next.timeWindow !== undefined ? next.timeWindow : timeWindow;
+    const sp = next.sport !== undefined ? next.sport : sport;
+    if (!quick || isCustom || busy || atLimit || !kind || !w || (subField && !sp)) return;
+    create({ kind, sport: sp, timeWindow: w, placeId: place?.id || null });
+  };
 
   return (
     <BottomSheet
       title={T.sheetTitle}
       onClose={onClose}
       footer={
-        !isPlacePicker && (
+        !isPlacePicker && (!quick || isCustom) && (
           <button
             type="button"
             disabled={!ready || busy || atLimit}
@@ -167,7 +181,8 @@ export const WishSheet: React.FC<{
         </div>
       ) : (
         <div className="space-y-5">
-          <p className="text-body text-zine-inkMuted">{T.sheetHint}</p>
+          <p className="text-body text-zine-inkMuted">{quick && !isCustom ? T.quickHint : T.sheetHint}</p>
+          {quick && atLimit && <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 font-semibold text-zine-ink">{T.limit(maxActive)}</p>}
 
           {done && (
             <div className="p-3 rounded-zine-sm bg-zine-sage/15 text-body text-zine-ink">
@@ -230,7 +245,16 @@ export const WishSheet: React.FC<{
               <h4 className="mb-2 text-sm2 font-bold text-zine-ink">{subField.label || T.sportLabel}</h4>
               <div className="flex flex-wrap gap-2">
                 {subField.options.map((o) => (
-                  <button type="button" key={o.value} onClick={() => setSport(o.value)} className={chip(sport === o.value)}>
+                  <button
+                    type="button"
+                    key={o.value}
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      setSport(o.value);
+                      quickSubmit({ sport: o.value });
+                    }}
+                    className={chip(sport === o.value)}
+                  >
                     {o.emoji && <span>{o.emoji}</span>}
                     {o.label}
                   </button>
@@ -250,6 +274,7 @@ export const WishSheet: React.FC<{
                     telegramService.haptic('selection');
                     setTimeWindow(w);
                     setDone(null);
+                    quickSubmit({ timeWindow: w });
                   }}
                   className={chip(timeWindow === w)}
                 >
@@ -259,6 +284,12 @@ export const WishSheet: React.FC<{
             </div>
           </section>
 
+          {quick ? (
+            <button type="button" onClick={() => setQuick(false)} className="text-sm2 font-semibold text-zine-mustard cursor-pointer">
+              {T.quickMore} →
+            </button>
+          ) : (
+          <>
           <section>
             <h4 className="mb-2 text-sm2 font-bold text-zine-ink">{T.whereLabel}</h4>
             <div className="flex flex-wrap gap-2">
@@ -331,11 +362,15 @@ export const WishSheet: React.FC<{
                         {wishLine(w)}
                         {placeName(w.placeId) ? ` · ${placeName(w.placeId)}` : ''}
                       </span>
-                      {w.status === 'matched' && (
+                      {/* Что дальше: сколько вас и когда бот предложит время и место */}
+                      {w.status === 'matched' ? (
                         <span className="text-cap font-semibold text-zine-sage flex items-center gap-1">
-                          <Check size={14} strokeWidth={3} /> {T.matched(w.groupSize)}
+                          <Check size={14} strokeWidth={3} className="shrink-0" /> {wishProgress(w.groupSize, proposeAt)}
                         </span>
+                      ) : (
+                        <span className="block text-cap text-zine-inkMuted">{T.progressAlone}</span>
                       )}
+                      <ProgressDots n={w.status === 'matched' ? w.groupSize : 1} of={proposeAt} />
                     </span>
                     <button type="button" aria-label={T.cancel} onClick={() => cancel(w)} className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-inkMuted flex items-center justify-center cursor-pointer">
                       <X size={18} />
@@ -345,8 +380,19 @@ export const WishSheet: React.FC<{
               </div>
             </section>
           )}
+          </>
+          )}
         </div>
       )}
     </BottomSheet>
   );
 };
+
+// Точки прогресса группы: ● ● ○ — сколько уже есть из нужных для предложения бота
+const ProgressDots: React.FC<{ n: number; of: number }> = ({ n, of }) => (
+  <span className="mt-1 flex gap-1" aria-hidden>
+    {Array.from({ length: of }, (_, i) => (
+      <span key={i} className={`w-2 h-2 rounded-full ${i < n ? 'bg-zine-sage' : 'bg-zine-border'}`} />
+    ))}
+  </span>
+);

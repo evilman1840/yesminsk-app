@@ -407,7 +407,7 @@ class ApiService {
   }
 
   // «Хочу сходить»
-  async getWishes(): Promise<{ mine: WishItem[]; summary: WishSummaryItem[]; maxActive: number }> {
+  async getWishes(): Promise<{ mine: WishItem[]; summary: WishSummaryItem[]; maxActive: number; proposeAt?: number }> {
     return this.request('/wishes');
   }
   async createWish(data: { kind: string; sport?: string | null; timeWindow: WishWindow; placeId?: string | null }): Promise<{ wish: WishItem; sameCount: number }> {
