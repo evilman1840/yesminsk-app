@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2, Undo2, X } from 'lucide-react';
-import { UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
+import { MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType } from '../components/common/Reactions';
 import { goalFilterItems } from '../components/ui/GoalChips';
@@ -11,6 +11,8 @@ import { PHOTO_TEXTS } from '../texts/photos';
 import { FEED_TEXTS } from '../texts/feed';
 import { UndoToast } from '../components/ui/UndoToast';
 import { markPersonSeen } from '../utils/seenPeople';
+import { WishReel, pickReelWishes, reelSlotAfter } from '../components/common/WishReel';
+import { WISH_TEXTS } from '../texts/wishes';
 import {
   PeopleFiltersSheet,
   PeopleFilters,
@@ -39,6 +41,13 @@ export interface FeedScreenProps {
   topSlot?: React.ReactNode; // например, «Первые шаги» для новичков
   myUsername?: string; // нет — подсказываем завести (иначе на связи не напишут)
   wantNowSlot?: React.ReactNode; // «⚡ Хочу сейчас» слева в шапке
+  // «Хочу сходить» между анкетами, как в «Сходках»
+  wishSummary?: WishSummaryItem[];
+  proposeAt?: number;
+  meetupStats?: MeetupStats | null;
+  onOpenWishPeople?: (item: WishSummaryItem) => void;
+  onOpenWish?: () => void; // своё желание: «Сходки» и шторка
+  onWishesChanged?: () => void;
 }
 
 type FeedTab = 'all' | 'likes' | 'matches';
@@ -60,9 +69,16 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   topSlot,
   myUsername,
   onOpenWishKind,
-  wantNowSlot
+  wantNowSlot,
+  wishSummary = [],
+  proposeAt = 3,
+  meetupStats,
+  onOpenWishPeople,
+  onOpenWish,
+  onWishesChanged
 }) => {
   const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
+  const reelWishes = pickReelWishes(wishSummary);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   useEffect(() => saveFilters(filters), [filters]);
   // Цель встречи выбирается в той же шторке — считаем её вместе с фильтрами
@@ -94,7 +110,9 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     const list = listRef.current;
     if (index >= 0 && list) {
       setScrollToUser(null);
-      list.scrollTo({ top: (index + (hasIntroRef.current ? 1 : 0)) * list.clientHeight });
+      // Карточки «Хочу сходить» выше анкеты тоже занимают по экрану
+      const wishCards = tab === 'all' && onOpenWish ? filteredUsers.slice(0, index).filter((_, i) => reelSlotAfter(i, filteredUsers.length) !== null).length : 0;
+      list.scrollTo({ top: (index + wishCards + (hasIntroRef.current ? 1 : 0)) * list.clientHeight });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToUser, filteredUsers.length]);
@@ -228,9 +246,12 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
             </section>
           )}
 
-          {filteredUsers.map((user, index) => (
+          {filteredUsers.map((user, index) => {
+            // После 4-й и 10-й анкеты — «Хочу сходить» (только во «Все»: в «👋» и «На связи» свои люди)
+            const slot = tab === 'all' && onOpenWish ? reelSlotAfter(index, filteredUsers.length) : null;
+            return (
+            <React.Fragment key={user.id}>
             <PersonReel
-              key={user.id}
               user={user}
               tab={tab}
               isFirst={index === 0 && !hasIntro}
@@ -247,7 +268,12 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                 onSkip ? onSkip(user) : onReact(user, 'dislike');
               }}
             />
-          ))}
+            {slot !== null && (
+              <WishReel wish={reelWishes[slot] || null} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={onOpenWish!} onChanged={onWishesChanged} promptTitle={WISH_TEXTS.reelPromptTitlePeople} />
+            )}
+            </React.Fragment>
+            );
+          })}
         </div>
       )}
 

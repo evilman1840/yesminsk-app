@@ -1,6 +1,8 @@
 /**
  * «Хочу сходить»: тексты приложения. Правила: на «ты», нейтрально по роду, без длинных тире
  */
+import { MeetupStats } from '../types';
+
 const people = (n: number) =>
   `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'человек' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'человека' : 'человек'}`;
 
@@ -23,9 +25,26 @@ export const WISH_TEXTS = {
   quickMore: 'Место и мои желания',
   // Карточка в ленте между сходками
   reelMeToo: '🙋 И я хочу',
-  reelWho: 'Кто это?',
+  reelWho: 'Кто эти люди?',
   reelAsk: 'И ты?',
+  // Подбадривание под «И ты?»: одна фраза на карточку
+  cheers: [
+    'Все приходят впервые и никого не знают. Это нормально',
+    'Можно просто прийти и послушать, болтать не обязательно',
+    'Не понравится, можно уйти через полчаса. Никто не обидится',
+    'Компанией проще, чем кажется: тема для разговора уже есть',
+    'Ничего организовывать не надо: бот сам предложит время и место',
+    'Отметка ни к чему не обязывает: сначала бот спросит, удобно ли время'
+  ],
+  // Статистика: только настоящие числа с сервера
+  statMeetups: (m: number, p: number) => `Уже прошло ${m} ${m % 10 === 1 && m % 100 !== 11 ? 'сходка' : [2, 3, 4].includes(m % 10) && ![12, 13, 14].includes(m % 100) ? 'сходки' : 'сходок'}, на них сходили ${people(p)}`,
+  statExcellent: (k: number) => `${k} из 10 после сходки отвечают «😍 Отлично»`,
+  statKept: (k: number) => `${k} из 10 после сходки остаются на связи с кем-то из компании`,
+  // После «И я хочу»
+  joinedCalm: 'Дальше ничего делать не нужно, бот напишет.',
+  joinedUndo: 'Планы поменялись? Желание можно убрать в «Моих желаниях».',
   reelPromptTitle: 'Не нашлось подходящей сходки?',
+  reelPromptTitlePeople: 'Куда хочется сходить?',
   reelPromptText: 'Отметь, куда хочется. Когда найдутся люди с таким же желанием, бот предложит собрать компанию.',
   reelPromptButton: '🙋 Хочу сходить',
   // Пустая лента с фильтром: «🙋 Хочу на кофе завтра»
@@ -124,3 +143,12 @@ export const wishProgress = (groupSize: number, proposeAt: number) =>
 
 // Фраза желания без метки поля: «поиграть в {спорт}» → «поиграть»
 export const bareWishPhrase = (phrase: string) => phrase.replace(/\s*\S*\s*\{[^}]+\}/, '').trim();
+
+// Чем подбодрить на карточке: настоящая статистика (когда её достаточно и она хорошая) и спокойные фразы
+export const cheerLines = (stats?: MeetupStats | null) =>
+  [
+    stats?.meetups && stats.people ? WISH_TEXTS.statMeetups(stats.meetups, stats.people) : null,
+    stats?.excellentOf10 && stats.excellentOf10 >= 6 ? WISH_TEXTS.statExcellent(stats.excellentOf10) : null,
+    stats?.keptInTouchOf10 && stats.keptInTouchOf10 >= 2 ? WISH_TEXTS.statKept(stats.keptInTouchOf10) : null,
+    ...WISH_TEXTS.cheers
+  ].filter(Boolean) as string[];

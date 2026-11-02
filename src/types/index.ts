@@ -348,6 +348,13 @@ export interface WishItem {
   when: string; // «на выходных»
   groupSize: number; // совпало: сколько вас
 }
+// Настоящая статистика сходок (сервер отдаёт только то, где данных достаточно)
+export interface MeetupStats {
+  meetups?: number;
+  people?: number;
+  excellentOf10?: number;   // из 10 отзывов — «😍 Отлично»
+  keptInTouchOf10?: number; // из 10 участников — на связи с кем-то из компании
+}
 export interface WishSummaryItem {
   kind: string;
   sport: string | null;

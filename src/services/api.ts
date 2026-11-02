@@ -1,5 +1,5 @@
 import { telegramService } from './telegram';
-import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData } from '../types';
+import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData, MeetupStats } from '../types';
 
 /**
  * Нормализация базового URL бэкенда.
@@ -407,7 +407,7 @@ class ApiService {
   }
 
   // «Хочу сходить»
-  async getWishes(): Promise<{ mine: WishItem[]; summary: WishSummaryItem[]; maxActive: number; proposeAt?: number }> {
+  async getWishes(): Promise<{ mine: WishItem[]; summary: WishSummaryItem[]; maxActive: number; proposeAt?: number; stats?: MeetupStats }> {
     return this.request('/wishes');
   }
   async createWish(data: { kind: string; sport?: string | null; timeWindow: WishWindow; placeId?: string | null }): Promise<{ wish: WishItem; sameCount: number }> {

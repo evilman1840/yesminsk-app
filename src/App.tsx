@@ -40,7 +40,7 @@ import { LegalUpdateOverlay } from './components/common/Legal';
 import { LEGAL_VERSION } from './texts/legal';
 import { AdminContext, EVENT_DELETED } from './context/admin';
 import { EVENT_UPDATED } from './context/eventUpdates';
-import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, WishSummaryItem, placeForMeetup, PollData } from './types';
+import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, WishSummaryItem, MeetupStats, placeForMeetup, PollData } from './types';
 import { WISH_TEXTS, wishCounter, wishNotices } from './texts/wishes';
 import { FEED_TEXTS } from './texts/feed';
 import { MEETUP_TEXTS } from './texts/meetups';
@@ -273,11 +273,23 @@ export const App: React.FC = () => {
   const unreadNews = news.filter(n => new Date(n.createdAt).getTime() > newsSeenAt).length;
 
   const [wishSummary, setWishSummary] = useState<WishSummaryItem[]>([]);
+  const [wishProposeAt, setWishProposeAt] = useState(3);
+  const [meetupStats, setMeetupStats] = useState<MeetupStats | null>(null);
+  const fetchWishes = useCallback(() => {
+    api
+      .getWishes()
+      .then((r) => {
+        setWishSummary(r.summary || []);
+        setWishProposeAt(r.proposeAt || 3);
+        setMeetupStats(r.stats || null);
+      })
+      .catch(() => {});
+  }, []);
   const fetchNews = useCallback(async () => {
     // Запись автора и «Хочу сходить» для строки подсказок грузим вместе с новостями
     api.getTip().then(setTip).catch(() => {});
     api.getPoll().then(setPoll).catch(() => {});
-    api.getWishes().then((r) => setWishSummary(r.summary || [])).catch(() => {});
+    fetchWishes();
     try {
       setNews(await api.getNews());
     } catch (err) {
@@ -285,7 +297,7 @@ export const App: React.FC = () => {
     } finally {
       setIsNewsLoading(false);
     }
-  }, []);
+  }, [fetchWishes]);
 
   const markNewsSeen = () => {
     const now = Date.now();
@@ -1145,6 +1157,21 @@ export const App: React.FC = () => {
                 onSkip={handleSkip}
                 onUnskip={handleUnskip}
                 onOpenWishKind={(kind, sport) => setWishKind({ kind, sport })}
+                wishSummary={wishSummary}
+                proposeAt={wishProposeAt}
+                meetupStats={meetupStats}
+                onOpenWishPeople={(w) =>
+                  setWishKind({
+                    kind: w.kind,
+                    sport: w.sport || undefined,
+                    exact: { window: w.timeWindow, placeId: w.placeId, counter: wishCounter(w), includesMe: w.includesMe }
+                  })
+                }
+                onOpenWish={() => {
+                  setPendingWish({});
+                  handleNavigate('events');
+                }}
+                onWishesChanged={fetchWishes}
                 wantNowSlot={
                   <WantNowButton
                     availableUntil={currentUser.availableUntil}

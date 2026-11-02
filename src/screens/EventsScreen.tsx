@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff, SlidersHorizontal, X, MapPin } from 'lucide-react';
-import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow } from '../types';
+import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -19,7 +19,7 @@ import { HelpLine } from '../components/common/HelpLine';
 import { PhotoPicker, PickedPhoto, photoFromUrl, photoSrc } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
 import { WishSheet, DELICATE_KINDS } from '../components/common/WishSheet';
-import { askBotAccess } from '../services/botAccess';
+import { WishReel, pickReelWishes, reelSlotAfter } from '../components/common/WishReel';
 import { InfoToast } from '../components/ui/InfoToast';
 import { WISH_TEXTS, wishCounter, wishProgress, bareWishPhrase } from '../texts/wishes';
 import { MEETUP_TEXTS as M, priceLabel } from '../texts/meetups';
@@ -275,6 +275,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [wishSummary, setWishSummary] = useState<WishSummaryItem[]>([]);
   const [myWishCount, setMyWishCount] = useState(0);
   const [proposeAt, setProposeAt] = useState(3);
+  const [meetupStats, setMeetupStats] = useState<MeetupStats | null>(null);
   const refreshWishes = () =>
     api
       .getWishes()
@@ -282,6 +283,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         setWishSummary(r.summary || []);
         setMyWishCount((r.mine || []).length);
         setProposeAt(r.proposeAt || 3);
+        setMeetupStats(r.stats || null);
       })
       .catch(() => {});
   useEffect(() => {
@@ -299,20 +301,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     .slice(0, BAR_WISHES)
     .map((x) => x.s);
   // «И ты?» в ленте: чужие желания, к которым я ещё не присоединился(ась)
-  const reelWishes = barWishes.filter((s) => !s.includesMe);
-  const joinWish = async (s: WishSummaryItem) => {
-    telegramService.haptic('light');
-    askBotAccess();
-    try {
-      const res = await api.createWish({ kind: s.kind, sport: s.sport, timeWindow: s.timeWindow, placeId: s.placeId });
-      telegramService.haptic('success');
-      setWishToast({ sameCount: res.sameCount, groupSize: res.wish?.groupSize || 0 });
-      refreshWishes();
-    } catch (err: any) {
-      telegramService.haptic('error');
-      telegramService.alert(err?.message || WISH_TEXTS.failed);
-    }
-  };
+  const reelWishes = pickReelWishes(wishSummary);
   const topWish = barWishes.length < 2 || barTurn % 2 === 0 ? barWishes[0] : barWishes[1 + (Math.floor(barTurn / 2) % (barWishes.length - 1))];
   const [price, setPrice] = useState('');
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
@@ -366,9 +355,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const feedItems: FeedItem[] = [];
   filteredEvents.forEach((ev, i) => {
     feedItems.push({ type: 'event', ev });
-    if (!onlyMine && (i === 3 || i === 9)) feedItems.push({ type: 'wish', slot: i === 3 ? 0 : 1 });
+    const slot = onlyMine ? null : reelSlotAfter(i, filteredEvents.length);
+    if (slot !== null) feedItems.push({ type: 'wish', slot });
   });
-  if (!onlyMine && filteredEvents.length > 0 && filteredEvents.length < 4) feedItems.push({ type: 'wish', slot: 0 });
   const detailsEvent = detailsEventId ? events.find((e) => String(e.id) === detailsEventId) || null : null;
   const joinEvent = joinEventId ? events.find((e) => String(e.id) === joinEventId) || null : null;
   // После «Вернуть» — сразу показываем возвращённую карточку
@@ -942,13 +931,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             if (item.type === 'wish') {
               const w = reelWishes[item.slot] || null;
               return (
-                <WishReel
-                  key={`wish-${item.slot}`}
-                  wish={w}
-                  onMeToo={() => w && joinWish(w)}
-                  onWho={w && onOpenWishPeople ? () => onOpenWishPeople(w) : undefined}
-                  onOpen={() => openWish()}
-                />
+                <WishReel key={`wish-${item.slot}`} wish={w} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={() => openWish()} onChanged={refreshWishes} />
               );
             }
             const ev = item.ev;
@@ -1918,33 +1901,3 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
 
 export default EventsScreen;
 
-// Карточка «Хочу сходить» между сходками: чужое желание — «И я хочу» в одно нажатие; чужих нет — позвать отметить своё
-const WishReel: React.FC<{ wish: WishSummaryItem | null; onMeToo: () => void; onWho?: () => void; onOpen: () => void }> = ({ wish, onMeToo, onWho, onOpen }) => (
-  <section className="h-full w-full snap-start snap-always p-3">
-    <div className="h-full rounded-zine bg-zine-card border border-zine-border flex flex-col items-center justify-center text-center px-6 text-zine-ink">
-      <div className="text-[56px] leading-none mb-4" aria-hidden>🙋</div>
-      {wish ? (
-        <>
-          <p className="font-serif font-bold text-title">{WISH_TEXTS.barCounter(wish.count, wish.what, wish.when)}</p>
-          <p className="mt-2 text-lead text-zine-inkMuted">{WISH_TEXTS.reelAsk}</p>
-          <button onClick={onMeToo} className="mt-6 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold active:scale-95 transition-transform cursor-pointer">
-            {WISH_TEXTS.reelMeToo}
-          </button>
-          {onWho && (
-            <button onClick={onWho} className="mt-3 h-11 px-5 rounded-full text-zine-ink text-body font-semibold cursor-pointer">
-              {WISH_TEXTS.reelWho}
-            </button>
-          )}
-        </>
-      ) : (
-        <>
-          <p className="font-serif font-bold text-title">{WISH_TEXTS.reelPromptTitle}</p>
-          <p className="mt-2 text-body text-zine-inkMuted">{WISH_TEXTS.reelPromptText}</p>
-          <button onClick={onOpen} className="mt-6 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold active:scale-95 transition-transform cursor-pointer">
-            {WISH_TEXTS.reelPromptButton}
-          </button>
-        </>
-      )}
-    </div>
-  </section>
-);
