@@ -13,7 +13,7 @@ import { UndoToast } from '../components/ui/UndoToast';
 import { markPersonSeen } from '../utils/seenPeople';
 import { WishReel, pickReelWishes, reelSlotAfter } from '../components/common/WishReel';
 import { WISH_TEXTS } from '../texts/wishes';
-import { PactReel, pactSlotAfter } from '../components/people/PactReel';
+import { PactReel, pactPlan, isPactSlot } from '../components/people/PactReel';
 import {
   PeopleFiltersSheet,
   PeopleFilters,
@@ -81,11 +81,13 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
   const reelWishes = pickReelWishes(wishSummary);
   // «Договоримся?»: решаем один раз за открытие ленты, после какой анкеты показать
-  const [pactSlot] = useState(pactSlotAfter);
+  const [pact] = useState(pactPlan);
+  const [pactAgreedAt, setPactAgreedAt] = useState<number | null>(null); // согласились в этой ленте — дальше карточку не повторяем
   // Карточки между анкетами — только во «Все»: в «👋» и «На связи» свои люди.
   // «Договоримся?» — если после неё ещё есть анкета, чтобы не встать вплотную к «Хочу сходить» в конце
   const wishSlotAt = (i: number) => (tab === 'all' && onOpenWish ? reelSlotAfter(i, filteredUsers.length) : null);
-  const isPactAt = (i: number) => tab === 'all' && pactSlot === i && i <= filteredUsers.length - 2;
+  const isPactAt = (i: number) =>
+    tab === 'all' && isPactSlot(pact, i) && i <= filteredUsers.length - 2 && (pactAgreedAt === null || i <= pactAgreedAt);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   useEffect(() => saveFilters(filters), [filters]);
   // Цель встречи выбирается в той же шторке — считаем её вместе с фильтрами
@@ -275,7 +277,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                 onSkip ? onSkip(user) : onReact(user, 'dislike');
               }}
             />
-            {isPactAt(index) && <PactReel />}
+            {isPactAt(index) && <PactReel onAgree={() => setPactAgreedAt(index)} />}
             {slot !== null && (
               <WishReel wish={reelWishes[slot] || null} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={() => onOpenWish!()} onOpenMine={() => onOpenWish!(true)} onChanged={onWishesChanged} promptTitle={WISH_TEXTS.reelPromptTitlePeople} />
             )}

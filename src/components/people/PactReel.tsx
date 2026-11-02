@@ -5,7 +5,7 @@ import { FEED_TEXTS as T } from '../../texts/feed';
 
 /**
  * «Договоримся?» между анкетами: здесь дружба, не свидания, и как пожаловаться.
- * Пока человек не нажал «Я за дружбу и уважение» — не чаще раза в день, после — раз в неделю.
+ * Пока человек не нажал «Я за дружбу и уважение» — в каждой ленте после 2-й анкеты и дальше каждые 15; после — раз в неделю.
  * Хранится в браузере: это удобство, а не правило — очистили хранилище, увидят карточку ещё раз
  */
 
@@ -26,15 +26,18 @@ const write = (key: string) => {
   } catch {}
 };
 
-// После какой анкеты показать (null — сегодня не показываем). Решаем один раз при открытии ленты.
-// Ещё не соглашался(ась) — рано, после 2-й анкеты; согласился(ась) — подальше, после 15-й
-export const pactSlotAfter = (): number | null => {
-  const agreed = read(AGREED_KEY);
-  if (Date.now() - read(SHOWN_KEY) < (agreed ? 7 : 1) * DAY) return null;
-  return agreed ? 14 : 1;
+// После каких анкет показать (null — в этой ленте не показываем). Решаем один раз при открытии ленты.
+// Ещё не соглашался(ась) — после 2-й и дальше каждые 15; согласился(ась) — раз в неделю, после 15-й
+export type PactPlan = { first: number; every: number | null };
+const EVERY = 15;
+export const pactPlan = (): PactPlan | null => {
+  if (!read(AGREED_KEY)) return { first: 1, every: EVERY };
+  return Date.now() - read(SHOWN_KEY) < 7 * DAY ? null : { first: 14, every: null };
 };
+export const isPactSlot = (plan: PactPlan | null, i: number) =>
+  Boolean(plan) && i >= plan!.first && (plan!.every ? (i - plan!.first) % plan!.every === 0 : i === plan!.first);
 
-export const PactReel: React.FC = () => {
+export const PactReel: React.FC<{ onAgree?: () => void }> = ({ onAgree }) => {
   const ref = useRef<HTMLElement>(null);
   const [agreed, setAgreed] = useState(false);
 
@@ -59,6 +62,7 @@ export const PactReel: React.FC = () => {
     telegramService.haptic('success');
     write(AGREED_KEY);
     setAgreed(true);
+    onAgree?.();
   };
 
   return (
