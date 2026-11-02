@@ -46,7 +46,7 @@ export interface FeedScreenProps {
   proposeAt?: number;
   meetupStats?: MeetupStats | null;
   onOpenWishPeople?: (item: WishSummaryItem) => void;
-  onOpenWish?: () => void; // своё желание: «Сходки» и шторка
+  onOpenWish?: (mine?: boolean) => void; // своё желание: «Сходки» и шторка; mine — сразу к «Моим желаниям»
   onWishesChanged?: () => void;
 }
 
@@ -269,7 +269,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               }}
             />
             {slot !== null && (
-              <WishReel wish={reelWishes[slot] || null} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={onOpenWish!} onChanged={onWishesChanged} promptTitle={WISH_TEXTS.reelPromptTitlePeople} />
+              <WishReel wish={reelWishes[slot] || null} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={() => onOpenWish!()} onOpenMine={() => onOpenWish!(true)} onChanged={onWishesChanged} promptTitle={WISH_TEXTS.reelPromptTitlePeople} />
             )}
             </React.Fragment>
             );

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Loader2, Check } from 'lucide-react';
 import { EventTemplate, CUSTOM_TEMPLATE, PlaceItem, WishItem, WishSummaryItem, WishWindow } from '../../types';
 import { api } from '../../services/api';
@@ -34,11 +34,12 @@ export const WishSheet: React.FC<{
   presetKind?: string | null; // вид желания уже выбран: чип в ленте, пустой фильтр
   presetWindow?: WishWindow | null;
   quick?: boolean;
-}> = ({ places = [], presetPlace, onClose, onChanged, onCreated, onOpenPeople, presetKind = null, presetWindow = null, quick: quickStart = false }) => {
+  focusMine?: boolean; // открыть сразу на «Моих желаниях» (упёрлись в лимит)
+}> = ({ places = [], presetPlace, onClose, onChanged, onCreated, onOpenPeople, presetKind = null, presetWindow = null, quick: quickStart = false, focusMine = false }) => {
   const [templates, setTemplates] = useState<EventTemplate[] | null>(cachedTemplates());
   const [mine, setMine] = useState<WishItem[]>([]);
   const [summary, setSummary] = useState<WishSummaryItem[]>([]);
-  const [maxActive, setMaxActive] = useState(3);
+  const [maxActive, setMaxActive] = useState(5);
   const [proposeAt, setProposeAt] = useState(3);
   const [quick, setQuick] = useState(quickStart);
 
@@ -67,7 +68,7 @@ export const WishSheet: React.FC<{
       .then((r) => {
         setMine(r.mine || []);
         setSummary(r.summary || []);
-        setMaxActive(r.maxActive || 3);
+        setMaxActive(r.maxActive || 5);
         setProposeAt(r.proposeAt || 3);
       })
       .catch(() => {});
@@ -131,6 +132,17 @@ export const WishSheet: React.FC<{
       on ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
     }`;
   const atLimit = mine.length >= maxActive;
+  // Желаний уже максимум — быстрый режим не поможет: показываем всё, чтобы было что убрать
+  useEffect(() => {
+    if (atLimit) setQuick(false);
+  }, [atLimit]);
+  const mineRef = useRef<HTMLElement>(null);
+  const [isMineFocused, setIsMineFocused] = useState(!focusMine);
+  useEffect(() => {
+    if (isMineFocused || !mine.length) return;
+    setIsMineFocused(true);
+    mineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [mine.length, isMineFocused]);
   // Быстрый режим: всё выбрано — сразу сохраняем, без кнопки внизу (свой текст — по кнопке, его ещё печатают)
   const quickSubmit = (next: { sport?: string | null; timeWindow?: WishWindow | null }) => {
     const w = next.timeWindow !== undefined ? next.timeWindow : timeWindow;
@@ -352,7 +364,7 @@ export const WishSheet: React.FC<{
           )}
 
           {mine.length > 0 && (
-            <section>
+            <section ref={mineRef}>
               <h4 className="mb-2 text-sm2 font-bold text-zine-ink">{T.mineTitle}</h4>
               <div className="space-y-2">
                 {mine.map((w) => (

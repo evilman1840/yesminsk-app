@@ -160,7 +160,7 @@ export interface EventsScreenProps {
   places?: PlaceItem[]; // для «Хочу сходить»: выбор места
   myCoords?: [number, number]; // точка из анкеты [lat, lng]: расстояние до мест в форме сходки
   myGender?: string; // свой пол: «только девушки / мужчины» можно выбрать только свой
-  initialWish?: { placeId?: string } | null; // открыть «Хочу сходить» сразу (из сообщения бота)
+  initialWish?: { placeId?: string; mine?: boolean } | null; // открыть «Хочу сходить» сразу (из сообщения бота; mine — к «Моим желаниям»)
   onInitialWishUsed?: () => void;
   onOpenWishPeople?: (item: WishSummaryItem) => void; // «76 человек хотят на кофе»: список людей, 👋 и «Позвать в компанию»
 }
@@ -259,15 +259,18 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [wishToast, setWishToast] = useState<{ sameCount: number; groupSize: number } | null>(null); // отметили желание: что дальше
   // Шторка открыта с уже выбранным видом (чип, пустой фильтр): быстрый режим — осталось «когда»
   const [wishPreset, setWishPreset] = useState<{ kind: string | null; window: WishWindow | null; quick: boolean } | null>(null);
-  const openWish = (preset?: { kind: string | null; window?: WishWindow | null }) => {
+  const openWish = (preset?: { kind: string | null; window?: WishWindow | null }, mine = false) => {
     telegramService.haptic('selection');
+    setWishFocusMine(mine);
     setWishPreset(preset ? { kind: preset.kind, window: preset.window || null, quick: true } : null);
     setIsWishOpen(true);
   };
   const [wishPlace, setWishPlace] = useState<PlaceItem | null>(null);
+  const [wishFocusMine, setWishFocusMine] = useState(false); // упёрлись в лимит — открыть сразу на «Моих желаниях»
   useEffect(() => {
     if (!initialWish) return;
     setWishPlace((initialWish.placeId && places.find((p) => p.id === initialWish.placeId)) || null);
+    setWishFocusMine(Boolean(initialWish.mine));
     setIsWishOpen(true);
     onInitialWishUsed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -931,7 +934,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             if (item.type === 'wish') {
               const w = reelWishes[item.slot] || null;
               return (
-                <WishReel key={`wish-${item.slot}`} wish={w} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={() => openWish()} onChanged={refreshWishes} />
+                <WishReel key={`wish-${item.slot}`} wish={w} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={() => openWish()} onOpenMine={() => openWish(undefined, true)} onChanged={refreshWishes} />
               );
             }
             const ev = item.ev;
@@ -1517,6 +1520,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           presetKind={wishPreset?.kind}
           presetWindow={wishPreset?.window}
           quick={wishPreset?.quick}
+          focusMine={wishFocusMine}
           onClose={() => {
             setIsWishOpen(false);
             setWishPlace(null);

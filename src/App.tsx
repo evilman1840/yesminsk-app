@@ -255,7 +255,7 @@ export const App: React.FC = () => {
       localStorage.setItem('yesminsk_home_tip_shown', '1');
     } catch (e) {}
   };
-  const [pendingWish, setPendingWish] = useState<{ placeId?: string } | null>(null);
+  const [pendingWish, setPendingWish] = useState<{ placeId?: string; mine?: boolean } | null>(null);
   const [wishMembersGroup, setWishMembersGroup] = useState<string | null>(null);
   const [wishKind, setWishKind] = useState<{ kind: string; sport?: string; exact?: { window: WishWindow; placeId?: string | null; counter: string; includesMe: boolean } } | null>(null); // «Тоже хотят» из карточки в «Людях»
   const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
@@ -1167,8 +1167,8 @@ export const App: React.FC = () => {
                     exact: { window: w.timeWindow, placeId: w.placeId, counter: wishCounter(w), includesMe: w.includesMe }
                   })
                 }
-                onOpenWish={() => {
-                  setPendingWish({});
+                onOpenWish={(mine) => {
+                  setPendingWish({ mine });
                   handleNavigate('events');
                 }}
                 onWishesChanged={fetchWishes}

@@ -33,7 +33,8 @@ export const WishReel: React.FC<{
   onChanged?: () => void;
   promptTitle?: string; // своя карточка без чужих желаний: в «Людях» про сходки не спрашиваем
   stats?: MeetupStats | null;
-}> = ({ wish, proposeAt, onWho, onOpen, onChanged, promptTitle = T.reelPromptTitle, stats }) => {
+  onOpenMine?: () => void; // упёрлись в лимит желаний — открыть «Мои желания», чтобы убрать старое
+}> = ({ wish, proposeAt, onWho, onOpen, onChanged, promptTitle = T.reelPromptTitle, stats, onOpenMine }) => {
   // Одна подбадривающая фраза на карточку: выбираем при появлении, чтобы не прыгала при обновлениях
   const [cheerSeed] = useState(Math.random);
   const cheers = cheerLines(stats);
@@ -42,6 +43,7 @@ export const WishReel: React.FC<{
   const [shown, setShown] = useState(wish);
   const [joined, setJoined] = useState<number | null>(null); // сколько нас в группе после отметки
   const [busy, setBusy] = useState(false);
+  const [limitText, setLimitText] = useState<string | null>(null);
   useEffect(() => {
     if (joined === null) setShown(wish);
   }, [wish, joined]);
@@ -58,7 +60,8 @@ export const WishReel: React.FC<{
       onChanged?.();
     } catch (err: any) {
       telegramService.haptic('error');
-      telegramService.alert(err?.message || T.failed);
+      if (err?.status === 409 && onOpenMine) setLimitText(err.message);
+      else telegramService.alert(err?.message || T.failed);
     } finally {
       setBusy(false);
     }
@@ -79,6 +82,18 @@ export const WishReel: React.FC<{
                 <p className="mt-2 text-sm2 text-zine-inkMuted">
                   {T.joinedCalm} {T.joinedUndo}
                 </p>
+              </>
+            ) : limitText ? (
+              <>
+                <p className="mt-3 text-body text-zine-ink">{limitText}</p>
+                <button
+                  onClick={() => {
+                    setLimitText(null); // вернётся, убрав старое, — снова «И я хочу»
+                    onOpenMine?.();
+                  }}
+                  className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold active:scale-95 transition-transform cursor-pointer">
+                  {T.reelOpenMine}
+                </button>
               </>
             ) : (
               <>
