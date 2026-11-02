@@ -82,6 +82,15 @@ export const WishReel: React.FC<{
                 <p className="mt-2 text-sm2 text-zine-inkMuted">
                   {T.joinedCalm} {T.joinedUndo}
                 </p>
+                {/* Отметился(ась) — сразу можно посмотреть или поправить свои желания */}
+                {onOpenMine && (
+                  <button
+                    onClick={onOpenMine}
+                    className="mt-5 h-12 px-6 rounded-full border-2 border-zine-terracotta text-zine-terracotta text-body font-bold active:scale-95 transition-transform cursor-pointer"
+                  >
+                    {T.reelOpenMine}
+                  </button>
+                )}
               </>
             ) : limitText ? (
               <>
