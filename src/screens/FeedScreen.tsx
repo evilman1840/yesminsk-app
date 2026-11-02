@@ -13,6 +13,7 @@ import { UndoToast } from '../components/ui/UndoToast';
 import { markPersonSeen } from '../utils/seenPeople';
 import { WishReel, pickReelWishes, reelSlotAfter } from '../components/common/WishReel';
 import { WISH_TEXTS } from '../texts/wishes';
+import { PactReel, pactSlotAfter } from '../components/people/PactReel';
 import {
   PeopleFiltersSheet,
   PeopleFilters,
@@ -79,6 +80,12 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
 }) => {
   const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
   const reelWishes = pickReelWishes(wishSummary);
+  // «Договоримся?»: решаем один раз за открытие ленты, после какой анкеты показать
+  const [pactSlot] = useState(pactSlotAfter);
+  // Карточки между анкетами — только во «Все»: в «👋» и «На связи» свои люди.
+  // «Договоримся?» — если после неё ещё есть анкета, чтобы не встать вплотную к «Хочу сходить» в конце
+  const wishSlotAt = (i: number) => (tab === 'all' && onOpenWish ? reelSlotAfter(i, filteredUsers.length) : null);
+  const isPactAt = (i: number) => tab === 'all' && pactSlot === i && i <= filteredUsers.length - 2;
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   useEffect(() => saveFilters(filters), [filters]);
   // Цель встречи выбирается в той же шторке — считаем её вместе с фильтрами
@@ -111,8 +118,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     if (index >= 0 && list) {
       setScrollToUser(null);
       // Карточки «Хочу сходить» выше анкеты тоже занимают по экрану
-      const wishCards = tab === 'all' && onOpenWish ? filteredUsers.slice(0, index).filter((_, i) => reelSlotAfter(i, filteredUsers.length) !== null).length : 0;
-      list.scrollTo({ top: (index + wishCards + (hasIntroRef.current ? 1 : 0)) * list.clientHeight });
+      const extraCards = filteredUsers.slice(0, index).filter((_, i) => wishSlotAt(i) !== null || isPactAt(i)).length;
+      list.scrollTo({ top: (index + extraCards + (hasIntroRef.current ? 1 : 0)) * list.clientHeight });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToUser, filteredUsers.length]);
@@ -248,7 +255,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
 
           {filteredUsers.map((user, index) => {
             // После 4-й и 10-й анкеты — «Хочу сходить» (только во «Все»: в «👋» и «На связи» свои люди)
-            const slot = tab === 'all' && onOpenWish ? reelSlotAfter(index, filteredUsers.length) : null;
+            const slot = wishSlotAt(index);
             return (
             <React.Fragment key={user.id}>
             <PersonReel
@@ -268,6 +275,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                 onSkip ? onSkip(user) : onReact(user, 'dislike');
               }}
             />
+            {isPactAt(index) && <PactReel />}
             {slot !== null && (
               <WishReel wish={reelWishes[slot] || null} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={() => onOpenWish!()} onOpenMine={() => onOpenWish!(true)} onChanged={onWishesChanged} promptTitle={WISH_TEXTS.reelPromptTitlePeople} />
             )}
