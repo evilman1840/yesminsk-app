@@ -4,7 +4,7 @@ import { api } from '../../services/api';
 const rub = (n: number) => `${(Math.round(n * 100) / 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} р.`;
 
 /**
- * Сколько собрано донатов: шкала из двух частей — котёл для пользователей и развитие.
+ * Сколько собрано донатов: шкала из двух частей — приютам и кофе организаторам, и развитие.
  * Цифры автор пишет боту командой /fund. Пока ничего не собрано — не показываем
  */
 export const FundBar: React.FC<{ className?: string }> = ({ className = '' }) => {
@@ -31,7 +31,7 @@ export const FundBar: React.FC<{ className?: string }> = ({ className = '' }) =>
       <div className="mt-2 flex justify-between gap-3">
         <span>
           <span className="block text-body font-bold text-zine-terracotta whitespace-nowrap">☕ {rub(fund.community)}</span>
-          <span className="block text-cap text-zine-inkMuted">подарки для вас</span>
+          <span className="block text-cap text-zine-inkMuted">для приютов 🐾</span>
         </span>
         <span className="text-right">
           <span className="block text-body font-bold text-zine-sage whitespace-nowrap">🌱 {rub(dev)}</span>

@@ -53,7 +53,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
     return (
       <BottomSheet title="Спасибо! 💛" onClose={onClose}>
         <p className="text-body text-zine-ink">
-          Твоя поддержка помогает «ГУЛЯЙ!» оставаться бесплатным, а больше половины суммы вернётся людям или животным: куда именно, решаем вместе в опросе. Это очень ценно.
+          Твоя поддержка помогает «ГУЛЯЙ!» оставаться бесплатным, а больше половины суммы уйдёт приютам для животных и на кофе организаторам сходок. Это очень ценно.
         </p>
         <button onClick={onClose} className="mt-5 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer">
           Пожалуйста!
@@ -66,19 +66,19 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
     <BottomSheet title="Поддержать проект" onClose={onClose}>
       <p className="text-lead font-bold text-zine-ink">🔥 Поддержи проект 1 рублём или больше</p>
       <p className="mt-2 text-body text-zine-ink">
-        Привет! Я Миша Спасатель Позднев, автор «ГУЛЯЙ!». Приложение бесплатное и без рекламы, и я хочу, чтобы донаты возвращались к людям или животным.
+        Привет! Я Миша Спасатель Позднев, автор «ГУЛЯЙ!». Приложение бесплатное и без рекламы, и я хочу, чтобы донаты помогали хвостикам и тем, кто собирает сходки.
       </p>
 
       {/* Сколько уже собрано */}
       <FundBar className="mt-4" />
 
-      {/* Куда идут деньги: 51% — людям, 49% — на проект */}
+      {/* Куда идут деньги: 51% — приютам и кофе организаторам, 49% — на проект */}
       <div className="mt-4 p-4 rounded-zine bg-zine-card">
         <div className="space-y-2.5">
           <p className="flex gap-3">
             <span className="shrink-0 w-14 text-lead font-bold text-zine-terracotta">51%</span>
             <span className="text-sm2 text-zine-ink">
-              <b>Обещаю: на вас.</b> Бесплатные подарки пользователям приложения: кофе на сходках, билеты в кино и на выставки и другие приятные сюрпризы 🎁 Или помощь приюту, если так решим вместе.
+              <b>На хвостиков и кофе.</b> Помощь приютам для животных, которые мы выбрали вместе в опросе 🐾 И каждую неделю разыгрываю кофе среди тех, кто провёл сходку ☕
             </span>
           </p>
           <p className="flex gap-3">
@@ -93,7 +93,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
         <span className="text-[24px] leading-none">📸</span>
         <div className="min-w-0">
           <p className="text-sm2 text-zine-ink">
-            <b>Всё прозрачно.</b> На шкале выше видно, сколько всего собрано и какая часть идёт на подарки. А куда потратил деньги, рассказываю в «Новостях проекта».
+            <b>Всё прозрачно.</b> На шкале выше видно, сколько всего собрано и какая часть идёт приютам. А куда потратил деньги, рассказываю в «Новостях проекта».
           </p>
           {onOpenNews && (
             <button onClick={onOpenNews} className="mt-2 text-sm2 font-bold text-zine-sage underline cursor-pointer">

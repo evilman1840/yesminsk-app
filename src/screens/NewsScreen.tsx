@@ -42,7 +42,7 @@ export const NewsScreen: React.FC<{ news: NewsItem[]; isLoading: boolean; onOpen
           <span className="text-[28px] leading-none">💛</span>
           <span>
             <span className="block text-body font-bold text-zine-ink">Поддержать проект</span>
-            <span className="block text-sm2 text-zine-inkMuted">51% донатов идёт на подарки пользователям. Куда потратили, пишу здесь</span>
+            <span className="block text-sm2 text-zine-inkMuted">51% донатов идёт приютам и на кофе организаторам. Куда потратили, пишу здесь</span>
           </span>
         </button>
 
