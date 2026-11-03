@@ -397,20 +397,20 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   // Район и расстояние у места: «Центр · 1,2 км»
   const whereLine = (coords?: [number, number] | null) =>
     [areaOf(coords), me && coords ? formatDistance(distanceMeters(me, coords)) : null].filter(Boolean).join(' · ');
-  // Места из «Мест» для подсказок в поле «Где встречаемся?»: сначала подходящие по типу шаблону, потом остальные
+  // Подсказки в поле «Где встречаемся?» — только по делу: места из «Мест» того типа, что нужен шаблону (кофе → кофейни).
+  // Подходящих нет — не подставляем «лучшие по рейтингу»: для бассейна кинотеатр только сбивает
+  const placeTypes = template && template.key !== CUSTOM_TEMPLATE ? template.placeTypes : [];
   const placeHints = (() => {
-    const types = template && template.key !== CUSTOM_TEMPLATE ? template.placeTypes : [];
-    // У шаблона есть типы мест (кофе → кафе) — только подходящие; парки для кофе не предлагаем
-    const matching = types.length ? places.filter((p) => types.includes(p.category)) : [];
-    // Подходящих нет — лучшие места, чтобы ряд не был пустым
-    const list = matching.length ? matching : [...places].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    const matching = placeTypes.length ? places.filter((p) => placeTypes.includes(p.category)) : [];
     // Знаем, где человек, — сначала ближайшие
-    return (me ? [...list].sort((a, b) => distanceMeters(me, a.coordinates) - distanceMeters(me, b.coordinates)) : list).slice(0, 8);
+    return (me ? [...matching].sort((a, b) => distanceMeters(me, a.coordinates) - distanceMeters(me, b.coordinates)) : matching).slice(0, 8);
   })();
-  // Один ряд кнопок: места из «Мест» (с placeId), за ними популярные точки Минска
+  // Популярные точки Минска (парки, скверы, площади) — для прогулки, спорта и своей идеи; в кафе, кино и бане они мимо
+  const showSpots = !template || template.key === CUSTOM_TEMPLATE || placeTypes.some((t) => t === 'Парк' || t === 'Сквер');
+  // Один ряд кнопок: подходящие места из «Мест» (с placeId), за ними точки Минска. Пусто — ряда нет, остаются адрес и карта
   const placeChips = [
     ...placeHints.map((p) => ({ key: `p-${p.id}`, placeId: p.id as string | null, name: p.name, text: p.address && p.address !== p.name ? `${p.name}, ${p.address}` : p.name, coords: p.coordinates })),
-    ...(me ? [...MINSK_SPOTS_PRESETS].sort((a, b) => distanceMeters(me, a.coords) - distanceMeters(me, b.coords)) : MINSK_SPOTS_PRESETS)
+    ...(showSpots ? (me ? [...MINSK_SPOTS_PRESETS].sort((a, b) => distanceMeters(me, a.coords) - distanceMeters(me, b.coords)) : MINSK_SPOTS_PRESETS) : [])
       .slice(0, 6)
       .filter((spot) => !placeHints.some((p) => p.name === spot.name))
       .map((spot) => ({ key: `s-${spot.name}`, placeId: null as string | null, name: spot.name, text: spot.name, coords: spot.coords }))
@@ -1180,6 +1180,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
             <Field label="Где встречаемся?">
               {/* Сначала готовые места — одним нажатием, без ввода адреса: подходящие из «Мест», потом популярные точки Минска */}
+              {placeChips.length > 0 && (
+              <>
               <p className="mb-1.5 text-cap font-semibold text-zine-inkMuted">{M.pickPlaceHint}</p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 mb-3">
                 {placeChips.map((chip) => {
@@ -1208,6 +1210,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   );
                 })}
               </div>
+
+              </>
+              )}
 
               <input
                 type="text"
