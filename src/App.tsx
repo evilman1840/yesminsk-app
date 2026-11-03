@@ -219,7 +219,7 @@ export const App: React.FC = () => {
   const [isBotOk, setIsBotOk] = useState(botAccessOk);
   const [isBotBlocked, setIsBotBlocked] = useState(false); // бот упёрся в блокировку: человек остановил бота
   useEffect(() => onBotAccessChange(() => setIsBotOk(botAccessOk())), []);
-  const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | null>(null);
+  const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | 'safety' | null>(null);
   const [tip, setTip] = useState<{ id: string; text: string; first?: boolean } | null>(null); // запись автора (/tip, /tiptop в боте)
   const [poll, setPoll] = useState<PollData | null>(null); // опрос автора (/poll в боте)
   // «Закрепи чат»: Telegram не говорит, закреплён ли чат, — верим «Всё сделано» или крестику, больше не показываем
@@ -1007,6 +1007,7 @@ export const App: React.FC = () => {
     },
     !currentUser.username && { id: 'username', text: NOTICE_TEXTS.username, hideDays: 7, onClick: () => setNoticeSheet('username') },
     isBotOk && !isBotBlocked && !isPinDone && { id: 'pin', text: NOTICE_TEXTS.pin, hideDays: 365, onClick: () => setNoticeSheet('pin'), onDismiss: markPinDone },
+    { id: 'safety', text: NOTICE_TEXTS.safety, hideDays: 30, onClick: () => setNoticeSheet('safety') },
     !tip?.first && tipNotice
   ].filter(Boolean) as Notice[];
 
@@ -1302,6 +1303,15 @@ export const App: React.FC = () => {
               <p className="mt-3 p-3 rounded-zine-sm bg-zine-card text-body text-zine-ink">{USERNAME_TEXTS.how}</p>
               <button onClick={() => setNoticeSheet(null)} className="mt-4 w-full h-12 rounded-zine-sm bg-zine-card text-body font-semibold text-zine-ink cursor-pointer">
                 {NOTICE_TEXTS.usernameDone}
+              </button>
+            </BottomSheet>
+          )}
+
+          {noticeSheet === 'safety' && (
+            <BottomSheet title={NOTICE_TEXTS.safetyTitle} onClose={() => setNoticeSheet(null)}>
+              <p className="text-body text-zine-ink">{NOTICE_TEXTS.safetyText}</p>
+              <button onClick={() => setNoticeSheet(null)} className="mt-4 w-full h-12 rounded-zine-sm bg-zine-card text-body font-semibold text-zine-ink cursor-pointer">
+                {NOTICE_TEXTS.safetyDone}
               </button>
             </BottomSheet>
           )}

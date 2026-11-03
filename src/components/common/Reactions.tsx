@@ -66,6 +66,13 @@ export const ReactionButtons: React.FC<{
   return (
     <div className="flex gap-2">
       <button
+        onClick={(e) => react(e, 'dislike')}
+        className="h-12 px-4 rounded-zine-sm bg-zine-card text-zine-inkMuted text-body font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+      >
+        <span className="text-[20px] leading-none">🙈</span>
+        <span>Скрыть</span>
+      </button>
+      <button
         onClick={(e) => react(e, 'like')}
         disabled={user.iLiked}
         className={`flex-1 h-12 px-4 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer ${
@@ -76,13 +83,6 @@ export const ReactionButtons: React.FC<{
       >
         {busy === 'like' ? <Loader2 size={20} className="animate-spin" /> : <span className="text-[20px] leading-none">👋</span>}
         <span>{user.iLiked ? 'Привет отправлен' : 'Пообщаться'}</span>
-      </button>
-      <button
-        onClick={(e) => react(e, 'dislike')}
-        className="h-12 px-4 rounded-zine-sm bg-zine-card text-zine-inkMuted text-body font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
-      >
-        <span className="text-[20px] leading-none">🙈</span>
-        <span>Скрыть</span>
       </button>
     </div>
   );
