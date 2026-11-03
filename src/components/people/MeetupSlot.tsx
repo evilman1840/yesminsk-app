@@ -6,14 +6,12 @@ import { WISH_TEXTS } from '../../texts/wishes';
 
 /**
  * Сходки между анкетами в «Людях»: одна подходящая сходка (идут те, кого листаешь), а нет такой — «Собери свою».
- * Чтобы не напрягало: новичкам первые запуски не показываем, «Неинтересно» дважды подряд — пауза на 3 дня
+ * Чтобы не напрягало: «Неинтересно» дважды подряд — пауза на 3 дня
  */
 
 const DAY = 24 * 60 * 60 * 1000;
-const LAUNCHES_KEY = 'yesminsk_people_meetup_launches';
 const HIDES_KEY = 'yesminsk_people_meetup_hides';
 const PAUSE_KEY = 'yesminsk_people_meetup_pause';
-const NEWBIE_LAUNCHES = 2; // первые запуски — только люди
 
 const readNum = (key: string) => {
   try {
@@ -30,17 +28,7 @@ const writeNum = (key: string, n: number) => {
   }
 };
 
-// Запуски считаем один раз на открытие приложения, а не на каждый заход во вкладку
-let launches: number | null = null;
-const launchCount = () => {
-  if (launches === null) {
-    launches = readNum(LAUNCHES_KEY) + 1;
-    writeNum(LAUNCHES_KEY, launches);
-  }
-  return launches;
-};
-
-export const peopleMeetupsAllowed = () => launchCount() > NEWBIE_LAUNCHES && readNum(PAUSE_KEY) < Date.now();
+export const peopleMeetupsAllowed = () => readNum(PAUSE_KEY) < Date.now();
 
 // «Неинтересно» на сходке в ленте: второе подряд — сходки в «Людях» уходят на 3 дня
 export const notePeopleMeetupHidden = () => {
