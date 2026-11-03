@@ -35,8 +35,10 @@ export const WishKindSheet: React.FC<{
   onBuild: (kind: string, wishGroupId: string | null, invite: WishInvite[]) => void;
   onOpenEvent: (eventId: string) => void;
   onOpenAll?: () => void; // все желания, мои и форма «Куда хочется?»
+  onWant?: () => void; // из пилюли вида, без времени: «Я тоже хочу» — форма желания с этим видом
+  iWant?: boolean; // у меня уже есть такое желание
   onClose: () => void;
-}> = ({ kind, sport, exact, onOpenUser, onHello, onBuild, onOpenEvent, onOpenAll, onClose }) => {
+}> = ({ kind, sport, exact, onOpenUser, onHello, onBuild, onOpenEvent, onOpenAll, onWant, iWant, onClose }) => {
   const key = [kind, sport, exact?.window, exact?.placeId].join('|');
   const back = kept?.key === key ? kept : null;
   const [data, setData] = useState<People | null>(back?.data || null);
@@ -147,6 +149,21 @@ export const WishKindSheet: React.FC<{
             </button>
           )}
         </div>
+      )}
+      {!exact && onWant && (
+        <button
+          onClick={() => {
+            if (iWant) return;
+            kept = null;
+            onWant();
+          }}
+          disabled={iWant}
+          className={`mt-3 h-10 px-4 rounded-full text-sm2 font-bold flex items-center gap-1.5 cursor-pointer disabled:cursor-default ${
+            iWant ? 'bg-zine-card text-zine-sage' : 'bg-zine-card text-zine-ink border border-zine-border'
+          }`}
+        >
+          {iWant ? T.meTooDone : T.meTooButton}
+        </button>
       )}
       <div className="mt-4 space-y-2">
         {error ? (

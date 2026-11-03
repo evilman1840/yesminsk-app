@@ -255,9 +255,9 @@ export const App: React.FC = () => {
       localStorage.setItem('yesminsk_home_tip_shown', '1');
     } catch (e) {}
   };
-  const [pendingWish, setPendingWish] = useState<{ placeId?: string; mine?: boolean } | null>(null);
+  const [pendingWish, setPendingWish] = useState<{ placeId?: string; mine?: boolean; kind?: string } | null>(null);
   const [wishMembersGroup, setWishMembersGroup] = useState<string | null>(null);
-  const [wishKind, setWishKind] = useState<{ kind: string; sport?: string; exact?: { window: WishWindow; placeId?: string | null; counter: string; includesMe: boolean } } | null>(null); // «Тоже хотят» из карточки в «Людях»
+  const [wishKind, setWishKind] = useState<{ kind: string; sport?: string; iWant?: boolean; exact?: { window: WishWindow; placeId?: string | null; counter: string; includesMe: boolean } } | null>(null); // «Тоже хотят» из карточки в «Людях»
   const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
@@ -1209,6 +1209,7 @@ export const App: React.FC = () => {
                 initialWish={pendingWish}
                 onInitialWishUsed={() => setPendingWish(null)}
                 onInitialCreateUsed={() => setPendingCreate(null)}
+                onOpenWishKind={(kind, iWant) => setWishKind({ kind, iWant })}
                 onOpenWishPeople={(w) =>
                   setWishKind({
                     kind: w.kind,
@@ -1259,6 +1260,17 @@ export const App: React.FC = () => {
               kind={wishKind.kind}
               sport={wishKind.sport}
               exact={wishKind.exact}
+              iWant={wishKind.iWant}
+              // «Я тоже хочу» — только из пилюли в «Сходках»: там известно, есть ли у меня такое желание
+              onWant={
+                wishKind.iWant === undefined
+                  ? undefined
+                  : () => {
+                      setPendingWish({ kind: wishKind.kind });
+                      setWishKind(null);
+                      setCurrentScreen('events');
+                    }
+              }
               onHello={(u) => handleReact(u, 'like')}
               onOpenAll={() => {
                 setWishKind(null);

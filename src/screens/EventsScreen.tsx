@@ -160,9 +160,10 @@ export interface EventsScreenProps {
   places?: PlaceItem[]; // для «Хочу сходить»: выбор места
   myCoords?: [number, number]; // точка из анкеты [lat, lng]: расстояние до мест в форме сходки
   myGender?: string; // свой пол: «только девушки / мужчины» можно выбрать только свой
-  initialWish?: { placeId?: string; mine?: boolean } | null; // открыть «Хочу сходить» сразу (из сообщения бота; mine — к «Моим желаниям»)
+  initialWish?: { placeId?: string; mine?: boolean; kind?: string } | null; // открыть «Хочу сходить» сразу (из сообщения бота; mine — к «Моим желаниям»)
   onInitialWishUsed?: () => void;
   onOpenWishPeople?: (item: WishSummaryItem) => void; // «76 человек хотят на кофе»: список людей, 👋 и «Позвать в компанию»
+  onOpenWishKind?: (kind: string, includesMe: boolean) => void; // пилюля «☕ Кофе 30»: все, кто хочет этого в любое время
 }
 
 // Баннер «Хочу сходить»: из скольких лучших желаний показываем по очереди и насколько поднимаем ближайшие
@@ -193,7 +194,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   myGender,
   initialWish,
   onInitialWishUsed,
-  onOpenWishPeople
+  onOpenWishPeople,
+  onOpenWishKind
 }) => {
   const currentTgUser = telegramService.getUser();
   const currentUserId = propUserId || currentTgUser?.id;
@@ -271,11 +273,13 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     if (!initialWish) return;
     setWishPlace((initialWish.placeId && places.find((p) => p.id === initialWish.placeId)) || null);
     setWishFocusMine(Boolean(initialWish.mine));
+    if (initialWish.kind) setWishPreset({ kind: initialWish.kind, window: null, quick: true });
     setIsWishOpen(true);
     onInitialWishUsed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialWish]);
   const [wishSummary, setWishSummary] = useState<WishSummaryItem[]>([]);
+  const [wishKindCounts, setWishKindCounts] = useState<Record<string, number>>({});
   const [myWishCount, setMyWishCount] = useState(0);
   const [proposeAt, setProposeAt] = useState(3);
   const [meetupStats, setMeetupStats] = useState<MeetupStats | null>(null);
@@ -284,6 +288,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       .getWishes()
       .then((r) => {
         setWishSummary(r.summary || []);
+        setWishKindCounts(r.kindCounts || {});
         setMyWishCount((r.mine || []).length);
         setProposeAt(r.proposeAt || 3);
         setMeetupStats(r.stats || null);
@@ -764,8 +769,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const activeFilters = Number(selectedCategory !== 'all');
   // «Хочу сходить» в одно нажатие: виды желаний чипами, у каждого — сколько людей уже хотят (кроме меня; «поныть» без счётчика)
   const wishKinds = (templates || []).filter((t) => t.key !== CUSTOM_TEMPLATE && t.wishPhrase);
-  const wishKindCount = (kind: string) =>
-    DELICATE_KINDS.includes(kind) ? 0 : wishSummary.filter((s) => s.kind === kind).reduce((n, s) => n + s.count - (s.includesMe ? 1 : 0), 0);
+  // Разные люди, а не сумма по «когда» и местам: того, кто хочет на кофе и на неделе, и в выходные, считаем один раз
+  const wishKindCount = (kind: string) => (DELICATE_KINDS.includes(kind) ? 0 : wishKindCounts[kind] || 0);
   // Пустая лента с фильтром: желание с тем же видом и временем, что выбраны в фильтре
   const emptyWishKind = selectedCategory !== 'all' && selectedCategory !== 'kids' ? wishKinds.find((t) => t.category === selectedCategory) || null : null;
   const emptyWishWindow: WishWindow | null = eventWhen === 'all' ? null : eventWhen;
@@ -881,7 +886,13 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               return (
                 <button
                   key={t.key}
-                  onClick={() => openWish({ kind: t.key })}
+                  // Кто-то уже хочет — список людей (👋, позвать в компанию, «Я тоже хочу»); никого — сразу форма желания
+                  onClick={() => {
+                    if (n > 0 && onOpenWishKind) {
+                      telegramService.haptic('selection');
+                      onOpenWishKind(t.key, wishSummary.some((s) => s.kind === t.key && s.includesMe));
+                    } else openWish({ kind: t.key });
+                  }}
                   className="h-9 pl-2.5 pr-3 shrink-0 rounded-full bg-zine-card border border-zine-border text-sm2 font-semibold text-zine-ink flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
                 >
                   <span aria-hidden>{t.emoji}</span>
