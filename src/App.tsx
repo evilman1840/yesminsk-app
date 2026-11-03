@@ -39,7 +39,7 @@ import { AREA_COORDINATES } from './config/areas';
 import { LegalUpdateOverlay } from './components/common/Legal';
 import { LEGAL_VERSION } from './texts/legal';
 import { AdminContext, EVENT_DELETED } from './context/admin';
-import { EVENT_UPDATED } from './context/eventUpdates';
+import { EVENT_UPDATED, EVENT_EDIT } from './context/eventUpdates';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, WishSummaryItem, MeetupStats, placeForMeetup, PollData } from './types';
 import { WISH_TEXTS, wishCounter, wishNotices } from './texts/wishes';
 import { FEED_TEXTS } from './texts/feed';
@@ -148,6 +148,17 @@ export const App: React.FC = () => {
     const onShare = (e: Event) => setShareData((e as CustomEvent<ShareData>).detail);
     window.addEventListener(SHARE_EVENT, onShare);
     return () => window.removeEventListener(SHARE_EVENT, onShare);
+  }, []);
+
+  // Организатор нажал «Изменить» в подробной карточке: форма живёт во вкладке «Сходки» — закрываем шторки и идём туда
+  useEffect(() => {
+    const onEdit = (e: Event) => {
+      setSharedEvent(null);
+      setPendingEdit((e as CustomEvent<AppEvent>).detail);
+      setCurrentScreen('events');
+    };
+    window.addEventListener(EVENT_EDIT, onEdit);
+    return () => window.removeEventListener(EVENT_EDIT, onEdit);
   }, []);
 
   // Модератор удалил сходку из любой шторки — убираем её из списков и закрываем открытую по ссылке
@@ -259,6 +270,7 @@ export const App: React.FC = () => {
   const [wishMembersGroup, setWishMembersGroup] = useState<string | null>(null);
   const [wishKind, setWishKind] = useState<{ kind: string; sport?: string; iWant?: boolean; exact?: { window: WishWindow; placeId?: string | null; counter: string; includesMe: boolean } } | null>(null); // «Тоже хотят» из карточки в «Людях»
   const [pendingCreate, setPendingCreate] = useState<MeetupCreateRequest | null>(null);
+  const [pendingEdit, setPendingEdit] = useState<AppEvent | null>(null); // «Изменить» в подробной карточке своей сходки
 
   const fetchPlaces = useCallback(async (): Promise<PlaceItem[]> => {
     try {
@@ -1209,6 +1221,8 @@ export const App: React.FC = () => {
                 initialWish={pendingWish}
                 onInitialWishUsed={() => setPendingWish(null)}
                 onInitialCreateUsed={() => setPendingCreate(null)}
+                initialEdit={pendingEdit}
+                onInitialEditUsed={() => setPendingEdit(null)}
                 onOpenWishKind={(kind, iWant) => setWishKind({ kind, iWant })}
                 onOpenWishPeople={(w) =>
                   setWishKind({

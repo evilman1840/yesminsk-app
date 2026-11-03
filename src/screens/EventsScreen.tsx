@@ -163,6 +163,8 @@ export interface EventsScreenProps {
   initialWish?: { placeId?: string; mine?: boolean; kind?: string } | null; // открыть «Хочу сходить» сразу (из сообщения бота; mine — к «Моим желаниям»)
   onInitialWishUsed?: () => void;
   onOpenWishPeople?: (item: WishSummaryItem) => void; // «76 человек хотят на кофе»: список людей, 👋 и «Позвать в компанию»
+  initialEdit?: AppEvent | null; // «Изменить» из подробной карточки (карта, места, ссылка): сразу форма редактирования
+  onInitialEditUsed?: () => void;
   onOpenWishKind?: (kind: string, includesMe: boolean) => void; // пилюля «☕ Кофе 30»: все, кто хочет этого в любое время
 }
 
@@ -195,7 +197,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   initialWish,
   onInitialWishUsed,
   onOpenWishPeople,
-  onOpenWishKind
+  onOpenWishKind,
+  initialEdit,
+  onInitialEditUsed
 }) => {
   const currentTgUser = telegramService.getUser();
   const currentUserId = propUserId || currentTgUser?.id;
@@ -612,6 +616,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       { enableHighAccuracy: true, timeout: 8000 }
     );
   };
+
+  useEffect(() => {
+    if (!initialEdit) return;
+    setDetailsEventId(null);
+    handleOpenEditModal(initialEdit);
+    onInitialEditUsed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialEdit]);
 
   const handleDeleteEvent = async (ev: AppEvent) => {
     const targetId = ev.id || (ev as any)._id;

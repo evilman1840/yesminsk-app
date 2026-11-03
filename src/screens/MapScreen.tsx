@@ -667,6 +667,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         <BottomSheet title={selectedEvent.title} onClose={() => setSelectedEvent(null)}>
           <EventDetails
             event={selectedEvent}
+            onReported={() => setSelectedEvent(null)}
             onJoin={async (options) => {
               const updated = await onJoinEvent(selectedEvent, options);
               if (updated) setSelectedEvent(updated);

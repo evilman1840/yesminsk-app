@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { thumb } from '../../utils/thumb';
-import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus } from 'lucide-react';
+import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus, Edit2, Trash2 } from 'lucide-react';
 import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES, audienceLabel } from '../../types';
 import { HelpLine } from './HelpLine';
 import { telegramService } from '../../services/telegram';
@@ -11,7 +11,7 @@ import { MEETUP_TEXTS, priceLabel } from '../../texts/meetups';
 import { photoSrc } from './PhotoPicker';
 import { useOpenUser } from '../../context/openUser';
 import { useIsAdmin, EVENT_DELETED } from '../../context/admin';
-import { confirmAttendance, EVENT_UPDATED } from '../../context/eventUpdates';
+import { confirmAttendance, EVENT_UPDATED, EVENT_EDIT } from '../../context/eventUpdates';
 import { EVENT_MESSAGE_TEXTS as EM } from '../../texts/eventMessage';
 import { api } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
@@ -82,6 +82,22 @@ export const EventDetails: React.FC<{
   const isAdmin = useIsAdmin();
   const [isAdminDeleteOpen, setIsAdminDeleteOpen] = useState(false);
   const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
+  const [isDeleting, setIsDeleting] = useState(false);
+  // Своя сходка: удалить отсюда же. Списки и открытые шторки уберут её по EVENT_DELETED
+  const deleteOwn = async () => {
+    if (isDeleting || !(await telegramService.confirm(`Удалить сходку «${event.title}»?`, { destructive: true }))) return;
+    setIsDeleting(true);
+    try {
+      await api.deleteEvent(String(event.id));
+      telegramService.haptic('success');
+      window.dispatchEvent(new CustomEvent<string>(EVENT_DELETED, { detail: String(event.id) }));
+      onReported?.();
+    } catch (err: any) {
+      telegramService.alert(err?.message || 'Ошибка удаления');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;
   // Сходка началась: организатор отмечает, кто не пришёл; подтверждать и убирать уже незачем
   const isStarted = new Date(event.dateTime).getTime() <= Date.now();
@@ -431,26 +447,40 @@ export const EventDetails: React.FC<{
         className="sticky z-10 -mx-5 -mb-4 mt-3 px-5 pt-3 bg-zine-cardElevated border-t border-zine-border"
         style={{ bottom: 'calc(-1 * max(8px, env(safe-area-inset-bottom)))', paddingBottom: 'calc(12px + max(8px, env(safe-area-inset-bottom)))' }}
       >
-        {/* Главное действие — закреплено внизу шторки */}
+        {/* Главное действие — закреплено внизу шторки. Своя сходка — вместо «Пойду» управление */}
+        {isCreator ? (
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                window.dispatchEvent(new CustomEvent<AppEvent>(EVENT_EDIT, { detail: event }));
+              }}
+              className="flex-1 h-14 rounded-zine-sm bg-zine-ink text-zine-paper text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+            >
+              <Edit2 size={20} />
+              <span>Изменить</span>
+            </button>
+            <button
+              onClick={deleteOwn}
+              disabled={isDeleting}
+              aria-label="Удалить сходку"
+              className="w-14 h-14 shrink-0 rounded-zine-sm border border-zine-border text-zine-ink flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+            >
+              {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
+            </button>
+          </div>
+        ) : (
         <button
           onClick={() => {
             telegramService.haptic('medium');
             setIsJoinOpen(true);
           }}
-          disabled={isFull || isCreator || approvedLock}
+          disabled={isFull || approvedLock}
           className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-            isCreator
-              ? 'bg-zine-card text-zine-inkMuted cursor-default'
-              : event.isJoined
-                ? 'bg-zine-sage/15 text-zine-sage'
-                : isFull
-                  ? 'bg-zine-card text-zine-inkMuted cursor-default'
-                  : 'bg-zine-terracotta text-white'
+            event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : isFull ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'bg-zine-terracotta text-white'
           }`}
         >
-          {isCreator ? (
-            <span>Ты собираешь эту сходку</span>
-          ) : isFull ? (
+          {isFull ? (
             <span>Мест нет: все {event.maxParticipants} заняты</span>
           ) : event.isJoined && event.byRequest ? (
             approvedLock ? (
@@ -470,6 +500,7 @@ export const EventDetails: React.FC<{
             <span>{event.byRequest ? MEETUP_TEXTS.requestJoin : 'Пойду!'}</span>
           )}
         </button>
+        )}
         {/* «По записи»: заявка ждёт — можно отменить; подтверждена — только через организатора */}
         {event.isJoined && !isCreator && event.byRequest && (
           <div className="mt-2 flex items-center justify-between gap-3">

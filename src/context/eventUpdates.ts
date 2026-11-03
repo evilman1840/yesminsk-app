@@ -5,6 +5,8 @@ import { MEETUP_TEXTS } from '../texts/meetups';
 
 // Сходка изменилась в одной из шторок — App обновляет её в списках и в открытой по ссылке
 export const EVENT_UPDATED = 'yesminsk:event-updated';
+// Организатор нажал «Изменить» в подробной карточке (карта, места, ссылка): App откроет форму на вкладке «Сходки»
+export const EVENT_EDIT = 'yesminsk:event-edit';
 
 /**
  * «✅ Точно приду» из приложения. Вернёт обновлённую сходку или null, если не получилось
