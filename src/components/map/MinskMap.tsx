@@ -798,7 +798,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full z-30 pointer-events-none flex flex-col items-center">
             <div className="px-3 py-1 rounded-full bg-zine-terracotta text-white text-sm2 font-bold shadow-zine-float whitespace-nowrap">Тебя увидят здесь</div>
             <div className="mt-1 w-12 h-12 rounded-full border-[3px] border-zine-terracotta bg-zine-cardElevated overflow-hidden shadow-zine-float">
-              {currentUser?.avatarUrl && <img src={currentUser.avatarUrl} alt="" className="w-full h-full object-cover" />}
+              {currentUser?.avatarUrl && <img src={thumb(currentUser.avatarUrl)} alt="" className="w-full h-full object-cover" />}
             </div>
             <div className="w-0 h-0 border-x-[7px] border-x-transparent border-t-[9px] border-t-zine-terracotta" />
           </div>

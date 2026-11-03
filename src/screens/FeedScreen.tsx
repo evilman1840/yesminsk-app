@@ -365,16 +365,18 @@ const PersonReel: React.FC<{
   // Главное фото и ещё до 5
   const gallery = [user.avatarUrl, ...(user.photos || []).map(photoSrc)];
   const [photoIndex, setPhotoIndex] = useState(0);
-  // Главное фото загрузилось — тихо подгружаем остальные, чтобы листались сразу
-  const preloaded = useRef(false);
-  const preloadGallery = () => {
-    if (preloaded.current || gallery.length < 2) return;
-    preloaded.current = true;
-    gallery.slice(1).forEach((src) => {
+  // Главное фото загрузилось — подгружаем только второе; остальные — когда начали листать.
+  // Раньше качали все 5 фото каждой анкеты в ленте, даже если их не смотрели: лишний трафик
+  const preloaded = useRef(0);
+  const preload = (upTo: number) => {
+    gallery.slice(preloaded.current + 1, upTo).forEach((src) => {
       const img = new Image();
       img.src = src;
     });
+    preloaded.current = Math.max(preloaded.current, upTo - 1);
   };
+  const preloadNext = () => preload(2);
+  const preloadGallery = () => preload(gallery.length);
   const showPhoto = (step: number) => {
     preloadGallery();
     telegramService.haptic('selection');
@@ -452,7 +454,7 @@ const PersonReel: React.FC<{
     >
       {/* Фото — без надписей и кнопок поверх, только точки и стрелки */}
       <div ref={seenRef} className="relative mx-3 flex-1 min-h-[42%] rounded-zine overflow-hidden bg-zine-card">
-        <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} onLoad={preloadGallery} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
+        <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} onLoad={preloadNext} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
         {/* Несколько фото: тап слева и справа листает, как в сторис; по центру — анкета */}
         {gallery.length > 1 && (
           <>

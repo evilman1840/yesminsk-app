@@ -605,7 +605,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         <BottomSheet title="Это ты" onClose={() => setIsMySheetOpen(false)}>
           <div className="flex items-center gap-4">
             <img
-              src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={thumb(currentUser.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={currentUser.name || 'Ты'}
               className="w-20 h-20 rounded-zine object-cover shrink-0"
             />
