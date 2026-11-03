@@ -57,6 +57,31 @@ body {
 }
 
 /* Раньше здесь была точечная текстура; теперь чистый фон */
+.reel-night {
+  /* Сходка в ленте «Людей»: тёмная карточка среди светлых анкет, чтобы не пролистнуть */
+  --c-paper: 43 38 35;
+  --c-card: 58 52 48;
+  --c-card-elevated: 66 60 55;
+  --c-border: 84 76 70;
+  --c-ink: 250 247 242;
+  --c-ink-muted: 207 196 184;
+  --c-mustard-ink: 232 176 90;
+  --c-sage: 127 168 143;
+}
+html.dark .reel-night {
+  /* В тёмной теме наоборот: светлая карточка среди тёмных анкет (палитра светлой темы) */
+  --c-paper: 250 247 242;
+  --c-card: 244 239 234;
+  --c-card-elevated: 255 253 249;
+  --c-border: 232 223 213;
+  --c-ink: 43 38 35;
+  --c-ink-muted: 107 99 92;
+  --c-terracotta: 217 92 60;
+  --c-terracotta-hover: 198 79 48;
+  --c-mustard-ink: 154 100 18;
+  --c-sage: 91 123 104;
+}
+
 .zine-paper-texture {
   background-color: rgb(var(--c-paper));
 }

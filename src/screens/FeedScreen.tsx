@@ -107,9 +107,9 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   // Сходки в ленте: какие показать, решаем один раз, когда пришёл список, — чтобы после «Пойду!» карточка не уехала
   const [meetupsOn] = useState(peopleMeetupsAllowed);
   const [meetupIds, setMeetupIds] = useState<string[] | null>(null);
+  const friends = new Set([...matches.map((u) => u.telegramId), ...users.filter((u) => u.iLiked).map((u) => u.telegramId)]);
   useEffect(() => {
     if (meetupIds || !meetupsOn || !events.length) return;
-    const friends = new Set([...matches.map((u) => u.telegramId), ...users.filter((u) => u.iLiked).map((u) => u.telegramId)]);
     setMeetupIds(pickPeopleMeetups(events, myId, friends).map((e) => String(e.id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events.length, meetupsOn]);
@@ -322,6 +322,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
             {meetup && meetup !== 'create' && (
               <EventReel
                 event={meetup}
+                spotlight={{ label: FEED_TEXTS.meetupSpotlight, friendIds: friends }}
                 isFirst={false}
                 isCreator={false}
                 isJoining={false}

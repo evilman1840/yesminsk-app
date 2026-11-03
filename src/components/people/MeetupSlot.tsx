@@ -69,7 +69,7 @@ export const CreateMeetupReel: React.FC<{ wish: WishSummaryItem | null; onCreate
   const others = wish ? wish.count - (wish.includesMe ? 1 : 0) : 0;
   return (
     <section className="h-full w-full snap-start snap-always p-3">
-      <div className="h-full rounded-zine bg-zine-card border border-zine-border flex flex-col items-center justify-center text-center px-6 text-zine-ink">
+      <div className="reel-night h-full rounded-zine bg-zine-paper shadow-zine-float flex flex-col items-center justify-center text-center px-6 text-zine-ink">
         <div className="text-[56px] leading-none mb-4" aria-hidden>
           🛠
         </div>

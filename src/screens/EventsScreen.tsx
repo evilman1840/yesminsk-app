@@ -1646,7 +1646,9 @@ export const EventReel: React.FC<{
   onNotInterested: () => void;
   onSeen?: () => void;
   emoji?: string | null;
-}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onLeave, onEdit, onDelete, onOpenDetails, onNotInterested, onSeen, emoji }) => {
+  // Сходка в ленте «Людей»: тёмная карточка с подписью, кто из знакомых идёт, и толчок вибрацией при остановке
+  spotlight?: { label: string; friendIds: Set<number> };
+}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onLeave, onEdit, onDelete, onOpenDetails, onNotInterested, onSeen, emoji, spotlight }) => {
   const [isConfirming, setIsConfirming] = useState(false);
   // Карточка видна больше секунды — считаем просмотренной
   const reelRef = useRef<HTMLDivElement>(null);
@@ -1668,23 +1670,48 @@ export const EventReel: React.FC<{
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // В «Людях»: карточка встала на экран — один лёгкий толчок, чтобы заметили, что это не анкета
+  useEffect(() => {
+    const el = reelRef.current;
+    if (!el || !spotlight) return;
+    let done = false;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !done) {
+          done = true;
+          telegramService.haptic('light');
+          io.disconnect();
+        }
+      },
+      { threshold: 0.8 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const cat = eventCategoryOf(ev);
   const isFull = !ev.isJoined && Boolean(ev.maxParticipants) && (ev.participantsCount || 1) >= ev.maxParticipants;
   // Все, кто идёт; если сервер ещё старый и прислал не всех — хотя бы организатор
   const people = ev.participants?.length ? ev.participants : [ev.creator];
+  // «Аня, Дима +3 идут»: сначала знакомые (на связи, кому передал 👋), потом остальные
+  const isFriend = (p: (typeof people)[number]) => Boolean(p && spotlight?.friendIds.has(Number(p.telegramId)));
+  const goingPeople = spotlight ? [...people.filter(isFriend), ...people.filter((p) => p && !isFriend(p))] : [];
+  const goingNames = goingPeople.map((p) => p?.name).filter(Boolean) as string[];
+  const goingTotal = ev.participantsCount || people.length;
 
   const isPending = ev.isJoined && ev.byRequest && !ev.myApproved;
 
   return (
     <SwipeReel
-      className="flex flex-col"
+      className={spotlight ? 'flex flex-col reel-night top-2 bottom-2 left-2 right-2 rounded-zine bg-zine-paper text-zine-ink shadow-zine-float' : 'flex flex-col'}
       rightLabel="Подробнее"
       rightBehavior="stay"
       leftLabel={isCreator || ev.isJoined ? undefined : 'Неинтересно'}
       leftBehavior="remove"
       onSwipe={(dir) => (dir === 'right' ? onOpenDetails() : onNotInterested())}
     >
-      {/* Обложка: первое фото сходки, без фото — цвет категории и крупный значок. Без надписей поверх */}
+      {spotlight && <p className="shrink-0 px-4 pt-3 pb-2 text-sm2 font-bold text-zine-terracotta">✨ {spotlight.label}</p>}
+      {/* Обложка: первое фото сходки, без фото — цвет категории и крупный значок. Без надписей поверх (кроме «кто идёт» в «Людях») */}
       <div
         ref={reelRef}
         onClick={onOpenDetails}
@@ -1694,6 +1721,19 @@ export const EventReel: React.FC<{
           <img src={photoSrc(ev.photos[0])} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" loading="lazy" />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-[88px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>
+        )}
+        {spotlight && goingNames.length > 0 && (
+          <div className="absolute left-3 bottom-3 max-w-[calc(100%-24px)] pl-2 pr-3 py-1.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-cap font-semibold flex items-center gap-2 pointer-events-none">
+            <span className="flex -space-x-2 shrink-0">
+              {goingPeople.slice(0, 3).map((p, i) => (
+                <img key={`${p?.telegramId}-${i}`} src={thumb(p?.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} alt="" className="w-6 h-6 rounded-full object-cover border-2 border-black/40" />
+              ))}
+            </span>
+            <span className="truncate">
+              {goingNames.slice(0, 2).join(', ')}
+              {goingTotal > 2 ? ` +${goingTotal - Math.min(2, goingNames.length)}` : ''} {goingTotal === 1 ? 'идёт' : 'идут'}
+            </span>
+          </div>
         )}
         {/* Подсказка про свайпы — только на первой карточке, внизу обложки */}
         {isFirst && <SwipeHint className="bottom-3" left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" />}
