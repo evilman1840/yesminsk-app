@@ -1185,6 +1185,14 @@ export const App: React.FC = () => {
                   handleNavigate('events');
                 }}
                 onWishesChanged={fetchWishes}
+                events={events}
+                myId={currentUser.telegramId}
+                onJoinEvent={handleJoinEvent}
+                onOpenEvent={(ev) => setSharedEvent(ev)}
+                onCreateMeetup={(kind) => {
+                  setPendingCreate({ ...(kind ? { template: kind } : {}), source: 'people' });
+                  setCurrentScreen('events');
+                }}
                 wantNowSlot={
                   <WantNowButton
                     availableUntil={currentUser.availableUntil}

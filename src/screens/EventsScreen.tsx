@@ -144,6 +144,7 @@ export const findEventPlace = async (address: string): Promise<FoundPlace | null
 // при следующем запуске сервер их уже не пришлёт
 const notInterestedEvents = new Set<string>();
 export const forgetNotInterestedEvent = (id: string) => notInterestedEvents.delete(id);
+export const markNotInterestedEvent = (id: string) => notInterestedEvents.add(id); // «Неинтересно» на сходке в «Людях»
 
 export interface EventsScreenProps {
   events: AppEvent[];
@@ -1631,7 +1632,7 @@ const REEL_BG: Record<EventCategory, string> = {
 /**
  * Сходка: сверху чистая обложка (фото или цвет категории со значком), под ней текст на сплошном фоне и кнопки под большим пальцем
  */
-const EventReel: React.FC<{
+export const EventReel: React.FC<{
   event: AppEvent;
   isFirst: boolean;
   isCreator: boolean;

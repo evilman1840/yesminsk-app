@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2, Undo2, X } from 'lucide-react';
-import { MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
+import { AppEvent, JoinOptions, MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType } from '../components/common/Reactions';
 import { goalFilterItems } from '../components/ui/GoalChips';
@@ -14,6 +14,11 @@ import { markPersonSeen } from '../utils/seenPeople';
 import { WishReel, pickReelWishes, reelSlotAfter } from '../components/common/WishReel';
 import { WISH_TEXTS } from '../texts/wishes';
 import { PactReel, pactPlan, isPactSlot } from '../components/people/PactReel';
+import { CreateMeetupReel, isMeetupSlot, peopleMeetupsAllowed, pickPeopleMeetups, pickCreateWish, notePeopleMeetupHidden, notePeopleMeetupJoined } from '../components/people/MeetupSlot';
+import { EventReel, markNotInterestedEvent } from './EventsScreen';
+import { JoinSheet } from '../components/common/JoinSheet';
+import { MEETUP_TEXTS } from '../texts/meetups';
+import { api } from '../services/api';
 import {
   PeopleFiltersSheet,
   PeopleFilters,
@@ -49,6 +54,12 @@ export interface FeedScreenProps {
   onOpenWishPeople?: (item: WishSummaryItem) => void;
   onOpenWish?: (mine?: boolean) => void; // своё желание: «Сходки» и шторка; mine — сразу к «Моим желаниям»
   onWishesChanged?: () => void;
+  // Сходки между анкетами: подходящая — «Пойду!», нет такой — «Собери свою»
+  events?: AppEvent[];
+  myId?: number;
+  onJoinEvent?: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
+  onOpenEvent?: (event: AppEvent) => void;
+  onCreateMeetup?: (kind?: string) => void;
 }
 
 type FeedTab = 'all' | 'likes' | 'matches';
@@ -76,7 +87,12 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   meetupStats,
   onOpenWishPeople,
   onOpenWish,
-  onWishesChanged
+  onWishesChanged,
+  events = [],
+  myId,
+  onJoinEvent,
+  onOpenEvent,
+  onCreateMeetup
 }) => {
   const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
   const reelWishes = pickReelWishes(wishSummary);
@@ -88,6 +104,26 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   const wishSlotAt = (i: number) => (tab === 'all' && onOpenWish ? reelSlotAfter(i, filteredUsers.length) : null);
   const isPactAt = (i: number) =>
     tab === 'all' && isPactSlot(pact, i) && i <= filteredUsers.length - 2 && (pactAgreedAt === null || i <= pactAgreedAt);
+  // Сходки в ленте: какие показать, решаем один раз, когда пришёл список, — чтобы после «Пойду!» карточка не уехала
+  const [meetupsOn] = useState(peopleMeetupsAllowed);
+  const [meetupIds, setMeetupIds] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (meetupIds || !meetupsOn || !events.length) return;
+    const friends = new Set([...matches.map((u) => u.telegramId), ...users.filter((u) => u.iLiked).map((u) => u.telegramId)]);
+    setMeetupIds(pickPeopleMeetups(events, myId, friends).map((e) => String(e.id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events.length, meetupsOn]);
+  const [hiddenMeetups, setHiddenMeetups] = useState<Set<string>>(new Set());
+  const feedMeetups = (meetupIds || []).map((id) => events.find((e) => String(e.id) === id)).filter((e): e is AppEvent => Boolean(e) && !hiddenMeetups.has(String(e!.id)));
+  const createWish = pickCreateWish(wishSummary);
+  const [joinMeetup, setJoinMeetup] = useState<AppEvent | null>(null);
+  // Что стоит в слоте после i-й анкеты: k-я сходка, «Собери свою» (один раз, когда сходки кончились) или ничего
+  const meetupSlotAt = (i: number): AppEvent | 'create' | null => {
+    if (tab !== 'all' || !meetupsOn || !onCreateMeetup || i > filteredUsers.length - 2) return null;
+    if (!isMeetupSlot(i, (j) => wishSlotAt(j) !== null || isPactAt(j))) return null;
+    const k = Math.floor((i - 6) / 8);
+    return feedMeetups[k] || (k === feedMeetups.length ? 'create' : null);
+  };
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   useEffect(() => saveFilters(filters), [filters]);
   // Цель встречи выбирается в той же шторке — считаем её вместе с фильтрами
@@ -120,7 +156,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     if (index >= 0 && list) {
       setScrollToUser(null);
       // Карточки «Хочу сходить» выше анкеты тоже занимают по экрану
-      const extraCards = filteredUsers.slice(0, index).filter((_, i) => wishSlotAt(i) !== null || isPactAt(i)).length;
+      const extraCards = filteredUsers.slice(0, index).reduce((n, _, i) => n + Number(wishSlotAt(i) !== null) + Number(isPactAt(i)) + Number(meetupSlotAt(i) !== null), 0);
       list.scrollTo({ top: (index + extraCards + (hasIntroRef.current ? 1 : 0)) * list.clientHeight });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -258,6 +294,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           {filteredUsers.map((user, index) => {
             // После 4-й и 10-й анкеты — «Хочу сходить» (только во «Все»: в «👋» и «На связи» свои люди)
             const slot = wishSlotAt(index);
+            const meetup = meetupSlotAt(index);
             return (
             <React.Fragment key={user.id}>
             <PersonReel
@@ -280,6 +317,31 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
             {isPactAt(index) && <PactReel onAgree={() => setPactAgreedAt(index)} />}
             {slot !== null && (
               <WishReel wish={reelWishes[slot] || null} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={() => onOpenWish!()} onOpenMine={() => onOpenWish!(true)} onChanged={onWishesChanged} promptTitle={WISH_TEXTS.reelPromptTitlePeople} />
+            )}
+            {meetup === 'create' && <CreateMeetupReel wish={createWish} onCreate={(kind) => onCreateMeetup!(kind)} />}
+            {meetup && meetup !== 'create' && (
+              <EventReel
+                event={meetup}
+                isFirst={false}
+                isCreator={false}
+                isJoining={false}
+                isDeleting={false}
+                onJoin={() => (meetup.myApproved ? onOpenEvent?.(meetup) : setJoinMeetup(meetup))}
+                onLeave={async () => {
+                  if (!(await telegramService.confirm(MEETUP_TEXTS.notGoingConfirm(meetup.title), { okText: MEETUP_TEXTS.notGoingOk, destructive: true }))) return;
+                  onJoinEvent?.(meetup, null);
+                }}
+                onEdit={() => {}}
+                onDelete={() => {}}
+                onOpenDetails={() => onOpenEvent?.(meetup)}
+                onNotInterested={() => {
+                  const id = String(meetup.id);
+                  markNotInterestedEvent(id);
+                  setHiddenMeetups((prev) => new Set(prev).add(id));
+                  notePeopleMeetupHidden();
+                  api.hideEvent(id).catch(() => {});
+                }}
+              />
             )}
             </React.Fragment>
             );
@@ -309,6 +371,19 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       )}
 
       </div>
+
+      {joinMeetup && onJoinEvent && (
+        <JoinSheet
+          event={joinMeetup}
+          onConfirm={async (o) => {
+            const updated = await onJoinEvent(joinMeetup, o);
+            if (updated) notePeopleMeetupJoined();
+            return updated;
+          }}
+          onLeave={() => onJoinEvent(joinMeetup, null)}
+          onClose={() => setJoinMeetup(null)}
+        />
+      )}
 
       {isFiltersOpen && (
         <PeopleFiltersSheet
