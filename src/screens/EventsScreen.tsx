@@ -854,21 +854,38 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         )}
 
         <div className="mt-2.5 flex gap-2">
-        {/* «Хочу сходить»: нет подходящей сходки — отметь, куда хочется. Вся карточка — одна цель: шторка желаний,
-            а в ней уже «Уже хотят» и кто это. Счётчик — подписью, как приманка */}
-        <button
-          onClick={() => openWish()}
-          className="min-w-0 flex-1 p-2 rounded-zine-sm bg-zine-card border border-zine-border flex items-center gap-2.5 text-left active:scale-[0.98] transition-transform cursor-pointer"
-        >
-          <span className="w-9 h-9 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center text-[18px] leading-none" aria-hidden>🙋</span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-body font-bold leading-tight text-zine-ink">{WISH_TEXTS.barTitle}</span>
-            <span className="mt-0.5 block text-cap font-semibold text-zine-inkMuted line-clamp-2">
-              {topWish ? wishCounter(topWish) : myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+        {/* «Хочу сходить»: две цели. Заголовок — шторка желаний (выбрать, куда хочется),
+            строка «2 человека хотят на выставку» — список этих людей: 👋, позвать в компанию, «Я тоже хочу» */}
+        <div className="min-w-0 flex-1 rounded-zine-sm bg-zine-card border border-zine-border flex flex-col justify-center overflow-hidden">
+          <button
+            onClick={() => openWish()}
+            className="w-full p-2 pb-1.5 flex items-center gap-2.5 text-left active:bg-zine-cardElevated transition-colors cursor-pointer"
+          >
+            <span className="w-9 h-9 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center text-[18px] leading-none" aria-hidden>🙋</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-body font-bold leading-tight text-zine-ink">{WISH_TEXTS.barTitle}</span>
+              {!topWish && (
+                <span className="mt-0.5 block text-cap font-semibold text-zine-inkMuted line-clamp-2">
+                  {myWishCount ? WISH_TEXTS.barMine(myWishCount) : WISH_TEXTS.barPrompt}
+                </span>
+              )}
             </span>
-          </span>
-          <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />
-        </button>
+            <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />
+          </button>
+          {topWish && (
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                if (onOpenWishPeople) onOpenWishPeople(topWish);
+                else openWish();
+              }}
+              className="w-full px-2 pt-1.5 pb-2 border-t border-zine-border flex items-center gap-1.5 text-left active:bg-zine-cardElevated transition-colors cursor-pointer"
+            >
+              <span className="min-w-0 flex-1 text-cap font-semibold text-zine-ink line-clamp-2">{wishCounter(topWish)}</span>
+              <span className="shrink-0 text-cap font-bold text-zine-terracotta whitespace-nowrap">{topWish.includesMe ? WISH_TEXTS.noticeWho : WISH_TEXTS.noticeMeToo}</span>
+            </button>
+          )}
+        </div>
         {/* Не нашлось подходящей — собрать свою */}
         <button
           onClick={() => handleOpenCreateModal(undefined, undefined, 'feed')}
