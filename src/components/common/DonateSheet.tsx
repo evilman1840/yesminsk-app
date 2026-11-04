@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import { FundBar } from './FundBar';
+import { FundBar, useFund, rub } from './FundBar';
 import { Loader2, ExternalLink, Copy, Check } from 'lucide-react';
 import { BottomSheet } from '../ui/BottomSheet';
 import { api } from '../../services/api';
 import { telegramService } from '../../services/telegram';
-import { STAR_AMOUNTS, DONATE_LINKS } from '../../config/donate';
+import { STAR_AMOUNTS, DONATE_LINKS, SHELTERS_URL } from '../../config/donate';
+
+const dayMonth = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 
 /**
- * Окно «Поддержать проект»: звёзды Telegram и другие способы (если заданы в config/donate.ts)
+ * Окно «Поддержать проект»: шкала сборов, переводы приютам (/sent в боте),
+ * звёзды Telegram и другие способы (если заданы в config/donate.ts)
  */
 export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => void }> = ({ onClose, onOpenNews }) => {
   const [busyStars, setBusyStars] = useState<number | null>(null);
   const [thanks, setThanks] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const fund = useFund();
 
   const copyValue = async (value: string) => {
     try {
@@ -66,45 +70,49 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
     <BottomSheet title="Поддержать проект" onClose={onClose}>
       <p className="text-lead font-bold text-zine-ink">🔥 Поддержи проект 1 рублём или больше</p>
       <p className="mt-2 text-body text-zine-ink">
-        Привет! Я Миша Спасатель Позднев, автор «ГУЛЯЙ!». Приложение бесплатное и без рекламы, и я хочу, чтобы донаты помогали хвостикам и тем, кто собирает сходки.
+        Привет! ГУЛЯЙ! бесплатный и без рекламы. Больше донатов – больше помощи животным, кофе организаторам сходок и проекту (создаю его я один, Миша Спасатель Позднев, не программист и не дизайнер).
       </p>
 
       {/* Сколько уже собрано */}
-      <FundBar className="mt-4" />
+      <FundBar className="mt-4" fund={fund} />
 
-      {/* Куда идут деньги: 51% — приютам и кофе организаторам, 49% — на проект */}
-      <div className="mt-4 p-4 rounded-zine bg-zine-card">
-        <div className="space-y-2.5">
-          <p className="flex gap-3">
-            <span className="shrink-0 w-14 text-lead font-bold text-zine-terracotta">51%</span>
-            <span className="text-sm2 text-zine-ink">
-              <b>На хвостиков и кофе.</b> Помощь приютам для животных, которые мы выбрали вместе в опросе 🐾 И каждую неделю разыгрываю кофе среди тех, кто провёл сходку ☕
-            </span>
-          </p>
-          <p className="flex gap-3">
-            <span className="shrink-0 w-14 text-lead font-bold text-zine-sage">49%</span>
-            <span className="text-sm2 text-zine-inkMuted">Серверы, развитие приложения и зарплата людям, которые его ведут.</span>
-          </p>
-        </div>
+      {/* Переводы приютам и волонтёрам: последний, сколько всего и сколько кофе разыграли */}
+      <div className="mt-3 p-4 rounded-zine bg-zine-card">
+        <p className="text-body font-bold text-zine-ink">Каждую неделю – новому приюту или волонтёрам 🐾</p>
+        {fund?.lastTransfer && (
+          <div className="mt-3 p-3 rounded-zine-sm bg-zine-cardElevated">
+            <p className="text-cap text-zine-inkMuted">Последний перевод · {dayMonth(fund.lastTransfer.at)}</p>
+            <p className="text-body text-zine-ink">
+              <b className="text-zine-terracotta">{rub(fund.lastTransfer.amount)}</b> → {fund.lastTransfer.to}
+            </p>
+          </div>
+        )}
+        {Boolean(fund?.sent || fund?.coffee) && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="p-3 rounded-zine-sm bg-zine-cardElevated">
+              <p className="text-body font-bold text-zine-ink">🐾 {rub(fund?.sent || 0)}</p>
+              <p className="text-cap text-zine-inkMuted">передал всего</p>
+            </div>
+            <div className="p-3 rounded-zine-sm bg-zine-cardElevated">
+              <p className="text-body font-bold text-zine-ink">☕ {fund?.coffee || 0}</p>
+              <p className="text-cap text-zine-inkMuted">кофе разыграл организаторам</p>
+            </div>
+          </div>
+        )}
+        <button
+          onClick={() => telegramService.openLink(SHELTERS_URL)}
+          className="mt-3 w-full p-3 rounded-zine-sm bg-zine-cardElevated flex items-center gap-2 text-left text-body font-bold text-zine-terracotta cursor-pointer active:scale-[0.99] transition-transform"
+        >
+          <span className="flex-1">Список приютов</span>
+          <ExternalLink size={20} className="shrink-0" />
+        </button>
+        <p className="mt-2 text-cap text-zine-inkMuted">Его мы составили вместе. Помогать можно и напрямую.</p>
       </div>
 
-      {/* Обещание прозрачности */}
-      <div className="mt-3 p-4 rounded-zine bg-zine-sage/15 flex gap-3">
-        <span className="text-[24px] leading-none">📸</span>
-        <div className="min-w-0">
-          <p className="text-sm2 text-zine-ink">
-            <b>Всё прозрачно.</b> На шкале выше видно, сколько всего собрано и какая часть идёт приютам. А куда потратил деньги, рассказываю в «Новостях проекта».
-          </p>
-          {onOpenNews && (
-            <button onClick={onOpenNews} className="mt-2 text-sm2 font-bold text-zine-sage underline cursor-pointer">
-              Куда потратили →
-            </button>
-          )}
-        </div>
-      </div>
+      <h4 className="mt-6 text-lead font-bold text-zine-ink">Вот здесь можешь сделать донат.</h4>
 
       {DONATE_LINKS.length > 0 && (
-        <div className="mt-5 space-y-2">
+        <div className="mt-2 space-y-2">
           {DONATE_LINKS.map((link) => {
             const isCopied = Boolean(link.copy) && copied === link.copy;
             return (
@@ -149,6 +157,25 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
       </p>
 
       {error && <p className="mt-3 p-3 rounded-zine-sm bg-zine-danger/10 text-sm2 text-zine-danger">{error}</p>}
+
+      {/* Обещание прозрачности */}
+      <div className="mt-5 p-4 rounded-zine bg-zine-sage/15 flex gap-3">
+        <span className="text-[24px] leading-none">📸</span>
+        <p className="min-w-0 text-sm2 text-zine-ink">
+          <b>Всё прозрачно.</b> Чеки переводов и куда потратил — в{' '}
+          <span className="whitespace-nowrap">
+            «
+            {onOpenNews ? (
+              <button onClick={onOpenNews} className="font-bold text-zine-sage underline cursor-pointer">
+                Новостях проекта
+              </button>
+            ) : (
+              'Новостях проекта'
+            )}
+            ».
+          </span>
+        </p>
+      </div>
 
     </BottomSheet>
   );

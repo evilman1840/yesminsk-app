@@ -26,6 +26,15 @@ export interface NewsItem {
   createdAt: string;
 }
 
+// Донаты: шкала (/fund), переводы приютам (/sent) и кофе организаторам (/coffee)
+export interface Fund {
+  total: number;
+  community: number;
+  sent?: number;
+  coffee?: number;
+  lastTransfer?: { amount: number; to: string; at: string } | null;
+}
+
 /**
  * Отслеживание «медленных» запросов. Бесплатный сервер на Render засыпает без нагрузки
  * и просыпается до минуты — в это время показываем пользователю доброе сообщение.
@@ -273,8 +282,9 @@ class ApiService {
   }
 
   // Новости проекта (автор пишет их боту командой /news)
-  // Шкала донатов: всего собрано и сколько из этого в котёл для пользователей (автор обновляет через /fund)
-  async getFund(): Promise<{ total: number; community: number }> {
+  // Шкала донатов: всего собрано и сколько из этого в котёл для пользователей (автор обновляет через /fund),
+  // переводы приютам (/sent) и сколько кофе разыграли организаторам
+  async getFund(): Promise<Fund> {
     return this.request('/fund');
   }
 
