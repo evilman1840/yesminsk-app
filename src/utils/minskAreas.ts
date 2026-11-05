@@ -24,6 +24,13 @@ const AREAS: Area[] = AREA_GROUPS.flatMap((g) =>
     .flatMap(([name, coords]) => name.split(' / ').map((part) => ({ name, short: name.split(' / ')[0], part, coords, re: areaRegExp(part) })))
 );
 
+// Районы для «Точное место решим вместе»: короткое имя и точка района
+export const AREA_CHOICES: { name: string; coords: [number, number] }[] = AREA_GROUPS.flatMap((g) =>
+  Object.entries(g.areas)
+    .filter(([name]) => name !== 'Другой пригород')
+    .map(([name, coords]) => ({ name: name.split(' / ')[0], coords }))
+);
+
 // Точка по умолчанию (центр), когда своё место человек не указывал — расстояние «от тебя» тогда не показываем
 const DEFAULT_POINTS: [number, number][] = [
   [53.9045, 27.552],

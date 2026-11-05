@@ -24,7 +24,7 @@ import { InfoToast } from '../components/ui/InfoToast';
 import { WISH_TEXTS, wishCounter, wishProgress, bareWishPhrase } from '../texts/wishes';
 import { MEETUP_TEXTS as M, priceLabel } from '../texts/meetups';
 import { confirmAttendance } from '../context/eventUpdates';
-import { areaOf, distanceMeters, farMentionedArea, isKnownPoint } from '../utils/minskAreas';
+import { areaOf, distanceMeters, farMentionedArea, isKnownPoint, AREA_CHOICES } from '../utils/minskAreas';
 import { templateTitle, templateDescription, defaultExtras, templatesForPlace, quickTimes, toLocalInput, eventTemplateEmoji, quickTimeFromParam } from '../utils/meetupTemplates';
 
 import { cachedTemplates, loadTemplates } from '../utils/templatesStore';
@@ -232,6 +232,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   // Точку поставили на карте — правка текста адреса её не сбрасывает («у входа» и т.п.)
   const [isPickedOnMap, setIsPickedOnMap] = useState(false);
   const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [isAreaPickerOpen, setIsAreaPickerOpen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [dateTime, setDateTime] = useState('');
@@ -463,6 +464,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setPlaceLabel(place?.name || null);
     setPlaceNotFound(false);
     setIsPickedOnMap(Boolean(place));
+    setIsAreaPickerOpen(false);
     // По умолчанию — завтра вечером; быстрые кнопки рядом
     setDateTime(toLocalInput(quickTimes().find((q) => q.id === 'tomorrowEvening')!.date));
     setMaxParticipants('0');
@@ -1258,6 +1260,47 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   <span>Я сейчас здесь</span>
                 </button>
               </div>
+
+              {/* Точного места нет — только район: сходку можно опубликовать сразу, а место решить с теми, кто запишется */}
+              {!customCoords && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setIsAreaPickerOpen((v) => !v);
+                  }}
+                  className="mt-2 w-full h-11 rounded-zine-sm border-2 border-dashed border-zine-border text-sm2 font-semibold text-zine-ink cursor-pointer"
+                >
+                  {M.areaOnlyBtn}
+                </button>
+              )}
+              {isAreaPickerOpen && !customCoords && (
+                <>
+                  <p className="mt-2 mb-1.5 text-cap text-zine-inkMuted">{M.areaOnlyHint}</p>
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
+                    {(me ? [...AREA_CHOICES].sort((a, b) => distanceMeters(me, a.coords) - distanceMeters(me, b.coords)) : AREA_CHOICES).map((area) => (
+                      <button
+                        type="button"
+                        key={area.name}
+                        onClick={() => {
+                          telegramService.haptic('selection');
+                          setLocationName(M.areaOnly(area.name));
+                          setCustomCoords(area.coords);
+                          setPlaceLabel(M.areaOnlyLabel);
+                          setPlaceNotFound(false);
+                          setIsPickedOnMap(true);
+                          setPlaceId(null);
+                          setIsAreaPickerOpen(false);
+                          setFormError(null);
+                        }}
+                        className="h-10 px-3.5 shrink-0 rounded-full border-2 border-zine-border bg-zine-cardElevated text-sm2 text-zine-ink whitespace-nowrap cursor-pointer"
+                      >
+                        {area.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
               {customCoords && placeLabel && !isGeocoding && (
                 <div className="mt-2 p-3 rounded-zine-sm bg-zine-sage/15 flex items-center gap-3 text-zine-ink">
