@@ -44,6 +44,20 @@ export const loadFilters = (): PeopleFilters => {
   }
 };
 
+// Фильтры для сервера: он отбирает из всех анкет, а не из уже присланных 300
+export const filterQuery = (f: PeopleFilters): Record<string, string> => {
+  const q: Record<string, string> = {};
+  if (f.gender !== 'all') q.gender = f.gender;
+  if (f.ages.length) q.ages = f.ages.join(',');
+  if (f.maxKm) q.maxKm = String(f.maxKm);
+  if (f.who !== 'all') q.who = f.who;
+  if (f.availableOnly) q.available = '1';
+  if (f.recentOnly) q.recent = '1';
+  if (f.goesWith.length) q.goesWith = f.goesWith.join(',');
+  if (f.useMyPrefs) q.myPrefs = '1';
+  return q;
+};
+
 export const saveFilters = (f: PeopleFilters) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(f));

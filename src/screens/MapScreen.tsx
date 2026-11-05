@@ -11,7 +11,7 @@ import { MinskMap } from '../components/map/MinskMap';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
 import { SlidersHorizontal } from 'lucide-react';
-import { PeopleFiltersSheet, PeopleFilters, MyPrefs, loadFilters, saveFilters, applyPeopleFilters, countActiveFilters } from '../components/people/PeopleFilters';
+import { PeopleFiltersSheet, PeopleFilters, MyPrefs, applyPeopleFilters, countActiveFilters } from '../components/people/PeopleFilters';
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
 import { pollLeaderText } from '../components/common/PollSheet';
@@ -47,6 +47,9 @@ export interface MapScreenProps {
   onUpdateLocation?: (coords: [number, number]) => void;
   onSetShownLocation?: (coords: [number, number] | null) => Promise<void>; // своя метка; null — случайное смещение
   myPrefs?: MyPrefs; // «С кем комфортно» и «Возраст компании» из анкеты
+  peopleFilters: PeopleFilters; // общие с «Людьми», живут в App и уходят на сервер
+  onChangePeopleFilters: (f: PeopleFilters) => void;
+  peopleTotal?: number | null; // сколько подходит под фильтры на сервере
   onSetAvailable: (hours: number) => Promise<void>;
   onOpenNews: () => void;
   unreadNews?: number;
@@ -102,6 +105,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onUpdateLocation,
   onSetShownLocation,
   myPrefs = {},
+  peopleFilters,
+  onChangePeopleFilters: setPeopleFilters,
+  peopleTotal,
   onSetAvailable,
   onOpenNews,
   unreadNews = 0,
@@ -219,10 +225,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     const t = window.setInterval(() => setIsLeaderShown((v) => !v), 3000);
     return () => window.clearInterval(t);
   }, [pollLeader]);
-  // Фильтры людей — общие с «Людьми» (хранятся на устройстве); по умолчанию учитывают мои настройки из анкеты
-  const [peopleFilters, setPeopleFilters] = useState<PeopleFilters>(loadFilters);
+  // Фильтры людей — общие с «Людьми» (App хранит их на устройстве и отбирает по ним на сервере)
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  useEffect(() => saveFilters(peopleFilters), [peopleFilters]);
   const activeFilters = countActiveFilters(peopleFilters);
   const prefsKey = JSON.stringify(myPrefs); // myPrefs приходит новым объектом на каждый рендер App
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -672,7 +676,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         <PeopleFiltersSheet
           value={peopleFilters}
           onChange={setPeopleFilters}
-          resultCount={(mapMode === 'people' ? filteredUsers : usersForMe).length}
+          // На сервере подходит больше, чем пришло на карту (там только 300 лучших); «Покажут город» и «Эмпаты» — только на месте
+          resultCount={selectedGoal === 'guides' || selectedGoal === 'empaths' || selectedGoal === 'venting' || peopleTotal == null ? (mapMode === 'people' ? filteredUsers : usersForMe).length : peopleTotal}
           onClose={() => setIsFiltersOpen(false)}
         />
       )}

@@ -23,8 +23,6 @@ import {
   PeopleFiltersSheet,
   PeopleFilters,
   MyPrefs,
-  loadFilters,
-  saveFilters,
   applyPeopleFilters,
   countActiveFilters
 } from '../components/people/PeopleFilters';
@@ -43,6 +41,11 @@ export interface FeedScreenProps {
   selectedGoal: GoalFilter;
   onSelectGoal: (goal: GoalFilter) => void;
   myPrefs: MyPrefs;
+  peopleFilters: PeopleFilters; // общие с картой, живут в App и уходят на сервер
+  onChangePeopleFilters: (f: PeopleFilters) => void;
+  peopleTotal?: number | null; // сколько подходит под фильтры на сервере
+  hasMorePeople?: boolean;
+  onLoadMorePeople?: () => void; // долистали — следующие 300
   myGoals?: ActivityGoal[]; // подсветить общие интересы
   topSlot?: React.ReactNode; // например, «Первые шаги» для новичков
   myUsername?: string; // нет — подсказываем завести (иначе на связи не напишут)
@@ -77,6 +80,11 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   selectedGoal,
   onSelectGoal,
   myPrefs,
+  peopleFilters: filters,
+  onChangePeopleFilters: setFilters,
+  peopleTotal,
+  hasMorePeople,
+  onLoadMorePeople,
   myGoals,
   topSlot,
   myUsername,
@@ -94,7 +102,6 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   onOpenEvent,
   onCreateMeetup
 }) => {
-  const [filters, setFilters] = useState<PeopleFilters>(loadFilters);
   const reelWishes = pickReelWishes(wishSummary);
   // «Договоримся?»: решаем один раз за открытие ленты, после какой анкеты показать
   const [pact] = useState(pactPlan);
@@ -125,7 +132,6 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     return feedMeetups[k] || (k === feedMeetups.length ? 'create' : null);
   };
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  useEffect(() => saveFilters(filters), [filters]);
   // Цель встречи выбирается в той же шторке — считаем её вместе с фильтрами
   const activeFilters = countActiveFilters(filters) + Number(selectedGoal !== 'all');
   const activeGoal = selectedGoal !== 'all' ? goalFilterItems().find((g) => g.id === selectedGoal) : undefined;
@@ -347,6 +353,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
             </React.Fragment>
             );
           })}
+          {tab === 'all' && hasMorePeople && onLoadMorePeople && <LoadMoreSentinel onVisible={onLoadMorePeople} />}
         </div>
       )}
 
@@ -392,12 +399,32 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           onChange={setFilters}
           goal={selectedGoal}
           onGoalChange={onSelectGoal}
-          resultCount={applyPeopleFilters(users, filters, myPrefs).filter((u) => matchesGoalFilter(u, selectedGoal)).length}
+          // На сервере подходит больше, чем уже загружено; «Покажут город» и «Эмпаты» — только на месте
+          resultCount={
+            selectedGoal === 'guides' || selectedGoal === 'empaths' || selectedGoal === 'venting' || peopleTotal == null
+              ? applyPeopleFilters(users, filters, myPrefs).filter((u) => matchesGoalFilter(u, selectedGoal)).length
+              : peopleTotal
+          }
           onClose={() => setIsFiltersOpen(false)}
         />
       )}
     </div>
   );
+};
+
+// Невидимая отметка в конце списка: за пару экранов до конца просим следующие 300 анкет
+const LoadMoreSentinel: React.FC<{ onVisible: () => void }> = ({ onVisible }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const onVisibleRef = useRef(onVisible);
+  onVisibleRef.current = onVisible;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => entry.isIntersecting && onVisibleRef.current(), { rootMargin: '200% 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return <div ref={ref} aria-hidden className="h-px w-full shrink-0" />;
 };
 
 /**

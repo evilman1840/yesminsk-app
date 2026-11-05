@@ -646,6 +646,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               value={area}
               onChange={(e) => {
                 setArea(e.target.value);
+                // Новый район — и точка в нём (при сохранении возьмём центр района). Иначе оставалась старая точка,
+                // чаще всего центр Минска по умолчанию: у 1586 человек район свой, а метка и расстояние — от Немиги
+                setCoordinates(undefined);
                 telegramService.haptic('selection');
               }}
               className="field"

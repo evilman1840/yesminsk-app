@@ -14,6 +14,7 @@ import { ACCOUNT_TEXTS } from './texts/account';
 import { AddToHomeSheet } from './components/common/AddToHomeSheet';
 import { OpenUserContext } from './context/openUser';
 import { askBotAccess, setBotAccessKnown, botAccessOk, onBotAccessChange } from './services/botAccess';
+import { PeopleFilters, loadFilters, saveFilters, filterQuery } from './components/people/PeopleFilters';
 import { WantNowButton } from './components/common/WantNowButton';
 import { NoticeBar, Notice } from './components/common/NoticeBar';
 import { pickMeetupCallouts } from './components/map/MeetupCallout';
@@ -44,6 +45,9 @@ import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, Pre
 import { WISH_TEXTS, wishCounter, wishNotices } from './texts/wishes';
 import { FEED_TEXTS } from './texts/feed';
 import { MEETUP_TEXTS } from './texts/meetups';
+
+// Сколько анкет сервер отдаёт за раз (PEOPLE_PAGE на сервере)
+const PEOPLE_PAGE = 300;
 import { loadBadgeSeenEvents, markBadgeSeenEvents } from './utils/seenEvents';
 
 
@@ -327,28 +331,77 @@ export const App: React.FC = () => {
     currentUserCoordsRef.current = currentUser.coordinates;
   }, [currentUser.coordinates]);
 
+  // Фильтры людей — общие для карты и «Людей» (хранятся на устройстве) и уходят на сервер:
+  // он отбирает из всех анкет, а не из уже присланных 300
+  const [peopleFilters, setPeopleFilters] = useState<PeopleFilters>(loadFilters);
+  const peopleFiltersRef = useRef(peopleFilters);
+  useEffect(() => {
+    peopleFiltersRef.current = peopleFilters;
+    saveFilters(peopleFilters);
+  }, [peopleFilters]);
+  // Сколько людей подходит под фильтры на сервере — для «Показать (N)»
+  const [peopleTotal, setPeopleTotal] = useState<number | null>(null);
+  // Сервер отдаёт по 300; пришло ровно столько — в «Людях» можно догрузить ещё
+  const [hasMorePeople, setHasMorePeople] = useState(false);
+  const peopleRequest = useRef(0); // новые фильтры — ответ на старую догрузку уже не нужен
+  const isLoadingMorePeople = useRef(false);
+  // «Покажут город» и «Эмпаты» — не цели встречи: фильтруем на месте, с сервера берём всех
+  const serverGoal = selectedGoal === 'guides' || selectedGoal === 'empaths' || selectedGoal === 'venting' ? 'all' : selectedGoal;
+
   // Загрузка пользователей с бэкенда
   const fetchNearbyUsers = useCallback(async () => {
+    const request = ++peopleRequest.current;
     try {
       setApiError(null);
       const coords = currentUserCoordsRef.current || getSavedCoordinates();
-      const data = await api.getNearbyUsers({
-        // «Покажут город» и «Эмпаты» — не цели встречи: фильтруем на месте, с сервера берём всех
-        goal: selectedGoal === 'guides' || selectedGoal === 'empaths' || selectedGoal === 'venting' ? 'all' : selectedGoal,
-        lat: coords[0],
-        lng: coords[1],
-        radiusKm: 25
-      });
+      const filters = filterQuery(peopleFiltersRef.current);
+      const [data] = await Promise.all([
+        api.getNearbyUsers({ goal: serverGoal, lat: coords[0], lng: coords[1], radiusKm: 25, filters }),
+        api.getNearbyCount({ goal: serverGoal, filters }).then((r) => request === peopleRequest.current && setPeopleTotal(r.total)).catch(() => {})
+      ]);
 
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && request === peopleRequest.current) {
         setUsers(data);
+        setHasMorePeople(data.length >= PEOPLE_PAGE);
         setIsUsersLoaded(true);
       }
     } catch (err: any) {
       console.warn('Ошибка загрузки пользователей:', err);
       setApiError('Не получилось загрузить людей рядом. Попробуй ещё раз 🙏');
     }
-  }, [selectedGoal]);
+  }, [serverGoal]);
+
+  // Долистали «Людей» — следующие 300 (без повторов: пока листали, кого-то могли пропустить)
+  const loadMorePeople = useCallback(async () => {
+    if (!hasMorePeople || isLoadingMorePeople.current) return;
+    isLoadingMorePeople.current = true;
+    const request = peopleRequest.current;
+    try {
+      const data = await api.getNearbyUsers({ goal: serverGoal, filters: filterQuery(peopleFiltersRef.current), offset: users.length });
+      if (request !== peopleRequest.current || !Array.isArray(data)) return;
+      setUsers((prev) => {
+        const have = new Set(prev.map((u) => u.telegramId));
+        return [...prev, ...data.filter((u) => !have.has(u.telegramId))];
+      });
+      setHasMorePeople(data.length >= PEOPLE_PAGE);
+    } catch {
+      // не догрузилось — попробуем, когда снова долистают
+    } finally {
+      isLoadingMorePeople.current = false;
+    }
+  }, [hasMorePeople, serverGoal, users.length]);
+
+  // Поменяли фильтры — перезагружаем с сервера, когда человек перестал нажимать
+  const isFirstFilters = useRef(true);
+  useEffect(() => {
+    if (isFirstFilters.current) {
+      isFirstFilters.current = false;
+      return;
+    }
+    const t = window.setTimeout(() => fetchNearbyUsers(), 400);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peopleFilters]);
 
   // Загрузка событий
   const fetchEvents = useCallback(async (): Promise<AppEvent[]> => {
@@ -1131,6 +1184,9 @@ export const App: React.FC = () => {
                 onJoinEvent={handleJoinEvent}
                 onUpdateLocation={handleUpdateLocation}
                 myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange }}
+                peopleFilters={peopleFilters}
+                onChangePeopleFilters={setPeopleFilters}
+                peopleTotal={peopleTotal}
                 onSetShownLocation={async (c) => {
                   const r = await api.setShownLocation(c);
                   setCurrentUser(prev => ({ ...prev, shownCoordinates: r.shownCoordinates, locationManual: r.locationManual }));
@@ -1160,6 +1216,11 @@ export const App: React.FC = () => {
                 isTourist={currentUser.isTourist}
                 myGoals={currentUser.goals}
                 myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange }}
+                peopleFilters={peopleFilters}
+                onChangePeopleFilters={setPeopleFilters}
+                peopleTotal={peopleTotal}
+                hasMorePeople={hasMorePeople}
+                onLoadMorePeople={loadMorePeople}
                 myUsername={currentUser.username}
                 topSlot={!isFirstStepsHidden && firstSteps.some((s) => !s.done) && <FirstStepsCard steps={firstSteps} onDismiss={hideFirstSteps} />}
                 selectedGoal={selectedGoal}

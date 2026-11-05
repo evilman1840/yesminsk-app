@@ -125,9 +125,12 @@ class ApiService {
     lat?: number;
     lng?: number;
     radiusKm?: number;
+    filters?: Record<string, string>;
+    offset?: number;
   }): Promise<UserProfile[]> {
-    const query = new URLSearchParams();
+    const query = new URLSearchParams(params?.filters);
     if (params?.goal && params.goal !== 'all') query.set('goal', params.goal);
+    if (params?.offset) query.set('offset', String(params.offset));
     if (params?.lat) query.set('lat', params.lat.toString());
     if (params?.lng) query.set('lng', params.lng.toString());
     if (params?.radiusKm) query.set('radiusKm', params.radiusKm.toString());
@@ -145,8 +148,12 @@ class ApiService {
   }
 
   // Сколько анкет видно всего (на карту приходят только самые активные)
-  async getNearbyCount(): Promise<{ total: number; all: number }> {
-    const r = await this.request<{ total: number; all?: number }>('/users/nearby-count');
+  // С фильтрами — сколько людей под них подходит (для «Показать (N)» в шторке)
+  async getNearbyCount(params?: { goal?: string; filters?: Record<string, string> }): Promise<{ total: number; all: number }> {
+    const query = new URLSearchParams(params?.filters);
+    if (params?.goal && params.goal !== 'all') query.set('goal', params.goal);
+    const qs = query.toString();
+    const r = await this.request<{ total: number; all?: number }>(`/users/nearby-count${qs ? `?${qs}` : ''}`);
     return { total: Number(r?.total) || 0, all: Number(r?.all) || 0 };
   }
 
