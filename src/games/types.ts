@@ -19,6 +19,7 @@ export interface GameView {
   game: string;
   mode: 'random' | 'invite' | 'bot';
   status: GameStatus;
+  v?: number;          // версия партии на сервере: растёт с каждым изменением
   inviteCode?: string;
   board: string;
   size: number;

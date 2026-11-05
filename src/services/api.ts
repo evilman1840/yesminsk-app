@@ -56,7 +56,8 @@ class ApiService {
   /**
    * Универсальный метод отправки запросов с передачей Telegram initData в заголовках
    */
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  // quiet — долгий запрос нормален (опрос игры ждёт хода соперника): не показываем «сервер просыпается»
+  private async request<T>(endpoint: string, options: RequestInit = {}, quiet = false): Promise<T> {
     const initData = telegramService.getInitData();
 
     const headers: Record<string, string> = {
@@ -69,6 +70,7 @@ class ApiService {
 
     let markedSlow = false;
     const slowTimer = setTimeout(() => {
+      if (quiet) return;
       markedSlow = true;
       slowRequests++;
       notifySlow();
@@ -573,8 +575,15 @@ class ApiService {
     return this.request<GameView[]>('/games/mine');
   }
 
-  async gameGet(id: string): Promise<GameView> {
-    return this.request<GameView>(`/games/${id}`);
+  // wait — долгий опрос: сервер ответит, когда в партии что-то поменяется после версии since (или через 25 секунд)
+  async gameGet(id: string, opts: { since?: number; wait?: boolean; signal?: AbortSignal } = {}): Promise<GameView> {
+    const q = opts.wait ? `?wait=1&since=${opts.since ?? 0}` : '';
+    return this.request<GameView>(`/games/${id}${q}`, { signal: opts.signal }, Boolean(opts.wait));
+  }
+
+  // Сыграли с ботом — для статистики автора
+  gameBotPlayed(): void {
+    this.request('/games/bot-played', { method: 'POST' }).catch(() => {});
   }
 
   async gameMove(id: string, cell: number): Promise<GameView> {

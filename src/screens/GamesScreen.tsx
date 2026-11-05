@@ -43,7 +43,7 @@ function newBotGame(prev: GameView | null, level: BotLevel): GameView {
   const mePlayer: GamePlayer = { incognito: false, name: user?.first_name || T.you, avatar: user?.photo_url || '', emoji: '', rematch: false, online: true };
   const botPlayer: GamePlayer = { incognito: false, name: T.bot, level: level === 'easy' ? 'полегче' : 'посложнее', avatar: '', emoji: '🤖', rematch: false, online: true, isBot: true };
   return {
-    id: 'bot',
+    id: `bot-${Date.now()}`,
     game: 'five',
     mode: 'bot',
     status: 'active',
@@ -104,7 +104,6 @@ export const GamesScreen: React.FC<{
     store.set('yesminsk_game_rules_seen', '1');
   };
   const lastSayAt = useRef('');
-  const finishedAt = useRef<{ id: string; at: number } | null>(null); // после конца партии ждём «ещё партию» не дольше 70 секунд
   const gameRef = useRef<GameView | null>(null);
   gameRef.current = game;
   // Реванша не будет: соперник ушёл, отказался ждать или его заблокировали — предлагаем другого
@@ -126,8 +125,14 @@ export const GamesScreen: React.FC<{
   };
 
   // Ответ сервера: та же партия, новая (подобрали соперника, реванш) или эмодзи от соперника
+  const movePending = useRef(false);
   const receive = useCallback((next: GameView) => {
     const prev = gameRef.current;
+    // Устаревший ответ (опрос ответил раньше, чем дошёл наш ход) — не затираем доску
+    if (prev && prev.id === next.id && prev.mode !== 'bot') {
+      const pv = prev.v ?? 0, nv = next.v ?? 0;
+      if (nv < pv || (movePending.current && nv === pv)) return;
+    }
     if (next.say && next.say.at !== lastSayAt.current) {
       lastSayAt.current = next.say.at;
       if (next.say.from !== next.me) {
@@ -162,22 +167,70 @@ export const GamesScreen: React.FC<{
     api.gameMine().then(setMine).catch(() => {});
   }, [phase]);
 
-  // Опрос сервера: новые ходы, подбор соперника, «ещё партию»
-  useEffect(() => {
-    if (!game || game.mode === 'bot' || game.status === 'cancelled') return;
-    if (game.status === 'finished' && (game.nextId || rematchGone)) return;
+  // Опрос сервера «долгим запросом»: сервер отвечает, как только соперник сходил, подобрался соперник или
+  // кто-то нажал «Ещё партию». Пока приложение свёрнуто — не спрашиваем (в живой партии соперник через 45 секунд
+  // получит победу, как и раньше). Опрашиваем, пока партия может поменяться
+  const pollKey = (() => {
+    if (!game || game.mode === 'bot' || game.status === 'cancelled') return null;
     if (game.status === 'finished') {
-      if (finishedAt.current?.id !== game.id) finishedAt.current = { id: game.id, at: Date.now() };
-      if (Date.now() - finishedAt.current.at > 70 * 1000) return;
+      if (game.nextId || rematchGone) return null;
+      if (game.mode === 'invite' && !game.players[game.me]?.rematch && !game.players[1 - game.me]?.rematch) return null;
+      return `${game.id}:finished`;
     }
-    if (game.status === 'finished' && !game.players[game.me]?.rematch && !game.players[1 - game.me]?.rematch && game.mode === 'invite') return;
-    const myTurn = game.status === 'active' && game.turn === game.me;
-    const delay = game.status === 'searching' ? 2000 : game.status === 'waiting' ? 4000 : myTurn ? 4000 : 1500;
-    const t = window.setTimeout(() => {
-      api.gameGet(game.id).then(receive).catch(() => setGame((g) => (g ? { ...g } : g))); // ошибка сети — просто попробуем снова
-    }, delay);
-    return () => window.clearTimeout(t);
-  }, [game, rematchGone, receive]);
+    return game.id;
+  })();
+  useEffect(() => {
+    if (!pollKey) return;
+    const id = pollKey.split(':')[0];
+    const ctrl = new AbortController();
+    let stop = false;
+    const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
+    const visible = () =>
+      new Promise<void>((resolve) => {
+        if (!document.hidden) return resolve();
+        const on = () => {
+          if (document.hidden && !stop) return;
+          document.removeEventListener('visibilitychange', on);
+          ctrl.signal.removeEventListener('abort', on);
+          resolve();
+        };
+        document.addEventListener('visibilitychange', on);
+        ctrl.signal.addEventListener('abort', on);
+      });
+    const finishedSince = Date.now();
+    (async () => {
+      while (!stop) {
+        await visible();
+        const g = gameRef.current;
+        if (stop || !g || g.id !== id) break;
+        if (g.status === 'finished' && Date.now() - finishedSince > 70 * 1000) break; // «ещё партию» ждём не дольше минуты
+        const started = Date.now();
+        try {
+          const next = await api.gameGet(id, { since: g.v ?? 0, wait: true, signal: ctrl.signal });
+          if (stop) break;
+          receive(next);
+          // Сервер ответил сразу и без новостей (например, их стало несколько) — не частим
+          if (Date.now() - started < 1000 && (next.v ?? 0) === (g.v ?? 0)) await sleep(1500);
+        } catch {
+          if (stop) break;
+          await sleep(3000); // нет сети — попробуем снова
+        }
+      }
+    })();
+    return () => {
+      stop = true;
+      ctrl.abort();
+    };
+  }, [pollKey, receive]);
+
+  // Партия с ботом закончилась — в статистику автора
+  const reportedBot = useRef('');
+  useEffect(() => {
+    if (game?.mode === 'bot' && game.status === 'finished' && reportedBot.current !== game.id) {
+      reportedBot.current = game.id;
+      api.gameBotPlayed();
+    }
+  }, [game]);
 
   // Оба нажали «Ещё партию» — переходим в новую
   useEffect(() => {
@@ -278,9 +331,13 @@ export const GamesScreen: React.FC<{
       if (optimistic.status === 'finished') telegramService.haptic(optimistic.winner === optimistic.me ? 'success' : 'medium');
       return;
     }
+    movePending.current = true;
     try {
-      receive(await api.gameMove(g.id, cell));
+      const done = await api.gameMove(g.id, cell);
+      movePending.current = false;
+      receive(done);
     } catch (e: any) {
+      movePending.current = false;
       if (e?.data?.game) receive(e.data.game);
       else {
         setGame(g); // ход не дошёл — возвращаем доску
