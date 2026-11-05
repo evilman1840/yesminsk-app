@@ -3,14 +3,16 @@ export const POLL_TEXTS = {
   headerPill: 'Нужен твой совет 🙏',
   notice: (question: string) => `🗳 ${question} Решаю вместе с вами`,
   noticeAction: 'Ответить',
-  // После голоса — строка в шапке: куда пока идут донаты
-  leader: (what: string) => `Донаты → ${what}`,
+  // После голоса — строка в шапке: какой вариант пока впереди
+  leader: (what: string) => `Впереди → ${what}`,
   leaderTie: 'пока поровну',
   leaderIdeas: 'ваши идеи',
   title: 'Опрос',
   custom: 'Свой вариант',
-  customPlaceholder: 'Например: книги в детский дом',
-  sendIdea: 'Отправить идею',
+  customPlaceholder: 'Напиши свою идею',
+  pickHint: 'Можно отметить несколько',
+  send: (n: number) => (n > 1 ? `Отправить (${n})` : 'Отправить'),
+  pickFirst: 'Отметь хотя бы один вариант',
   votes: (n: number) => {
     const mod10 = n % 10;
     const mod100 = n % 100;
@@ -22,7 +24,7 @@ export const POLL_TEXTS = {
   mine: 'твой выбор',
   ownIdeas: 'Свои идеи',
   myIdea: (text: string) => `Твоя идея: «${text}»`,
-  donateNote: 'Чем больше донатов, тем больше получит то, что выберете. Итоги и что сделал — напишу в новостях.',
+  donateNote: 'Решаю вместе с вами. Итоги и что сделал — напишу в новостях, а донаты помогают сделать это быстрее.',
   donate: 'Поддержать',
   revote: 'Изменить выбор',
   done: 'Готово'

@@ -302,8 +302,8 @@ class ApiService {
     return this.request('/poll');
   }
 
-  async votePoll(pollId: string, option: string, custom?: string): Promise<PollData> {
-    return this.request('/poll/vote', { method: 'POST', body: JSON.stringify({ pollId, option, custom }) });
+  async votePoll(pollId: string, options: string[], custom?: string): Promise<PollData> {
+    return this.request('/poll/vote', { method: 'POST', body: JSON.stringify({ pollId, options, custom }) });
   }
 
   // Ссылка на оплату звёздами Telegram

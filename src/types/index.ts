@@ -523,6 +523,6 @@ export interface PollData {
   options: { key: string; label: string; emoji: string; short?: string }[];
   allowCustom: boolean;
   total: number;
-  myVote: { option: string; custom: string } | null;
+  myVote: { options: string[]; custom: string } | null; // можно отметить несколько вариантов
   results: { key: string; percent: number }[] | null;
 }
