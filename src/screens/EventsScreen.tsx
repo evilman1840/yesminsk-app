@@ -171,6 +171,9 @@ export interface EventsScreenProps {
 
 // Баннер «Хочу сходить»: из скольких лучших желаний показываем по очереди и насколько поднимаем ближайшие
 const BAR_WISHES = 4;
+// Подсказка у звезды «Мои»: сколько раз показали и когда (чтобы не больше двух раз)
+const MINE_HINT_KEY = 'yesminsk_mine_hint';
+const MINE_HINT_TIMES = 2;
 const WINDOW_BOOST: Record<WishWindow, number> = { today: 3, tomorrow: 2, weekend: 1.5, week: 1 };
 const nextWishBarTurn = () => {
   try {
@@ -209,6 +212,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | 'all' | 'kids'>('all');
   const [eventWhen, setEventWhen] = useState<EventWhen>('all'); // сегодня / завтра / выходные
   const [onlyMine, setOnlyMine] = useState(false); // «⭐ Мои»: собираю или иду
+  const [mineHint, setMineHint] = useState(false); // подсказка у звезды: «Твои сходки здесь»
+  const mineHintTried = useRef(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false); // категория и «Мои» — в шторке
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -346,6 +351,37 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     telegramService.haptic('error');
     formErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [formError]);
+
+  // Звезду «Мои» мало кто замечает. Как только появилась своя сходка (записался или собрал — тут, в «Людях» или на карте),
+  // подсказываем у звезды: дважды за всё время и не чаще раза в полсуток; нажал на звезду — больше не показываем
+  const hasMine = events.some((e) => e.isJoined || Number(e.creator?.telegramId) === Number(currentUserId));
+  useEffect(() => {
+    if (mineHintTried.current || !hasMine || onlyMine || isModalOpen) return;
+    mineHintTried.current = true;
+    let seen: { n: number; at: number } = { n: 0, at: 0 };
+    try {
+      seen = JSON.parse(localStorage.getItem(MINE_HINT_KEY) || 'null') || seen;
+    } catch {
+      return;
+    }
+    if (seen.n >= MINE_HINT_TIMES || Date.now() - seen.at < 12 * 60 * 60 * 1000) return;
+    try {
+      localStorage.setItem(MINE_HINT_KEY, JSON.stringify({ n: seen.n + 1, at: Date.now() }));
+    } catch {}
+    setMineHint(true);
+    const t = setTimeout(() => setMineHint(false), 8000);
+    return () => clearTimeout(t);
+  }, [hasMine, onlyMine, isModalOpen]);
+  // Нашёл звезду сам или по подсказке — больше не надоедаем
+  const openMine = () => {
+    telegramService.haptic('selection');
+    setOnlyMine(true);
+    setEventWhen('all');
+    setMineHint(false);
+    try {
+      localStorage.setItem(MINE_HINT_KEY, JSON.stringify({ n: MINE_HINT_TIMES, at: Date.now() }));
+    } catch {}
+  };
 
   const filteredEvents = (selectedCategory === 'all'
     ? events
@@ -798,19 +834,15 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     <div className="h-full w-full bg-zine-paper flex flex-col overflow-hidden">
       {/* Шапка на однотонном фоне, чтобы карточка была чистой. Название экрана уже есть в нижнем меню */}
       <div className="shrink-0 px-3 pt-3 pb-3 text-zine-ink">
-        <div className="flex items-center gap-1.5">
+        <div className="relative flex items-center gap-1.5">
           {/* ⭐ мои (собираю или иду), затем когда: все / сегодня / завтра / выходные — как на карте */}
           <div className="flex-1 min-w-0 flex p-[3px] rounded-full bg-zine-card">
             <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                setOnlyMine(true);
-                setEventWhen('all');
-              }}
+              onClick={openMine}
               aria-label={M.mineFilter}
               className={`flex-auto min-w-[28px] h-[38px] px-0.5 rounded-full text-[16px] leading-none flex items-center justify-center transition-all cursor-pointer ${
-                onlyMine ? 'bg-white' : ''
-              }`}
+                onlyMine || mineHint ? 'bg-white' : ''
+              } ${mineHint ? 'mine-pulse' : ''}`}
             >
               ⭐
             </button>
@@ -848,6 +880,17 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               </span>
             )}
           </button>
+
+          {/* Подсказка под звездой: нажатие ведёт в «Мои», сама исчезает через 8 секунд */}
+          {mineHint && (
+            <button
+              onClick={openMine}
+              className="fade-swap absolute left-0 top-full mt-2.5 z-20 max-w-[240px] px-3 py-2 rounded-zine-sm bg-zine-ink text-zine-paper text-sm2 font-semibold text-left shadow-zine-float cursor-pointer"
+            >
+              <span aria-hidden className="absolute -top-1.5 left-[15px] w-3 h-3 rotate-45 bg-zine-ink" />
+              <span className="relative">{M.mineHint}</span>
+            </button>
+          )}
         </div>
 
         {activeChips.length > 0 && (

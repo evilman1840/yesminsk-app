@@ -156,7 +156,17 @@ textarea.field {
 .fade-swap {
   animation: fade-swap 0.35s ease-out;
 }
+/* «Сходки»: звезда «Мои», пока висит подсказка, — горчичное кольцо расходится и тает */
+@keyframes mine-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(var(--c-mustard) / 0.7); }
+  70% { box-shadow: 0 0 0 8px rgb(var(--c-mustard) / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(var(--c-mustard) / 0); }
+}
+.mine-pulse {
+  animation: mine-pulse 1.4s ease-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .tab-draw, .tab-wiggle, .heartbeat, .fade-swap { animation: none; }
+  .tab-draw, .tab-wiggle, .heartbeat, .fade-swap, .mine-pulse { animation: none; }
+  .mine-pulse { box-shadow: 0 0 0 3px rgb(var(--c-mustard)); }
   .tab-draw { opacity: 0; }
 }
