@@ -376,7 +376,7 @@ export const telegramService = {
   shareGameInvite(code: string) {
     openShare({
       title: 'Позвать сыграть',
-      text: 'Сыграем в «Пять в ряд»? Крестики-нолики на большом поле 🎲',
+      text: 'Сыграем в крестики-нолики? Большое поле, собираем пять в ряд 🎲',
       link: `https://t.me/${BOT}?startapp=game_${code}`
     });
   },
