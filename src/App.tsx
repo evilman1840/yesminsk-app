@@ -111,6 +111,18 @@ export const App: React.FC = () => {
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const isAdminRef = useRef(false); // для разбора ссылки при запуске: состояние ещё не обновилось
+  // Игры: пока проверяет автор — вкладка и человечки на карте только у админов. Открыть всем — GAMES_OPEN=1 на сервере
+  const [gamesOpen, setGamesOpen] = useState(false);
+  const gamesOpenRef = useRef(false);
+  const [gamesPhase, setGamesPhase] = useState<'menu' | 'search' | 'game'>('menu');
+  // Новая вкладка «Игры» покачивается, пока в неё ни разу не зашли
+  const [gamesNudge, setGamesNudge] = useState(() => {
+    try {
+      return localStorage.getItem('yesminsk_games_tab_seen') !== '1';
+    } catch {
+      return true;
+    }
+  });
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<GoalFilter>('all');
   const [apiError, setApiError] = useState<string | null>(null);
@@ -466,6 +478,8 @@ export const App: React.FC = () => {
         if (!me) throw new Error('me unavailable');
         setIsAdmin(Boolean(me.isAdmin));
         isAdminRef.current = Boolean(me.isAdmin);
+        setGamesOpen(Boolean(me.gamesOpen));
+        gamesOpenRef.current = Boolean(me.gamesOpen);
         if (me) {
           let userCoords = getSavedCoordinates();
           const hasSaved = Boolean(localStorage.getItem('yesminsk_user_coords'));
@@ -564,7 +578,7 @@ export const App: React.FC = () => {
         setCurrentScreen(prev => (prev === 'main' ? 'profile_edit' : prev));
       }
       // Игры пока проверяет автор: раздел открывается только админам, приглашение от админа — любому
-      if (target.game && (target.game.code || target.game.id || isAdminRef.current)) {
+      if (target.game && (target.game.code || target.game.id || gamesOpenRef.current)) {
         setGameLaunch(target.game);
         setCurrentScreen(prev => (prev === 'main' ? 'games' : prev));
       }
@@ -970,7 +984,8 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  const isTab = ['main', 'feed', 'events', 'places', 'news', 'profile_edit'].includes(currentScreen);
+  // Игры — вкладка, пока открыто меню; в партии нижнее меню и подсказки прячем
+  const isTab = ['main', 'feed', 'events', 'places', 'news', 'profile_edit'].includes(currentScreen) || (currentScreen === 'games' && gamesPhase === 'menu');
 
   // Места: сохранить и «Сходка сюда» — общие для карты и вкладки «Места»
   const toggleSavePlace = async (p: PlaceItem): Promise<PlaceItem> => {
@@ -1099,6 +1114,15 @@ export const App: React.FC = () => {
     setSelectedUser(null);
     setCurrentScreen(tab);
     if (tab === 'feed') fetchInbox();
+    if (tab === 'games') {
+      setGameLaunch({}); // из вкладки — в меню игр, а не в партию по старой ссылке
+      setGamesNudge(false);
+      try {
+        localStorage.setItem('yesminsk_games_tab_seen', '1');
+      } catch {
+        /* не страшно */
+      }
+    }
     if (tab === 'news') {
       fetchNews();
       markNewsSeen();
@@ -1181,7 +1205,7 @@ export const App: React.FC = () => {
                 <ProfileLoading failed={meFailed} />
               ))}
 
-            {currentScreen === 'games' && <GamesScreen initial={gameLaunch} onBack={() => setCurrentScreen('main')} />}
+            {currentScreen === 'games' && <GamesScreen initial={gameLaunch} onBack={() => setCurrentScreen('main')} onPhaseChange={setGamesPhase} />}
 
             {currentScreen === 'main' && (
               <MapScreen
@@ -1216,6 +1240,7 @@ export const App: React.FC = () => {
                 initialPlaceId={initialPlaceId}
                 poll={poll}
                 onOpenPoll={() => setIsPollOpen(true)}
+                onOpenGames={gamesOpen ? () => handleNavigate('games') : undefined}
                 onCreateEventAtPlace={createEventAtPlace}
               />
             )}
@@ -1324,6 +1349,8 @@ export const App: React.FC = () => {
               onNavigate={handleNavigate}
               badges={{ feed: likedMe.length, events: currentScreen === 'events' ? 0 : newEventsCount, news: currentScreen === 'news' ? 0 : unreadNews }}
               highlight="events"
+              nudge={gamesNudge ? 'games' : undefined}
+              hidden={gamesOpen ? [] : ['games']}
             />
           )}
 

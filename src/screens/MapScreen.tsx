@@ -18,6 +18,7 @@ import { pollLeaderText } from '../components/common/PollSheet';
 import { POLL_TEXTS } from '../texts/poll';
 import { WantNowButton } from '../components/common/WantNowButton';
 import { MapEventsList } from '../components/map/MapEventsList';
+import { GamesMascot } from '../components/map/GamesMascot';
 import { MAP_EVENTS_TEXTS } from '../texts/meetups';
 
 export interface MapScreenProps {
@@ -64,6 +65,7 @@ export interface MapScreenProps {
   initialPlaceId?: string | null;
   poll?: PollData | null;               // опрос автора: пока не проголосовал, подпись в шапке зовёт голосовать
   onOpenPoll?: () => void;
+  onOpenGames?: () => void; // нет — игры пока закрыты, человечков не показываем
 }
 
 export type MapMode = 'all' | 'people' | 'events' | 'places';
@@ -119,6 +121,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   initialPlaceId,
   poll,
   onOpenPoll,
+  onOpenGames,
   onOpenEvents,
   onToggleSavePlace,
 }) => {
@@ -596,6 +599,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           }}
         />
       )}
+
+      {onOpenGames && !isPicking && !isEventsList && <GamesMascot onOpen={onOpenGames} />}
 
       {/* Донат: бьющееся сердце над ⚡, в общем стиле круглых кнопок карты; подпись снизу — как время у ⚡ */}
       <button

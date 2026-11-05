@@ -4,6 +4,7 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import { api } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { useBackButton, useMainButton } from '../hooks/useTelegram';
+import { shrinkGamesMascot } from '../components/map/GamesMascot';
 import { useOpenUser } from '../context/openUser';
 import { GAME_TEXTS as T } from '../texts/games';
 import { GameView, GamePlayer } from '../games/types';
@@ -78,7 +79,8 @@ function applyMove(g: GameView, cell: number): GameView {
 export const GamesScreen: React.FC<{
   initial?: { id?: string; code?: string };
   onBack: () => void;
-}> = ({ initial, onBack }) => {
+  onPhaseChange?: (phase: 'menu' | 'search' | 'game') => void; // в меню видно нижнее меню, в партии — нет
+}> = ({ initial, onBack, onPhaseChange }) => {
   const openUser = useOpenUser();
   const [phase, setPhase] = useState<Phase>(initial?.id || initial?.code ? 'game' : 'menu');
   const [game, setGame] = useState<GameView | null>(null);
@@ -284,6 +286,7 @@ export const GamesScreen: React.FC<{
   useEffect(() => {
     if (!game || game.status !== 'finished' || celebrated.current === game.id) return;
     celebrated.current = game.id;
+    shrinkGamesMascot(); // сыграл — человечки на карте больше не прыгают
     if (game.reason === 'resign' || game.reason === 'left') return; // кто-то вышел — без салюта
     setCelebrate({ kind: game.winner === -1 ? 'draw' : game.winner === game.me ? 'win' : 'lose', key: game.id });
     if (game.winner === game.me) window.setTimeout(() => telegramService.haptic('heavy'), 250); // второй толчок — «салют»
@@ -444,7 +447,10 @@ export const GamesScreen: React.FC<{
     setGame(null);
     setPhase('menu');
   };
-  useBackButton(back);
+  useBackButton(phase === 'menu' ? null : back); // меню игр — вкладка, «назад» в нём не нужен
+  useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [phase, onPhaseChange]);
 
   // Главная кнопка: «Ещё партию» после окончания
   const finished = game?.status === 'finished';
@@ -464,7 +470,7 @@ export const GamesScreen: React.FC<{
     <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden select-none">
       <header className="shrink-0 px-5 pt-5 pb-2">
         <div className="flex items-center gap-1">
-          {!telegramService.isInsideTelegram() && (
+          {!telegramService.isInsideTelegram() && phase !== 'menu' && (
             <button onClick={back} aria-label="Назад" className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-zine-ink cursor-pointer">
               <ArrowLeft size={24} />
             </button>

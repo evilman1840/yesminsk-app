@@ -1,14 +1,15 @@
 import React from 'react';
-import { Map, Users, CalendarDays, CircleUser, MapPin } from 'lucide-react';
+import { Map, Users, CalendarDays, CircleUser, MapPin, Dices } from 'lucide-react';
 import { telegramService } from '../../services/telegram';
 
-export type TabId = 'main' | 'feed' | 'events' | 'places' | 'news' | 'profile_edit';
+export type TabId = 'main' | 'feed' | 'events' | 'places' | 'news' | 'games' | 'profile_edit';
 
 const TABS: { id: TabId; label: string; Icon: React.FC<any> }[] = [
   { id: 'main', label: 'Карта', Icon: Map },
   { id: 'feed', label: 'Люди', Icon: Users },
   { id: 'events', label: 'Сходки', Icon: CalendarDays },
   { id: 'places', label: 'Места', Icon: MapPin },
+  { id: 'games', label: 'Игры', Icon: Dices },
   { id: 'profile_edit', label: 'Я', Icon: CircleUser }
 ];
 
@@ -20,12 +21,14 @@ export const TabBar: React.FC<{
   onNavigate: (tab: TabId) => void;
   badges?: Partial<Record<TabId, number>>;
   highlight?: TabId; // вкладка-приглашение: при новых (число на ней) вокруг значка рисуется контур, иначе значок изредка покачивается
-}> = ({ current, onNavigate, badges = {}, highlight }) => (
+  nudge?: TabId; // новая вкладка: значок изредка покачивается
+  hidden?: TabId[]; // вкладки, которых пока нет (игры до открытия)
+}> = ({ current, onNavigate, badges = {}, highlight, nudge, hidden = [] }) => (
   <nav className="shrink-0 bg-zine-cardElevated border-t border-zine-border flex items-stretch justify-around px-1 pt-1.5 pb-safe z-40">
-    {TABS.map(({ id, label, Icon }) => {
+    {TABS.filter((t) => !hidden.includes(t.id)).map(({ id, label, Icon }) => {
       const isActive = current === id;
       const badge = badges[id] || 0;
-      const isHighlighted = highlight === id && !isActive;
+      const isHighlighted = (highlight === id || nudge === id) && !isActive;
       return (
         <button
           key={id}
@@ -40,7 +43,7 @@ export const TabBar: React.FC<{
           aria-current={isActive ? 'page' : undefined}
         >
           <span
-            className={`relative flex items-center justify-center w-14 h-8 rounded-full transition-colors ${isActive ? 'bg-zine-terracotta/10' : ''}`}
+            className={`relative flex items-center justify-center w-full max-w-[56px] h-8 rounded-full transition-colors ${isActive ? 'bg-zine-terracotta/10' : ''}`}
           >
             {/* Новые сходки — контур прорисовывается вокруг значка и тает */}
             {isHighlighted && badge > 0 && (
