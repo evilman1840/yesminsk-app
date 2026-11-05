@@ -245,6 +245,7 @@ export interface AppEvent {
   audienceGender?: AudienceGender; // для кого: все / только девушки / только мужчины
   ageMin?: number | null; // возраст «от» (пусто — любой)
   ageMax?: number | null; // возраст «до»
+  notForMe?: string;    // почему мне нельзя записаться (модератор видит и сходки не для него)
   price?: number;       // примерно сколько, BYN с человека
   participants?: Array<{
     telegramId: number;

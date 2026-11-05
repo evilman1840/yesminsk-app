@@ -115,6 +115,7 @@ export const MEETUP_TEXTS = {
 
   // Для кого: пол и возраст (по желанию)
   audienceGenderLabel: 'Пол',
+  notForMe: 'Не для тебя', // сходка не подходит по полу, возрасту или «для эмпатов» (видит модератор)
   audienceAll: 'Неважно',
   audienceFemale: '👩 Только девушки',
   audienceMale: '👨 Только мужчины',

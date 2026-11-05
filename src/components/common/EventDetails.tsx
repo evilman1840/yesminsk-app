@@ -99,6 +99,7 @@ export const EventDetails: React.FC<{
     }
   };
   const isFull = !event.isJoined && Boolean(event.maxParticipants) && (event.participantsCount || 1) >= event.maxParticipants;
+  const notForMe = !event.isJoined ? event.notForMe : undefined;
   // Сходка началась: организатор отмечает, кто не пришёл; подтверждать и убирать уже незачем
   const isStarted = new Date(event.dateTime).getTime() <= Date.now();
   // «По записи»: подтверждённую запись меняет только организатор
@@ -475,13 +476,15 @@ export const EventDetails: React.FC<{
             telegramService.haptic('medium');
             setIsJoinOpen(true);
           }}
-          disabled={isFull || approvedLock}
+          disabled={isFull || approvedLock || Boolean(notForMe)}
           className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-            event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : isFull ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'bg-zine-terracotta text-white'
+            event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : isFull || notForMe ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'bg-zine-terracotta text-white'
           }`}
         >
           {isFull ? (
             <span>Мест нет: все {event.maxParticipants} заняты</span>
+          ) : notForMe ? (
+            <span className="px-4 text-center text-body">{notForMe}</span>
           ) : event.isJoined && event.byRequest ? (
             approvedLock ? (
               <>

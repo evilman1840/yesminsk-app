@@ -1696,6 +1696,7 @@ export const EventReel: React.FC<{
   }, []);
   const cat = eventCategoryOf(ev);
   const isFull = !ev.isJoined && Boolean(ev.maxParticipants) && (ev.participantsCount || 1) >= ev.maxParticipants;
+  const notForMe = !ev.isJoined ? ev.notForMe : undefined;
   // Все, кто идёт; если сервер ещё старый и прислал не всех — хотя бы организатор
   const people = ev.participants?.length ? ev.participants : [ev.creator];
   // «Аня, Дима +3 идут»: сначала знакомые (на связи, кому передал 👋), потом остальные
@@ -1850,13 +1851,15 @@ export const EventReel: React.FC<{
               )}
               <button
                 onClick={onJoin}
-                disabled={isJoining || isFull}
+                disabled={isJoining || isFull || Boolean(notForMe)}
                 className={`flex-1 min-w-0 h-12 px-4 rounded-full text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
-                  isPending ? 'bg-zine-card text-zine-ink' : ev.isJoined ? 'bg-zine-sage text-white' : isFull ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'bg-zine-terracotta text-white'
+                  isPending ? 'bg-zine-card text-zine-ink' : ev.isJoined ? 'bg-zine-sage text-white' : isFull || notForMe ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'bg-zine-terracotta text-white'
                 }`}
               >
                 {isFull ? (
                   'Мест нет'
+                ) : notForMe ? (
+                  <span className="truncate">{M.notForMe}</span>
                 ) : isJoining ? (
                   <Loader2 size={20} className="animate-spin" />
                 ) : isPending ? (
