@@ -3,10 +3,10 @@ export const POLL_TEXTS = {
   headerPill: 'Нужен твой совет 🙏',
   notice: (question: string) => `🗳 ${question} Решаю вместе с вами`,
   noticeAction: 'Ответить',
-  // После голоса — строка в шапке: какой вариант пока впереди
-  leader: (what: string) => `Впереди → ${what}`,
-  leaderTie: 'пока поровну',
-  leaderIdeas: 'ваши идеи',
+  // После голоса — строка в шапке: какой вариант пока впереди и сколько за него. Узкое место (~130px), поэтому без «Впереди →» и значка варианта
+  leader: (what: string, percent: number) => `🗳 ${what} · ${percent}%`,
+  leaderTie: '🗳 Пока поровну',
+  leaderIdeas: 'Свои идеи',
   title: 'Опрос',
   custom: 'Свой вариант',
   customPlaceholder: 'Напиши свою идею',

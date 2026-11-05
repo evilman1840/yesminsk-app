@@ -8,17 +8,17 @@ import { POLL_TEXTS as T } from '../../texts/poll';
 
 const CUSTOM_MAX = 200;
 
-// Строка в шапке после голоса: «Донаты → 🐾 приют»; ничья — «пока поровну»
+// Строка в шапке после голоса: «🗳 Отдам даром · 54%»; ничья — «🗳 Пока поровну»
 export const pollLeaderText = (poll: PollData) => {
   if (!poll.results?.length) return null;
   const top = Math.max(...poll.results.map((r) => r.percent));
   const leaders = poll.results.filter((r) => r.percent === top);
-  if (leaders.length > 1 || top === 0) return T.leader(T.leaderTie);
-  if (leaders[0].key === POLL_CUSTOM) return T.leader(T.leaderIdeas);
+  if (leaders.length > 1 || top === 0) return T.leaderTie;
+  if (leaders[0].key === POLL_CUSTOM) return T.leader(T.leaderIdeas, Math.round(top));
   const o = poll.options.find((x) => x.key === leaders[0].key);
   if (!o) return null;
-  const short = o.short || o.label.split(/\s+/)[0].toLowerCase();
-  return T.leader(`${o.emoji ? `${o.emoji} ` : ''}${short}`);
+  const short = o.short || o.label.split(/\s+/)[0];
+  return T.leader(short.charAt(0).toUpperCase() + short.slice(1), Math.round(top));
 };
 
 /**
