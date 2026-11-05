@@ -355,6 +355,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   // Звезду «Мои» мало кто замечает. Как только появилась своя сходка (записался или собрал — тут, в «Людях» или на карте),
   // подсказываем у звезды: дважды за всё время и не чаще раза в полсуток; нажал на звезду — больше не показываем
   const hasMine = events.some((e) => e.isJoined || Number(e.creator?.telegramId) === Number(currentUserId));
+  // Цифра на звезде: сколько своих ещё впереди (или начались меньше получаса назад), чтобы звезду было видно и без подсказки
+  const upcomingMineCount = events.filter(
+    (e) => (e.isJoined || Number(e.creator?.telegramId) === Number(currentUserId)) && new Date(e.dateTime).getTime() > Date.now() - 30 * 60 * 1000
+  ).length;
   useEffect(() => {
     if (mineHintTried.current || !hasMine || onlyMine || isModalOpen) return;
     mineHintTried.current = true;
@@ -840,11 +844,17 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             <button
               onClick={openMine}
               aria-label={M.mineFilter}
-              className={`flex-auto min-w-[28px] h-[38px] px-0.5 rounded-full text-[16px] leading-none flex items-center justify-center transition-all cursor-pointer ${
-                onlyMine || mineHint ? 'bg-white' : ''
+              className={`relative flex-auto min-w-[38px] max-w-[44px] h-[38px] px-0.5 rounded-full text-[16px] leading-none flex items-center justify-center transition-all cursor-pointer ${
+                onlyMine || mineHint ? 'bg-white' : 'bg-zine-mustard/20'
               } ${mineHint ? 'mine-pulse' : ''}`}
             >
               ⭐
+              {/* Есть свои впереди — цифра, как на вкладках: звезда сразу выглядит нажимаемой */}
+              {!onlyMine && upcomingMineCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center ring-2 ring-zine-card">
+                  {upcomingMineCount}
+                </span>
+              )}
             </button>
             {EVENT_WHEN.map(([id, label]) => (
               <button
