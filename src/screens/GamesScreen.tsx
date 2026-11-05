@@ -733,8 +733,12 @@ const Board: React.FC<{ game: GameView; onTap: (cell: number) => void }> = ({ ga
 const SayBar: React.FC<{ onSay: (key: string, text: string) => void }> = ({ onSay }) => (
   <div className="mt-3 -mx-3 px-3 overflow-x-auto [scrollbar-width:none]">
     <div className="flex gap-1.5 w-max">
-      {T.emojis.map((e) => (
-        <button key={e} onClick={() => onSay(e, e)} className="w-11 h-11 rounded-full bg-zine-card text-[22px] flex items-center justify-center cursor-pointer active:scale-90 transition-transform">
+      {T.emojis.map(([key, e]) => (
+        <button
+          key={key}
+          onClick={() => onSay(key, e)}
+          className={`h-11 rounded-full bg-zine-card text-[22px] flex items-center justify-center cursor-pointer active:scale-90 transition-transform ${key === 'six7' ? 'px-2.5 gap-0.5' : 'w-11'}`}
+        >
           {e}
         </button>
       ))}
