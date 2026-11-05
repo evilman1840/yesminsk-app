@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { thumb } from '../utils/thumb';
 import { api } from '../services/api';
-import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Megaphone } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Megaphone, Forward } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood, PollData } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
@@ -244,7 +244,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const nearbyFaces = [...users]
     .filter((u) => u.avatarUrl)
     .sort((a, b) => Number(isAvailableNow(b)) - Number(isAvailableNow(a)))
-    .slice(0, 4);
+    .slice(0, 3); // четвёртое место в ряду — кнопка «Позвать друзей»
   const isVisible = currentUser?.isProfileActive !== false;
 
   return (
@@ -308,18 +308,33 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               users.length > 0 ? (
                 // Кто с нами: лица и сколько их — сразу видно, что тут живые люди. Пока идёт опрос, вторая строка зовёт голосовать
                 <div className="flex-1 min-w-0 h-14 flex items-center gap-2.5">
-                  <button
-                    onClick={() => {
-                      telegramService.haptic('selection');
-                      onOpenPeople();
-                    }}
-                    aria-label="Люди"
-                    className="flex shrink-0 rounded-full active:opacity-80 cursor-pointer"
-                  >
-                    {nearbyFaces.map((u) => (
-                      <img key={u.id} src={thumb(u.avatarUrl)} alt="" className="-ml-2.5 first:ml-0 w-9 h-9 rounded-full object-cover border-2 border-zine-paper bg-zine-card" />
-                    ))}
-                  </button>
+                  <span className="flex shrink-0 items-center">
+                    {nearbyFaces.length > 0 && (
+                      <button
+                        onClick={() => {
+                          telegramService.haptic('selection');
+                          onOpenPeople();
+                        }}
+                        aria-label="Люди"
+                        className="flex shrink-0 rounded-full active:opacity-80 cursor-pointer"
+                      >
+                        {nearbyFaces.map((u) => (
+                          <img key={u.id} src={thumb(u.avatarUrl)} alt="" className="-ml-2.5 first:ml-0 w-9 h-9 rounded-full object-cover border-2 border-zine-paper bg-zine-card" />
+                        ))}
+                      </button>
+                    )}
+                    {/* Позвать друзей: последний кружок в ряду лиц, единственный цветной — читается как кнопка */}
+                    <button
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        telegramService.shareApp();
+                      }}
+                      aria-label="Позвать друзей"
+                      className={`relative w-9 h-9 shrink-0 rounded-full bg-zine-terracotta text-white border-2 border-zine-paper flex items-center justify-center active:scale-90 transition-transform cursor-pointer before:absolute before:-inset-1 before:content-[''] ${nearbyFaces.length > 0 ? '-ml-2.5' : ''}`}
+                    >
+                      <Forward size={17} strokeWidth={2.4} />
+                    </button>
+                  </span>
                   <span className="flex-1 min-w-0 text-left leading-tight">
                     <button
                       onClick={() => {
