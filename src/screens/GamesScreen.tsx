@@ -110,7 +110,8 @@ export const GamesScreen: React.FC<{
   const gameRef = useRef<GameView | null>(null);
   gameRef.current = game;
   // Реванша не будет: соперник ушёл, отказался ждать или его заблокировали — предлагаем другого
-  const rematchGone = rematchAsked410 || Boolean(game && game.mode === 'random' && game.status === 'finished' && game.reason === 'left');
+  const rematchGone =
+    rematchAsked410 || Boolean(game && game.mode !== 'bot' && game.status === 'finished' && (game.reason === 'left' || game.reason === 'resign'));
 
   const setIncognito = (v: boolean) => {
     telegramService.haptic('selection');
@@ -226,6 +227,27 @@ export const GamesScreen: React.FC<{
     };
   }, [pollKey, receive]);
 
+  // Закрыл приложение — партия завершается сразу, свернул — сервер подождёт 15 секунд.
+  // Поиск при закрытии тоже отменяем. Приглашение оставляем: знакомый может открыть ссылку позже
+  const liveId = game && game.mode !== 'bot' && (game.status === 'active' || game.status === 'searching') ? game.id : null;
+  useEffect(() => {
+    if (!liveId) return;
+    const onHide = () => {
+      const g = gameRef.current;
+      if (document.hidden && g?.id === liveId && g.status === 'active') api.gameAway(liveId).catch(() => {});
+    };
+    const onClose = () => {
+      const g = gameRef.current;
+      if (g?.id === liveId && (g.status === 'active' || g.status === 'searching')) api.gameLeave(liveId, true).catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onClose);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onClose);
+    };
+  }, [liveId]);
+
   // Партия с ботом закончилась — в статистику автора
   const reportedBot = useRef('');
   useEffect(() => {
@@ -262,6 +284,7 @@ export const GamesScreen: React.FC<{
   useEffect(() => {
     if (!game || game.status !== 'finished' || celebrated.current === game.id) return;
     celebrated.current = game.id;
+    if (game.reason === 'resign' || game.reason === 'left') return; // кто-то вышел — без салюта
     setCelebrate({ kind: game.winner === -1 ? 'draw' : game.winner === game.me ? 'win' : 'lose', key: game.id });
     if (game.winner === game.me) window.setTimeout(() => telegramService.haptic('heavy'), 250); // второй толчок — «салют»
   }, [game]);
@@ -372,7 +395,7 @@ export const GamesScreen: React.FC<{
   const resign = async () => {
     const g = gameRef.current;
     if (!g || g.status !== 'active') return;
-    if (!(await telegramService.confirm(T.resignConfirm, { okText: T.resign, destructive: true }))) return;
+    if (!(await telegramService.confirm(T.resignConfirm, { okText: T.resignYes, destructive: true }))) return;
     if (g.mode === 'bot') {
       setGame({ ...g, status: 'finished', winner: 1 - g.me, reason: 'resign' });
       return;
@@ -384,7 +407,7 @@ export const GamesScreen: React.FC<{
     const g = gameRef.current;
     if (!g) return;
     if (g.mode === 'bot') return startBot(g);
-    if (rematchGone) return startSearch();
+    if (rematchGone) return g.mode === 'invite' ? startInvite() : startSearch();
     telegramService.haptic('medium');
     try {
       receive(await api.gameRematch(g.id));
@@ -414,7 +437,7 @@ export const GamesScreen: React.FC<{
     const g = gameRef.current;
     if (phase === 'menu') return onBack();
     if (phase === 'search') return cancelCurrent();
-    if (g && g.mode === 'random' && g.status === 'active') {
+    if (g && g.mode !== 'bot' && g.status === 'active') {
       if (!(await telegramService.confirm(T.leaveLive, { okText: T.leaveYes, destructive: true }))) return;
       api.gameLeave(g.id).catch(() => {});
     }
@@ -426,7 +449,7 @@ export const GamesScreen: React.FC<{
   // Главная кнопка: «Ещё партию» после окончания
   const finished = game?.status === 'finished';
   const iAskedRematch = Boolean(game && game.mode !== 'bot' && game.players[game.me]?.rematch && !game.nextId);
-  const mainText = rematchGone ? T.otherOpponent : iAskedRematch ? T.againWaiting : T.again;
+  const mainText = rematchGone ? (game?.mode === 'invite' ? T.inviteAgain : T.findNew) : iAskedRematch ? T.againWaiting : T.again;
   const isNativeMain = useMainButton({
     text: mainText,
     onClick: again,
@@ -589,13 +612,18 @@ export const GamesScreen: React.FC<{
 
           {game.status === 'active' && (
             <>
+              {game.mode !== 'bot' && game.players[1 - game.me] && !game.players[1 - game.me].online && (
+                <p className="mt-3 px-3 py-2 rounded-zine-sm bg-zine-mustard/15 text-sm2 text-zine-ink text-center">
+                  {game.players[1 - game.me].away ? T.oppAwayNote : T.oppNotHereNote}
+                </p>
+              )}
               {game.mode !== 'bot' && <SayBar onSay={say} />}
               <div className="mt-3 flex justify-center gap-1">
                 <button onClick={openRules} className="h-11 px-4 rounded-full text-zine-inkMuted text-sm2 font-semibold cursor-pointer inline-flex items-center gap-1.5">
                   <HelpCircle size={17} /> {T.howToPlay}
                 </button>
                 <button onClick={resign} className="h-11 px-4 rounded-full text-zine-inkMuted text-sm2 font-semibold cursor-pointer">
-                  🏳️ {T.resign}
+                  🚪 {T.resign}
                 </button>
               </div>
             </>
@@ -763,7 +791,12 @@ const PlayersBar: React.FC<{ game: GameView; bubble: { from: number; text: strin
               <span className="min-w-0">
                 <span className="block text-sm2 font-bold text-zine-ink truncate">{isMe ? T.you : p?.name || T.friend}</span>
                 <span className="block text-cap text-zine-inkMuted truncate">
-                  {isMe ? (p?.incognito ? `🕶 ${p.emoji} ${p.name}` : p?.name) : !p ? T.friendWaiting : p.isBot ? p.level : p.incognito ? '🕶 инкогнито' : canOpen ? 'анкета ›' : ''}
+                  {isMe
+                    ? p?.incognito ? `🕶 ${p.emoji} ${p.name}` : p?.name
+                    : !p ? T.friendWaiting
+                    : game.status === 'active' && p.away ? T.oppAway
+                    : game.status === 'active' && !p.isBot && !p.online ? T.oppNotHere
+                    : p.isBot ? p.level : p.incognito ? '🕶 инкогнито' : canOpen ? 'анкета ›' : ''}
                 </span>
               </span>
             </button>
@@ -891,18 +924,21 @@ const ResultCard: React.FC<{
 }> = ({ game, rematchGone, blockedDone, showMainFallback, mainText, mainDisabled, onAgain, onOther, onMenu, onOpenProfile, onBlock }) => {
   const opp = game.players[1 - game.me];
   const won = game.winner === game.me;
-  const title = game.winner === -1 ? T.draw : won ? T.win : game.mode === 'bot' ? T.loseBot : T.lose;
-  const note =
-    game.reason === 'resign' ? (won ? T.reasonResignThem : T.reasonResignMe) : game.reason === 'left' && won ? T.reasonLeft : game.reason === 'expired' ? T.reasonExpired : '';
+  // Кто-то вышел из игры: без салюта и шуток, просто итог
+  const quit = game.reason === 'resign' || game.reason === 'left';
+  const title = quit ? (won ? T.oppLeft : T.ended) : game.winner === -1 ? T.draw : won ? T.win : game.mode === 'bot' ? T.loseBot : T.lose;
+  const note = quit
+    ? won ? T.oppLeftNote : game.reason === 'left' ? T.reasonLeftMe : T.reasonResignMe
+    : game.reason === 'expired' ? T.reasonExpired : '';
   const oppWantsAgain = game.mode !== 'bot' && opp?.rematch && !game.players[game.me]?.rematch && !rematchGone;
   const canOpen = opp && !opp.incognito && !opp.isBot && opp.telegramId && !blockedDone;
-  const kind = game.winner === -1 ? 'draw' : won ? 'win' : 'lose';
+  const kind = quit ? 'quit' : game.winner === -1 ? 'draw' : won ? 'win' : 'lose';
   // Значок и шутка — случайные, но одни и те же для этой партии
   const { icon, joke } = React.useMemo(() => {
     const pick = <V,>(list: V[]) => list[Math.floor(Math.random() * list.length)];
     return {
-      icon: kind === 'win' ? pick(['🏆', '🥇', '👑']) : kind === 'lose' ? pick(['😵‍💫', '🥀', '🫠', '💀']) : '🤝',
-      joke: pick(kind === 'win' ? T.winJokes : kind === 'lose' ? T.loseJokes : T.drawJokes)
+      icon: kind === 'quit' ? '🚪' : kind === 'win' ? pick(['🏆', '🥇', '👑']) : kind === 'lose' ? pick(['😵‍💫', '🥀', '🫠', '💀']) : '🤝',
+      joke: kind === 'quit' ? '' : pick(kind === 'win' ? T.winJokes : kind === 'lose' ? T.loseJokes : T.drawJokes)
     };
   }, [game.id, kind]);
   return (
@@ -915,7 +951,7 @@ const ResultCard: React.FC<{
         {icon}
       </div>
       <h2 className={`font-serif font-bold text-display ${kind === 'win' ? 'text-zine-terracotta' : 'text-zine-ink'}`}>{title}</h2>
-      <p className="mt-1 text-body font-semibold text-zine-ink">{joke}</p>
+      {joke && <p className="mt-1 text-body font-semibold text-zine-ink">{joke}</p>}
       {note && <p className="mt-1 text-sm2 text-zine-inkMuted">{note}</p>}
       {oppWantsAgain && <p className="mt-2 text-sm2 font-semibold text-zine-terracotta">{T.rematchAsked}</p>}
       {blockedDone && <p className="mt-2 text-sm2 text-zine-inkMuted">{T.blocked}</p>}

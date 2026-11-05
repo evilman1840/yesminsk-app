@@ -594,8 +594,14 @@ class ApiService {
     return this.request<GameView>(`/games/${id}/say`, { method: 'POST', body: JSON.stringify({ say }) });
   }
 
-  async gameLeave(id: string): Promise<GameView> {
-    return this.request<GameView>(`/games/${id}/leave`, { method: 'POST' });
+  // keepalive — запрос дойдёт, даже если приложение закрывают прямо сейчас
+  async gameLeave(id: string, keepalive = false): Promise<GameView> {
+    return this.request<GameView>(`/games/${id}/leave`, { method: 'POST', keepalive }, keepalive);
+  }
+
+  // Свернул приложение: если не вернёшься за 15 секунд, партия закроется
+  async gameAway(id: string): Promise<void> {
+    await this.request(`/games/${id}/away`, { method: 'POST', keepalive: true }, true);
   }
 
   async gameRematch(id: string): Promise<GameView> {

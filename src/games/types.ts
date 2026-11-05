@@ -7,6 +7,7 @@ export interface GamePlayer {
   emoji: string;       // зверёк инкогнито или 🤖
   rematch: boolean;
   online: boolean;
+  away?: boolean; // свернул приложение
   isBot?: boolean;
   level?: string;      // у бота: «полегче» или «посложнее»
 }
