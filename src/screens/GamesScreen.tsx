@@ -939,6 +939,13 @@ const ResultCard: React.FC<{
   const oppWantsAgain = game.mode !== 'bot' && opp?.rematch && !game.players[game.me]?.rematch && !rematchGone;
   const canOpen = opp && !opp.incognito && !opp.isBot && opp.telegramId && !blockedDone;
   const kind = quit ? 'quit' : game.winner === -1 ? 'draw' : won ? 'win' : 'lose';
+  // Итог под полем: на телефоне он ниже края экрана — докручиваем, чтобы были видны все кнопки
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const t = window.setTimeout(() => cardRef.current?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'end' }), 500);
+    return () => window.clearTimeout(t);
+  }, [game.id]);
   // Значок и шутка — случайные, но одни и те же для этой партии
   const { icon, joke } = React.useMemo(() => {
     const pick = <V,>(list: V[]) => list[Math.floor(Math.random() * list.length)];
@@ -949,6 +956,7 @@ const ResultCard: React.FC<{
   }, [game.id, kind]);
   return (
     <div
+      ref={cardRef}
       className={`mt-4 p-4 rounded-zine border shadow-zine text-center ${
         kind === 'win' ? 'bg-zine-mustard/15 border-zine-mustard/50 fade-swap' : kind === 'lose' ? 'bg-zine-cardElevated border-zine-border game-shake' : 'bg-zine-cardElevated border-zine-border fade-swap'
       }`}
@@ -975,7 +983,7 @@ const ResultCard: React.FC<{
           </button>
         )}
         <button onClick={onMenu} className="h-11 px-4 rounded-full border border-zine-border text-zine-ink text-sm2 font-semibold cursor-pointer">
-          {T.toMenu}
+          {T.exitGame}
         </button>
       </div>
 
