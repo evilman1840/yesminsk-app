@@ -93,6 +93,9 @@ export const GamesScreen: React.FC<{
   const [blockedDone, setBlockedDone] = useState(false);
   // «Как играть»: сам открывается перед первой партией, потом — по кнопке
   const [rulesOpen, setRulesOpen] = useState(false);
+  // Конец партии: конфетти или падающие эмодзи, один раз на партию
+  const [celebrate, setCelebrate] = useState<{ kind: 'win' | 'lose' | 'draw'; key: string } | null>(null);
+  const celebrated = useRef('');
   const rulesSeen = useRef(store.get('yesminsk_game_rules_seen', '0') === '1');
   const openRules = () => {
     telegramService.haptic('light');
@@ -255,6 +258,18 @@ export const GamesScreen: React.FC<{
   useEffect(() => {
     if (phase === 'game' && game && !rulesSeen.current) setRulesOpen(true);
   }, [phase, game]);
+
+  useEffect(() => {
+    if (!game || game.status !== 'finished' || celebrated.current === game.id) return;
+    celebrated.current = game.id;
+    setCelebrate({ kind: game.winner === -1 ? 'draw' : game.winner === game.me ? 'win' : 'lose', key: game.id });
+    if (game.winner === game.me) window.setTimeout(() => telegramService.haptic('heavy'), 250); // второй толчок — «салют»
+  }, [game]);
+  useEffect(() => {
+    if (!celebrate) return;
+    const t = window.setTimeout(() => setCelebrate(null), 4800);
+    return () => window.clearTimeout(t);
+  }, [celebrate]);
 
   // Пузырь с эмодзи соперника гаснет сам
   useEffect(() => {
@@ -608,6 +623,7 @@ export const GamesScreen: React.FC<{
       )}
 
       {rulesOpen && <RulesSheet onClose={closeRules} />}
+      {celebrate && <Celebration key={celebrate.key} kind={celebrate.kind} />}
     </div>
   );
 };
@@ -774,10 +790,10 @@ const Board: React.FC<{ game: GameView; onTap: (cell: number) => void }> = ({ ga
           onClick={() => onTap(i)}
           disabled={!myTurn || ch !== '.'}
           aria-label={`Клетка ${Math.floor(i / game.size) + 1}-${(i % game.size) + 1}`}
-          className={`min-w-0 min-h-0 flex items-center justify-center ${
+          className={`min-w-0 min-h-0 flex items-center justify-center ${win.has(i) ? 'game-win-cell' : ''} ${
             win.has(i) ? (ch === 'x' ? 'bg-zine-terracotta/25' : 'bg-zine-plum/25') : i === game.lastMove ? 'bg-zine-mustard/25' : 'bg-zine-cardElevated'
           } ${myTurn && ch === '.' ? 'active:bg-zine-card cursor-pointer' : ''}`}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
+          style={{ WebkitTapHighlightColor: 'transparent', ...(win.has(i) ? ({ '--delay': `${(game.winLine || []).indexOf(i) * 0.08}s` } as React.CSSProperties) : {}) }}
         >
           {ch === 'x' && <Mark mark="x" />}
           {ch === 'o' && <Mark mark="o" />}
@@ -808,6 +824,58 @@ const SayBar: React.FC<{ onSay: (key: string, text: string) => void }> = ({ onSa
   </div>
 );
 
+// Конфетти и эмодзи поверх экрана: при победе — салют из центра и дождь конфетти, при проигрыше — медленно падают 💀😭🥀,
+// при ничьей — 🤝. Нажатия проходят насквозь. При «уменьшить движение» в системе не показываем
+const CONFETTI = ['--c-terracotta', '--c-mustard', '--c-sage', '--c-plum', '--c-sky', '--c-blush'];
+const Celebration: React.FC<{ kind: 'win' | 'lose' | 'draw' }> = ({ kind }) => {
+  const parts = React.useMemo(() => {
+    const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+    const out: { cls: string; style: React.CSSProperties; content?: string }[] = [];
+    if (kind === 'win') {
+      for (let i = 0; i < 28; i++) {
+        const angle = (i / 28) * Math.PI * 2;
+        const dist = rnd(110, 190);
+        out.push({
+          cls: 'game-burst rounded-sm',
+          style: { width: 9, height: 14, background: `rgb(var(${CONFETTI[i % CONFETTI.length]}))`, '--bx': `${Math.cos(angle) * dist}px`, '--by': `${Math.sin(angle) * dist}px`, '--rot': `${rnd(-360, 360)}deg`, '--delay': `${rnd(0, 0.12)}s` } as React.CSSProperties
+        });
+      }
+      for (let i = 0; i < 46; i++) {
+        const emoji = i % 6 === 0 ? ['🎉', '✨', '🔥', '⭐'][i % 4] : '';
+        out.push({
+          cls: `game-fall ${emoji ? 'text-[24px]' : 'rounded-sm'}`,
+          content: emoji,
+          style: {
+            left: `${rnd(0, 100)}%`,
+            ...(emoji ? {} : { width: rnd(7, 11), height: rnd(10, 16), background: `rgb(var(${CONFETTI[i % CONFETTI.length]}))` }),
+            '--dx': `${rnd(-60, 60)}px`, '--rot': `${rnd(-540, 540)}deg`, '--dur': `${rnd(2.2, 3.6)}s`, '--delay': `${rnd(0.2, 1.2)}s`
+          } as React.CSSProperties
+        });
+      }
+    } else {
+      const set = kind === 'lose' ? ['💀', '😭', '🥀', '🫠', '🙈'] : ['🤝', '✨'];
+      const n = kind === 'lose' ? 18 : 12;
+      for (let i = 0; i < n; i++) {
+        out.push({
+          cls: 'game-fall',
+          content: set[i % set.length],
+          style: { left: `${rnd(2, 92)}%`, fontSize: rnd(26, 40), '--dx': `${rnd(-30, 30)}px`, '--rot': `${rnd(-90, 90)}deg`, '--dur': `${rnd(2.8, 4.2)}s`, '--delay': `${rnd(0, 1.2)}s` } as React.CSSProperties
+        });
+      }
+    }
+    return out;
+  }, [kind]);
+  return (
+    <div className="fixed inset-0 z-40 pointer-events-none overflow-hidden" aria-hidden>
+      {parts.map((p, i) => (
+        <span key={i} className={p.cls} style={p.style}>
+          {p.content}
+        </span>
+      ))}
+    </div>
+  );
+};
+
 const ResultCard: React.FC<{
   game: GameView;
   rematchGone: boolean;
@@ -828,9 +896,26 @@ const ResultCard: React.FC<{
     game.reason === 'resign' ? (won ? T.reasonResignThem : T.reasonResignMe) : game.reason === 'left' && won ? T.reasonLeft : game.reason === 'expired' ? T.reasonExpired : '';
   const oppWantsAgain = game.mode !== 'bot' && opp?.rematch && !game.players[game.me]?.rematch && !rematchGone;
   const canOpen = opp && !opp.incognito && !opp.isBot && opp.telegramId && !blockedDone;
+  const kind = game.winner === -1 ? 'draw' : won ? 'win' : 'lose';
+  // Значок и шутка — случайные, но одни и те же для этой партии
+  const { icon, joke } = React.useMemo(() => {
+    const pick = <V,>(list: V[]) => list[Math.floor(Math.random() * list.length)];
+    return {
+      icon: kind === 'win' ? pick(['🏆', '🥇', '👑']) : kind === 'lose' ? pick(['😵‍💫', '🥀', '🫠', '💀']) : '🤝',
+      joke: pick(kind === 'win' ? T.winJokes : kind === 'lose' ? T.loseJokes : T.drawJokes)
+    };
+  }, [game.id, kind]);
   return (
-    <div className="mt-4 p-4 rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine text-center">
-      <h2 className="font-serif font-bold text-title text-zine-ink">{title}</h2>
+    <div
+      className={`mt-4 p-4 rounded-zine border shadow-zine text-center ${
+        kind === 'win' ? 'bg-zine-mustard/15 border-zine-mustard/50 fade-swap' : kind === 'lose' ? 'bg-zine-cardElevated border-zine-border game-shake' : 'bg-zine-cardElevated border-zine-border fade-swap'
+      }`}
+    >
+      <div className={`text-[64px] leading-none mb-2 inline-block ${kind === 'win' ? 'game-trophy' : kind === 'lose' ? 'game-wobble' : 'game-pop'}`} aria-hidden>
+        {icon}
+      </div>
+      <h2 className={`font-serif font-bold text-display ${kind === 'win' ? 'text-zine-terracotta' : 'text-zine-ink'}`}>{title}</h2>
+      <p className="mt-1 text-body font-semibold text-zine-ink">{joke}</p>
       {note && <p className="mt-1 text-sm2 text-zine-inkMuted">{note}</p>}
       {oppWantsAgain && <p className="mt-2 text-sm2 font-semibold text-zine-terracotta">{T.rematchAsked}</p>}
       {blockedDone && <p className="mt-2 text-sm2 text-zine-inkMuted">{T.blocked}</p>}
