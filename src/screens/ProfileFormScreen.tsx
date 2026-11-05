@@ -561,6 +561,65 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             </div>
           </Section>
 
+          {/* С кем комфортно и возраст компании — сразу после «О себе» */}
+          <Section>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="w-full flex items-center justify-between text-left cursor-pointer"
+            >
+              <span>
+                <span className="block text-body font-bold text-zine-ink">{GENDER_TEXTS.prefsTitle}</span>
+                <span className="block text-sm2 text-zine-inkMuted">{GENDER_TEXTS.prefsHint}</span>
+              </span>
+              <ChevronDown size={24} className={`text-zine-inkMuted transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-4 space-y-4">
+                <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">
+                  🛡 Тебя увидят только те, кто подходит под «С кем комфортно» и «Возраст компании». Остальным твоя анкета не покажется.
+                </p>
+                <Label text="С кем комфортно встречаться">
+                  <Segmented
+                    value={preferredGender}
+                    onChange={(v) => setPreferredGender(v as PreferredGender)}
+                    options={[
+                      { id: 'all', label: 'Со всеми' },
+                      { id: 'female', label: 'С женщинами' },
+                      { id: 'male', label: 'С мужчинами' }
+                    ]}
+                  />
+                </Label>
+                <Label text="Возраст компании" hint={`от ${minAge} до ${maxAge}`}>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="18"
+                      max="99"
+                      value={minAge}
+                      onChange={(e) => setMinAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                      onBlur={fixAgeRange}
+                      className="field text-center"
+                    />
+                    <span className="text-body text-zine-inkMuted">-</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="18"
+                      max="99"
+                      value={maxAge}
+                      onChange={(e) => setMaxAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                      onBlur={fixAgeRange}
+                      className="field text-center"
+                    />
+                  </div>
+                </Label>
+              </div>
+            )}
+          </Section>
+
           {/* Цели */}
           <Section title="Что тебе интересно?" subtitle="Можно выбрать несколько">
             {selectedGoals.length === 0 && <p className="-mt-1 mb-3 text-cap font-semibold text-zine-terracotta">{AGE_TEXTS.goalsRequired}</p>}
@@ -860,65 +919,6 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               />
             </Section>
           )}
-
-          {/* Дополнительно: пол и предпочтения */}
-          <Section>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced((v) => !v)}
-              className="w-full flex items-center justify-between text-left cursor-pointer"
-            >
-              <span>
-                <span className="block text-body font-bold text-zine-ink">{GENDER_TEXTS.prefsTitle}</span>
-                <span className="block text-sm2 text-zine-inkMuted">{GENDER_TEXTS.prefsHint}</span>
-              </span>
-              <ChevronDown size={24} className={`text-zine-inkMuted transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showAdvanced && (
-              <div className="mt-4 space-y-4">
-                <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">
-                  🛡 Тебя увидят только те, кто подходит под «С кем комфортно» и «Возраст компании». Остальным твоя анкета не покажется.
-                </p>
-                <Label text="С кем комфортно встречаться">
-                  <Segmented
-                    value={preferredGender}
-                    onChange={(v) => setPreferredGender(v as PreferredGender)}
-                    options={[
-                      { id: 'all', label: 'Со всеми' },
-                      { id: 'female', label: 'С женщинами' },
-                      { id: 'male', label: 'С мужчинами' }
-                    ]}
-                  />
-                </Label>
-                <Label text="Возраст компании" hint={`от ${minAge} до ${maxAge}`}>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min="18"
-                      max="99"
-                      value={minAge}
-                      onChange={(e) => setMinAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                      onBlur={fixAgeRange}
-                      className="field text-center"
-                    />
-                    <span className="text-body text-zine-inkMuted">-</span>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min="18"
-                      max="99"
-                      value={maxAge}
-                      onChange={(e) => setMaxAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                      onBlur={fixAgeRange}
-                      className="field text-center"
-                    />
-                  </div>
-                </Label>
-              </div>
-            )}
-          </Section>
 
           {!isFirstTime && onAddToHome && (
             <button
