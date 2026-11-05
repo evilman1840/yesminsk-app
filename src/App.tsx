@@ -32,6 +32,7 @@ import { PollSheet } from './components/common/PollSheet';
 import { POLL_TEXTS } from './texts/poll';
 import { NewsScreen } from './screens/NewsScreen';
 import { PlacesScreen } from './screens/PlacesScreen';
+import { GamesScreen } from './screens/GamesScreen';
 import { FirstStepsCard } from './components/people/FirstSteps';
 import { ShareSheet } from './components/common/ShareSheet';
 import type { MapMode } from './screens/MapScreen';
@@ -66,8 +67,10 @@ const getSavedCoordinates = (): [number, number] => {
 
 export const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<
-    'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'places' | 'news' | 'profile_edit' | 'banned' | 'deleted'
+    'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'places' | 'news' | 'profile_edit' | 'banned' | 'deleted' | 'games'
   >('main');
+  // Мини-игры: открыли по ссылке на партию или приглашению знакомого
+  const [gameLaunch, setGameLaunch] = useState<{ id?: string; code?: string }>({});
 
   const tgUser = telegramService.getUser();
   const [currentUser, setCurrentUser] = useState({
@@ -107,6 +110,7 @@ export const App: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const isAdminRef = useRef(false); // для разбора ссылки при запуске: состояние ещё не обновилось
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<GoalFilter>('all');
   const [apiError, setApiError] = useState<string | null>(null);
@@ -461,6 +465,7 @@ export const App: React.FC = () => {
         }
         if (!me) throw new Error('me unavailable');
         setIsAdmin(Boolean(me.isAdmin));
+        isAdminRef.current = Boolean(me.isAdmin);
         if (me) {
           let userCoords = getSavedCoordinates();
           const hasSaved = Boolean(localStorage.getItem('yesminsk_user_coords'));
@@ -557,6 +562,11 @@ export const App: React.FC = () => {
       // «Заполнить анкету» из напоминания бота
       if (target.tab === 'profile') {
         setCurrentScreen(prev => (prev === 'main' ? 'profile_edit' : prev));
+      }
+      // Игры пока проверяет автор: раздел открывается только админам, приглашение от админа — любому
+      if (target.game && (target.game.code || target.game.id || isAdminRef.current)) {
+        setGameLaunch(target.game);
+        setCurrentScreen(prev => (prev === 'main' ? 'games' : prev));
       }
       if (target.tab === 'places') {
         setCurrentScreen(prev => (prev === 'main' ? 'places' : prev));
@@ -1171,6 +1181,8 @@ export const App: React.FC = () => {
                 <ProfileLoading failed={meFailed} />
               ))}
 
+            {currentScreen === 'games' && <GamesScreen initial={gameLaunch} onBack={() => setCurrentScreen('main')} />}
+
             {currentScreen === 'main' && (
               <MapScreen
                 users={users}
@@ -1315,7 +1327,7 @@ export const App: React.FC = () => {
             />
           )}
 
-          {selectedUser && isTab && (
+          {selectedUser && (isTab || currentScreen === 'games') && (
             <UserBottomSheet
               user={selectedUser}
               myGoals={currentUser.goals}

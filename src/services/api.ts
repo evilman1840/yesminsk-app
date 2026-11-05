@@ -1,4 +1,5 @@
 import { telegramService } from './telegram';
+import type { GameView } from '../games/types';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData, MeetupStats } from '../types';
 
 /**
@@ -83,6 +84,7 @@ class ApiService {
         const errorData = await response.json().catch(() => ({}));
         const err: any = new Error(errorData.error || `Ошибка сервера (${response.status})`);
         err.status = response.status;
+        err.data = errorData; // например, партия в ответ на «ход не засчитан»
         throw err;
       }
 
@@ -548,6 +550,51 @@ class ApiService {
     } else {
       return this.joinEvent(eventId);
     }
+  }
+
+  // ==========================================
+  // МИНИ-ИГРЫ
+  // ==========================================
+
+  // Встать в поиск случайного соперника (или вернуться в уже идущую партию)
+  async gameSearch(incognito: boolean): Promise<GameView> {
+    return this.request<GameView>('/games/search', { method: 'POST', body: JSON.stringify({ incognito }) });
+  }
+
+  async gameInvite(incognito: boolean): Promise<GameView> {
+    return this.request<GameView>('/games/invite', { method: 'POST', body: JSON.stringify({ incognito }) });
+  }
+
+  async gameJoin(code: string, incognito: boolean): Promise<GameView> {
+    return this.request<GameView>(`/games/join/${encodeURIComponent(code)}`, { method: 'POST', body: JSON.stringify({ incognito }) });
+  }
+
+  async gameMine(): Promise<GameView[]> {
+    return this.request<GameView[]>('/games/mine');
+  }
+
+  async gameGet(id: string): Promise<GameView> {
+    return this.request<GameView>(`/games/${id}`);
+  }
+
+  async gameMove(id: string, cell: number): Promise<GameView> {
+    return this.request<GameView>(`/games/${id}/move`, { method: 'POST', body: JSON.stringify({ cell }) });
+  }
+
+  async gameSay(id: string, say: string): Promise<GameView> {
+    return this.request<GameView>(`/games/${id}/say`, { method: 'POST', body: JSON.stringify({ say }) });
+  }
+
+  async gameLeave(id: string): Promise<GameView> {
+    return this.request<GameView>(`/games/${id}/leave`, { method: 'POST' });
+  }
+
+  async gameRematch(id: string): Promise<GameView> {
+    return this.request<GameView>(`/games/${id}/rematch`, { method: 'POST' });
+  }
+
+  async gameBlock(id: string): Promise<void> {
+    await this.request(`/games/${id}/block`, { method: 'POST' });
   }
 }
 
