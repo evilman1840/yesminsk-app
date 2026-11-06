@@ -10,6 +10,7 @@ import { useOpenUser } from '../context/openUser';
 import { GAME_TEXTS as T } from '../texts/games';
 import { GameView, GamePlayer, GameLobby } from '../games/types';
 import { askBotAccess } from '../services/botAccess';
+import { TractorGame } from '../components/games/TractorGame';
 import { SIZE, emptyBoard, place, winLineAt, botMove, BotLevel } from '../games/five';
 
 /**
@@ -36,7 +37,7 @@ const store = {
   }
 };
 
-type Phase = 'menu' | 'search' | 'game';
+type Phase = 'menu' | 'search' | 'game' | 'tractor'; // tractor — «Минский час пик»
 type Pick = 'random' | 'bot' | 'friend';
 
 // ---------- Партия с ботом: та же форма, что у сервера ----------
@@ -85,7 +86,7 @@ export const GamesScreen: React.FC<{
   onPhaseChange?: (phase: 'menu' | 'search' | 'game') => void; // в меню видно нижнее меню, в партии — нет
 }> = ({ initial, onBack, onPhaseChange }) => {
   const openUser = useOpenUser();
-  const [phase, setPhase] = useState<Phase>(initial?.id || initial?.code || initial?.botCell !== undefined || initial?.search ? 'game' : 'menu');
+  const [phase, setPhase] = useState<Phase>(initial?.tractor ? 'tractor' : initial?.id || initial?.code || initial?.botCell !== undefined || initial?.search ? 'game' : 'menu');
   const [game, setGame] = useState<GameView | null>(null);
   const [incognito, setIncognitoState] = useState(() => store.get('yesminsk_game_incognito', '0') === '1');
   const [level, setLevelState] = useState<BotLevel>(() => (store.get('yesminsk_game_level', 'easy') === 'normal' ? 'normal' : 'easy'));
@@ -646,6 +647,7 @@ export const GamesScreen: React.FC<{
   // «Назад»: из партии — в меню (живую партию со случайным игроком — только сдавшись), из меню — из игр
   const back = async () => {
     const g = gameRef.current;
+    if (phase === 'tractor') return setPhase('menu');
     if (phase === 'menu') return onBack();
     if (phase === 'search') return cancelCurrent();
     stopBg();
@@ -658,7 +660,7 @@ export const GamesScreen: React.FC<{
   };
   useBackButton(phase === 'menu' ? null : back); // меню игр — вкладка, «назад» в нём не нужен
   useEffect(() => {
-    onPhaseChange?.(phase);
+    onPhaseChange?.(phase === 'tractor' ? 'game' : phase);
   }, [phase, onPhaseChange]);
 
   // Главная кнопка: «Ещё партию» после окончания
@@ -679,6 +681,7 @@ export const GamesScreen: React.FC<{
 
   return (
     <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden select-none">
+      {phase !== 'tractor' && (
       <header className="shrink-0 px-5 pt-4 pb-2">
         <div className="flex items-center gap-1">
           {!telegramService.isInsideTelegram() && phase !== 'menu' && (
@@ -694,6 +697,7 @@ export const GamesScreen: React.FC<{
           )}
         </div>
       </header>
+      )}
 
       {phase === 'menu' && (
         <main className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
@@ -782,6 +786,8 @@ export const GamesScreen: React.FC<{
           )}
         </main>
       )}
+
+      {phase === 'tractor' && <TractorGame onExit={() => setPhase('menu')} />}
 
       {phase === 'search' && (
         <main className="flex-1 flex flex-col items-center justify-center px-8 text-center">

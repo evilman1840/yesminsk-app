@@ -580,8 +580,9 @@ export const App: React.FC = () => {
       if (target.tab === 'profile') {
         setCurrentScreen(prev => (prev === 'main' ? 'profile_edit' : prev));
       }
-      // Игры пока проверяет автор: раздел открывается только админам, приглашение от админа — любому
-      if (target.game && (target.game.code || target.game.id || gamesOpenRef.current)) {
+      // Игры пока проверяет автор: раздел открывается только админам, приглашение от админа — любому.
+      // «Минский час пик» — только админу и только по своей ссылке
+      if (target.game && (target.game.tractor ? isAdminRef.current : target.game.code || target.game.id || gamesOpenRef.current)) {
         setGameLaunch(target.game);
         setCurrentScreen(prev => (prev === 'main' ? 'games' : prev));
       }

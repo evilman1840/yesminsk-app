@@ -392,7 +392,7 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; wishGroupId?: string; game?: { id?: string; code?: string } } {
+  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; wishGroupId?: string; game?: { id?: string; code?: string; tractor?: boolean } } {
     const params = new URLSearchParams(window.location.search);
     const startParam = tg()?.initDataUnsafe?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
@@ -420,7 +420,10 @@ export const telegramService = {
       userId: params.get('user') || undefined, // «Посмотреть анкету» из «хочет пообщаться»
       wishGroupId: params.get('wishGroup') || undefined, // «Кто ещё хочет» из «Хочу сходить»
       // Игры: «Твой ход» от бота (?game=<id>), приглашение знакомого (startapp=game_<код>), просто раздел (?tab=games, startapp=games)
-      game: params.get('game')
+      // «Минский час пик» пока на проверке: только по ссылке startapp=tractor (?play=tractor), и откроется только админу
+      game: startParam === 'tractor' || params.get('play') === 'tractor'
+        ? { tractor: true }
+        : params.get('game')
         ? { id: params.get('game') || undefined }
         : startParam.startsWith('game_')
           ? { code: startParam.slice(5) }

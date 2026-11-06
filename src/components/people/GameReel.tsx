@@ -33,7 +33,7 @@ const write = (key: string) => {
 export const gameReelAllowed = () => Date.now() - read(HIDE_KEY) > 72 * HOUR;
 
 // Как открыть игры из карточки
-export type GameLaunch = { id?: string; code?: string; botCell?: number; search?: boolean };
+export type GameLaunch = { id?: string; code?: string; botCell?: number; search?: boolean; tractor?: boolean };
 
 // «Сделай ход»: кусочек 5×5 из середины поля 10×10, бот уже поставил крестик в центр
 const MINI = 5;
