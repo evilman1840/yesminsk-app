@@ -55,6 +55,12 @@ const PEOPLE_PAGE = 300;
 import { loadBadgeSeenEvents, markBadgeSeenEvents } from './utils/seenEvents';
 
 
+// У «Минск-Мира» была опечатка (27.44 вместо 27.54) — меняем сохранённую на телефоне точку, чтобы она не вернулась в анкету
+try {
+  const p = JSON.parse(localStorage.getItem('yesminsk_user_coords') || 'null');
+  if (Array.isArray(p) && p[0] === 53.862 && p[1] === 27.44) localStorage.setItem('yesminsk_user_coords', JSON.stringify([53.868, 27.54]));
+} catch (e) {}
+
 const getSavedCoordinates = (): [number, number] => {
   try {
     const saved = localStorage.getItem('yesminsk_user_coords');
