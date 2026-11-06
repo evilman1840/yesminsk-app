@@ -108,6 +108,10 @@ export const GamesScreen: React.FC<{
   const [busy, setBusy] = useState(false);
   const [rematchAsked410, setRematchGone] = useState(false);
   const [bubble, setBubble] = useState<{ from: number; text: string; key: string } | null>(null);
+  // «Тебе прислали 🔥. Ответь 👇» — когда соперник написал первым, а не в ответ тебе
+  const [reply, setReply] = useState<{ text: string; key: string } | null>(null);
+  const mySayAt = useRef(0);
+  const botSayAt = useRef(0);
   const [blockedDone, setBlockedDone] = useState(false);
   // «Как играть»: сам открывается перед первой партией, потом — по кнопке
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -165,6 +169,7 @@ export const GamesScreen: React.FC<{
       lastSayAt.current = next.say.at;
       if (next.say.from !== next.me) {
         setBubble({ from: next.say.from, text: next.say.text, key: next.say.at });
+        if (Date.now() - mySayAt.current > 8000) setReply({ text: next.say.text, key: next.say.at });
         telegramService.haptic('light');
       }
     }
@@ -427,6 +432,10 @@ export const GamesScreen: React.FC<{
         const next = applyMove(g, botMove(g.board, g.turn === 0 ? 'x' : 'o', level));
         if (next.status === 'finished') telegramService.haptic(next.winner === next.me ? 'success' : next.winner === -1 ? 'medium' : 'warning');
         else telegramService.haptic('light');
+        // Иногда бот сам что-то бросает — не чаще раза в 25 секунд
+        if (next.status === 'active' && next.moves > 4 && Math.random() < 0.15 && Date.now() - botSayAt.current > 25000 && Date.now() - mySayAt.current > 5000) {
+          window.setTimeout(() => botSay(BOT_IDLE[Math.floor(Math.random() * BOT_IDLE.length)], true), 600);
+        }
         return next;
       });
     }, 450 + Math.random() * 500);
@@ -441,6 +450,10 @@ export const GamesScreen: React.FC<{
     if (!game || game.status !== 'finished' || celebrated.current === game.id) return;
     celebrated.current = game.id;
     shrinkGamesMascot(); // сыграл — до конца захода на карте только значок ✕○
+    if (game.mode === 'bot' && game.reason !== 'resign') {
+      const lines = game.winner === -1 ? BOT_DRAW : game.winner === game.me ? BOT_LOST : BOT_WON;
+      window.setTimeout(() => botSay(lines[Math.floor(Math.random() * lines.length)], false), 900);
+    }
     if (game.reason === 'resign' || game.reason === 'left') return; // кто-то вышел — без салюта
     setCelebrate({ kind: game.winner === -1 ? 'draw' : game.winner === game.me ? 'win' : 'lose', key: game.id });
     if (game.winner === game.me) window.setTimeout(() => telegramService.haptic('heavy'), 250); // второй толчок — «салют»
@@ -457,6 +470,22 @@ export const GamesScreen: React.FC<{
     const t = window.setTimeout(() => setBubble(null), 3500);
     return () => window.clearTimeout(t);
   }, [bubble]);
+
+  useEffect(() => {
+    if (!reply) return;
+    const t = window.setTimeout(() => setReply(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [reply]);
+
+  // Бот тоже «говорит»: так человек узнаёт про эмодзи ещё до игры с живым соперником
+  const botSay = useCallback((text: string, first: boolean) => {
+    const g = gameRef.current;
+    if (!g || g.mode !== 'bot') return;
+    botSayAt.current = Date.now();
+    const key = `bot-${Date.now()}`;
+    setBubble({ from: 1 - g.me, text, key });
+    if (first && Date.now() - mySayAt.current > 8000) setReply({ text, key });
+  }, []);
 
   // Часы поиска
   useEffect(() => {
@@ -558,9 +587,19 @@ export const GamesScreen: React.FC<{
 
   const say = (key: string, text: string) => {
     const g = gameRef.current;
-    if (!g || g.mode === 'bot') return;
+    if (!g) return;
     telegramService.haptic('light');
+    mySayAt.current = Date.now();
+    setReply(null);
     setBubble({ from: g.me, text, key: String(Date.now()) });
+    if (g.mode === 'bot') {
+      const id = g.id;
+      const answers = BOT_ANSWERS[key] || BOT_ANY;
+      window.setTimeout(() => {
+        if (gameRef.current?.id === id) botSay(answers[Math.floor(Math.random() * answers.length)], false);
+      }, 1500 + Math.random() * 700);
+      return;
+    }
     api.gameSay(g.id, key).then((next) => { if (next.say) lastSayAt.current = next.say.at; }).catch(() => {});
   };
 
@@ -815,7 +854,11 @@ export const GamesScreen: React.FC<{
                   {game.players[1 - game.me].away ? T.oppAwayNote : T.oppNotHereNote}
                 </p>
               )}
-              {game.mode !== 'bot' && <SayBar onSay={say} />}
+              <SayBar
+                label={game.mode === 'bot' ? T.sayLabelBot : T.sayLabel(game.players[1 - game.me]?.name)}
+                reply={reply}
+                onSay={say}
+              />
               <div className="mt-3 flex justify-center gap-1">
                 <button onClick={openRules} className="h-11 px-4 rounded-full text-zine-inkMuted text-sm2 font-semibold cursor-pointer inline-flex items-center gap-1.5">
                   <HelpCircle size={17} /> {T.howToPlay}
@@ -1119,23 +1162,56 @@ const Board: React.FC<{ game: GameView; onTap: (cell: number) => void }> = ({ ga
   );
 };
 
-const SayBar: React.FC<{ onSay: (key: string, text: string) => void }> = ({ onSay }) => (
-  <div className="mt-3 -mx-3 px-3 overflow-x-auto [scrollbar-width:none]">
-    <div className="flex gap-1.5 w-max">
-      {T.emojis.map(([key, e]) => (
-        <button
-          key={key}
-          onClick={() => onSay(key, e)}
-          className={`h-11 rounded-full bg-zine-card text-[22px] flex items-center justify-center cursor-pointer active:scale-90 transition-transform ${key === 'six7' ? 'px-2.5 gap-0.5' : 'w-11'}`}
-        >
-          {e}
-        </button>
-      ))}
-      {T.phrases.map(([k, text]) => (
-        <button key={k} onClick={() => onSay(k, text)} className="h-11 px-3.5 rounded-full bg-zine-card text-sm2 font-semibold text-zine-ink whitespace-nowrap cursor-pointer active:scale-95 transition-transform">
-          {text}
-        </button>
-      ))}
+// Что бот отвечает на эмодзи и фразы; ключи — как в T.emojis и T.phrases
+const BOT_ANSWERS: Record<string, string[]> = {
+  skull: ['😭', '🗿', 'Это было больно 🥀'],
+  sob: ['💀', '🤌', 'Без шансов'],
+  moai: ['🗿', '💅'],
+  pinch: ['🤌', '🔥'],
+  nails: ['💅', 'Это база'],
+  boom: ['🤯', '💀'],
+  fire: ['🔥', '💅'],
+  sixseven: ['67!', '🗿'],
+  base: ['Это база', '🤌'],
+  cringe: ['Минус вайб', '💀'],
+  minusvibe: ['Кринж…', '😭'],
+  nochance: ['🗿', 'Ещё одну и спать'],
+  hurt: ['😭', '💅'],
+  onemore: ['Ещё одну и спать', '🔥'],
+  nice: ['🤌', 'Это база']
+};
+const BOT_ANY = ['🗿', '🤌', '💅'];
+const BOT_IDLE = ['🤌', '🗿', '💅', '🤯'];
+const BOT_WON = ['Это база', '💅', '🗿'];
+const BOT_LOST = ['😭', 'Это было больно 🥀', '🤯'];
+const BOT_DRAW = ['🤝', '🗿'];
+
+const SayBar: React.FC<{ label: string; reply: { text: string; key: string } | null; onSay: (key: string, text: string) => void }> = ({ label, reply, onSay }) => (
+  <div className="mt-3">
+    <p key={reply?.key || 'label'} className={`px-1 text-cap font-semibold ${reply ? 'text-zine-terracotta say-hint-in' : 'text-zine-inkMuted'}`} aria-live="polite">
+      {reply ? T.sayReply(reply.text) : label}
+    </p>
+    <div className="mt-1.5 -mx-3 px-3 overflow-x-auto [scrollbar-width:none]">
+      <div className="flex gap-1.5 w-max">
+        {T.emojis.map(([key, e], i) => (
+          <button
+            key={`${key}-${reply?.key || ''}`}
+            onClick={() => onSay(key, e)}
+            aria-label={`Отправить ${e}`}
+            style={{ '--d': `${i * 0.06}s` } as React.CSSProperties}
+            className={`w-11 h-11 rounded-full text-[22px] flex items-center justify-center cursor-pointer active:scale-90 transition-transform ${
+              reply ? 'bg-zine-terracotta/15 say-pulse' : 'bg-zine-card'
+            }`}
+          >
+            {e}
+          </button>
+        ))}
+        {T.phrases.map(([k, text]) => (
+          <button key={k} onClick={() => onSay(k, text)} className="h-11 px-3.5 rounded-full bg-zine-card text-sm2 font-semibold text-zine-ink whitespace-nowrap cursor-pointer active:scale-95 transition-transform">
+            {text}
+          </button>
+        ))}
+      </div>
     </div>
   </div>
 );

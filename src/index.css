@@ -228,6 +228,21 @@ textarea.field {
 .game-cell-hint {
   animation: game-cell-hint 1.6s ease-in-out infinite;
 }
+/* Игры: тебе прислали эмодзи — кнопки ответа по очереди подпрыгивают */
+@keyframes say-pulse {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.16); }
+}
+.say-pulse {
+  animation: say-pulse 0.5s ease-in-out var(--d, 0s) 2;
+}
+@keyframes say-hint-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.say-hint-in {
+  animation: say-hint-in 0.25s ease-out both;
+}
 /* Игры: «сейчас ищут» — зелёная точка мягко расходится кольцом */
 .game-live-dot::after {
   content: '';
@@ -242,7 +257,7 @@ textarea.field {
   to { transform: scale(2.6); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tab-draw, .tab-wiggle, .heartbeat, .fade-swap, .mine-pulse, .game-hop, .game-live-dot::after, .game-cell-hint, .mascot-sway, .mascot-sign, .mascot-stroll { animation: none; }
+  .tab-draw, .tab-wiggle, .heartbeat, .fade-swap, .mine-pulse, .game-hop, .game-live-dot::after, .game-cell-hint, .say-pulse, .say-hint-in, .mascot-sway, .mascot-sign, .mascot-stroll { animation: none; }
   .mine-pulse { box-shadow: 0 0 0 3px rgb(var(--c-mustard)); }
   .tab-draw { opacity: 0; }
 }
