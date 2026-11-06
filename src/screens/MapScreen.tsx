@@ -361,7 +361,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                         }}
                         className="mt-1 max-w-full h-6 px-2.5 rounded-full bg-zine-terracotta text-white text-cap font-bold whitespace-nowrap truncate flex items-center cursor-pointer active:scale-95 transition-transform"
                       >
-                        {POLL_TEXTS.headerPill}
+                        {poll?.pill || POLL_TEXTS.headerPill}
                       </button>
                     ) : pollLeader && isLeaderShown ? (
                       // Проголосовал: куда пока идут донаты; нажал — итоги

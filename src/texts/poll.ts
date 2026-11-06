@@ -2,6 +2,8 @@
 export const POLL_TEXTS = {
   headerPill: 'Нужен твой совет 🙏',
   notice: (question: string) => `🗳 ${question} Решаю вместе с вами`,
+  // Опрос со своей подписью (не «совет») — без «Решаю вместе с вами»
+  noticePlain: (question: string) => `🗳 ${question}`,
   noticeAction: 'Ответить',
   // После голоса — строка в шапке: какой вариант пока впереди и сколько за него. Узкое место (~130px), поэтому без «Впереди →» и значка варианта
   leader: (what: string, percent: number) => `🗳 ${what} · ${percent}%`,

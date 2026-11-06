@@ -523,6 +523,8 @@ export interface PollData {
   note: string;
   options: { key: string; label: string; emoji: string; short?: string }[];
   allowCustom: boolean;
+  pill?: string; // своя подпись в шапке карты вместо «Нужен твой совет»
+  action?: { text: string; tab: string } | null; // кнопка после голоса: куда позвать
   total: number;
   myVote: { options: string[]; custom: string } | null; // можно отметить несколько вариантов
   results: { key: string; percent: number }[] | null;

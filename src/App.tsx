@@ -30,6 +30,8 @@ import { EventDetails } from './components/common/EventDetails';
 import { DonateSheet } from './components/common/DonateSheet';
 import { PollSheet } from './components/common/PollSheet';
 import { POLL_TEXTS } from './texts/poll';
+// Куда может вести кнопка после голоса в опросе
+const POLL_TABS: TabId[] = ['main', 'feed', 'events', 'places', 'games'];
 import { NewsScreen } from './screens/NewsScreen';
 import { PlacesScreen } from './screens/PlacesScreen';
 import { GamesScreen } from './screens/GamesScreen';
@@ -1038,7 +1040,7 @@ export const App: React.FC = () => {
     // Опрос автора — первым, пока не проголосовал (после голоса строка с лидером остаётся в шапке карты)
     poll && !poll.myVote && {
       id: `poll:${poll.id}`,
-      text: POLL_TEXTS.notice(poll.question),
+      text: poll.pill ? POLL_TEXTS.noticePlain(poll.question) : POLL_TEXTS.notice(poll.question),
       action: POLL_TEXTS.noticeAction,
       hideDays: 2,
       onClick: () => setIsPollOpen(true)
@@ -1558,6 +1560,10 @@ export const App: React.FC = () => {
               poll={poll}
               onClose={() => setIsPollOpen(false)}
               onVoted={setPoll}
+              onAction={(tab) => {
+                setIsPollOpen(false);
+                if (POLL_TABS.includes(tab as TabId)) handleNavigate(tab as TabId);
+              }}
               onDonate={() => {
                 setIsPollOpen(false);
                 setIsDonateOpen(true);

@@ -30,7 +30,8 @@ export const PollSheet: React.FC<{
   onClose: () => void;
   onVoted: (poll: PollData) => void;
   onDonate: () => void;
-}> = ({ poll, onClose, onVoted, onDonate }) => {
+  onAction?: (tab: string) => void;
+}> = ({ poll, onClose, onVoted, onDonate, onAction }) => {
   const [isRevoting, setIsRevoting] = useState(false);
   const [picked, setPicked] = useState<string[]>(poll.myVote?.options || []);
   const [custom, setCustom] = useState(poll.myVote?.custom || '');
@@ -74,13 +75,26 @@ export const PollSheet: React.FC<{
         onClose={onClose}
         footer={
           <div className="space-y-2">
-            <button
-              onClick={onDonate}
-              className="w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span className="heartbeat block">❤️</span>
-              {T.donate}
-            </button>
+            {poll.action && onAction ? (
+              // Опрос с призывом: главная кнопка — само действие (например, сыграть партию)
+              <button
+                onClick={() => {
+                  telegramService.haptic('medium');
+                  onAction(poll.action!.tab);
+                }}
+                className="w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+              >
+                {poll.action.text}
+              </button>
+            ) : (
+              <button
+                onClick={onDonate}
+                className="w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span className="heartbeat block">❤️</span>
+                {T.donate}
+              </button>
+            )}
             <button onClick={onClose} className="w-full h-11 rounded-zine-sm bg-zine-card text-zine-ink text-sm2 font-bold cursor-pointer">
               {T.done}
             </button>
@@ -117,7 +131,7 @@ export const PollSheet: React.FC<{
         {mine.includes(POLL_CUSTOM) && poll.myVote!.custom && <p className="mt-3 text-sm2 text-zine-inkMuted">{T.myIdea(poll.myVote!.custom)}</p>}
         <p className="mt-3 text-cap text-zine-inkMuted">{T.votes(poll.total)}</p>
 
-        <div className="mt-4 p-3.5 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{T.donateNote}</div>
+        {!poll.action && <div className="mt-4 p-3.5 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{T.donateNote}</div>}
         <button
           onClick={() => {
             setPicked(mine);
