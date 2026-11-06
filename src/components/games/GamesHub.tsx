@@ -7,7 +7,7 @@ import { TractorPreview } from './TractorPreview';
 
 /**
  * Меню «Игры»: две игры поровну, у каждой — картинка, суть в одну строку и три цифры, которые зовут сыграть.
- * Крестики-Нолики: мои победы, сколько людей ищут соперника прямо сейчас, сколько партий ждут моего хода.
+ * Крестики-Нолики: сколько партий сыграно в приложении, сколько людей ищут соперника прямо сейчас, сколько человек играли с живыми людьми.
  * Трактор: выигранные матчи, рекорд «дольше всех на ходу», место в рейтинге дня.
  */
 export const GamesHub: React.FC<{
@@ -18,7 +18,6 @@ export const GamesHub: React.FC<{
   onFive: () => void;
   onTractor: () => void;
 }> = ({ summary, lobby, mine, boardArt, onFive, onTractor }) => {
-  const myTurn = mine.filter((g) => g.status === 'active' && g.turn === g.me).length;
   const tr = summary?.tractor;
   const open = (fn: () => void) => () => {
     telegramService.haptic('light');
@@ -38,9 +37,9 @@ export const GamesHub: React.FC<{
         title={T.title}
         hint={T.hubHint}
         stats={[
-          { value: summary ? String(summary.five.wins) : '…', label: T.hubWins },
+          { value: lobby?.totalGames != null ? lobby.totalGames.toLocaleString('ru-RU') : '…', label: T.hubGames(lobby?.totalGames ?? 0) },
           { value: lobby ? String(lobby.searching) : '…', label: T.hubSearching, tone: lobby?.searching ? 'text-zine-sage' : '' },
-          { value: String(myTurn), label: T.hubMyTurn, tone: myTurn ? 'text-zine-terracotta' : '' }
+          { value: lobby?.livePlayers != null ? lobby.livePlayers.toLocaleString('ru-RU') : '…', label: T.hubLivePlayers }
         ]}
       />
       <GameCard

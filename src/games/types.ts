@@ -20,6 +20,8 @@ export interface GameLobby {
   searching: number;
   playing: number;
   today: number;
+  totalGames?: number | null; // за всё время: партий в приложении (с людьми и с ботом)
+  livePlayers?: number | null; // за всё время: сколько человек играли с живыми людьми
   notify: boolean;
   canMessage: boolean;
   eveningHour: number;
