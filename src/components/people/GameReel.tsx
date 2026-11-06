@@ -8,13 +8,12 @@ import { Cross, Nought } from '../map/GamesMascot';
 /**
  * «Сыграем?» между анкетами. Три вида, случайно: человечки зовут, «сделай ход прямо тут»
  * и «кто-то ищет соперника» (только когда кто-то правда ищет).
- * До трёх раз за ленту (после 7-й, 17-й и 32-й анкеты); «Не показывать» — на 3 дня; кто играл в последний час — не показываем.
+ * До трёх раз за ленту (после 7-й, 17-й и 32-й анкеты); «Не показывать» — на 3 дня.
  * Хранится в браузере: это удобство, а не правило
  */
 
 const HOUR = 60 * 60 * 1000;
 const HIDE_KEY = 'yesminsk_game_reel_hidden_at';
-const PLAYED_KEY = 'yesminsk_game_played_at';
 
 const read = (key: string) => {
   try {
@@ -31,8 +30,7 @@ const write = (key: string) => {
   }
 };
 
-export const markGamePlayed = () => write(PLAYED_KEY);
-export const gameReelAllowed = () => Date.now() - read(HIDE_KEY) > 72 * HOUR && Date.now() - read(PLAYED_KEY) > HOUR;
+export const gameReelAllowed = () => Date.now() - read(HIDE_KEY) > 72 * HOUR;
 
 // Как открыть игры из карточки
 export type GameLaunch = { id?: string; code?: string; botCell?: number; search?: boolean };

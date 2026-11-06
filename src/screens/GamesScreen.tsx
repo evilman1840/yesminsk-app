@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { useBackButton, useMainButton } from '../hooks/useTelegram';
 import { shrinkGamesMascot } from '../components/map/GamesMascot';
-import { GameLaunch, FEED_BOT_CELL, markGamePlayed } from '../components/people/GameReel';
+import { GameLaunch, FEED_BOT_CELL } from '../components/people/GameReel';
 import { useOpenUser } from '../context/openUser';
 import { GAME_TEXTS as T } from '../texts/games';
 import { GameView, GamePlayer, GameLobby } from '../games/types';
@@ -441,7 +441,6 @@ export const GamesScreen: React.FC<{
     if (!game || game.status !== 'finished' || celebrated.current === game.id) return;
     celebrated.current = game.id;
     shrinkGamesMascot(); // сыграл — человечки на карте больше не прыгают
-    markGamePlayed(); // и карточка «Сыграем?» в ленте час не появится
     if (game.reason === 'resign' || game.reason === 'left') return; // кто-то вышел — без салюта
     setCelebrate({ kind: game.winner === -1 ? 'draw' : game.winner === game.me ? 'win' : 'lose', key: game.id });
     if (game.winner === game.me) window.setTimeout(() => telegramService.haptic('heavy'), 250); // второй толчок — «салют»
