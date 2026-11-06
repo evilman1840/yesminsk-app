@@ -40,7 +40,7 @@ export const GAME_TEXTS = {
   pickFriend: 'Знакомый',
   pickFriendHint: 'Отправишь ссылку в Telegram',
   incognitoShortOn: 'Ты зверёк без имени и фото',
-  incognitoShortOff: 'Соперник увидит имя и фото',
+  incognitoShortOff: 'Включи, чтобы скрыть имя и фото',
 
   // Счётчик: кто сейчас в играх
   liveSearching: (n: number) => `Сейчас ищут соперника: ${n}`,
