@@ -33,6 +33,7 @@ import { POLL_TEXTS } from './texts/poll';
 import { NewsScreen } from './screens/NewsScreen';
 import { PlacesScreen } from './screens/PlacesScreen';
 import { GamesScreen } from './screens/GamesScreen';
+import type { GameLaunch } from './components/people/GameReel';
 import { FirstStepsCard } from './components/people/FirstSteps';
 import { ShareSheet } from './components/common/ShareSheet';
 import type { MapMode } from './screens/MapScreen';
@@ -70,7 +71,7 @@ export const App: React.FC = () => {
     'onboarding' | 'profile_create' | 'main' | 'feed' | 'events' | 'places' | 'news' | 'profile_edit' | 'banned' | 'deleted' | 'games'
   >('main');
   // Мини-игры: открыли по ссылке на партию или приглашению знакомого
-  const [gameLaunch, setGameLaunch] = useState<{ id?: string; code?: string }>({});
+  const [gameLaunch, setGameLaunch] = useState<GameLaunch>({});
 
   const tgUser = telegramService.getUser();
   const [currentUser, setCurrentUser] = useState({
@@ -1110,6 +1111,14 @@ export const App: React.FC = () => {
     }
   };
 
+  // Из ленты «Сыграем?»: сразу в партию с ботом или в поиск соперника
+  const openGames = (launch: GameLaunch) => {
+    setSelectedUser(null);
+    setGameLaunch(launch);
+    setCurrentScreen('games');
+    setGamesNudge(false);
+  };
+
   const handleNavigate = (tab: TabId) => {
     setSelectedUser(null);
     setCurrentScreen(tab);
@@ -1247,6 +1256,7 @@ export const App: React.FC = () => {
 
             {currentScreen === 'feed' && (
               <FeedScreen
+                onPlayGame={gamesOpen ? openGames : undefined}
                 users={users}
                 likedMe={likedMe}
                 matches={matches}

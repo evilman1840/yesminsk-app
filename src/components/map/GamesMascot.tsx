@@ -18,8 +18,8 @@ export const shrinkGamesMascot = () => {
   }
 };
 
-const Cross: React.FC = () => (
-  <svg width="46" height="61" viewBox="0 0 44 58" aria-hidden className="game-hop block">
+export const Cross: React.FC<{ size?: number; className?: string }> = ({ size = 46, className = 'game-hop' }) => (
+  <svg width={size} height={Math.round(size * 1.32)} viewBox="0 0 44 58" aria-hidden className={`${className} block`}>
     <path d="M32 22 L40 4" stroke="rgb(var(--c-ink))" strokeWidth="3" strokeLinecap="round" />
     <path d="M10 6 L34 34 M34 6 L10 34" stroke="rgb(var(--c-terracotta))" strokeWidth="8" strokeLinecap="round" />
     <circle cx="18" cy="16" r="2.6" fill="rgb(var(--c-paper))" />
@@ -28,8 +28,8 @@ const Cross: React.FC = () => (
   </svg>
 );
 
-const Nought: React.FC = () => (
-  <svg width="46" height="61" viewBox="0 0 44 58" aria-hidden className="game-hop game-hop-late block">
+export const Nought: React.FC<{ size?: number; className?: string }> = ({ size = 46, className = 'game-hop game-hop-late' }) => (
+  <svg width={size} height={Math.round(size * 1.32)} viewBox="0 0 44 58" aria-hidden className={`${className} block`}>
     <path d="M10 22 L4 4" stroke="rgb(var(--c-ink))" strokeWidth="3" strokeLinecap="round" />
     <circle cx="22" cy="20" r="14" stroke="rgb(var(--c-mustard))" strokeWidth="7" fill="rgb(var(--c-paper) / 0.6)" />
     <circle cx="18" cy="18" r="2.6" fill="rgb(var(--c-ink))" />

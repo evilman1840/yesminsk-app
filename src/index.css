@@ -179,6 +179,17 @@ textarea.field {
 .game-hop-late {
   animation-delay: 0.18s;
 }
+.game-hop-fast {
+  animation-duration: 2.8s;
+}
+/* «Твой ход!» в ленте: клетки рядом с крестиком бота мягко мигают — сюда можно сходить */
+@keyframes game-cell-hint {
+  0%, 100% { background: rgb(var(--c-card-elevated)); }
+  50% { background: rgb(var(--c-terracotta) / 0.18); }
+}
+.game-cell-hint {
+  animation: game-cell-hint 1.6s ease-in-out infinite;
+}
 /* Игры: «сейчас ищут» — зелёная точка мягко расходится кольцом */
 .game-live-dot::after {
   content: '';
@@ -193,7 +204,7 @@ textarea.field {
   to { transform: scale(2.6); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tab-draw, .tab-wiggle, .heartbeat, .fade-swap, .mine-pulse, .game-hop, .game-live-dot::after { animation: none; }
+  .tab-draw, .tab-wiggle, .heartbeat, .fade-swap, .mine-pulse, .game-hop, .game-live-dot::after, .game-cell-hint { animation: none; }
   .mine-pulse { box-shadow: 0 0 0 3px rgb(var(--c-mustard)); }
   .tab-draw { opacity: 0; }
 }

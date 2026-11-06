@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { useBackButton, useMainButton } from '../hooks/useTelegram';
 import { shrinkGamesMascot } from '../components/map/GamesMascot';
+import { GameLaunch, FEED_BOT_CELL, markGamePlayed } from '../components/people/GameReel';
 import { useOpenUser } from '../context/openUser';
 import { GAME_TEXTS as T } from '../texts/games';
 import { GameView, GamePlayer, GameLobby } from '../games/types';
@@ -79,12 +80,12 @@ function applyMove(g: GameView, cell: number): GameView {
 // ---------- Экран ----------
 
 export const GamesScreen: React.FC<{
-  initial?: { id?: string; code?: string };
+  initial?: GameLaunch;
   onBack: () => void;
   onPhaseChange?: (phase: 'menu' | 'search' | 'game') => void; // в меню видно нижнее меню, в партии — нет
 }> = ({ initial, onBack, onPhaseChange }) => {
   const openUser = useOpenUser();
-  const [phase, setPhase] = useState<Phase>(initial?.id || initial?.code ? 'game' : 'menu');
+  const [phase, setPhase] = useState<Phase>(initial?.id || initial?.code || initial?.botCell !== undefined || initial?.search ? 'game' : 'menu');
   const [game, setGame] = useState<GameView | null>(null);
   const [incognito, setIncognitoState] = useState(() => store.get('yesminsk_game_incognito', '0') === '1');
   const [level, setLevelState] = useState<BotLevel>(() => (store.get('yesminsk_game_level', 'easy') === 'normal' ? 'normal' : 'easy'));
@@ -181,10 +182,21 @@ export const GamesScreen: React.FC<{
     else if (next.status !== 'cancelled') setPhase('game');
   }, []);
 
-  // Открыли по ссылке: «Твой ход» от бота или приглашение знакомого
+  // Открыли по ссылке: «Твой ход» от бота или приглашение знакомого.
+  // Только один раз: второй поиск или вход перехватил бы уже найденную пару
+  const launched = useRef(false);
   useEffect(() => {
+    if (launched.current) return;
+    launched.current = true;
     if (initial?.id) api.gameGet(initial.id).then(receive).catch((e) => { fail(e); setPhase('menu'); });
     else if (initial?.code) api.gameJoin(initial.code, incognito).then(receive).catch((e) => { fail(e); setPhase('menu'); });
+    // Из ленты «Твой ход!»: бот уже поставил крестик, человек — нолик в выбранную клетку, дальше ходит бот
+    else if (initial?.botCell !== undefined) {
+      const g = newBotGame({ me: 0 } as GameView, level); // ты — нолики, бот ходит первым
+      setGame(applyMove(applyMove(g, FEED_BOT_CELL), initial.botCell));
+    }
+    // Из ленты «Кто-то ищет» или «с живым соперником»
+    else if (initial?.search) startSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -429,6 +441,7 @@ export const GamesScreen: React.FC<{
     if (!game || game.status !== 'finished' || celebrated.current === game.id) return;
     celebrated.current = game.id;
     shrinkGamesMascot(); // сыграл — человечки на карте больше не прыгают
+    markGamePlayed(); // и карточка «Сыграем?» в ленте час не появится
     if (game.reason === 'resign' || game.reason === 'left') return; // кто-то вышел — без салюта
     setCelebrate({ kind: game.winner === -1 ? 'draw' : game.winner === game.me ? 'win' : 'lose', key: game.id });
     if (game.winner === game.me) window.setTimeout(() => telegramService.haptic('heavy'), 250); // второй толчок — «салют»

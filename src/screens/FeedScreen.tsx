@@ -17,6 +17,7 @@ import { PactReel, pactPlan, isPactSlot } from '../components/people/PactReel';
 import { CreateMeetupReel, isMeetupSlot, peopleMeetupsAllowed, pickPeopleMeetups, pickCreateWish, notePeopleMeetupHidden, notePeopleMeetupJoined } from '../components/people/MeetupSlot';
 import { EventReel, markNotInterestedEvent } from './EventsScreen';
 import { JoinSheet } from '../components/common/JoinSheet';
+import { GameReel, GameLaunch, gameReelAllowed } from '../components/people/GameReel';
 import { MEETUP_TEXTS } from '../texts/meetups';
 import { api } from '../services/api';
 import {
@@ -63,6 +64,7 @@ export interface FeedScreenProps {
   onJoinEvent?: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
   onOpenEvent?: (event: AppEvent) => void;
   onCreateMeetup?: (kind?: string) => void;
+  onPlayGame?: (launch: GameLaunch) => void; // «Сыграем?» между анкетами; нет — игры закрыты
 }
 
 type FeedTab = 'all' | 'likes' | 'matches';
@@ -100,7 +102,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   myId,
   onJoinEvent,
   onOpenEvent,
-  onCreateMeetup
+  onCreateMeetup,
+  onPlayGame
 }) => {
   const reelWishes = pickReelWishes(wishSummary);
   // «Договоримся?»: решаем один раз за открытие ленты, после какой анкеты показать
@@ -131,6 +134,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     const k = Math.floor((i - 6) / 8);
     return feedMeetups[k] || (k === feedMeetups.length ? 'create' : null);
   };
+  // «Сыграем?» — один раз за ленту, примерно после 7-й анкеты: первое свободное место после 7–10-й
+  const [gameOn, setGameOn] = useState(() => Boolean(onPlayGame) && gameReelAllowed());
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   // Цель встречи выбирается в той же шторке — считаем её вместе с фильтрами
   const activeFilters = countActiveFilters(filters) + Number(selectedGoal !== 'all');
@@ -147,6 +152,13 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   const nearbyFiltered = applyPeopleFilters(users, filters, myPrefs);
   const tabUsers = tab === 'likes' ? likedMe : tab === 'matches' ? matches : nearbyFiltered;
   const filteredUsers = tabUsers.filter((u) => matchesGoalFilter(u, selectedGoal));
+  const gameSlot = (() => {
+    if (tab !== 'all' || !gameOn) return -1;
+    for (let i = 6; i <= 9 && i <= filteredUsers.length - 2; i++) {
+      if (wishSlotAt(i) === null && !isPactAt(i) && meetupSlotAt(i) === null) return i;
+    }
+    return -1;
+  })();
   const guidesCount = users.filter((u) => u.isGuide).length;
 
   const tabs: { id: FeedTab; label: string; count: number }[] = [
@@ -162,7 +174,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     if (index >= 0 && list) {
       setScrollToUser(null);
       // Карточки «Хочу сходить» выше анкеты тоже занимают по экрану
-      const extraCards = filteredUsers.slice(0, index).reduce((n, _, i) => n + Number(wishSlotAt(i) !== null) + Number(isPactAt(i)) + Number(meetupSlotAt(i) !== null), 0);
+      const extraCards = filteredUsers.slice(0, index).reduce((n, _, i) => n + Number(wishSlotAt(i) !== null) + Number(isPactAt(i)) + Number(meetupSlotAt(i) !== null) + Number(i === gameSlot), 0);
       list.scrollTo({ top: (index + extraCards + (hasIntroRef.current ? 1 : 0)) * list.clientHeight });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,6 +333,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               }}
             />
             {isPactAt(index) && <PactReel onAgree={() => setPactAgreedAt(index)} />}
+            {index === gameSlot && onPlayGame && <GameReel onPlay={onPlayGame} onHide={() => setGameOn(false)} />}
             {slot !== null && (
               <WishReel wish={reelWishes[slot] || null} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={() => onOpenWish!()} onOpenMine={() => onOpenWish!(true)} onChanged={onWishesChanged} promptTitle={WISH_TEXTS.reelPromptTitlePeople} />
             )}
