@@ -11,17 +11,20 @@ const TRACTOR_PHRASES = ['Прокатимся?', 'Тр-тр, поехали?', 
 
 type Kind = 'five' | 'tractor';
 
-// Кто встречает на карте — человечки или трактор: случайно на каждый заход, внутри захода не меняется
+// Кто встречает на карте — человечки или трактор: строго по очереди, каждый новый запуск приложения — другой.
+// Решаем один раз на запуск (а не через sessionStorage: в Telegram он иногда переживает закрытие мини-аппа)
+let launchKind: Kind | null = null;
 const sessionKind = (): Kind => {
+  if (launchKind) return launchKind;
   try {
-    const cur = sessionStorage.getItem(KIND_KEY);
-    if (cur === 'five' || cur === 'tractor') return cur;
-    const next: Kind = Math.random() < 0.5 ? 'five' : 'tractor';
-    sessionStorage.setItem(KIND_KEY, next);
-    return next;
+    const last = localStorage.getItem(KIND_KEY);
+    launchKind = last === 'five' ? 'tractor' : 'five';
+    if (last === null) launchKind = 'tractor'; // впервые после обновления — сразу показать трактор
+    localStorage.setItem(KIND_KEY, launchKind);
   } catch {
-    return Math.random() < 0.5 ? 'five' : 'tractor';
+    launchKind = Math.random() < 0.5 ? 'five' : 'tractor';
   }
+  return launchKind;
 };
 
 const readSmall = () => {
@@ -39,19 +42,19 @@ export const shrinkGamesMascot = () => {
   }
 };
 
-// Фраза на заход: по кругу, чтобы подряд не повторялась; внутри захода не меняется
+// Фраза на запуск: по кругу, чтобы подряд не повторялась; внутри запуска не меняется
+let launchPhrase: number | null = null;
 const sessionPhrase = (list: string[]) => {
-  try {
-    const cur = sessionStorage.getItem(PHRASE_KEY);
-    if (cur !== null) return list[Number(cur) % list.length];
-    const next = Number(localStorage.getItem(PHRASE_KEY) ?? -1) + 1;
-    localStorage.setItem(PHRASE_KEY, String(next % 1000));
-    sessionStorage.setItem(PHRASE_KEY, String(next));
-    localStorage.removeItem(MASCOT_KEY); // раньше «маленькие» запоминались навсегда
-    return list[next % list.length];
-  } catch {
-    return list[Math.floor(Math.random() * list.length)];
+  if (launchPhrase === null) {
+    try {
+      launchPhrase = (Number(localStorage.getItem(PHRASE_KEY) ?? -1) + 1) % 1000;
+      localStorage.setItem(PHRASE_KEY, String(launchPhrase));
+      localStorage.removeItem(MASCOT_KEY); // раньше «маленькие» запоминались навсегда
+    } catch {
+      launchPhrase = Math.floor(Math.random() * 1000);
+    }
   }
+  return list[launchPhrase % list.length];
 };
 
 export const Cross: React.FC<{ size?: number; className?: string }> = ({ size = 46, className = 'game-hop' }) => (
