@@ -1,4 +1,4 @@
-import { W, H, buildWalls } from './tractorMap';
+import { W, H, buildWalls, randomLayout, Layout, WALL_BORDER, WALL_RIVER, WALL_PLACE } from './tractorMap';
 
 /**
  * «Минский час пик»: движок раунда. Тракторы едут сами, держишь кнопку — поворачивают.
@@ -37,9 +37,15 @@ export type Tractor = {
 };
 
 export type Seg = { id: number; x0: number; y0: number; x1: number; y1: number };
-export type SimEvent = { type: 'crash'; id: number } | { type: 'roundEnd'; winner: number }; // winner -1 — ничья
-
-const walls = buildWalls();
+/** Обо что врезался: МКАД, Свислочь, место (номер в PLACES), чужая борозда, своя, другой трактор */
+export type Cause =
+  | { k: 'border' }
+  | { k: 'river' }
+  | { k: 'place'; place: number }
+  | { k: 'trail'; owner: number }
+  | { k: 'own' }
+  | { k: 'tractor'; other: number };
+export type SimEvent = { type: 'crash'; id: number; cause: Cause } | { type: 'roundEnd'; winner: number }; // winner -1 — ничья
 
 export class TractorSim {
   tractors: Tractor[];
@@ -49,6 +55,9 @@ export class TractorSim {
   over = false;
   segs: Seg[] = []; // все отрезки борозд за раунд: по ним рисуем
   round = 0;
+  layout: Layout = randomLayout(); // где стоят места в этом раунде — каждый раунд заново
+  walls: Uint8Array = buildWalls(this.layout);
+  causes: (Cause | null)[] = [];
 
   constructor(players: { name: string; bot: boolean; skill?: number }[]) {
     this.tractors = players.map((p, id) => ({
@@ -63,6 +72,11 @@ export class TractorSim {
     this.t = 0;
     this.over = false;
     this.round++;
+    if (this.round > 1) {
+      this.layout = randomLayout();
+      this.walls = buildWalls(this.layout);
+    }
+    this.causes = this.tractors.map(() => null);
     for (const tr of this.tractors) Object.assign(tr, { alive: true, turn: 0, think: 0, trail: false });
     this.spawn();
   }
@@ -79,10 +93,23 @@ export class TractorSim {
   private cell(x: number, y: number) {
     if (x < 0 || y < 0 || x >= W || y >= H) return 255;
     const i = (y | 0) * W + (x | 0);
-    return walls[i] ? 255 : this.owner[i];
+    return this.walls[i] ? 255 : this.owner[i];
   }
 
-  private hits(tr: Tractor) {
+  private causeAt(x: number, y: number, tr: Tractor): Cause | null {
+    if (x < 0 || y < 0 || x >= W || y >= H) return { k: 'border' };
+    const i = (y | 0) * W + (x | 0);
+    const w = this.walls[i];
+    if (w === WALL_BORDER) return { k: 'border' };
+    if (w === WALL_RIVER) return { k: 'river' };
+    if (w >= WALL_PLACE) return { k: 'place', place: w - WALL_PLACE };
+    const o = this.owner[i];
+    if (!o) return null;
+    if (o !== tr.id + 1) return { k: 'trail', owner: o - 1 };
+    return this.t - this.stamp[i] > GRACE ? { k: 'own' } : null;
+  }
+
+  private hits(tr: Tractor): Cause | null {
     const c = Math.cos(tr.a), s = Math.sin(tr.a);
     const pts: [number, number][] = [
       [tr.x + c * HIT_R, tr.y + s * HIT_R],
@@ -90,11 +117,10 @@ export class TractorSim {
       [tr.x + c * HIT_R * 0.8 + s * 1.1, tr.y + s * HIT_R * 0.8 - c * 1.1]
     ];
     for (const [x, y] of pts) {
-      const v = this.cell(x, y);
-      if (v === 255) return true;
-      if (v && (v !== tr.id + 1 || this.t - this.stamp[(y | 0) * W + (x | 0)] > GRACE)) return true;
+      const c = this.causeAt(x, y, tr);
+      if (c) return c;
     }
-    return false;
+    return null;
   }
 
   private stampLine(id: number, x0: number, y0: number, x1: number, y1: number) {
@@ -134,15 +160,19 @@ export class TractorSim {
     }
 
     // Сначала проверяем всех, потом прокладываем борозды: кто врезался одновременно — выбыли оба
-    const dead = new Set<number>();
-    for (const t of alive) if (this.hits(t)) dead.add(t.id);
+    const dead = new Map<number, Cause>();
     for (let i = 0; i < alive.length; i++) {
       for (let j = i + 1; j < alive.length; j++) {
         if (Math.hypot(alive[i].x - alive[j].x, alive[i].y - alive[j].y) < HIT_R * 1.7) {
-          dead.add(alive[i].id);
-          dead.add(alive[j].id);
+          dead.set(alive[i].id, { k: 'tractor', other: alive[j].id });
+          dead.set(alive[j].id, { k: 'tractor', other: alive[i].id });
         }
       }
+    }
+    for (const t of alive) {
+      if (dead.has(t.id)) continue;
+      const c = this.hits(t);
+      if (c) dead.set(t.id, c);
     }
 
     if (this.t >= TRAIL_DELAY) {
@@ -158,9 +188,10 @@ export class TractorSim {
       }
     }
 
-    for (const id of dead) {
+    for (const [id, cause] of dead) {
       this.tractors[id].alive = false;
-      ev.push({ type: 'crash', id });
+      this.causes[id] = cause;
+      ev.push({ type: 'crash', id, cause });
     }
 
     const left = this.tractors.filter((t) => t.alive);
