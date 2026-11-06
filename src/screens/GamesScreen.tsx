@@ -817,7 +817,7 @@ export const GamesScreen: React.FC<{
         />
       )}
       {phase === 'tractorHome' && <TractorHome summary={summary} onPlay={() => setPhase('tractor')} onBack={back} />}
-      {phase === 'tractor' && <TractorGame onExit={() => setPhase('tractorHome')} onSaved={setSummary} />}
+      {phase === 'tractor' && <TractorGame onExit={() => setPhase('tractorHome')} onQuit={() => setPhase(home)} onSaved={setSummary} />}
 
       {phase === 'search' && (
         <main className="flex-1 flex flex-col items-center justify-center px-8 text-center">

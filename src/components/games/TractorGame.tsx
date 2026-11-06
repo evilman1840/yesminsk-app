@@ -147,7 +147,8 @@ export function drawTractor(ctx: CanvasRenderingContext2D, t: Tractor, color: st
 
 type Layers = { map: HTMLCanvasElement; trail: HTMLCanvasElement; res: number; pal: Palette; cw: number; ch: number; dpr: number; layout: Layout | null };
 
-export const TractorGame: React.FC<{ onExit: () => void; onSaved?: (s: GameSummary) => void }> = ({ onExit, onSaved }) => {
+// onExit — «назад» (к первому экрану трактора), onQuit — «Завершить игру» (в раздел «Игры»)
+export const TractorGame: React.FC<{ onExit: () => void; onQuit: () => void; onSaved?: (s: GameSummary) => void }> = ({ onExit, onQuit, onSaved }) => {
   const matchRef = useRef<Match>(null as unknown as Match);
   if (!matchRef.current) {
     matchRef.current = newMatch();
@@ -359,7 +360,7 @@ export const TractorGame: React.FC<{ onExit: () => void; onSaved?: (s: GameSumma
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const s = matchRef.current.sim;
-      if (phaseRef.current === 'running' && !rulesRef.current) {
+      if (phaseRef.current === 'running' && !rulesRef.current && !pausedRef.current) {
         acc += dt * (s.tractors[0].alive ? 1 : 2.5); // выбыл — досматриваем быстрее
         while (acc >= STEP) {
           acc -= STEP;
@@ -544,6 +545,20 @@ export const TractorGame: React.FC<{ onExit: () => void; onSaved?: (s: GameSumma
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // «Завершить игру»: посреди матча спрашиваем (игра на паузе), после матча — сразу
+  const pausedRef = useRef(false);
+  const quit = async () => {
+    telegramService.haptic('light');
+    if (phaseRef.current !== 'matchOver') {
+      pausedRef.current = true;
+      const ok = await telegramService.confirm(T.quitAsk, { okText: T.quitYes, destructive: true });
+      pausedRef.current = false;
+      if (!ok) return;
+    }
+    timers.current.forEach(clearTimeout);
+    onQuit();
+  };
+
   const closeRules = () => {
     store.set(RULES_KEY, '1');
     setRulesOpen(false);
@@ -577,7 +592,15 @@ export const TractorGame: React.FC<{ onExit: () => void; onSaved?: (s: GameSumma
             <ArrowLeft size={24} />
           </button>
         )}
-        <h1 className="flex-1 min-w-0 font-serif font-bold text-title text-zine-ink truncate">{T.title}</h1>
+        {/* Название — на первом экране; здесь вместо него «Завершить игру», чтобы влезало на узком экране */}
+        <h1 className="sr-only">{T.title}</h1>
+        <button
+          onClick={quit}
+          className="shrink-0 h-9 px-3.5 rounded-full border border-zine-border bg-zine-cardElevated text-sm2 font-semibold text-zine-ink cursor-pointer active:scale-95 transition-transform"
+        >
+          {T.quit}
+        </button>
+        <span className="flex-1" />
         <button
           onClick={() => {
             telegramService.haptic('light');
@@ -681,7 +704,7 @@ export const TractorGame: React.FC<{ onExit: () => void; onSaved?: (s: GameSumma
               <button onClick={startNewMatch} className="mt-4 w-full h-12 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer active:scale-[0.98] transition-transform">
                 {T.again}
               </button>
-              <button onClick={onExit} className="mt-1 w-full h-11 rounded-full text-zine-inkMuted text-body font-semibold cursor-pointer">
+              <button onClick={quit} className="mt-1 w-full h-11 rounded-full text-zine-inkMuted text-body font-semibold cursor-pointer">
                 {T.toGames}
               </button>
             </div>
