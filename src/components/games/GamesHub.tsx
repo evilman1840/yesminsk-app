@@ -8,7 +8,7 @@ import { TractorPreview } from './TractorPreview';
 /**
  * Меню «Игры»: две игры поровну, у каждой — картинка, суть в одну строку и три цифры, которые зовут сыграть.
  * Крестики-Нолики: сколько партий сыграно в приложении, сколько людей ищут соперника прямо сейчас, сколько человек играли с живыми людьми.
- * Трактор: выигранные матчи, рекорд «дольше всех на ходу», место в рейтинге дня.
+ * Трактор: сколько матчей сыграно у всех, сколько человек играли сегодня, кто лидер дня.
  */
 export const GamesHub: React.FC<{
   summary: GameSummary | null;
@@ -49,11 +49,13 @@ export const GamesHub: React.FC<{
         title={TT.title}
         hint={TT.cardHint}
         stats={[
-          { value: tr ? String(tr.wins) : '…', label: TT.statWins(tr?.wins ?? 0) },
-          { value: tr ? `${tr.best} с` : '…', label: TT.statBest },
-          tr?.day.myPlace
-            ? { value: `${tr.day.myPlace}-й`, label: TT.statPlace, tone: 'text-zine-terracotta' }
-            : { value: '—', label: TT.statPlaceNone }
+          { value: tr?.all ? tr.all.games.toLocaleString('ru-RU') : '…', label: TT.hubGames(tr?.all?.games ?? 0) },
+          { value: tr ? String(tr.day.players) : '…', label: TT.hubToday, tone: tr?.day.players ? 'text-zine-sage' : '' },
+          !tr
+            ? { value: '…', label: TT.hubLeader }
+            : tr.day.top[0]
+              ? { value: tr.day.top[0].name, label: tr.day.top[0].me ? TT.hubLeaderMe : TT.hubLeader, tone: 'text-zine-terracotta', small: true }
+              : { value: '🏆', label: TT.hubLeaderNone }
         ]}
       />
     </main>
@@ -66,7 +68,7 @@ const GameCard: React.FC<{
   badge: React.ReactNode;
   title: string;
   hint: string;
-  stats: { value: string; label: string; tone?: string }[];
+  stats: { value: string; label: string; tone?: string; small?: boolean }[];
 }> = ({ onClick, art, badge, title, hint, stats }) => (
   <button
     onClick={onClick}
@@ -83,7 +85,7 @@ const GameCard: React.FC<{
     <div className="grid grid-cols-3 border-t border-zine-border">
       {stats.map((s, i) => (
         <div key={i} className={`px-1.5 py-2 text-center min-w-0 ${i ? 'border-l border-zine-border' : ''}`}>
-          <div className={`font-serif font-bold text-lead leading-6 tabular-nums ${s.tone || 'text-zine-ink'}`}>{s.value}</div>
+          <div className={`font-serif font-bold leading-6 tabular-nums truncate ${s.small ? 'text-body' : 'text-lead'} ${s.tone || 'text-zine-ink'}`}>{s.value}</div>
           <div className="text-[12px] leading-4 text-zine-inkMuted">{s.label}</div>
         </div>
       ))}

@@ -61,6 +61,7 @@ export interface GameSummary {
     best: number; // дольше всего на ходу в раунде, секунд
     nemesis: string | null; // обо что чаще всего врезается: 'stela', 'river', 'own'…
     day: { players: number; myPlace: number | null; top: { place: number; name: string; wins: number; me: boolean }[] };
+    all?: { games: number; players: number }; // у всех за всё время
   };
 }
 
