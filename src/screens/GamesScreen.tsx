@@ -96,6 +96,18 @@ export const GamesScreen: React.FC<{
     initial?.tractor ? 'tractorHome' : initial?.id || initial?.code || initial?.botCell !== undefined || initial?.search ? 'game' : home
   );
   const [summary, setSummary] = useState<GameSummary | null>(null);
+
+  // Нажали вкладку «Игры», уже будучи в разделе (приложение присылает новый пустой initial) — в меню из двух игр
+  const firstInitial = useRef(true);
+  useEffect(() => {
+    if (firstInitial.current) {
+      firstInitial.current = false;
+      return;
+    }
+    const empty = initial && !initial.id && !initial.code && initial.botCell === undefined && !initial.search && !initial.tractor;
+    if (empty) setPhase((p) => (p === 'menu' ? home : p));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial]);
   const [game, setGame] = useState<GameView | null>(null);
   const [incognito, setIncognitoState] = useState(() => store.get('yesminsk_game_incognito', '0') === '1');
   const [level, setLevelState] = useState<BotLevel>(() => (store.get('yesminsk_game_level', 'easy') === 'normal' ? 'normal' : 'easy'));
@@ -701,7 +713,7 @@ export const GamesScreen: React.FC<{
       {phase !== 'tractor' && phase !== 'tractorHome' && (
       <header className="shrink-0 px-5 pt-4 pb-2">
         <div className="flex items-center gap-1">
-          {!telegramService.isInsideTelegram() && phase !== home && (
+          {phase !== home && ( // стрелка видна и в Telegram: его «Назад» в шапке легко не заметить
             <button onClick={back} aria-label="Назад" className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-zine-ink cursor-pointer">
               <ArrowLeft size={24} />
             </button>

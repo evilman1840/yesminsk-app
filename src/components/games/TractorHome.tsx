@@ -15,11 +15,9 @@ export const TractorHome: React.FC<{ summary: GameSummary | null; onPlay: () => 
   return (
     <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden select-none">
       <header className="shrink-0 px-5 pt-4 pb-2 flex items-center gap-1">
-        {!telegramService.isInsideTelegram() && (
-          <button onClick={onBack} aria-label="Назад" className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-zine-ink cursor-pointer">
-            <ArrowLeft size={24} />
-          </button>
-        )}
+        <button onClick={onBack} aria-label="Назад" className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-zine-ink cursor-pointer">
+          <ArrowLeft size={24} />
+        </button>
         <h1 className="flex-1 min-w-0 font-serif font-bold text-display text-zine-ink truncate">{T.title}</h1>
       </header>
 
