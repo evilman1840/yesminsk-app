@@ -58,7 +58,7 @@ export const crashText = (who: CrashWho, cause: import('../games/tractors').Caus
 };
 
 export const TRACTOR_TEXTS = {
-  title: 'Минский час пик',
+  title: 'Трактор в Минске',
 
   rulesLines: [
     ['🚜', 'Оставляй борозду.'],
@@ -89,5 +89,27 @@ export const TRACTOR_TEXTS = {
   places: ['🥇', '🥈', '🥉', '🫠'],
   again: 'Ещё матч',
   toGames: 'К играм',
-  toWin: 'до 3 побед'
+  toWin: 'до 3 побед',
+
+  // Меню игр и стартовый экран
+  cardHint: 'Паши борозду, подрезай ботов и не въедь в стелу',
+  homeHint: 'Держи кнопку, чтобы повернуть. Каждый раунд места переезжают. Матч до трёх побед.',
+  badgeNew: 'Новая',
+  play: 'Поехали',
+  statWins: (n: number) => (n === 1 ? 'матч выигран' : n >= 2 && n <= 4 ? 'матча выиграно' : 'матчей выиграно'),
+  statBest: 'дольше всех на ходу',
+  statNemesis: 'твой враг №1',
+  statRoundWins: 'раундов выиграно',
+  statPlace: 'место за сегодня',
+  statPlaceNone: 'рейтинг дня',
+  dayTitle: 'Рейтинг дня',
+  dayEmpty: 'Сегодня ещё никто не играл. Займи первое место!',
+  dayPlayers: (n: number) => `играли ${n} чел.`,
+  dayWins: (n: number) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'победа' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'победы' : 'побед'}`,
+  dayPlace: (n: number) => `Ты ${n}-й в рейтинге дня`,
+  saving: 'Записываем в рейтинг…',
+  nemesis: {
+    border: 'МКАД', river: 'Свислочь', own: 'своя борозда', trail: 'чужие борозды', tractor: 'лобовые',
+    gates: 'Ворота', kostel: 'Костёл', stela: 'Стела', komar: 'Комаровка', almaz: '«Алмаз»'
+  } as Record<string, string>
 };

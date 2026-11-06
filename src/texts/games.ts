@@ -11,6 +11,13 @@ export const plural = (n: number, one: string, few: string, many: string) => {
 
 export const GAME_TEXTS = {
   title: 'Крестики-Нолики',
+  // Меню «Игры» из двух карточек
+  hubTitle: 'Игры',
+  hubLive: 'С живыми людьми',
+  hubHint: 'Играй с людьми из приложения, со знакомым по ссылке или с ботом',
+  hubWins: 'твоих побед',
+  hubSearching: 'ищут соперника',
+  hubMyTurn: 'ждут твой ход',
   subtitle: 'На большом поле 10×10. Собери пять в ряд: по горизонтали, вертикали или наискосок',
 
   // Правила

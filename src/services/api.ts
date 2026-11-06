@@ -1,5 +1,5 @@
 import { telegramService } from './telegram';
-import type { GameView, GameLobby } from '../games/types';
+import type { GameView, GameLobby, GameSummary, TractorMatchResult } from '../games/types';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData, MeetupStats } from '../types';
 
 /**
@@ -581,9 +581,19 @@ class ApiService {
     return this.request<GameView>(`/games/${id}${q}`, { signal: opts.signal }, Boolean(opts.wait));
   }
 
-  // Сыграли с ботом — для статистики автора
-  gameBotPlayed(): void {
-    this.request('/games/bot-played', { method: 'POST' }).catch(() => {});
+  // Сыграли с ботом — для статистики автора и своих побед
+  gameBotPlayed(won: boolean): void {
+    this.request('/games/bot-played', { method: 'POST', body: JSON.stringify({ won }) }).catch(() => {});
+  }
+
+  // Мои победы и рекорды в играх, рейтинг дня по трактору
+  async gameSummary(): Promise<GameSummary> {
+    return this.request<GameSummary>('/games/summary', {}, true);
+  }
+
+  // «Трактор в Минске»: матч закончился. В ответ — свежая сводка с местом в рейтинге дня
+  async tractorMatch(result: TractorMatchResult): Promise<GameSummary> {
+    return this.request<GameSummary>('/games/tractor/match', { method: 'POST', body: JSON.stringify(result) });
   }
 
   async gameMove(id: string, cell: number): Promise<GameView> {

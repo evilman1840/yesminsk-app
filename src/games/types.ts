@@ -47,3 +47,26 @@ export interface GameView {
   players: GamePlayer[];
   updatedAt?: string;
 }
+
+// Мои победы и рекорды в играх (GET /api/games/summary)
+export interface GameSummary {
+  five: { games: number; wins: number };
+  tractor: {
+    games: number;
+    wins: number;
+    rounds: number;
+    roundWins: number;
+    best: number; // дольше всего на ходу в раунде, секунд
+    nemesis: string | null; // обо что чаще всего врезается: 'stela', 'river', 'own'…
+    day: { players: number; myPlace: number | null; top: { place: number; name: string; wins: number; me: boolean }[] };
+  };
+}
+
+// «Трактор в Минске»: итог матча (POST /api/games/tractor/match)
+export interface TractorMatchResult {
+  won: boolean;
+  rounds: number;
+  roundWins: number;
+  best: number;
+  crash: Record<string, number>;
+}

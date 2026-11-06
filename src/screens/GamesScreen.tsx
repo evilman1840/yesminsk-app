@@ -8,9 +8,12 @@ import { shrinkGamesMascot } from '../components/map/GamesMascot';
 import { GameLaunch, FEED_BOT_CELL } from '../components/people/GameReel';
 import { useOpenUser } from '../context/openUser';
 import { GAME_TEXTS as T } from '../texts/games';
-import { GameView, GamePlayer, GameLobby } from '../games/types';
+import { GameView, GamePlayer, GameLobby, GameSummary } from '../games/types';
 import { askBotAccess } from '../services/botAccess';
 import { TractorGame } from '../components/games/TractorGame';
+import { TractorHome } from '../components/games/TractorHome';
+import { GamesHub } from '../components/games/GamesHub';
+import { useIsAdmin } from '../context/admin';
 import { Celebration } from '../components/games/Celebration';
 import { SIZE, emptyBoard, place, winLineAt, botMove, BotLevel } from '../games/five';
 
@@ -38,7 +41,9 @@ const store = {
   }
 };
 
-type Phase = 'menu' | 'search' | 'game' | 'tractor'; // tractor — «Минский час пик»
+// hub — меню из двух игр (пока его видят только админы: трактор на проверке); menu — меню Крестиков-Ноликов;
+// tractorHome и tractor — первый экран и сама игра «Трактор в Минске»
+type Phase = 'hub' | 'menu' | 'search' | 'game' | 'tractorHome' | 'tractor';
 type Pick = 'random' | 'bot' | 'friend';
 
 // ---------- Партия с ботом: та же форма, что у сервера ----------
@@ -87,7 +92,12 @@ export const GamesScreen: React.FC<{
   onPhaseChange?: (phase: 'menu' | 'search' | 'game') => void; // в меню видно нижнее меню, в партии — нет
 }> = ({ initial, onBack, onPhaseChange }) => {
   const openUser = useOpenUser();
-  const [phase, setPhase] = useState<Phase>(initial?.tractor ? 'tractor' : initial?.id || initial?.code || initial?.botCell !== undefined || initial?.search ? 'game' : 'menu');
+  const isAdmin = useIsAdmin();
+  const home: Phase = isAdmin ? 'hub' : 'menu'; // откуда начинается раздел
+  const [phase, setPhase] = useState<Phase>(
+    initial?.tractor ? 'tractorHome' : initial?.id || initial?.code || initial?.botCell !== undefined || initial?.search ? 'game' : home
+  );
+  const [summary, setSummary] = useState<GameSummary | null>(null);
   const [game, setGame] = useState<GameView | null>(null);
   const [incognito, setIncognitoState] = useState(() => store.get('yesminsk_game_incognito', '0') === '1');
   const [level, setLevelState] = useState<BotLevel>(() => (store.get('yesminsk_game_level', 'easy') === 'normal' ? 'normal' : 'easy'));
@@ -209,13 +219,19 @@ export const GamesScreen: React.FC<{
 
   // Мои партии со знакомыми — в меню
   useEffect(() => {
-    if (phase !== 'menu') return;
+    if (phase !== 'menu' && phase !== 'hub') return;
     api.gameMine().then(setMine).catch(() => {});
+  }, [phase]);
+
+  // Мои победы, рекорды и рейтинг дня — для меню из двух игр и первого экрана трактора
+  useEffect(() => {
+    if (phase !== 'hub' && phase !== 'tractorHome') return;
+    api.gameSummary().then(setSummary).catch(() => {});
   }, [phase]);
 
   // Счётчик «сейчас ищут / играют»: обновляем раз в 15 секунд, пока меню на экране
   useEffect(() => {
-    if (phase !== 'menu') return;
+    if (phase !== 'menu' && phase !== 'hub') return;
     const load = () => {
       if (!document.hidden) api.gameLobby().then(setLobby).catch(() => {});
     };
@@ -416,7 +432,7 @@ export const GamesScreen: React.FC<{
   useEffect(() => {
     if (game?.mode === 'bot' && game.status === 'finished' && reportedBot.current !== game.id) {
       reportedBot.current = game.id;
-      api.gameBotPlayed();
+      api.gameBotPlayed(game.winner === game.me);
     }
   }, [game]);
 
@@ -648,8 +664,10 @@ export const GamesScreen: React.FC<{
   // «Назад»: из партии — в меню (живую партию со случайным игроком — только сдавшись), из меню — из игр
   const back = async () => {
     const g = gameRef.current;
-    if (phase === 'tractor') return setPhase('menu');
-    if (phase === 'menu') return onBack();
+    if (phase === 'tractor') return setPhase('tractorHome');
+    if (phase === 'tractorHome') return setPhase(home);
+    if (phase === 'hub') return onBack();
+    if (phase === 'menu') return home === 'hub' ? setPhase('hub') : onBack();
     if (phase === 'search') return cancelCurrent();
     stopBg();
     if (g && g.mode !== 'bot' && g.status === 'active') {
@@ -659,9 +677,9 @@ export const GamesScreen: React.FC<{
     setGame(null);
     setPhase('menu');
   };
-  useBackButton(phase === 'menu' ? null : back); // меню игр — вкладка, «назад» в нём не нужен
+  useBackButton(phase === home ? null : back); // меню игр — вкладка, «назад» в нём не нужен
   useEffect(() => {
-    onPhaseChange?.(phase === 'tractor' ? 'game' : phase);
+    onPhaseChange?.(phase === 'hub' ? 'menu' : phase === 'tractor' || phase === 'tractorHome' ? 'game' : phase);
   }, [phase, onPhaseChange]);
 
   // Главная кнопка: «Ещё партию» после окончания
@@ -682,15 +700,15 @@ export const GamesScreen: React.FC<{
 
   return (
     <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden select-none">
-      {phase !== 'tractor' && (
+      {phase !== 'tractor' && phase !== 'tractorHome' && (
       <header className="shrink-0 px-5 pt-4 pb-2">
         <div className="flex items-center gap-1">
-          {!telegramService.isInsideTelegram() && phase !== 'menu' && (
+          {!telegramService.isInsideTelegram() && phase !== home && (
             <button onClick={back} aria-label="Назад" className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-zine-ink cursor-pointer">
               <ArrowLeft size={24} />
             </button>
           )}
-          <h1 className="flex-1 min-w-0 font-serif font-bold text-display text-zine-ink">{T.title}</h1>
+          <h1 className="flex-1 min-w-0 font-serif font-bold text-display text-zine-ink">{phase === 'hub' ? T.hubTitle : T.title}</h1>
           {phase === 'menu' && (
             <button onClick={openRules} aria-label={T.howToPlay} className="w-11 h-11 -mr-2 rounded-full flex items-center justify-center text-zine-terracotta cursor-pointer active:opacity-70">
               <HelpCircle size={24} />
@@ -788,7 +806,18 @@ export const GamesScreen: React.FC<{
         </main>
       )}
 
-      {phase === 'tractor' && <TractorGame onExit={() => setPhase('menu')} />}
+      {phase === 'hub' && (
+        <GamesHub
+          summary={summary}
+          lobby={lobby}
+          mine={mine}
+          boardArt={<MiniBoardArt className="w-[132px]" />}
+          onFive={() => setPhase('menu')}
+          onTractor={() => setPhase('tractorHome')}
+        />
+      )}
+      {phase === 'tractorHome' && <TractorHome summary={summary} onPlay={() => setPhase('tractor')} onBack={back} />}
+      {phase === 'tractor' && <TractorGame onExit={() => setPhase('tractorHome')} onSaved={setSummary} />}
 
       {phase === 'search' && (
         <main className="flex-1 flex flex-col items-center justify-center px-8 text-center">

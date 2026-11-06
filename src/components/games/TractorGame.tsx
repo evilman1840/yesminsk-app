@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, HelpCircle, CornerUpLeft, CornerUpRight } from 'lucide-react';
 import { telegramService } from '../../services/telegram';
 import { TractorSim, Tractor, Turn, Cause, TRAIL_W, WIN_SCORE, RUSH_AT } from '../../games/tractors';
-import { W, H, drawMap, MapPalette, Layout } from '../../games/tractorMap';
+import { W, H, drawMap, MapPalette, Layout, PLACES } from '../../games/tractorMap';
+import { api } from '../../services/api';
+import { GameSummary } from '../../games/types';
 import { TRACTOR_TEXTS as T, BOTS, crashText, pick, CrashWho } from '../../texts/tractors';
 import { Celebration } from './Celebration';
 
@@ -41,9 +43,9 @@ const store = {
   }
 };
 
-type Palette = MapPalette & { players: string[]; danger: string };
+export type Palette = MapPalette & { players: string[]; danger: string };
 
-function readPalette(): Palette {
+export function readPalette(): Palette {
   const st = getComputedStyle(document.documentElement);
   const raw = (n: string) => st.getPropertyValue(`--c-${n}`).trim().split(/\s+/).map(Number);
   const rgb = (n: string) => {
@@ -95,7 +97,7 @@ const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 };
 
 // Трактор сверху, нос — по +x
-function drawTractor(ctx: CanvasRenderingContext2D, t: Tractor, color: string, pal: Palette) {
+export function drawTractor(ctx: CanvasRenderingContext2D, t: Tractor, color: string, pal: Palette) {
   ctx.save();
   ctx.translate(t.x, t.y);
   ctx.rotate(t.a);
@@ -145,7 +147,7 @@ function drawTractor(ctx: CanvasRenderingContext2D, t: Tractor, color: string, p
 
 type Layers = { map: HTMLCanvasElement; trail: HTMLCanvasElement; res: number; pal: Palette; cw: number; ch: number; dpr: number; layout: Layout | null };
 
-export const TractorGame: React.FC<{ onExit: () => void }> = ({ onExit }) => {
+export const TractorGame: React.FC<{ onExit: () => void; onSaved?: (s: GameSummary) => void }> = ({ onExit, onSaved }) => {
   const matchRef = useRef<Match>(null as unknown as Match);
   if (!matchRef.current) {
     matchRef.current = newMatch();
@@ -171,7 +173,10 @@ export const TractorGame: React.FC<{ onExit: () => void }> = ({ onExit }) => {
   const [matchResult, setMatchResult] = useState<{ title: string; sub: string; win: boolean; key: string } | null>(null);
   const [rush, setRush] = useState(false);
   const rushRef = useRef(false);
-  const [rulesOpen, setRulesOpen] = useState(() => store.get(RULES_KEY) !== '1');
+  const [rulesOpen, setRulesOpen] = useState(false); // правила на первом экране; здесь — только по «?»
+  // Итог матча для рейтинга: раунды, дольше всего на ходу, обо что врезался
+  const stats = useRef({ rounds: 0, best: 0, crash: {} as Record<string, number> });
+  const [dayPlace, setDayPlace] = useState<number | null | 'saving'>(null);
   const rulesRef = useRef(rulesOpen);
   rulesRef.current = rulesOpen;
   const [pressed, setPressed] = useState({ l: false, r: false });
@@ -217,6 +222,8 @@ export const TractorGame: React.FC<{ onExit: () => void }> = ({ onExit }) => {
   const startNewMatch = () => {
     timers.current.forEach(clearTimeout);
     matchRef.current = newMatch();
+    stats.current = { rounds: 0, best: 0, crash: {} };
+    setDayPlace(null);
     setScores([0, 0, 0, 0]);
     setMatchResult(null);
     beginRound();
@@ -258,6 +265,9 @@ export const TractorGame: React.FC<{ onExit: () => void }> = ({ onExit }) => {
         const line = crashText(w[e.id], e.cause as Cause, other);
         lastCrash.current = line;
         if (e.id === 0) {
+          const key = e.cause.k === 'place' ? PLACES[e.cause.place].id : e.cause.k;
+          stats.current.crash[key] = (stats.current.crash[key] || 0) + 1;
+          stats.current.best = Math.max(stats.current.best, s.t);
           telegramService.haptic('error');
           myLine.current = line;
           setMyCrash(line);
@@ -266,6 +276,8 @@ export const TractorGame: React.FC<{ onExit: () => void }> = ({ onExit }) => {
       } else {
         setScores(s.tractors.map((t) => t.score));
         const win = e.winner === 0;
+        stats.current.rounds++;
+        if (win) stats.current.best = Math.max(stats.current.best, s.t);
         setRoundResult({
           title: win ? pick(T.roundWin) : e.winner < 0 ? pick(T.roundDraw) : T.roundLose(s.tractors[e.winner].name),
           // Своя авария важнее; выиграл — расскажем, как вылетел последний соперник
@@ -276,6 +288,16 @@ export const TractorGame: React.FC<{ onExit: () => void }> = ({ onExit }) => {
         if (win) telegramService.haptic('success');
         const champ = s.tractors.find((t) => t.score >= WIN_SCORE);
         if (champ) {
+          // В рейтинг дня: ответ придёт, пока показываем итог раунда
+          setDayPlace('saving');
+          const st = stats.current;
+          api
+            .tractorMatch({ won: champ.id === 0, rounds: st.rounds, roundWins: s.tractors[0].score, best: Math.round(st.best), crash: st.crash })
+            .then((sum) => {
+              onSaved?.(sum);
+              setDayPlace(sum.tractor.day.myPlace);
+            })
+            .catch(() => setDayPlace(null));
           later(1900, () => {
             const iWon = champ.id === 0;
             setMatchResult({
@@ -637,6 +659,11 @@ export const TractorGame: React.FC<{ onExit: () => void }> = ({ onExit }) => {
               </p>
               <p className="mt-2 font-serif font-bold text-title text-zine-ink">{matchResult.title}</p>
               <p className="mt-1 text-sm2 text-zine-inkMuted">{matchResult.sub}</p>
+              {dayPlace !== null && (
+                <p className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zine-mustard/15 text-sm2 font-semibold text-zine-mustardInk">
+                  🏆 {dayPlace === 'saving' ? T.saving : T.dayPlace(dayPlace)}
+                </p>
+              )}
               <div className="mt-3 space-y-1.5">
                 {ranking.map((t, i) => (
                   <div
