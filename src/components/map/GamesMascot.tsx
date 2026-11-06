@@ -1,20 +1,39 @@
 import React, { useState } from 'react';
 import { telegramService } from '../../services/telegram';
 
-// После первой партии или «×» человечки уменьшаются до тихого значка ✕○
+// «×» или сыгранная партия уменьшают человечков до значка ✕○ — только до конца этого захода в приложение.
+// В следующий раз они снова стоят с табличкой и новой фразой
 export const MASCOT_KEY = 'yesminsk_games_mascot';
+const PHRASE_KEY = 'yesminsk_games_mascot_phrase';
+const PHRASES = ['Сыграем?', 'Партейку?', 'Кто кого?', 'Пять в ряд?', 'Скучно? Сыграем!', 'Сыграешь с нами?', 'Минутка на партию?'];
+
 const readSmall = () => {
   try {
-    return localStorage.getItem(MASCOT_KEY) === 'small';
+    return sessionStorage.getItem(MASCOT_KEY) === 'small';
   } catch {
     return false;
   }
 };
 export const shrinkGamesMascot = () => {
   try {
-    localStorage.setItem(MASCOT_KEY, 'small');
+    sessionStorage.setItem(MASCOT_KEY, 'small');
   } catch {
     /* приватный режим — ничего страшного */
+  }
+};
+
+// Фраза на заход: по кругу, чтобы подряд не повторялась; внутри захода не меняется
+const sessionPhrase = () => {
+  try {
+    const cur = sessionStorage.getItem(PHRASE_KEY);
+    if (cur !== null) return PHRASES[Number(cur) % PHRASES.length];
+    const next = (Number(localStorage.getItem(PHRASE_KEY) ?? -1) + 1) % PHRASES.length;
+    localStorage.setItem(PHRASE_KEY, String(next));
+    sessionStorage.setItem(PHRASE_KEY, String(next));
+    localStorage.removeItem(MASCOT_KEY); // раньше «маленькие» запоминались навсегда
+    return PHRASES[next];
+  } catch {
+    return PHRASES[Math.floor(Math.random() * PHRASES.length)];
   }
 };
 
@@ -45,6 +64,7 @@ export const Nought: React.FC<{ size?: number; className?: string }> = ({ size =
  */
 export const GamesMascot: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   const [small, setSmall] = useState(readSmall);
+  const [phrase] = useState(sessionPhrase);
   const open = () => {
     telegramService.haptic('light');
     onOpen();
@@ -68,10 +88,14 @@ export const GamesMascot: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   return (
     <div className="absolute left-3 bottom-[44px] z-20">
       <button onClick={open} aria-label="Сыграть в Крестики-Нолики" className="flex flex-col items-center cursor-pointer active:scale-95 transition-transform">
-        <span className="px-3 py-1 rounded-zine-sm bg-zine-paper text-zine-ink text-sm2 font-bold border-2 border-zine-ink shadow-zine-sm whitespace-nowrap">Сыграем?</span>
-        <span className="mt-0.5 flex items-end gap-1">
-          <Cross />
-          <Nought />
+        <span className="mascot-sign px-3 py-1 rounded-zine-sm bg-zine-paper text-zine-ink text-sm2 font-bold border-2 border-zine-ink shadow-zine-sm whitespace-nowrap">{phrase}</span>
+        <span className="mascot-stroll mt-0.5 flex items-end gap-1">
+          <span className="mascot-sway">
+            <Cross />
+          </span>
+          <span className="mascot-sway mascot-sway-late">
+            <Nought />
+          </span>
         </span>
       </button>
       <button

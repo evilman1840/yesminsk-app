@@ -440,7 +440,7 @@ export const GamesScreen: React.FC<{
   useEffect(() => {
     if (!game || game.status !== 'finished' || celebrated.current === game.id) return;
     celebrated.current = game.id;
-    shrinkGamesMascot(); // сыграл — человечки на карте больше не прыгают
+    shrinkGamesMascot(); // сыграл — до конца захода на карте только значок ✕○
     if (game.reason === 'resign' || game.reason === 'left') return; // кто-то вышел — без салюта
     setCelebrate({ kind: game.winner === -1 ? 'draw' : game.winner === game.me ? 'win' : 'lose', key: game.id });
     if (game.winner === game.me) window.setTimeout(() => telegramService.haptic('heavy'), 250); // второй толчок — «салют»
