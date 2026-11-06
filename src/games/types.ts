@@ -15,6 +15,17 @@ export interface GamePlayer {
 export type GameStatus = 'searching' | 'waiting' | 'active' | 'finished' | 'cancelled';
 export type GameReason = 'win' | 'draw' | 'resign' | 'left' | 'expired';
 
+// Меню игр: живой счётчик
+export interface GameLobby {
+  searching: number;
+  playing: number;
+  today: number;
+  notify: boolean;
+  canMessage: boolean;
+  eveningHour: number;
+  eveningNow: boolean;
+}
+
 export interface GameView {
   id: string;
   game: string;

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Bot, Shuffle, UserPlus, ChevronRight, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Bot, Shuffle, UserPlus, ChevronRight, HelpCircle, Check } from 'lucide-react';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { api } from '../services/api';
 import { telegramService } from '../services/telegram';
@@ -7,7 +7,8 @@ import { useBackButton, useMainButton } from '../hooks/useTelegram';
 import { shrinkGamesMascot } from '../components/map/GamesMascot';
 import { useOpenUser } from '../context/openUser';
 import { GAME_TEXTS as T } from '../texts/games';
-import { GameView, GamePlayer } from '../games/types';
+import { GameView, GamePlayer, GameLobby } from '../games/types';
+import { askBotAccess } from '../services/botAccess';
 import { SIZE, emptyBoard, place, winLineAt, botMove, BotLevel } from '../games/five';
 
 /**
@@ -35,6 +36,7 @@ const store = {
 };
 
 type Phase = 'menu' | 'search' | 'game';
+type Pick = 'random' | 'bot' | 'friend';
 
 // ---------- Партия с ботом: та же форма, что у сервера ----------
 
@@ -87,6 +89,19 @@ export const GamesScreen: React.FC<{
   const [incognito, setIncognitoState] = useState(() => store.get('yesminsk_game_incognito', '0') === '1');
   const [level, setLevelState] = useState<BotLevel>(() => (store.get('yesminsk_game_level', 'easy') === 'normal' ? 'normal' : 'easy'));
   const [mine, setMine] = useState<GameView[]>([]);
+  // С кем играем: выбор в меню запоминаем
+  const [pick, setPickState] = useState<Pick>(() => {
+    const v = store.get('yesminsk_game_pick', 'random');
+    return v === 'bot' || v === 'friend' ? v : 'random';
+  });
+  const [lobby, setLobby] = useState<GameLobby | null>(null);
+  // Ищем живого соперника, пока идёт партия с ботом; нашёлся — предлагаем перейти
+  const [bgSearch, setBgSearch] = useState<GameView | null>(null);
+  const [found, setFound] = useState<GameView | null>(null);
+  const [foundLeft, setFoundLeft] = useState<number | null>(null);
+  const foundRef = useRef<GameView | null>(null);
+  foundRef.current = found;
+  const incognitoRef = useRef(false);
   const [searchStarted, setSearchStarted] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
@@ -115,6 +130,12 @@ export const GamesScreen: React.FC<{
   const rematchGone =
     rematchAsked410 || Boolean(game && game.mode !== 'bot' && game.status === 'finished' && (game.reason === 'left' || game.reason === 'resign'));
 
+  incognitoRef.current = incognito;
+  const setPick = (v: Pick) => {
+    telegramService.haptic('selection');
+    setPickState(v);
+    store.set('yesminsk_game_pick', v);
+  };
   const setIncognito = (v: boolean) => {
     telegramService.haptic('selection');
     setIncognitoState(v);
@@ -172,6 +193,41 @@ export const GamesScreen: React.FC<{
     if (phase !== 'menu') return;
     api.gameMine().then(setMine).catch(() => {});
   }, [phase]);
+
+  // Счётчик «сейчас ищут / играют»: обновляем раз в 15 секунд, пока меню на экране
+  useEffect(() => {
+    if (phase !== 'menu') return;
+    const load = () => {
+      if (!document.hidden) api.gameLobby().then(setLobby).catch(() => {});
+    };
+    load();
+    const t = window.setInterval(load, 15000);
+    document.addEventListener('visibilitychange', load);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener('visibilitychange', load);
+    };
+  }, [phase]);
+
+  const toggleNotify = async () => {
+    const on = !lobby?.notify;
+    telegramService.haptic('selection');
+    if (on && !(await askBotAccess(true))) {
+      telegramService.alert(T.notifyNeedBot);
+      return;
+    }
+    setLobby((l) => (l ? { ...l, notify: on } : l));
+    try {
+      await api.gameNotify(on);
+      if (on) {
+        telegramService.haptic('success');
+        telegramService.alert(T.notifyOn);
+      }
+    } catch (e) {
+      setLobby((l) => (l ? { ...l, notify: !on } : l));
+      fail(e);
+    }
+  };
 
   // Опрос сервера «долгим запросом»: сервер отвечает, как только соперник сходил, подобрался соперник или
   // кто-то нажал «Ещё партию». Пока приложение свёрнуто — не спрашиваем (в живой партии соперник через 45 секунд
@@ -231,16 +287,21 @@ export const GamesScreen: React.FC<{
 
   // Закрыл приложение — партия завершается сразу, свернул — сервер подождёт 15 секунд.
   // Поиск при закрытии тоже отменяем. Приглашение оставляем: знакомый может открыть ссылку позже
+  // Фоновый поиск во время партии с ботом — так же: закрыл — поиск отменён, нашёлся и свернул — пауза
   const liveId = game && game.mode !== 'bot' && (game.status === 'active' || game.status === 'searching') ? game.id : null;
+  const bgId = found?.id || bgSearch?.id || null;
   useEffect(() => {
-    if (!liveId) return;
+    if (!liveId && !bgId) return;
     const onHide = () => {
+      if (!document.hidden) return;
       const g = gameRef.current;
-      if (document.hidden && g?.id === liveId && g.status === 'active') api.gameAway(liveId).catch(() => {});
+      if (liveId && g?.id === liveId && g.status === 'active') api.gameAway(liveId).catch(() => {});
+      if (bgId && foundRef.current?.id === bgId) api.gameAway(bgId).catch(() => {});
     };
     const onClose = () => {
       const g = gameRef.current;
-      if (g?.id === liveId && (g.status === 'active' || g.status === 'searching')) api.gameLeave(liveId, true).catch(() => {});
+      if (liveId && g?.id === liveId && (g.status === 'active' || g.status === 'searching')) api.gameLeave(liveId, true).catch(() => {});
+      if (bgId) api.gameLeave(bgId, true).catch(() => {});
     };
     document.addEventListener('visibilitychange', onHide);
     window.addEventListener('pagehide', onClose);
@@ -248,7 +309,88 @@ export const GamesScreen: React.FC<{
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('pagehide', onClose);
     };
-  }, [liveId]);
+  }, [liveId, bgId]);
+
+  // Фоновый поиск: долгий опрос своей заявки. Пока приложение свёрнуто — не спрашиваем; заявка за это время
+  // устаревает, и, вернувшись, ищем заново
+  useEffect(() => {
+    if (!bgId) return;
+    const ctrl = new AbortController();
+    let stop = false;
+    const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
+    (async () => {
+      let v = (foundRef.current?.id === bgId ? foundRef.current?.v : undefined) ?? 0;
+      while (!stop) {
+        if (document.hidden) {
+          await sleep(1000);
+          continue;
+        }
+        try {
+          const next = await api.gameGet(bgId, { since: v, wait: true, signal: ctrl.signal });
+          if (stop) break;
+          v = next.v ?? v;
+          if (next.status === 'active') {
+            if (!foundRef.current) telegramService.haptic('success');
+            setFound(next);
+            setBgSearch(null);
+          } else if (next.status !== 'searching') {
+            // Заявка устарела или соперник ушёл, пока мы решали, — ищем заново
+            const again = await api.gameSearch(incognitoRef.current).catch(() => null);
+            if (stop) break;
+            setFound(again?.status === 'active' ? again : null);
+            setBgSearch(again?.status === 'searching' ? again : null);
+            break;
+          }
+        } catch {
+          if (stop) break;
+          await sleep(3000);
+        }
+      }
+    })();
+    return () => {
+      stop = true;
+      ctrl.abort();
+    };
+  }, [bgId]);
+
+  // Соперник нашёлся: партия с ботом не начата или уже кончилась — переходим сразу, иначе через 10 секунд
+  const switchToFound = useCallback(() => {
+    const f = foundRef.current;
+    if (!f) return;
+    setFound(null);
+    setBgSearch(null);
+    setFoundLeft(null);
+    telegramService.haptic('medium');
+    receive(f);
+  }, [receive]);
+  useEffect(() => {
+    if (!found) return;
+    const g = gameRef.current;
+    if (!g || g.mode !== 'bot' || g.status !== 'active' || g.moves === 0) {
+      switchToFound();
+      return;
+    }
+    setFoundLeft(10);
+    const t = window.setInterval(() => setFoundLeft((s) => (s === null ? s : s - 1)), 1000);
+    return () => window.clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [found?.id]);
+  useEffect(() => {
+    if (foundLeft !== null && foundLeft <= 0) switchToFound();
+  }, [foundLeft, switchToFound]);
+
+  // Хватит искать: отменяем заявку (или найденную партию — соперник увидит «вышел из игры»)
+  const stopBg = () => {
+    const id = foundRef.current?.id || bgSearch?.id;
+    if (id) api.gameLeave(id).catch(() => {});
+    setFound(null);
+    setBgSearch(null);
+    setFoundLeft(null);
+  };
+  const stayWithBot = () => {
+    telegramService.haptic('light');
+    stopBg();
+  };
 
   // Партия с ботом закончилась — в статистику автора
   const reportedBot = useRef('');
@@ -306,10 +448,10 @@ export const GamesScreen: React.FC<{
 
   // Часы поиска
   useEffect(() => {
-    if (phase !== 'search') return;
+    if (phase !== 'search' && !bgSearch) return;
     const t = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(t);
-  }, [phase]);
+  }, [phase, bgSearch]);
 
   // ---------- Действия ----------
 
@@ -321,19 +463,34 @@ export const GamesScreen: React.FC<{
     setPhase('game');
   };
 
+  // Живой соперник: кто-то уже ждёт — сразу партия; никого — играем с ботом, а поиск идёт фоном
   const startSearch = async () => {
     telegramService.haptic('medium');
     setBusy(true);
     setSearchStarted(Date.now());
     setNow(Date.now());
     try {
-      receive(await api.gameSearch(incognito));
+      const g = await api.gameSearch(incognito);
+      if (g.status !== 'searching') {
+        receive(g);
+        return;
+      }
+      setFound(null);
+      setBgSearch(g);
+      const cur = gameRef.current;
+      if (!(cur?.mode === 'bot' && cur.status === 'active')) startBot(cur?.mode === 'bot' ? cur : null);
     } catch (e) {
       fail(e);
-      setPhase('menu');
     } finally {
       setBusy(false);
     }
+  };
+
+  const playPicked = () => {
+    if (busy) return;
+    if (pick === 'bot') return startBot();
+    if (pick === 'friend') return startInvite();
+    return startSearch();
   };
 
   const startInvite = async () => {
@@ -440,6 +597,7 @@ export const GamesScreen: React.FC<{
     const g = gameRef.current;
     if (phase === 'menu') return onBack();
     if (phase === 'search') return cancelCurrent();
+    stopBg();
     if (g && g.mode !== 'bot' && g.status === 'active') {
       if (!(await telegramService.confirm(T.leaveLive, { okText: T.leaveYes, destructive: true }))) return;
       api.gameLeave(g.id).catch(() => {});
@@ -456,76 +614,89 @@ export const GamesScreen: React.FC<{
   const finished = game?.status === 'finished';
   const iAskedRematch = Boolean(game && game.mode !== 'bot' && game.players[game.me]?.rematch && !game.nextId);
   const mainText = rematchGone ? (game?.mode === 'invite' ? T.inviteAgain : T.findNew) : iAskedRematch ? T.againWaiting : T.again;
+  // В меню та же кнопка — «Играть» с тем, кого выбрали
+  const inMenu = phase === 'menu';
   const isNativeMain = useMainButton({
-    text: mainText,
-    onClick: again,
-    enabled: !iAskedRematch && !(blockedDone && game?.mode === 'invite'),
-    loading: iAskedRematch,
-    active: phase === 'game' && finished && !(blockedDone && game?.mode === 'invite')
+    text: inMenu ? T.play : mainText,
+    onClick: inMenu ? playPicked : again,
+    enabled: inMenu ? !busy : !iAskedRematch && !(blockedDone && game?.mode === 'invite'),
+    loading: inMenu ? busy : iAskedRematch,
+    active: inMenu || (phase === 'game' && finished && !(blockedDone && game?.mode === 'invite'))
   });
 
   // ---------- Вид ----------
 
   return (
     <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden select-none">
-      <header className="shrink-0 px-5 pt-5 pb-2">
+      <header className="shrink-0 px-5 pt-4 pb-2">
         <div className="flex items-center gap-1">
           {!telegramService.isInsideTelegram() && phase !== 'menu' && (
             <button onClick={back} aria-label="Назад" className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-zine-ink cursor-pointer">
               <ArrowLeft size={24} />
             </button>
           )}
-          <h1 className="font-serif font-bold text-display text-zine-ink">{T.title}</h1>
-        </div>
-        {phase === 'menu' && (
-          <>
-            <p className="mt-1 text-sm2 text-zine-inkMuted">{T.subtitle}</p>
-            <button onClick={openRules} className="mt-2 -ml-1 h-10 px-2 inline-flex items-center gap-1.5 rounded-full text-zine-terracotta text-sm2 font-bold cursor-pointer active:opacity-70">
-              <HelpCircle size={18} /> {T.howToPlay}
+          <h1 className="flex-1 min-w-0 font-serif font-bold text-display text-zine-ink">{T.title}</h1>
+          {phase === 'menu' && (
+            <button onClick={openRules} aria-label={T.howToPlay} className="w-11 h-11 -mr-2 rounded-full flex items-center justify-center text-zine-terracotta cursor-pointer active:opacity-70">
+              <HelpCircle size={24} />
             </button>
-          </>
-        )}
+          )}
+        </div>
       </header>
 
       {phase === 'menu' && (
-        <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">
-          <MiniBoardArt />
+        <main className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
+          {/* Что за игра: маленькая картинка поля и одна строка; нажал — правила */}
+          <button onClick={openRules} className="w-full p-2.5 rounded-zine bg-zine-cardElevated border border-zine-border flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform">
+            <MiniBoardArt className="w-14 shrink-0" />
+            <span className="flex-1 min-w-0 text-body text-zine-ink">{T.intro}</span>
+          </button>
 
-          {/* С ботом */}
-          <section className="rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-sm overflow-hidden">
-            <MenuRow icon={<Bot size={22} />} title={T.withBot} hint={T.withBotHint} onClick={() => startBot()} />
-            <div className="px-4 pb-3 flex gap-2">
-              {(['easy', 'normal'] as BotLevel[]).map((l) => (
-                <button
-                  key={l}
-                  onClick={() => setLevel(l)}
-                  className={`h-9 px-3.5 rounded-full text-sm2 font-semibold border cursor-pointer active:scale-95 transition-transform ${
-                    level === l ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-transparent text-zine-ink border-zine-border'
-                  }`}
-                >
-                  {l === 'easy' ? T.levelEasy : T.levelNormal}
-                </button>
-              ))}
+          <LobbyCard lobby={lobby} onToggleNotify={toggleNotify} />
+
+          {/* С кем играем: выбрал — и одна кнопка «Играть» внизу */}
+          <section>
+            <h2 className="px-1 mb-2 text-cap font-bold uppercase tracking-wide text-zine-inkMuted">{T.whoPlays}</h2>
+            <div className="space-y-2" role="radiogroup" aria-label={T.whoPlays}>
+              <PickRow icon={<Shuffle size={22} />} title={T.pickRandom} hint={T.pickRandomHint} selected={pick === 'random'} onClick={() => setPick('random')} />
+              <PickRow icon={<Bot size={22} />} title={T.pickBot} hint={T.pickBotHint} selected={pick === 'bot'} onClick={() => setPick('bot')}>
+                {pick === 'bot' && (
+                  <div className="px-3 pb-3 -mt-1 flex gap-2">
+                    {(['easy', 'normal'] as BotLevel[]).map((l) => (
+                      <button
+                        key={l}
+                        onClick={() => setLevel(l)}
+                        className={`h-9 px-3.5 rounded-full text-sm2 font-semibold border cursor-pointer active:scale-95 transition-transform ${
+                          level === l ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-transparent text-zine-ink border-zine-border'
+                        }`}
+                      >
+                        {l === 'easy' ? T.levelEasy : T.levelNormal}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </PickRow>
+              <PickRow icon={<UserPlus size={22} />} title={T.pickFriend} hint={T.pickFriendHint} selected={pick === 'friend'} onClick={() => setPick('friend')} />
             </div>
           </section>
 
-          {/* С людьми */}
-          <section className="rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-sm overflow-hidden">
-            <MenuRow icon={<Shuffle size={22} />} title={T.withRandom} hint={T.withRandomHint} onClick={startSearch} disabled={busy} />
-            <div className="ml-14 border-t border-zine-border" />
-            <MenuRow icon={<UserPlus size={22} />} title={T.withFriend} hint={T.withFriendHint} onClick={startInvite} disabled={busy} />
-            <div className="border-t border-zine-border" />
-            <button onClick={() => setIncognito(!incognito)} className="w-full px-4 py-3.5 flex items-start gap-3 text-left cursor-pointer" role="switch" aria-checked={incognito}>
-              <span className="w-8 shrink-0 text-[22px] leading-7 text-center">🕶</span>
+          {/* Инкогнито — для игр с людьми */}
+          {pick !== 'bot' && (
+            <button onClick={() => setIncognito(!incognito)} className="w-full px-3 py-2.5 rounded-zine bg-zine-cardElevated border border-zine-border flex items-center gap-3 text-left cursor-pointer" role="switch" aria-checked={incognito}>
+              <span className="w-8 shrink-0 text-[20px] leading-7 text-center">🕶</span>
               <span className="flex-1 min-w-0">
                 <span className="block text-body font-bold text-zine-ink">{T.incognito}</span>
-                <span className="block mt-0.5 text-cap text-zine-inkMuted">{incognito ? T.incognitoOn : T.incognitoOff}</span>
+                <span className="block text-cap text-zine-inkMuted">{incognito ? T.incognitoShortOn : T.incognitoShortOff}</span>
               </span>
-              <span className={`mt-1 w-12 h-7 shrink-0 rounded-full p-0.5 transition-colors ${incognito ? 'bg-zine-terracotta' : 'bg-zine-border'}`}>
-                <span className={`block w-6 h-6 rounded-full bg-white shadow-zine-sm transition-transform ${incognito ? 'translate-x-5' : ''}`} />
-              </span>
+              <Toggle on={incognito} />
             </button>
-          </section>
+          )}
+
+          {!isNativeMain && (
+            <button onClick={playPicked} disabled={busy} className="w-full h-12 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer disabled:opacity-60 active:scale-[0.98] transition-transform">
+              {T.play}
+            </button>
+          )}
 
           {/* Партии со знакомыми */}
           {mine.length > 0 && (
@@ -589,6 +760,15 @@ export const GamesScreen: React.FC<{
 
       {phase === 'game' && game && (
         <main className="flex-1 overflow-y-auto px-3 pb-4 flex flex-col">
+          {game.mode === 'bot' && (bgSearch || found) && (
+            <SearchBanner
+              found={found}
+              elapsed={now - searchStarted}
+              left={foundLeft}
+              onCancel={stayWithBot}
+              onGo={switchToFound}
+            />
+          )}
           <PlayersBar game={game} bubble={bubble} onOpen={(id) => openUser(id)} />
 
           <div className="mt-1 mb-2 h-6 text-center text-sm2 font-semibold">
@@ -646,6 +826,7 @@ export const GamesScreen: React.FC<{
               onAgain={again}
               onOther={startSearch}
               onMenu={() => {
+                stopBg();
                 setGame(null);
                 setPhase('menu');
               }}
@@ -718,23 +899,107 @@ const formatElapsed = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
-const MenuRow: React.FC<{ icon: React.ReactNode; title: string; hint: string; onClick: () => void; disabled?: boolean }> = ({ icon, title, hint, onClick, disabled }) => (
-  <button onClick={onClick} disabled={disabled} className="w-full min-h-[64px] px-4 py-3 flex items-center gap-3 text-left cursor-pointer active:bg-zine-card disabled:opacity-60">
-    <span className="w-8 h-8 shrink-0 flex items-center justify-center text-zine-terracotta">{icon}</span>
-    <span className="flex-1 min-w-0">
-      <span className="block text-body font-bold text-zine-ink">{title}</span>
-      <span className="block text-cap text-zine-inkMuted">{hint}</span>
-    </span>
-    <ChevronRight size={20} className="text-zine-inkMuted shrink-0" />
-  </button>
+const Toggle: React.FC<{ on: boolean }> = ({ on }) => (
+  <span className={`w-12 h-7 shrink-0 rounded-full p-0.5 transition-colors ${on ? 'bg-zine-terracotta' : 'bg-zine-border'}`}>
+    <span className={`block w-6 h-6 rounded-full bg-white shadow-zine-sm transition-transform ${on ? 'translate-x-5' : ''}`} />
+  </span>
 );
 
+// Выбор соперника: карточка с отметкой; у бота под ней — уровень
+const PickRow: React.FC<{ icon: React.ReactNode; title: string; hint: string; selected: boolean; onClick: () => void; children?: React.ReactNode }> = ({
+  icon,
+  title,
+  hint,
+  selected,
+  onClick,
+  children
+}) => (
+  <div className={`rounded-zine bg-zine-cardElevated border-2 transition-colors ${selected ? 'border-zine-terracotta' : 'border-zine-border'}`}>
+    <button onClick={onClick} role="radio" aria-checked={selected} className="w-full min-h-[60px] px-3 py-2.5 flex items-center gap-3 text-left cursor-pointer">
+      <span className={`w-10 h-10 shrink-0 rounded-zine-sm flex items-center justify-center ${selected ? 'bg-zine-terracotta text-white' : 'bg-zine-terracotta/10 text-zine-terracotta'}`}>{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-body font-bold text-zine-ink">{title}</span>
+        <span className="block text-cap text-zine-inkMuted">{hint}</span>
+      </span>
+      <span className={`w-6 h-6 shrink-0 rounded-full border-2 flex items-center justify-center ${selected ? 'bg-zine-terracotta border-zine-terracotta text-white' : 'border-zine-border'}`}>
+        {selected && <Check size={14} strokeWidth={3} />}
+      </span>
+    </button>
+    {children}
+  </div>
+);
+
+// Сколько людей сейчас в играх. Нуля не показываем: тогда — сколько партий сыграли сегодня
+const LobbyCard: React.FC<{ lobby: GameLobby | null; onToggleNotify: () => void }> = ({ lobby, onToggleNotify }) => {
+  const live = lobby ? (lobby.searching > 0 ? T.liveSearching(lobby.searching) : lobby.playing > 0 ? T.livePlaying(lobby.playing) : '') : '';
+  const line = !lobby ? '…' : live || (lobby.today > 0 ? T.liveToday(lobby.today) : T.liveFirst);
+  return (
+    <section className={`rounded-zine border overflow-hidden ${live ? 'bg-zine-sage/15 border-zine-sage/40' : 'bg-zine-cardElevated border-zine-border'}`}>
+      <div className="px-3.5 pt-3 pb-2.5">
+        <p className="flex items-center gap-2 text-body font-bold text-zine-ink">
+          {live && <span className="relative w-2.5 h-2.5 shrink-0 rounded-full bg-zine-sage game-live-dot" aria-hidden />}
+          <span className="min-w-0">{line}</span>
+        </p>
+        {lobby && <p className="mt-0.5 text-cap text-zine-inkMuted">{lobby.eveningNow ? T.eveningNow : T.eveningLater(lobby.eveningHour)}</p>}
+      </div>
+      {lobby && (
+        <button onClick={onToggleNotify} role="switch" aria-checked={lobby.notify} className="w-full px-3.5 py-2.5 border-t border-zine-border/70 flex items-center gap-3 text-left cursor-pointer">
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm2 font-semibold text-zine-ink">{T.notifyMe}</span>
+            <span className="block text-cap text-zine-inkMuted">{T.notifyHint}</span>
+          </span>
+          <Toggle on={lobby.notify} />
+        </button>
+      )}
+    </section>
+  );
+};
+
+// Партия с ботом, а фоном ищем человека: плашка сверху; нашёлся — «Играть с ним»
+const SearchBanner: React.FC<{ found: GameView | null; elapsed: number; left: number | null; onCancel: () => void; onGo: () => void }> = ({ found, elapsed, left, onCancel, onGo }) => {
+  if (!found) {
+    return (
+      <div className="mb-2 h-11 px-3 rounded-zine-sm bg-zine-card flex items-center gap-2 text-sm2">
+        <span className="relative w-2.5 h-2.5 shrink-0 rounded-full bg-zine-sage game-live-dot" aria-hidden />
+        <span className="flex-1 min-w-0 truncate text-zine-ink font-semibold">{T.bgSearching}</span>
+        <span className="tabular-nums text-zine-inkMuted">{formatElapsed(elapsed)}</span>
+        <button onClick={onCancel} className="h-9 px-2 -mr-1 text-zine-inkMuted font-semibold cursor-pointer">
+          {T.bgCancel}
+        </button>
+      </div>
+    );
+  }
+  const opp = found.players[1 - found.me];
+  return (
+    <div className="mb-2 p-3 rounded-zine bg-zine-sage/15 border border-zine-sage/50 fade-swap">
+      <div className="flex items-center gap-2.5">
+        <Avatar player={opp} size={36} />
+        <span className="flex-1 min-w-0">
+          <span className="block text-body font-bold text-zine-ink">🎉 {T.bgFound}</span>
+          <span className="block text-cap text-zine-inkMuted truncate">
+            {opp?.name}
+            {left !== null && left > 0 ? ` · ${T.bgFoundAuto(left)}` : ''}
+          </span>
+        </span>
+      </div>
+      <div className="mt-2.5 grid grid-cols-2 gap-2">
+        <button onClick={onCancel} className="h-10 rounded-full border border-zine-border text-zine-ink text-sm2 font-semibold cursor-pointer">
+          {T.bgFoundStay}
+        </button>
+        <button onClick={onGo} className="h-10 rounded-full bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer active:scale-[0.98] transition-transform">
+          {T.bgFoundGo}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Картинка в меню: кусочек поля с пятью в ряд
-const MiniBoardArt: React.FC = () => {
+const MiniBoardArt: React.FC<{ className?: string }> = ({ className = 'mx-auto w-40' }) => {
   const xs = [12, 23, 34, 45, 56];
   const os = [13, 24, 33, 44, 22];
   return (
-    <div className="mx-auto w-40 grid grid-cols-7 gap-px rounded-zine-sm overflow-hidden bg-zine-border border border-zine-border" aria-hidden>
+    <div className={`${className} grid grid-cols-7 gap-px rounded-zine-sm overflow-hidden bg-zine-border border border-zine-border`} aria-hidden>
       {Array.from({ length: 49 }, (_, i) => {
         const r = Math.floor(i / 7), c = i % 7;
         const id = r * 10 + c + 1;

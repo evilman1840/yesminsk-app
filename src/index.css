@@ -179,8 +179,21 @@ textarea.field {
 .game-hop-late {
   animation-delay: 0.18s;
 }
+/* Игры: «сейчас ищут» — зелёная точка мягко расходится кольцом */
+.game-live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: rgb(var(--c-sage));
+  animation: game-live 1.8s ease-out infinite;
+}
+@keyframes game-live {
+  from { transform: scale(1); opacity: 0.6; }
+  to { transform: scale(2.6); opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .tab-draw, .tab-wiggle, .heartbeat, .fade-swap, .mine-pulse, .game-hop { animation: none; }
+  .tab-draw, .tab-wiggle, .heartbeat, .fade-swap, .mine-pulse, .game-hop, .game-live-dot::after { animation: none; }
   .mine-pulse { box-shadow: 0 0 0 3px rgb(var(--c-mustard)); }
   .tab-draw { opacity: 0; }
 }

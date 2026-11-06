@@ -1341,7 +1341,7 @@ export const App: React.FC = () => {
             )}
           </div>
 
-          {isTab && isMeLoaded && currentScreen !== 'profile_edit' && <NoticeBar notices={notices} />}
+          {isTab && isMeLoaded && currentScreen !== 'profile_edit' && currentScreen !== 'games' && <NoticeBar notices={notices} />}
 
           {isTab && (
             <TabBar

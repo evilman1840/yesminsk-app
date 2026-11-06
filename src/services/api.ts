@@ -1,5 +1,5 @@
 import { telegramService } from './telegram';
-import type { GameView } from '../games/types';
+import type { GameView, GameLobby } from '../games/types';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData, MeetupStats } from '../types';
 
 /**
@@ -597,6 +597,15 @@ class ApiService {
   // keepalive — запрос дойдёт, даже если приложение закрывают прямо сейчас
   async gameLeave(id: string, keepalive = false): Promise<GameView> {
     return this.request<GameView>(`/games/${id}/leave`, { method: 'POST', keepalive }, keepalive);
+  }
+
+  // Меню игр: сколько людей ищут и играют, звать ли меня
+  async gameLobby(): Promise<GameLobby> {
+    return this.request<GameLobby>('/games/lobby', {}, true);
+  }
+
+  async gameNotify(on: boolean): Promise<{ notify: boolean }> {
+    return this.request('/games/notify', { method: 'POST', body: JSON.stringify({ on }) });
   }
 
   // Свернул приложение: если не вернёшься за 15 секунд, партия закроется
