@@ -8,7 +8,7 @@ import { Cross, Nought } from '../map/GamesMascot';
 /**
  * «Сыграем?» между анкетами. Три вида, случайно: человечки зовут, «сделай ход прямо тут»
  * и «кто-то ищет соперника» (только когда кто-то правда ищет).
- * Один раз за ленту; «Не показывать» — на 3 дня; кто играл в последний час — не показываем.
+ * До трёх раз за ленту (после 7-й, 17-й и 32-й анкеты); «Не показывать» — на 3 дня; кто играл в последний час — не показываем.
  * Хранится в браузере: это удобство, а не правило
  */
 
@@ -43,16 +43,24 @@ const OFFSET = 2;
 export const FEED_BOT_CELL = (OFFSET + 2) * 10 + (OFFSET + 2); // 44
 const toCell = (i: number) => (Math.floor(i / MINI) + OFFSET) * 10 + (i % MINI) + OFFSET;
 
-type Kind = 'mascots' | 'move' | 'waiting';
+export type GameReelKind = 'mascots' | 'move' | 'waiting';
+type Kind = GameReelKind;
 
-export const GameReel: React.FC<{ onPlay: (launch: GameLaunch) => void; onHide: () => void }> = ({ onPlay, onHide }) => {
+// Порядок видов на ленту: все три по разу. «Кто-то ищет» — только первой или последней:
+// если никто не ищет, её заменит вид, отличный от средней, и соседние карточки не повторятся
+export const gameReelOrder = (): Kind[] => {
+  const two: Kind[] = Math.random() < 0.5 ? ['mascots', 'move'] : ['move', 'mascots'];
+  return Math.random() < 0.5 ? ['waiting', ...two] : [...two, 'waiting'];
+};
+
+export const GameReel: React.FC<{ kind?: Kind; fallback?: Kind; onPlay: (launch: GameLaunch) => void; onHide: () => void }> = ({ kind, fallback: fallbackKind, onPlay, onHide }) => {
   const [lobby, setLobby] = useState<GameLobby | null>(null);
   useEffect(() => {
     api.gameLobby().then(setLobby).catch(() => {});
   }, []);
   // Вид выбираем один раз; «кто-то ищет» — только если и правда ищут, иначе один из двух других
-  const [pick] = useState<Kind>(() => (['mascots', 'move', 'waiting'] as Kind[])[Math.floor(Math.random() * 3)]);
-  const [fallback] = useState<Kind>(() => (Math.random() < 0.5 ? 'mascots' : 'move'));
+  const [pick] = useState<Kind>(() => kind || (['mascots', 'move', 'waiting'] as Kind[])[Math.floor(Math.random() * 3)]);
+  const [fallback] = useState<Kind>(() => fallbackKind || (Math.random() < 0.5 ? 'mascots' : 'move'));
   const shown: Kind = pick === 'waiting' && !(lobby && lobby.searching > 0) ? fallback : pick;
 
   const play = (launch: GameLaunch) => {

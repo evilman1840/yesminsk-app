@@ -17,7 +17,7 @@ import { PactReel, pactPlan, isPactSlot } from '../components/people/PactReel';
 import { CreateMeetupReel, isMeetupSlot, peopleMeetupsAllowed, pickPeopleMeetups, pickCreateWish, notePeopleMeetupHidden, notePeopleMeetupJoined } from '../components/people/MeetupSlot';
 import { EventReel, markNotInterestedEvent } from './EventsScreen';
 import { JoinSheet } from '../components/common/JoinSheet';
-import { GameReel, GameLaunch, gameReelAllowed } from '../components/people/GameReel';
+import { GameReel, GameLaunch, gameReelAllowed, gameReelOrder } from '../components/people/GameReel';
 import { MEETUP_TEXTS } from '../texts/meetups';
 import { api } from '../services/api';
 import {
@@ -135,7 +135,10 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     return feedMeetups[k] || (k === feedMeetups.length ? 'create' : null);
   };
   // «Сыграем?» — один раз за ленту, примерно после 7-й анкеты: первое свободное место после 7–10-й
-  const [gameOn, setGameOn] = useState(() => Boolean(onPlayGame) && gameReelAllowed());
+  const [gameOn] = useState(() => Boolean(onPlayGame) && gameReelAllowed());
+  // «Не показывать»: убираем эту карточку и все дальше; те, что выше, остаются, чтобы лента не прыгала
+  const [gameHiddenFrom, setGameHiddenFrom] = useState(Infinity);
+  const [gameKinds] = useState(gameReelOrder);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   // Цель встречи выбирается в той же шторке — считаем её вместе с фильтрами
   const activeFilters = countActiveFilters(filters) + Number(selectedGoal !== 'all');
@@ -152,12 +155,19 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   const nearbyFiltered = applyPeopleFilters(users, filters, myPrefs);
   const tabUsers = tab === 'likes' ? likedMe : tab === 'matches' ? matches : nearbyFiltered;
   const filteredUsers = tabUsers.filter((u) => matchesGoalFilter(u, selectedGoal));
-  const gameSlot = (() => {
-    if (tab !== 'all' || !gameOn) return -1;
-    for (let i = 6; i <= 9 && i <= filteredUsers.length - 2; i++) {
-      if (wishSlotAt(i) === null && !isPactAt(i) && meetupSlotAt(i) === null) return i;
+  // «Сыграем?» после 7-й анкеты, потом через 10, потом через 15, и хватит
+  const gameSlots = (() => {
+    if (tab !== 'all' || !gameOn) return [];
+    const slots: number[] = [];
+    for (const target of [6, 16, 31]) {
+      for (let i = target; i <= target + 3 && i <= filteredUsers.length - 2; i++) {
+        if (wishSlotAt(i) === null && !isPactAt(i) && meetupSlotAt(i) === null) {
+          if (i < gameHiddenFrom) slots.push(i);
+          break;
+        }
+      }
     }
-    return -1;
+    return slots;
   })();
   const guidesCount = users.filter((u) => u.isGuide).length;
 
@@ -174,7 +184,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
     if (index >= 0 && list) {
       setScrollToUser(null);
       // Карточки «Хочу сходить» выше анкеты тоже занимают по экрану
-      const extraCards = filteredUsers.slice(0, index).reduce((n, _, i) => n + Number(wishSlotAt(i) !== null) + Number(isPactAt(i)) + Number(meetupSlotAt(i) !== null) + Number(i === gameSlot), 0);
+      const extraCards = filteredUsers.slice(0, index).reduce((n, _, i) => n + Number(wishSlotAt(i) !== null) + Number(isPactAt(i)) + Number(meetupSlotAt(i) !== null) + Number(gameSlots.includes(i)), 0);
       list.scrollTo({ top: (index + extraCards + (hasIntroRef.current ? 1 : 0)) * list.clientHeight });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -333,7 +343,9 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               }}
             />
             {isPactAt(index) && <PactReel onAgree={() => setPactAgreedAt(index)} />}
-            {index === gameSlot && onPlayGame && <GameReel onPlay={onPlayGame} onHide={() => setGameOn(false)} />}
+            {onPlayGame && gameSlots.includes(index) && (
+              <GameReel kind={gameKinds[[6, 16, 31].findIndex((t) => index >= t && index <= t + 3)]} fallback={gameKinds[1] === 'mascots' ? 'move' : 'mascots'} onPlay={onPlayGame} onHide={() => setGameHiddenFrom(index)} />
+            )}
             {slot !== null && (
               <WishReel wish={reelWishes[slot] || null} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={() => onOpenWish!()} onOpenMine={() => onOpenWish!(true)} onChanged={onWishesChanged} promptTitle={WISH_TEXTS.reelPromptTitlePeople} />
             )}
