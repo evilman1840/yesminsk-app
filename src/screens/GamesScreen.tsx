@@ -13,7 +13,6 @@ import { askBotAccess } from '../services/botAccess';
 import { TractorGame } from '../components/games/TractorGame';
 import { TractorHome } from '../components/games/TractorHome';
 import { GamesHub } from '../components/games/GamesHub';
-import { useIsAdmin } from '../context/admin';
 import { Celebration } from '../components/games/Celebration';
 import { SIZE, emptyBoard, place, winLineAt, botMove, BotLevel } from '../games/five';
 
@@ -41,7 +40,7 @@ const store = {
   }
 };
 
-// hub — меню из двух игр (пока его видят только админы: трактор на проверке); menu — меню Крестиков-Ноликов;
+// hub — меню из двух игр; menu — меню Крестиков-Ноликов;
 // tractorHome и tractor — первый экран и сама игра «Трактор в Минске»
 type Phase = 'hub' | 'menu' | 'search' | 'game' | 'tractorHome' | 'tractor';
 type Pick = 'random' | 'bot' | 'friend';
@@ -92,8 +91,7 @@ export const GamesScreen: React.FC<{
   onPhaseChange?: (phase: 'menu' | 'search' | 'game') => void; // в меню видно нижнее меню, в партии — нет
 }> = ({ initial, onBack, onPhaseChange }) => {
   const openUser = useOpenUser();
-  const isAdmin = useIsAdmin();
-  const home: Phase = isAdmin ? 'hub' : 'menu'; // откуда начинается раздел
+  const home: Phase = 'hub'; // раздел начинается с меню из двух игр
   const [phase, setPhase] = useState<Phase>(
     initial?.tractor ? 'tractorHome' : initial?.id || initial?.code || initial?.botCell !== undefined || initial?.search ? 'game' : home
   );
@@ -667,7 +665,7 @@ export const GamesScreen: React.FC<{
     if (phase === 'tractor') return setPhase('tractorHome');
     if (phase === 'tractorHome') return setPhase(home);
     if (phase === 'hub') return onBack();
-    if (phase === 'menu') return home === 'hub' ? setPhase('hub') : onBack();
+    if (phase === 'menu') return setPhase(home);
     if (phase === 'search') return cancelCurrent();
     stopBg();
     if (g && g.mode !== 'bot' && g.status === 'active') {

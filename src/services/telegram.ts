@@ -420,7 +420,7 @@ export const telegramService = {
       userId: params.get('user') || undefined, // «Посмотреть анкету» из «хочет пообщаться»
       wishGroupId: params.get('wishGroup') || undefined, // «Кто ещё хочет» из «Хочу сходить»
       // Игры: «Твой ход» от бота (?game=<id>), приглашение знакомого (startapp=game_<код>), просто раздел (?tab=games, startapp=games)
-      // «Минский час пик» пока на проверке: только по ссылке startapp=tractor (?play=tractor), и откроется только админу
+      // «Трактор в Минске»: ссылка startapp=tractor (?play=tractor) открывает его первый экран
       game: startParam === 'tractor' || params.get('play') === 'tractor'
         ? { tractor: true }
         : params.get('game')
