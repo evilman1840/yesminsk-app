@@ -55,10 +55,18 @@ const PEOPLE_PAGE = 300;
 import { loadBadgeSeenEvents, markBadgeSeenEvents } from './utils/seenEvents';
 
 
-// У «Минск-Мира» была опечатка (27.44 вместо 27.54) — меняем сохранённую на телефоне точку, чтобы она не вернулась в анкету
+// Точки районов, которые поправили ([lat, lng] было → стало): меняем сохранённую на телефоне, чтобы старая не вернулась в анкету
 try {
   const p = JSON.parse(localStorage.getItem('yesminsk_user_coords') || 'null');
-  if (Array.isArray(p) && p[0] === 53.862 && p[1] === 27.44) localStorage.setItem('yesminsk_user_coords', JSON.stringify([53.868, 27.54]));
+  const moved: [number[], [number, number]][] = [
+    [[53.862, 27.44], [53.868, 27.54]], // Минск-Мир
+    [[53.866, 27.66], [53.879, 27.678]], // Ангарская
+    [[53.952, 27.5], [53.94, 27.48]], // Лебяжий
+    [[53.897, 27.425], [53.884, 27.437]], // Сухарево
+    [[53.942, 27.59], [53.947, 27.607]] // Зелёный Луг
+  ];
+  const hit = Array.isArray(p) && moved.find(([o]) => o[0] === p[0] && o[1] === p[1]);
+  if (hit) localStorage.setItem('yesminsk_user_coords', JSON.stringify(hit[1]));
 } catch (e) {}
 
 const getSavedCoordinates = (): [number, number] => {
