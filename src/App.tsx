@@ -359,6 +359,7 @@ export const App: React.FC = () => {
       // не страшно: счётчик просто покажется снова
     }
   };
+  const [feedOpenTab, setFeedOpenTab] = useState<{ tab: 'all' | 'likes' | 'matches'; at: number } | undefined>(undefined);
   const [launchNotice, setLaunchNotice] = useState<{ title: string; text: string; tab: 'events' | 'feed' } | null>(null);
 
   const currentUserCoordsRef = useRef(currentUser.coordinates);
@@ -608,6 +609,12 @@ export const App: React.FC = () => {
       }
       if (target.tab === 'feed') {
         setCurrentScreen(prev => (prev === 'main' ? 'feed' : prev));
+        fetchInbox();
+      }
+      // «Посмотреть» из вечерней сводки 👋: «Люди» → «Хотят»
+      if (target.tab === 'likes') {
+        setCurrentScreen(prev => (prev === 'main' ? 'feed' : prev));
+        setFeedOpenTab({ tab: 'likes', at: Date.now() });
         fetchInbox();
       }
       if (target.placeId) {
@@ -1294,6 +1301,7 @@ export const App: React.FC = () => {
 
             {currentScreen === 'feed' && (
               <FeedScreen
+                openTab={feedOpenTab}
                 onPlayGame={gamesOpen ? openGames : undefined}
                 users={users}
                 likedMe={likedMe}

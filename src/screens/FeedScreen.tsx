@@ -65,6 +65,7 @@ export interface FeedScreenProps {
   onOpenEvent?: (event: AppEvent) => void;
   onCreateMeetup?: (kind?: string) => void;
   onPlayGame?: (launch: GameLaunch) => void; // «Сыграем?» между анкетами; нет — игры закрыты
+  openTab?: { tab: 'all' | 'likes' | 'matches'; at: number }; // открыть вкладку снаружи (бот: «Посмотреть» → «Хотят»)
 }
 
 type FeedTab = 'all' | 'likes' | 'matches';
@@ -103,7 +104,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   onJoinEvent,
   onOpenEvent,
   onCreateMeetup,
-  onPlayGame
+  onPlayGame,
+  openTab
 }) => {
   const reelWishes = pickReelWishes(wishSummary);
   // «Договоримся?»: решаем один раз за открытие ленты, после какой анкеты показать
@@ -144,7 +146,10 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   const activeFilters = countActiveFilters(filters) + Number(selectedGoal !== 'all');
   const activeGoal = selectedGoal !== 'all' ? goalFilterItems().find((g) => g.id === selectedGoal) : undefined;
 
-  const [tab, setTab] = useState<FeedTab>(likedMe.length > 0 ? 'likes' : 'all');
+  const [tab, setTab] = useState<FeedTab>(openTab?.tab ?? (likedMe.length > 0 ? 'likes' : 'all'));
+  useEffect(() => {
+    if (openTab) setTab(openTab.tab);
+  }, [openTab]);
   // Только что пропущенный — можно вернуть
   const [justSkipped, setJustSkipped] = useState<{ user: UserProfile; index: number } | null>(null);
   // После «Вернуть» — сразу показываем вернувшегося человека
