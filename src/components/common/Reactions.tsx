@@ -4,8 +4,46 @@ import { Send, Lock, Loader2 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { useBackButton } from '../../hooks/useTelegram';
+import { useWavesLeft, openMeetups } from '../../utils/waves';
+import { WAVE_TEXTS } from '../../texts/waves';
 
 export type ReactionType = 'like' | 'dislike';
+
+/**
+ * Дневной лимит 👋. Ответ на чужой 👋 в лимит не входит, поэтому тем, кто «Хочет пообщаться», кнопку не прячем.
+ * Возвращает: 'out' — 👋 закончились, число — осталось 3 и меньше, null — ничего не показываем
+ */
+export function useWaveState(user: UserProfile): 'out' | number | null {
+  const left = useWavesLeft();
+  if (left === null || user.iLiked || user.isMatch || user.likedMe) return null;
+  if (left <= 0) return 'out';
+  return left <= 3 ? left : null;
+}
+
+// «Осталось 3 👋 на сегодня» — мелко под кнопкой
+export const WavesLeftNote: React.FC<{ left: number }> = ({ left }) => (
+  <p className="mt-1.5 text-center text-cap text-zine-inkMuted">{WAVE_TEXTS.left(left)}</p>
+);
+
+// 👋 на сегодня закончились — вместо кнопки «Пообщаться» ведём в сходки. hideButton — «🙈 Скрыть» остаётся рядом
+export const WavesOutCard: React.FC<{ hideButton?: React.ReactNode; rounded?: string }> = ({ hideButton, rounded = 'rounded-zine-sm' }) => (
+  <div onClick={(e) => e.stopPropagation()} className="p-3 rounded-zine-sm bg-zine-card">
+    <p className="text-body font-bold text-zine-ink mb-1">{WAVE_TEXTS.outTitle}</p>
+    <p className="text-sm2 text-zine-inkMuted mb-2.5">{WAVE_TEXTS.outText}</p>
+    <div className="flex gap-2">
+      {hideButton}
+      <button
+        onClick={() => {
+          telegramService.haptic('medium');
+          openMeetups();
+        }}
+        className={`flex-[1.6] h-12 px-3 whitespace-nowrap ${rounded} bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform`}
+      >
+        {WAVE_TEXTS.openMeetups}
+      </button>
+    </div>
+  </div>
+);
 
 /**
  * Кнопки 👋 «Пообщаться» / 🙈 «Скрыть».
@@ -13,10 +51,11 @@ export type ReactionType = 'like' | 'dislike';
  */
 export const ReactionButtons: React.FC<{
   user: UserProfile;
-  onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
+  onReact: (user: UserProfile, type: ReactionType) => Promise<unknown> | void;
 }> = ({ user, onReact }) => {
   const [isConfirmingDislike, setIsConfirmingDislike] = useState(false);
   const [busy, setBusy] = useState<ReactionType | null>(null);
+  const waves = useWaveState(user);
 
   const react = async (e: React.MouseEvent, type: ReactionType) => {
     e.stopPropagation();
@@ -63,15 +102,22 @@ export const ReactionButtons: React.FC<{
     );
   }
 
+  const hideButton = (
+    <button
+      onClick={(e) => react(e, 'dislike')}
+      className={`h-12 px-4 rounded-zine-sm ${waves === 'out' ? 'bg-zine-cardElevated' : 'bg-zine-card'} text-zine-inkMuted text-body font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer`}
+    >
+      <span className="text-[20px] leading-none">🙈</span>
+      <span>Скрыть</span>
+    </button>
+  );
+
+  if (waves === 'out') return <WavesOutCard hideButton={hideButton} />;
+
   return (
+    <div>
     <div className="flex gap-2">
-      <button
-        onClick={(e) => react(e, 'dislike')}
-        className="h-12 px-4 rounded-zine-sm bg-zine-card text-zine-inkMuted text-body font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
-      >
-        <span className="text-[20px] leading-none">🙈</span>
-        <span>Скрыть</span>
-      </button>
+      {hideButton}
       <button
         onClick={(e) => react(e, 'like')}
         disabled={user.iLiked}
@@ -84,6 +130,8 @@ export const ReactionButtons: React.FC<{
         {busy === 'like' ? <Loader2 size={20} className="animate-spin" /> : <span className="text-[20px] leading-none">👋</span>}
         <span>{user.iLiked ? 'Привет отправлен' : 'Пообщаться'}</span>
       </button>
+    </div>
+    {typeof waves === 'number' && <WavesLeftNote left={waves} />}
     </div>
   );
 };

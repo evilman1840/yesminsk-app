@@ -10,7 +10,7 @@ interface UserBottomSheetProps {
   user: UserProfile;
   myGoals?: ActivityGoal[]; // чтобы подсветить общие интересы
   onClose: () => void;
-  onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
+  onReact: (user: UserProfile, type: ReactionType) => Promise<unknown> | void;
   onReported: (user: UserProfile) => void;
 }
 

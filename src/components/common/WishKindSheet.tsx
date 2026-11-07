@@ -31,7 +31,7 @@ export const WishKindSheet: React.FC<{
     includesMe: boolean;
   }; // из счётчика: только это окно и место
   onOpenUser: (user: UserProfile) => void;
-  onHello: (user: UserProfile) => Promise<void>;
+  onHello: (user: UserProfile) => Promise<boolean | void>; // false — 👋 не ушёл (например, закончились на сегодня)
   onBuild: (kind: string, wishGroupId: string | null, invite: WishInvite[]) => void;
   onOpenEvent: (eventId: string) => void;
   onOpenAll?: () => void; // все желания, мои и форма «Куда хочется?»
@@ -69,8 +69,9 @@ export const WishKindSheet: React.FC<{
   const hello = async (u: UserProfile) => {
     if (u.iLiked || helloBusy) return;
     setHelloBusy(u.telegramId);
-    await onHello(u);
+    const sent = await onHello(u);
     setHelloBusy(null);
+    if (sent === false) return;
     setData(
       (d) =>
         d && {

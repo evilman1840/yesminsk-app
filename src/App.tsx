@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { YMaps } from '@pbe/react-yandex-maps';
+import { setWaveQuota, setOpenMeetups } from './utils/waves';
+import { WAVE_TEXTS } from './texts/waves';
 import { telegramService, ShareData, SHARE_EVENT } from './services/telegram';
 import { api } from './services/api';
 import { MapScreen } from './screens/MapScreen';
@@ -513,6 +515,7 @@ export const App: React.FC = () => {
             }
           }
 
+          setWaveQuota(me.waves); // дневной лимит 👋
           setCurrentUser(prev => ({
             ...prev,
             telegramId: me.telegramId || tgUser?.id || prev.telegramId,
@@ -807,7 +810,7 @@ export const App: React.FC = () => {
     api.skipUser(user.telegramId, true).catch(() => {});
   };
 
-  const handleReact = async (user: UserProfile, type: ReactionType) => {
+  const handleReact = async (user: UserProfile, type: ReactionType): Promise<boolean> => {
     // 👋 — чтобы бот смог сообщить, когда ответят взаимно
     if (type === 'like') askBotAccess();
     try {
@@ -820,9 +823,10 @@ export const App: React.FC = () => {
         setLikedMe(prev => prev.filter(u => u.telegramId !== id));
         setMatches(prev => prev.filter(u => u.telegramId !== id));
         setSelectedUser(null);
-        return;
+        return true;
       }
 
+      setWaveQuota((result as any).waves); // сколько 👋 осталось на сегодня
       const updated: UserProfile = { ...user, ...(result.user || {}), iLiked: true, isMatch: result.isMatch };
       const patch = (list: UserProfile[]) => list.map(u => (u.telegramId === id ? { ...u, ...updated } : u));
       setUsers(patch);
@@ -838,10 +842,27 @@ export const App: React.FC = () => {
         telegramService.haptic('success');
         setMatchPopupUser(updated);
       }
+      return true;
     } catch (err: any) {
+      // Дневной лимит 👋: в анкете вместо кнопки появится карточка, здесь — то же предложение заглянуть в сходки
+      if (err?.data?.code === 'DAILY_WAVE_LIMIT') {
+        setWaveQuota(err.data.waves);
+        const ok = await telegramService.confirm(`${WAVE_TEXTS.outTitle}\n\n${WAVE_TEXTS.outText}`, { okText: WAVE_TEXTS.openMeetups });
+        if (ok) openMeetupsTab();
+        return false;
+      }
       telegramService.alert(err.message || 'Не удалось сохранить реакцию');
+      return false;
     }
   };
+
+  // «Смотреть сходки» из карточки «👋 закончились»: закрываем анкету и списки, открываем «Сходки»
+  const openMeetupsTab = () => {
+    setSelectedUser(null);
+    setWishKind(null);
+    setCurrentScreen('events');
+  };
+  setOpenMeetups(openMeetupsTab);
 
   // «Отменить» в «На связи»: мой 👋 снят, человек остаётся в «Рядом» как обычная анкета
   const handleUnmatch = async (user: UserProfile) => {

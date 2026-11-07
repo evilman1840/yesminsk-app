@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2, Undo2, X } from 'lucide-react';
 import { AppEvent, JoinOptions, MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
-import { ReactionType } from '../components/common/Reactions';
+import { ReactionType, useWaveState, WavesLeftNote, WavesOutCard } from '../components/common/Reactions';
 import { goalFilterItems } from '../components/ui/GoalChips';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { photoSrc } from '../components/common/PhotoPicker';
@@ -33,7 +33,7 @@ export interface FeedScreenProps {
   likedMe?: UserProfile[];
   matches?: UserProfile[];
   onSelectUser: (user: UserProfile) => void;
-  onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
+  onReact: (user: UserProfile, type: ReactionType) => Promise<unknown> | void;
   onUnmatch?: (user: UserProfile) => Promise<void>;        // «Отменить» в «На связи»
   onSkip?: (user: UserProfile) => void;                    // свайп влево: пропустить на 3 дня
   onUnskip?: (user: UserProfile, index: number) => void;   // «Вернуть»
@@ -461,7 +461,7 @@ const PersonReel: React.FC<{
   isFirst: boolean;
   myGoals?: ActivityGoal[];
   onOpen: () => void;
-  onReact: (user: UserProfile, type: ReactionType) => Promise<void> | void;
+  onReact: (user: UserProfile, type: ReactionType) => Promise<unknown> | void;
   onSkip: () => void;
   onUnmatch?: () => Promise<void>;
   onOpenWishKind?: (kind: string, sport?: string) => void;
@@ -519,7 +519,8 @@ const PersonReel: React.FC<{
     isVentingNow(user) && { text: `🫂 Хочется поныть · до ${formatTime(user.ventUntil)}`, cls: 'bg-[#C77D86] text-white' },
     user.isGuide && { text: '🧭 Покажу город', cls: 'bg-zine-sky text-white' }
   ].filter(Boolean) as { text: string; cls: string }[];
-  const canLike = !user.isMatch && !user.iLiked;
+  const waves = useWaveState(user); // дневной лимит 👋: 'out' — закончились, число — осталось ≤3
+  const canLike = !user.isMatch && !user.iLiked && waves !== 'out';
 
   // «Скрыть» убирает человека навсегда — сначала спрашиваем
   const react = async (type: ReactionType) => {
@@ -723,6 +724,18 @@ const PersonReel: React.FC<{
             )}
           </div>
         ) : (
+          waves === 'out' ? (
+            <WavesOutCard
+              rounded="rounded-full"
+              hideButton={
+                <button onClick={() => react('dislike')} className="flex-1 h-12 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer">
+                  <span className="text-[20px] leading-none">🙈</span>
+                  Скрыть
+                </button>
+              }
+            />
+          ) : (
+          <div>
           <div className="flex gap-2">
             <button onClick={() => react('dislike')} className="flex-1 h-12 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer">
               <span className="text-[20px] leading-none">🙈</span>
@@ -737,6 +750,9 @@ const PersonReel: React.FC<{
               {user.iLiked ? 'Привет отправлен' : 'Пообщаться'}
             </button>
           </div>
+          {typeof waves === 'number' && <WavesLeftNote left={waves} />}
+          </div>
+          )
         )}
       </div>
     </SwipeReel>
