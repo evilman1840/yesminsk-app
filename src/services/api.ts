@@ -177,6 +177,7 @@ class ApiService {
     gender?: Gender;
     preferredGender?: PreferredGender;
     preferredAgeRange?: { min: number; max: number };
+    photoOnly?: boolean;
     bio?: string;
     goal?: ActivityGoal;
     goals?: ActivityGoal[];

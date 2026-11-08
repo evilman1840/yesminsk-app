@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { thumb } from '../utils/thumb';
+import { thumb, NO_PHOTO } from '../utils/thumb';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff, SlidersHorizontal, X, MapPin } from 'lucide-react';
 import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats } from '../types';
 import { telegramService } from '../services/telegram';
@@ -1828,7 +1828,7 @@ export const EventReel: React.FC<{
           <div className="absolute left-3 bottom-3 max-w-[calc(100%-24px)] pl-2 pr-3 py-1.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-cap font-semibold flex items-center gap-2 pointer-events-none">
             <span className="flex -space-x-2 shrink-0">
               {goingPeople.slice(0, 3).map((p, i) => (
-                <img key={`${p?.telegramId}-${i}`} src={thumb(p?.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} alt="" className="w-6 h-6 rounded-full object-cover border-2 border-black/40" />
+                <img key={`${p?.telegramId}-${i}`} src={thumb(p?.avatarUrl) || NO_PHOTO} alt="" className="w-6 h-6 rounded-full object-cover border-2 border-black/40" />
               ))}
             </span>
             <span className="truncate">
@@ -1886,7 +1886,7 @@ export const EventReel: React.FC<{
             {people.map((p, i) => (
               <img
                 key={`${p?.telegramId}-${i}`}
-                src={thumb(p?.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                src={thumb(p?.avatarUrl) || NO_PHOTO}
                 alt=""
                 loading="lazy"
                 className={`w-8 h-8 shrink-0 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-zine-paper'}`}

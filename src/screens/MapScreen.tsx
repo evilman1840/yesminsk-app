@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { thumb } from '../utils/thumb';
+import { thumb, NO_PHOTO } from '../utils/thumb';
 import { api } from '../services/api';
 import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Megaphone, Forward } from 'lucide-react';
 import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood, PollData } from '../types';
@@ -629,7 +629,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         <BottomSheet title="Это ты" onClose={() => setIsMySheetOpen(false)}>
           <div className="flex items-center gap-4">
             <img
-              src={thumb(currentUser.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={thumb(currentUser.avatarUrl) || NO_PHOTO}
               alt={currentUser.name || 'Ты'}
               className="w-20 h-20 rounded-zine object-cover shrink-0"
             />

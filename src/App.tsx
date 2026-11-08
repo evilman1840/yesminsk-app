@@ -55,6 +55,7 @@ import { MEETUP_TEXTS } from './texts/meetups';
 // Сколько анкет сервер отдаёт за раз (PEOPLE_PAGE на сервере)
 const PEOPLE_PAGE = 300;
 import { loadBadgeSeenEvents, markBadgeSeenEvents } from './utils/seenEvents';
+import { isOwnPhoto } from './utils/thumb';
 
 
 // Точки районов, которые поправили ([lat, lng] было → стало): меняем сохранённую на телефоне, чтобы старая не вернулась в анкету
@@ -103,6 +104,8 @@ export const App: React.FC = () => {
     gender: 'not_specified' as Gender,
     preferredGender: 'all' as PreferredGender,
     preferredAgeRange: { min: 18, max: 99 } as AgeRange,
+    photoOnly: false, // «Только с теми, у кого есть фото»
+    faceStatus: 'pending' as 'ok' | 'no' | 'pending', // видно ли лицо на главном фото (проверяет сервер)
     goals: ['walk'] as ActivityGoal[],
     goal: 'walk' as ActivityGoal,
     customGoal: '',
@@ -529,6 +532,8 @@ export const App: React.FC = () => {
             gender: me.gender || prev.gender,
             preferredGender: me.preferredGender || prev.preferredGender,
             preferredAgeRange: me.preferredAgeRange || prev.preferredAgeRange,
+            photoOnly: Boolean(me.photoOnly),
+            faceStatus: me.faceStatus || 'pending',
             // Пока анкета не заполнена, интересы не подставляем (иначе стоял бы «Погулять» по умолчанию)
             goals: me.profileCompleted ? me.goals || (me.goal ? [me.goal] : prev.goals) : [],
             profileCompleted: Boolean(me.profileCompleted),
@@ -695,6 +700,7 @@ export const App: React.FC = () => {
     gender?: Gender;
     preferredGender?: PreferredGender;
     preferredAgeRange?: AgeRange;
+    photoOnly?: boolean;
     goals: ActivityGoal[];
     goal: ActivityGoal;
     customGoal?: string;
@@ -731,6 +737,7 @@ export const App: React.FC = () => {
       genderConfirmed: formData.genderConfirmed,
       preferredGender: formData.preferredGender || 'all',
       preferredAgeRange: formData.preferredAgeRange || { min: 18, max: 99 },
+      photoOnly: formData.photoOnly,
       goal: formData.goal,
       goals: formData.goals,
       customGoal: formData.customGoal,
@@ -765,6 +772,7 @@ export const App: React.FC = () => {
       ...prev,
       ...formData,
       avatarUrl: formData.avatarUrl || prev?.avatarUrl, // фото не меняли — оставляем прежнее
+      faceStatus: formData.avatarUrl ? 'pending' : prev.faceStatus, // новое фото сервер проверит заново
       profileCompleted: prev.profileCompleted || Boolean(formData.ageConfirmed && formData.goals?.length),
       photos: formData.photos ? formData.photos.map((id) => `/api/photos/${encodeURIComponent(id)}?v=2`) : prev.photos,
       coordinates: coords
@@ -1067,7 +1075,7 @@ export const App: React.FC = () => {
     {
       id: 'photo',
       title: 'Добавь своё фото',
-      done: Boolean(currentUser.avatarUrl) && !currentUser.avatarUrl.includes('images.unsplash.com'),
+      done: isOwnPhoto(currentUser.avatarUrl),
       onClick: () => handleNavigate('profile_edit')
     },
     { id: 'bio', title: 'Напиши пару слов о себе', done: currentUser.bio.trim().length > 0, onClick: () => handleNavigate('profile_edit') },
@@ -1075,7 +1083,7 @@ export const App: React.FC = () => {
     { id: 'event', title: 'Запишись на сходку или собери свою', done: events.some(e => e.isJoined), onClick: () => handleNavigate('events') }
   ];
   // Подсказки вместо рассылок бота — по важности, листаются карточками
-  const hasOwnPhoto = Boolean(currentUser.avatarUrl) && !currentUser.avatarUrl.includes('images.unsplash.com');
+  const hasOwnPhoto = isOwnPhoto(currentUser.avatarUrl);
   const meetupCallouts = pickMeetupCallouts(events, currentUser.telegramId, matches.map((m) => m.telegramId));
   // Запись автора: нажимать нечего, только прочитать или закрыть. /tiptop — первой, /tip — в конце
   const tipNotice: Notice | null = tip ? { id: `tip:${tip.id}`, text: tip.text, hideDays: 1 } : null;

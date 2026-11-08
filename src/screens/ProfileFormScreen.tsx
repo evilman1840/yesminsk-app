@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff } from 'lucide-react';
 import { AREA_GROUPS, RENAMED_AREAS } from '../config/areas';
 import { LegalSheet, LegalKind } from '../components/common/Legal';
 import { UsernameBanner } from '../components/common/UsernameBanner';
@@ -10,7 +10,8 @@ import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage, dataUrlBytes } from '../utils/compressImage';
 import { PhotoPicker, PickedPhoto, photoFromUrl } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
-import { GENDER_TEXTS, AGE_TEXTS } from '../texts/profile';
+import { GENDER_TEXTS, AGE_TEXTS, FACE_TEXTS } from '../texts/profile';
+import { photoHasFace } from '../services/faceDetect';
 import { ACCOUNT_TEXTS } from '../texts/account';
 import { HOME_TEXTS } from '../texts/home';
 import { BotAccessBanner } from '../components/common/BotAccessBanner';
@@ -19,6 +20,7 @@ import { HelpSheet } from '../components/common/HelpSheet';
 import { DonateSheet } from '../components/common/DonateSheet';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
 import { useBackButton, useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
+import { NO_PHOTO_URL } from '../utils/thumb';
 
 interface ProfileFormScreenProps {
   initialData?: {
@@ -30,6 +32,8 @@ interface ProfileFormScreenProps {
     genderConfirmed?: boolean;
     preferredGender?: PreferredGender;
     preferredAgeRange?: { min: number; max: number };
+    photoOnly?: boolean;
+    faceStatus?: 'ok' | 'no' | 'pending';
     bio?: string;
     username?: string;
     goals?: ActivityGoal[];
@@ -56,6 +60,7 @@ interface ProfileFormScreenProps {
     genderConfirmed?: boolean;
     preferredGender: PreferredGender;
     preferredAgeRange: { min: number; max: number };
+    photoOnly: boolean;
     bio: string;
     goals: ActivityGoal[];
     goal: ActivityGoal;
@@ -82,7 +87,7 @@ interface ProfileFormScreenProps {
 }
 
 
-const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
+const DEFAULT_AVATAR = NO_PHOTO_URL; // нейтральный силуэт, пока нет своего фото
 
 export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   initialData,
@@ -165,7 +170,11 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [guideAbout, setGuideAbout] = useState<string>(initialData?.guideAbout || '');
   const [justSaved, setJustSaved] = useState(false);
   const [themePref, setThemePref] = useState<ThemePreference>(() => telegramService.getThemePreference());
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [photoOnly, setPhotoOnly] = useState<boolean>(Boolean(initialData?.photoOnly));
+  // Проверка лица на только что выбранном фото (в телефоне): null — фото не меняли или проверить не вышло
+  const [faceCheck, setFaceCheck] = useState<{ src: string; face: boolean | null } | null>(null);
+  const isNewAvatar = avatarUrl !== initialData?.avatarUrl;
+  const showNoFace = isNewAvatar ? faceCheck?.src === avatarUrl && faceCheck.face === false : initialData?.faceStatus === 'no';
 
   const [isLocating, setIsLocating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -235,7 +244,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   const photoIds = photos.map((p) => p.id).filter(Boolean);
 
-  const settingsSnapshot = JSON.stringify([isEmpath, goesWith, area, digest, isGuide, isProfileActive, isPhotoUploading ? null : photoIds]);
+  const settingsSnapshot = JSON.stringify([isEmpath, photoOnly, goesWith, area, digest, isGuide, isProfileActive, isPhotoUploading ? null : photoIds]);
   const lastSavedSettings = useRef(settingsSnapshot);
   useEffect(() => {
     if (isFirstTime || settingsSnapshot === lastSavedSettings.current) return;
@@ -266,8 +275,11 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
     setErrorText(null);
     try {
       // Сжимаем фото, чтобы анкета быстро грузилась и не переполняла базу
-      setAvatarUrl(await compressImage(file));
+      const compressed = await compressImage(file);
+      setAvatarUrl(compressed);
       telegramService.haptic('success');
+      // Лицо на фото — подсказка сразу, не дожидаясь сервера
+      photoHasFace(compressed).then((face) => setFaceCheck({ src: compressed, face }));
     } catch {
       setErrorText('Не получилось обработать фото. Попробуй другое');
     } finally {
@@ -344,6 +356,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         gender: gender as Gender,
         genderConfirmed: true,
         preferredGender,
+        photoOnly,
         preferredAgeRange: {
           min: Math.min(clampAge(minAge, 18), clampAge(maxAge, 99)),
           max: Math.max(clampAge(minAge, 18), clampAge(maxAge, 99))
@@ -482,6 +495,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 </button>
               </div>
 
+              {showNoFace && <p className="mt-3 w-full p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink text-left">{FACE_TEXTS.noFace}</p>}
+
               {showUrlInput && (
                 <div className="w-full mt-2 flex gap-2">
                   <input
@@ -561,63 +576,69 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             </div>
           </Section>
 
-          {/* С кем комфортно и возраст компании — сразу после «О себе» */}
+          {/* С кем комфортно: пол, возраст компании, только с фото — сразу после «О себе», всегда раскрыто */}
           <Section>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced((v) => !v)}
-              className="w-full flex items-center justify-between text-left cursor-pointer"
-            >
-              <span>
-                <span className="block text-body font-bold text-zine-ink">{GENDER_TEXTS.prefsTitle}</span>
-                <span className="block text-sm2 text-zine-inkMuted">{GENDER_TEXTS.prefsHint}</span>
-              </span>
-              <ChevronDown size={24} className={`text-zine-inkMuted transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showAdvanced && (
-              <div className="mt-4 space-y-4">
-                <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">
-                  🛡 Тебя увидят только те, кто подходит под «С кем комфортно» и «Возраст компании». Остальным твоя анкета не покажется.
-                </p>
-                <Label text="С кем комфортно встречаться">
-                  <Segmented
-                    value={preferredGender}
-                    onChange={(v) => setPreferredGender(v as PreferredGender)}
-                    options={[
-                      { id: 'all', label: 'Со всеми' },
-                      { id: 'female', label: 'С женщинами' },
-                      { id: 'male', label: 'С мужчинами' }
-                    ]}
+            <span className="block text-body font-bold text-zine-ink">{GENDER_TEXTS.prefsTitle}</span>
+            <span className="block text-sm2 text-zine-inkMuted">{GENDER_TEXTS.prefsHint}</span>
+            <div className="mt-4 space-y-4">
+              <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">
+                🛡 Тебя увидят только те, кто подходит под эти настройки. Остальным твоя анкета не покажется.
+              </p>
+              <Label text="С кем комфортно встречаться">
+                <Segmented
+                  value={preferredGender}
+                  onChange={(v) => setPreferredGender(v as PreferredGender)}
+                  options={[
+                    { id: 'all', label: 'Со всеми' },
+                    { id: 'female', label: 'С женщинами' },
+                    { id: 'male', label: 'С мужчинами' }
+                  ]}
+                />
+              </Label>
+              <Label text="Возраст компании" hint={`от ${minAge} до ${maxAge}`}>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="18"
+                    max="99"
+                    value={minAge}
+                    onChange={(e) => setMinAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    onBlur={fixAgeRange}
+                    className="field text-center"
                   />
-                </Label>
-                <Label text="Возраст компании" hint={`от ${minAge} до ${maxAge}`}>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min="18"
-                      max="99"
-                      value={minAge}
-                      onChange={(e) => setMinAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                      onBlur={fixAgeRange}
-                      className="field text-center"
-                    />
-                    <span className="text-body text-zine-inkMuted">-</span>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min="18"
-                      max="99"
-                      value={maxAge}
-                      onChange={(e) => setMaxAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                      onBlur={fixAgeRange}
-                      className="field text-center"
-                    />
-                  </div>
-                </Label>
-              </div>
-            )}
+                  <span className="text-body text-zine-inkMuted">-</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="18"
+                    max="99"
+                    value={maxAge}
+                    onChange={(e) => setMaxAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    onBlur={fixAgeRange}
+                    className="field text-center"
+                  />
+                </div>
+              </Label>
+              {/* Только с фото: в обе стороны, сохраняется сразу */}
+              <button
+                type="button"
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  setPhotoOnly((v) => !v);
+                }}
+                className="w-full flex items-center justify-between gap-3 text-left cursor-pointer"
+              >
+                <span>
+                  <span className="block text-body font-bold text-zine-ink">{FACE_TEXTS.toggleTitle}</span>
+                  <span className="block text-sm2 text-zine-inkMuted">{FACE_TEXTS.toggleHint}</span>
+                </span>
+                <span className={`w-14 h-8 rounded-full p-1 transition-colors shrink-0 ${photoOnly ? 'bg-zine-terracotta' : 'bg-zine-border'}`}>
+                  <span className={`block w-6 h-6 rounded-full bg-white shadow transition-transform ${photoOnly ? 'translate-x-6' : 'translate-x-0'}`} />
+                </span>
+              </button>
+              {photoOnly && showNoFace && <p className="-mt-1 text-sm2 font-semibold text-zine-terracotta">{FACE_TEXTS.myPhotoNoFace}</p>}
+            </div>
           </Section>
 
           {/* Цели */}

@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
-import { thumb } from '../../utils/thumb';
+import { thumb, NO_PHOTO } from '../../utils/thumb';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 import { LocateFixed } from 'lucide-react';
 import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, eventCategoryOf, isAvailableNow, isVentingNow, PlaceItem, PLACE_MOODS } from '../../types';
@@ -180,7 +180,7 @@ const MinskMapContent: React.FC<{
     return (ymaps as any).templateLayoutFactory.createClass(
       `<div class="ymaps-avatar-marker" style="position: relative; width: 46px; height: 52px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
         <div style="width: 46px; height: 46px; border-radius: 50%; padding: 2px; background-color: #FAF7F2; border: 2.5px solid $[properties.borderColor]; box-shadow: 0 4px 14px rgba(43, 38, 35, 0.22); position: relative; box-sizing: border-box;">
-          <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'" />
+          <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='/no-photo.svg'" />
           <span style="position: absolute; bottom: -3px; right: -3px; background: #FFFFFF; font-size: 13px; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 1px solid #E8DFD5; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">
             $[properties.goalEmoji]
           </span>
@@ -201,7 +201,7 @@ const MinskMapContent: React.FC<{
           Ты
         </div>
         <div style="margin-top: 16px; width: 52px; height: 52px; border-radius: 50%; padding: 2.5px; background-color: #FAF7F2; border: 3.5px solid #D95C3C; box-shadow: 0 0 0 3px rgba(217, 92, 60, 0.4), 0 8px 22px rgba(43, 38, 35, 0.35); position: relative; box-sizing: border-box;">
-          <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'" />
+          <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='/no-photo.svg'" />
           <span style="position: absolute; bottom: -3px; right: -3px; background: #FAF7F2; font-size: 12px; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border: 1.5px solid #D95C3C; box-shadow: 0 1px 4px rgba(0,0,0,0.15); pointer-events: none;">
             $[properties.goalEmoji]
           </span>
@@ -307,7 +307,7 @@ const MinskMapContent: React.FC<{
             key={`current-user-${currentUserCoords[0]}-${currentUserCoords[1]}`}
             geometry={currentUserCoords}
             properties={{
-              avatarUrl: thumb(currentUser.avatarUrl) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+              avatarUrl: thumb(currentUser.avatarUrl) || NO_PHOTO,
               name: currentUser.name || currentUser.firstName || 'Ты',
               goalEmoji: (GOALS_CONFIG[currentUser.goal || 'walk'] || { emoji: '☕️' }).emoji
             }}
