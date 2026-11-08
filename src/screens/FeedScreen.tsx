@@ -516,6 +516,7 @@ const PersonReel: React.FC<{
     setPhotoIndex((i) => (i + step + gallery.length) % gallery.length);
   };
   // Статусы человека: на связи, хочет пообщаться, гид, «поныть», «могу сейчас».
+  // «🧡 Поддерживаю проект» — плашкой на фото, чтобы не занимать место под ним
   // На своей вкладке «На связи» и «Хочет пообщаться» не повторяем; «Эмпат» — в анкете
   const statuses = [
     user.isMatch && tab !== 'matches' && { text: '🤝 На связи', cls: 'bg-zine-sage text-white' },
@@ -586,7 +587,7 @@ const PersonReel: React.FC<{
         else onSkip();
       }}
     >
-      {/* Фото — без надписей и кнопок поверх, только точки и стрелки */}
+      {/* Фото — без надписей и кнопок поверх, только точки, стрелки и «🧡 Поддерживаю проект» */}
       <div ref={seenRef} className="relative mx-3 flex-1 min-h-[42%] rounded-zine overflow-hidden bg-zine-card">
         <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} onLoad={preloadNext} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
         {/* Несколько фото: тап слева и справа листает, как в сторис; по центру — анкета */}
@@ -608,6 +609,11 @@ const PersonReel: React.FC<{
               </span>
             </button>
           </>
+        )}
+        {user.isSupporter && (
+          <span className="absolute top-3 left-3 z-20 h-7 px-2.5 rounded-full bg-white/90 text-zine-ink text-cap font-bold flex items-center shadow pointer-events-none">
+            🧡 Поддерживаю проект
+          </span>
         )}
         {/* Подсказка про жесты — только на первой карточке, внизу фото */}
         {isFirst && (
