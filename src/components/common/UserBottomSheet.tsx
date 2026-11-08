@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, EMPATH, isVentingNow, isAvailableNow, formatTime } from '../../types';
 import { ReactionButtons, ChatButton, ReactionType } from './Reactions';
 import { BottomSheet } from '../ui/BottomSheet';
 import { ReportSheet, SafetyTipsSheet } from './ReportSheet';
 import { photoSrc } from './PhotoPicker';
+import { telegramService } from '../../services/telegram';
 
 interface UserBottomSheetProps {
   user: UserProfile;
@@ -38,6 +39,19 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
   const distance = formatDistance(user.distanceMeters);
   const gallery = [user.avatarUrl, ...(user.photos || []).map(photoSrc)];
   const [photoIndex, setPhotoIndex] = useState(0);
+  const galleryRef = useRef<HTMLDivElement>(null);
+  // Тап по краю фото листает, как в сторис: слева — назад, справа — вперёд (по кругу)
+  const onGalleryTap = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = galleryRef.current;
+    if (!el || gallery.length < 2) return;
+    const rect = el.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const step = x < 0.35 ? -1 : x > 0.65 ? 1 : 0;
+    if (!step) return;
+    telegramService.haptic('selection');
+    const next = (photoIndex + step + gallery.length) % gallery.length;
+    el.scrollTo({ left: next * el.clientWidth, behavior: 'smooth' });
+  };
   const goesWith = user.goesWith && GOES_WITH[user.goesWith];
 
   return (
@@ -47,8 +61,10 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
     >
       {/* Фото с именем поверх */}
       <div className="relative -mt-1 rounded-zine overflow-hidden bg-zine-card">
-        {/* Главное фото и ещё до 5: листаются пальцем */}
+        {/* Главное фото и ещё до 5: листаются пальцем и тапом по краям */}
         <div
+          ref={galleryRef}
+          onClick={onGalleryTap}
           className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
           onScroll={(e) => setPhotoIndex(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
         >
