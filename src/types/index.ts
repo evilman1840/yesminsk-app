@@ -1,7 +1,9 @@
 export type ActivityGoal = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'other';
 export type Gender = 'male' | 'female' | 'not_specified';
 export type PreferredGender = 'all' | 'male' | 'female';
-export type EventCategory = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'relax' | 'learn' | 'support' | 'other';
+// cafe_bar («Кофе, бар») и expo_cinema («Арт, кино») — прежние общие типы: их разделили на кафе, бар, ресторан
+// и выставку, музей, кино, остались для старых сходок
+export type EventCategory = 'walk' | 'cafe' | 'bar' | 'restaurant' | 'exhibition' | 'museum' | 'cinema' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'relax' | 'learn' | 'support' | 'other';
 
 export interface AgeRange {
   min: number;
@@ -56,17 +58,37 @@ export const commonGoalIds = (u: { goal: ActivityGoal; goals?: ActivityGoal[] },
 };
 
 export const EVENT_CATEGORIES_CONFIG: Record<EventCategory, { label: string; emoji: string; badgeBg: string; badgeText: string }> = {
-  cafe_bar: { label: 'Кофе, бар', emoji: '☕️', ...badge('mustard') },
+  cafe: { label: 'Кафе', emoji: '☕️', ...badge('mustard') },
+  bar: { label: 'Бар', emoji: '🍸', ...badge('plum') },
+  restaurant: { label: 'Ресторан', emoji: '🍽', ...badge('terracotta') },
+  exhibition: { label: 'Выставка', emoji: '🖼', ...badge('plum') },
+  museum: { label: 'Музей', emoji: '🏛', ...badge('plum') },
+  cinema: { label: 'Кино', emoji: '🎬', ...badge('plum') },
   walk: { label: 'Прогулка', emoji: '🚶', ...badge('terracotta') },
-  expo_cinema: { label: 'Арт, кино', emoji: '🎨', ...badge('plum') },
+  sport: { label: 'Спорт', emoji: '🚴', ...badge('sky') },
   trip_outdoors: { label: 'За город', emoji: '🌲', ...badge('sage') },
   boardgames: { label: 'Настолки', emoji: '🎲', ...badge('sky') },
-  sport: { label: 'Спорт, вело', emoji: '🚴', ...badge('sky') },
   relax: { label: 'Релакс', emoji: '🧖', ...badge('sage') },
   learn: { label: 'Просвещение', emoji: '🧭', ...badge('mustard') },
   support: { label: 'Поныть', emoji: '🫂', ...badge('blush') },
-  other: { label: 'Своя идея', emoji: '✨', ...badge('blush') }
+  other: { label: 'Своя идея', emoji: '✨', ...badge('blush') },
+  cafe_bar: { label: 'Кофе, бар', emoji: '☕️', ...badge('mustard') },
+  expo_cinema: { label: 'Арт, кино', emoji: '🎨', ...badge('plum') }
 };
+
+// Старые категории → на какую из новых менять при правке сходки. В форме и фильтрах их не предлагаем
+export const LEGACY_CATEGORIES: Partial<Record<EventCategory, EventCategory>> = { cafe_bar: 'cafe', expo_cinema: 'exhibition' };
+export const isLegacyCategory = (c: EventCategory) => c in LEGACY_CATEGORIES;
+
+// Форма сходки: чипы по рядам, один ряд — одна группа (посидеть, культура, подвигаться, игры и знания, по душам).
+// «Свою идею» форма добавляет отдельным рядом
+export const EVENT_CATEGORY_ROWS: EventCategory[][] = [
+  ['cafe', 'bar', 'restaurant'],
+  ['exhibition', 'museum', 'cinema'],
+  ['walk', 'sport', 'trip_outdoors'],
+  ['boardgames', 'learn'],
+  ['relax', 'support']
+];
 
 // Категория сходки для показа: у «Своей идеи» подпись берём ту, что вписал автор
 export const eventCategoryOf = (ev: { category: EventCategory; customCategory?: string }) => {

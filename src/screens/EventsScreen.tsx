@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff, SlidersHorizontal, X, MapPin } from 'lucide-react';
-import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats } from '../types';
+import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, EVENT_CATEGORY_ROWS, LEGACY_CATEGORIES, isLegacyCategory, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -227,7 +227,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<EventCategory>('walk');
+  const [category, setCategory] = useState<EventCategory>('cafe');
   const [customCategory, setCustomCategory] = useState('');
   const [locationName, setLocationName] = useState('');
   const [customCoords, setCustomCoords] = useState<[number, number] | null>(null);
@@ -496,7 +496,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setEditingEventId(null);
     setTitle('');
     setDescription('');
-    const startCategory = presetCategory || 'walk';
+    const startCategory = presetCategory || 'cafe';
     setCategory(startCategory);
     setCustomCategory('');
     setLocationName(place?.name || '');
@@ -540,7 +540,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setEditingEventId(targetId);
     setTitle(ev.title || '');
     setDescription(ev.description || '');
-    setCategory(ev.category || 'walk');
+    // Старые общие типы («Кофе, бар», «Арт, кино») в форме — как первый из новых
+    setCategory(LEGACY_CATEGORIES[ev.category] || ev.category || 'walk');
     setCustomCategory(ev.customCategory || '');
     setLocationName(ev.locationName || '');
     setCustomCoords(ev.coordinates || null);
@@ -580,7 +581,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setDurationMinutes(0);
       setTitle('');
       setDescription('');
-      setCategory('walk');
+      setCategory('cafe');
       setTags([]);
       setMaxParticipants('0');
       setIsPaid(false);
@@ -816,7 +817,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   };
 
   const categoryIds = (Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).filter(
-    (c) => c !== 'other' || events.some((e) => e.category === 'other')
+    // «Своя идея» и старые категории — только если такие сходки есть
+    (c) => (c !== 'other' && !isLegacyCategory(c)) || events.some((e) => e.category === c)
   );
 
   const categoryItems = [['all', 'Все', ''], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji]), ['kids', 'С детьми', '👶']] as [EventCategory | 'all' | 'kids', string, string][];
@@ -1407,46 +1409,39 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
             {!isTemplateForm && (
               <Field label="Что будем делать?">
-                <div className="grid grid-cols-3 gap-2">
-                  {(Object.keys(EVENT_CATEGORIES_CONFIG) as EventCategory[]).filter((c) => c !== 'other').map((cat) => {
-                    const cfg = EVENT_CATEGORIES_CONFIG[cat];
-                    const isSelected = category === cat;
-                    return (
-                      <button
-                        type="button"
-                        key={cat}
-                        onClick={() => {
-                          telegramService.haptic('selection');
-                          setCategory(cat);
-                          // «Поныть» — маленькой группой, чтобы каждый успел выговориться
-                          if (cat === 'support' && (maxParticipants === '0' || !maxParticipants)) setMaxParticipants('6');
-                        }}
-                        className={`h-[72px] rounded-zine-sm border-2 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
-                          isSelected ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
-                        }`}
-                      >
-                        <span className="text-[24px] leading-none">{cfg.emoji}</span>
-                        <span className={`text-cap font-semibold ${isSelected ? 'text-zine-terracotta' : 'text-zine-ink'}`}>{cfg.label}</span>
-                      </button>
-                    );
-                  })}
+                {/* Чипы по рядам: ряд — одна группа, всё видно сразу; «Своя идея» — отдельным рядом. У выбранного вместо значка галочка */}
+                <div className="flex flex-col gap-2">
+                  {[...EVENT_CATEGORY_ROWS, ['other'] as EventCategory[]].map((row, i) => (
+                    <div key={i} className="flex flex-wrap gap-1.5">
+                      {row.map((cat) => {
+                        const cfg = EVENT_CATEGORIES_CONFIG[cat];
+                        const isSelected = category === cat;
+                        const isOwn = cat === 'other';
+                        return (
+                          <button
+                            type="button"
+                            key={cat}
+                            aria-pressed={isSelected}
+                            onClick={() => {
+                              telegramService.haptic('selection');
+                              setCategory(cat);
+                              // «Поныть» — маленькой группой, чтобы каждый успел выговориться
+                              if (cat === 'support' && (maxParticipants === '0' || !maxParticipants)) setMaxParticipants('6');
+                            }}
+                            className={`h-11 pl-2 pr-2.5 rounded-full border-2 inline-flex items-center gap-1 text-sm2 font-semibold transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'border-zine-terracotta bg-zine-terracotta text-white'
+                                : `${isOwn ? 'border-dashed' : ''} border-zine-border bg-zine-cardElevated text-zine-ink`
+                            }`}
+                          >
+                            {isSelected ? <Check size={18} strokeWidth={3} /> : <span className="text-[17px] leading-none">{cfg.emoji}</span>}
+                            {cfg.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
-                {/* Своя идея: автор сам пишет, что за сходка */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    telegramService.haptic('selection');
-                    setCategory('other');
-                  }}
-                  className={`mt-2 w-full h-14 px-4 rounded-zine-sm border-2 flex items-center gap-3 text-left transition-colors cursor-pointer ${
-                    category === 'other' ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-dashed border-zine-border bg-zine-cardElevated'
-                  }`}
-                >
-                  <span className="text-[24px] leading-none">✨</span>
-                  <span className={`text-sm2 font-semibold ${category === 'other' ? 'text-zine-terracotta' : 'text-zine-ink'}`}>
-                    Своя идея: впиши свою
-                  </span>
-                </button>
                 {category === 'other' && (
                   <input
                     type="text"
@@ -1719,7 +1714,13 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 // Фон карточки по категории — у сходок нет фото
 const REEL_BG: Record<EventCategory, string> = {
   walk: 'from-[#C2603F] to-[#3A2620]',
+  cafe: 'from-[#C9973A] to-[#3B2C1A]',
+  bar: 'from-[#8E4A5C] to-[#2B1C22]',
+  restaurant: 'from-[#B0704A] to-[#33231A]',
   cafe_bar: 'from-[#C9973A] to-[#3B2C1A]',
+  exhibition: 'from-[#7C4A6E] to-[#2A1D27]',
+  museum: 'from-[#6A5A8A] to-[#211D2A]',
+  cinema: 'from-[#5A3A5E] to-[#1F1620]',
   expo_cinema: 'from-[#7C4A6E] to-[#2A1D27]',
   trip_outdoors: 'from-[#5B7B68] to-[#1F2A23]',
   boardgames: 'from-[#4A7396] to-[#1C2732]',
