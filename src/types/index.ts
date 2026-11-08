@@ -126,6 +126,7 @@ export interface UserProfile {
   isMatch?: boolean;  // оба нажали 👋 — на связи, можно писать
   availableUntil?: string; // «⚡ Хочу сейчас» — до этого времени
   isGuide?: boolean;       // «🧭 Покажу город» — местный гид-волонтёр
+  isSupporter?: boolean;   // «🧡 Поддерживаю проект» — отметил после доната
   guideAbout?: string;     // что может показать
   activeRecently?: boolean; // заходил(а) за последние 3 дня
   why?: string[];           // «почему показан»: общие планы и сходки (сервер)

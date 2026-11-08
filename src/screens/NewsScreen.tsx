@@ -5,6 +5,7 @@ import { useBackButton } from '../hooks/useTelegram';
 import { NewsItem, serverUrl } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { BottomSheet } from '../components/ui/BottomSheet';
+import { SHELTERS_URL } from '../config/donate';
 
 /**
  * «Новости проекта»: посты автора (пишет боту командой /news), в том числе отчёты о донатах
@@ -43,6 +44,17 @@ export const NewsScreen: React.FC<{ news: NewsItem[]; isLoading: boolean; onOpen
           <span>
             <span className="block text-body font-bold text-zine-ink">Поддержать проект</span>
             <span className="block text-sm2 text-zine-inkMuted">51% донатов идёт приютам и на кофе организаторам. Куда потратили, пишу здесь</span>
+          </span>
+        </button>
+        {/* Переводы приютам: список, который составили вместе (раньше был в окне доната) */}
+        <button
+          onClick={() => telegramService.openLink(SHELTERS_URL)}
+          className="w-full p-4 rounded-zine bg-zine-card flex items-center gap-3 text-left cursor-pointer"
+        >
+          <span className="text-[28px] leading-none">🐾</span>
+          <span className="flex-1">
+            <span className="block text-body font-bold text-zine-ink">Список приютов и волонтёров</span>
+            <span className="block text-sm2 text-zine-inkMuted">Составили вместе. Переводы идут им, помогать можно и напрямую</span>
           </span>
         </button>
 

@@ -34,6 +34,8 @@ export interface Fund {
   sent?: number;
   coffee?: number;
   lastTransfer?: { amount: number; to: string; at: string } | null;
+  month?: { name: string; raised: number; goal: number }; // цель месяца (/goal), собрано с 1-го числа
+  people?: number; // сколько человек уже поддержали (/fund)
 }
 
 /**
@@ -298,6 +300,11 @@ class ApiService {
   // переводы приютам (/sent) и сколько кофе разыграли организаторам
   async getFund(): Promise<Fund> {
     return this.request('/fund');
+  }
+
+  // Экран «Спасибо» после перевода: значок в анкете и разрешение сказать спасибо по имени
+  async sendDonateThanks(badge: boolean, thanks: boolean): Promise<{ success: boolean }> {
+    return this.request('/fund/thanks', { method: 'POST', body: JSON.stringify({ badge, thanks }) });
   }
 
   async getNews(): Promise<NewsItem[]> {

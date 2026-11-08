@@ -84,6 +84,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
           {user.isMatch && <span className="px-3 py-1 rounded-full bg-zine-sage text-white text-sm2 font-bold shadow">🤝 На связи</span>}
           {user.likedMe && !user.isMatch && <span className="px-3 py-1 rounded-full bg-white text-zine-ink text-sm2 font-bold shadow">👋 Хочет пообщаться</span>}
           {user.isGuide && <span className="px-3 py-1 rounded-full bg-zine-sky text-white text-sm2 font-bold shadow">🧭 Покажу город</span>}
+          {user.isSupporter && <span className="px-3 py-1 rounded-full bg-white text-zine-ink text-sm2 font-bold shadow">🧡 Поддерживаю проект</span>}
         </div>
         <div className="absolute inset-x-0 bottom-0 px-4 pt-16 pb-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white pointer-events-none">
           <h3 className="font-serif font-bold text-display leading-tight">
