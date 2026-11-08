@@ -275,6 +275,8 @@ export const App: React.FC = () => {
   const [isBotOk, setIsBotOk] = useState(botAccessOk);
   const [isBotBlocked, setIsBotBlocked] = useState(false); // бот упёрся в блокировку: человек остановил бота
   useEffect(() => onBotAccessChange(() => setIsBotOk(botAccessOk())), []);
+  // «👯 Пойдём вместе»: случайный вариант подсказки, один на запуск
+  const [buddyTip] = useState(() => NOTICE_TEXTS.buddyVariants[Math.floor(Math.random() * NOTICE_TEXTS.buddyVariants.length)]);
   const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | 'safety' | 'buddy' | null>(null);
   const [tip, setTip] = useState<{ id: string; text: string; first?: boolean } | null>(null); // запись автора (/tip, /tiptop в боте)
   const [poll, setPoll] = useState<PollData | null>(null); // опрос автора (/poll в боте)
@@ -1143,7 +1145,7 @@ export const App: React.FC = () => {
     })),
     // «👯 Пойдём вместе»: есть кто-то «На связи» — напоминаем, что на сходку можно позвать его.
     // В «Людях» не нужно: там кнопка прямо под анкетой
-    matches.length > 0 && currentScreen !== 'feed' && { id: 'buddy', text: NOTICE_TEXTS.buddy, hideDays: 7, onClick: () => setNoticeSheet('buddy') },
+    matches.length > 0 && currentScreen !== 'feed' && { id: 'buddy', text: buddyTip.card, hideDays: 7, onClick: () => setNoticeSheet('buddy') },
     !currentUser.genderConfirmed && isGenderPromptDismissed && {
       id: 'gender',
       text: NOTICE_TEXTS.gender,
@@ -1542,8 +1544,8 @@ export const App: React.FC = () => {
           )}
 
           {noticeSheet === 'buddy' && (
-            <BottomSheet title={NOTICE_TEXTS.buddyTitle} onClose={() => setNoticeSheet(null)}>
-              <p className="text-body text-zine-ink">{NOTICE_TEXTS.buddyText}</p>
+            <BottomSheet title={buddyTip.title} onClose={() => setNoticeSheet(null)}>
+              <p className="text-body text-zine-ink">{buddyTip.text}</p>
               <button
                 onClick={() => {
                   setNoticeSheet(null);
