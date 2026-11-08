@@ -5,6 +5,7 @@ import { BottomSheet } from '../ui/BottomSheet';
 import { api } from '../../services/api';
 import { telegramService } from '../../services/telegram';
 import { STAR_AMOUNTS, CARD_URL, DONATE_COPY } from '../../config/donate';
+import { isOwnPhoto, NO_PHOTO } from '../../utils/thumb';
 
 const num = (n: number) => (Math.round(n * 100) / 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 const dayMonth = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
@@ -206,24 +207,82 @@ const Option: React.FC<{ checked: boolean; onChange: () => void; children: React
   </button>
 );
 
+// Как анкету видят другие: для превью после «Готово»
+interface MyCard {
+  firstName: string;
+  age?: number;
+  avatarUrl: string;
+  profileCompleted?: boolean;
+}
+
 /**
  * «Спасибо огромное! 🧡»: две галочки, обе выключены. Проверки перевода нет, всё на честном слове.
- * Суммы и счётчик людей не меняются. Вторая галочка попадает в список /thanks у автора
+ * Суммы и счётчик людей не меняются. Вторая галочка попадает в список /thanks у автора.
+ * После «Готово» со значком показываем «СПАСИБО!» и превью своей анкеты, чтобы было видно, как она теперь выглядит
  */
 const ThanksSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [badge, setBadge] = useState(false);
   const [named, setNamed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<{ card: MyCard | null; named: boolean } | null>(null);
 
-  const done = async () => {
-    if (badge || named) {
-      setBusy(true);
-      await api.sendDonateThanks(badge, named).catch(() => {});
-      setBusy(false);
+  const submit = async () => {
+    if (!badge && !named) {
+      onClose();
+      return;
     }
+    setBusy(true);
+    await api.sendDonateThanks(badge, named).catch(() => {});
+    let card: MyCard | null = null;
+    if (badge) {
+      const me = await api.getMe().catch(() => null);
+      const tg = telegramService.getUser();
+      card = {
+        firstName: me?.firstName || tg?.first_name || 'Ты',
+        age: me?.age,
+        avatarUrl: isOwnPhoto(me?.avatarUrl) ? me.avatarUrl : isOwnPhoto(tg?.photo_url) ? tg!.photo_url! : NO_PHOTO,
+        profileCompleted: me?.profileCompleted
+      };
+    }
+    setBusy(false);
     telegramService.haptic('success');
-    onClose();
+    setDone({ card, named });
   };
+
+  if (done) {
+    return (
+      <BottomSheet title="СПАСИБО! 🧡" onClose={onClose}>
+        {done.card ? (
+          <>
+            <p className="text-body text-zine-ink">Теперь твоя анкета выглядит вот так:</p>
+            <div className="relative mt-3 mx-auto w-full max-w-[260px] aspect-[4/5] rounded-zine overflow-hidden bg-zine-card shadow-zine">
+              <img src={done.card.avatarUrl} alt={done.card.firstName} className="absolute inset-0 h-full w-full object-cover" />
+              <span className="absolute top-3 left-3 h-7 px-2.5 rounded-full bg-white/90 text-zine-ink text-cap font-bold flex items-center shadow">
+                🧡 Поддерживаю проект
+              </span>
+              <div className="absolute inset-x-0 bottom-0 px-3 pt-10 pb-3 bg-gradient-to-t from-black/75 to-transparent text-white">
+                <p className="font-serif font-bold text-title leading-tight">
+                  {done.card.firstName}
+                  {done.card.age ? <span className="font-sans font-medium text-white/85">, {done.card.age}</span> : null}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-sm2 text-zine-inkMuted text-center">
+              {done.card.profileCompleted === false
+                ? 'Значок увидят, когда заполнишь анкету: возраст и интересы.'
+                : 'Значок видят все, кто листает «Людей».'}
+            </p>
+          </>
+        ) : (
+          <p className="text-body text-zine-ink">Твоя поддержка очень важна для меня и для приютов.</p>
+        )}
+        {done.named && <p className="mt-2 text-sm2 text-zine-ink text-center">Скоро скажу тебе спасибо по имени в новостях и Тредсе 🤗</p>}
+        <button onClick={onClose} className="mt-4 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer">
+          Отлично!
+        </button>
+      </BottomSheet>
+    );
+  }
 
   return (
     <BottomSheet title="Спасибо огромное! 🧡" onClose={onClose}>
@@ -236,7 +295,7 @@ const ThanksSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </Option>
       </div>
       <button
-        onClick={done}
+        onClick={submit}
         disabled={busy}
         className="mt-4 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold flex items-center justify-center cursor-pointer"
       >
