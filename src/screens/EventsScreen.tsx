@@ -335,6 +335,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   }, []);
   const formRef = useRef<HTMLFormElement>(null);
   const formErrorRef = useRef<HTMLDivElement>(null);
+  // «Своя идея»: после выбора сразу показываем, что будем делать, а не верх формы
+  const categoryRef = useRef<HTMLDivElement>(null);
+  const scrollToCategory = useRef(false);
 
   // «Опубликовать» — нативная MainButton; requestSubmit запускает и проверку required-полей
   const hasNativeSubmit = useMainButton({
@@ -344,6 +347,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     active: isModalOpen && !isMapPickerOpen && formStep === 'form'
   });
   useClosingConfirmation(isModalOpen && Boolean(title.trim() || description.trim()));
+
+  // Выбрали «Свою идею» — прокручиваем к выбору типа, когда шторка формы доехала
+  useEffect(() => {
+    if (!isModalOpen || formStep !== 'form' || !scrollToCategory.current) return;
+    scrollToCategory.current = false;
+    const t = setTimeout(() => categoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 250);
+    return () => clearTimeout(t);
+  }, [isModalOpen, formStep]);
 
   // Ошибка формы вверху шторки — прокручиваем к ней, кнопка-то внизу
   useEffect(() => {
@@ -577,6 +588,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setTemplateKey(tpl.key);
     setFormError(null);
     if (tpl.key === CUSTOM_TEMPLATE) {
+      scrollToCategory.current = true;
       setExtras({});
       setDurationMinutes(0);
       setTitle('');
@@ -1408,6 +1420,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             </Field>
 
             {!isTemplateForm && (
+              <div ref={categoryRef} className="scroll-mt-2">
               <Field label="Что будем делать?">
                 {/* Чипы по рядам: ряд — одна группа, всё видно сразу; «Своя идея» — отдельным рядом. У выбранного вместо значка галочка */}
                 <div className="flex flex-col gap-2">
@@ -1453,6 +1466,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   />
                 )}
               </Field>
+              </div>
             )}
 
             <Field label="Пару слов о встрече">
