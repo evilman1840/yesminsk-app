@@ -18,6 +18,7 @@ import { useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 import { HelpLine } from '../components/common/HelpLine';
 import { PhotoPicker, PickedPhoto, photoFromUrl, photoSrc } from '../components/common/PhotoPicker';
 import { PHOTO_TEXTS } from '../texts/photos';
+import { BUDDY_TEXTS } from '../texts/buddies';
 import { WishSheet, DELICATE_KINDS } from '../components/common/WishSheet';
 import { WishReel, pickReelWishes, reelSlotAfter } from '../components/common/WishReel';
 import { InfoToast } from '../components/ui/InfoToast';
@@ -267,6 +268,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   // «Соберу я» из «Хочу сходить»: после публикации бот напишет остальным
   const [wishGroupId, setWishGroupId] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ id: number; name: string }[]>([]); // «Позвать в компанию»
+  const [buddy, setBuddy] = useState<{ id: number; name: string } | null>(null); // «👯 Пойдём вместе»: кого бот позовёт после публикации
   // «Хочу сходить»: плашка в ленте и шторка
   const [isWishOpen, setIsWishOpen] = useState(false);
   const [wishToast, setWishToast] = useState<{ sameCount: number; groupSize: number } | null>(null); // отметили желание: что дальше
@@ -501,6 +503,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setPrice('');
     setWishGroupId(null);
     setInvite([]);
+    setBuddy(null);
     // Шаблоны не загрузились — сразу обычная форма
     setFormStep(templates && templates.length ? 'pick' : 'form');
     telegramService.haptic('selection');
@@ -539,6 +542,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     }
     if (initialCreate.wishGroupId) setWishGroupId(initialCreate.wishGroupId);
     if (initialCreate.invite?.length) setInvite(initialCreate.invite);
+    if (initialCreate.buddy) setBuddy(initialCreate.buddy);
     const when = quickTimeFromParam(initialCreate.when);
     if (when) setDateTime(toLocalInput(when));
     onInitialCreateUsed?.();
@@ -789,6 +793,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         ...(templateKey && !editingEventId ? { templateId: templateKey } : {}),
         ...(wishGroupId && !editingEventId ? { wishGroupId } : {}),
         ...(invite.length && !editingEventId ? { inviteIds: invite.map((p) => p.id) } : {}),
+        ...(buddy && !editingEventId ? { buddyId: buddy.id } : {}),
         // Из «Тоже хотят» — бот напишет всем, кто хотел того же на это время
         ...(formSession.current?.source === 'people' && !editingEventId ? { notifyWishers: true } : {}),
         durationMinutes,
@@ -1195,6 +1200,16 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 <p className="flex-1 min-w-0 text-sm2 font-semibold text-zine-ink">{WISH_TEXTS.inviteLine(invite.map((p) => p.name).join(', '))}</p>
                 <button type="button" onClick={() => setInvite([])} className="shrink-0 text-sm2 font-bold text-zine-terracotta cursor-pointer">
                   {WISH_TEXTS.inviteRemove}
+                </button>
+              </div>
+            )}
+
+            {/* «👯 Пойдём вместе»: кого бот позовёт после публикации */}
+            {!editingEventId && buddy && (
+              <div className="p-3 rounded-zine-sm bg-zine-terracotta/10 flex items-start gap-2">
+                <p className="flex-1 min-w-0 text-sm2 font-semibold text-zine-ink">{BUDDY_TEXTS.formLine(buddy.name)}</p>
+                <button type="button" onClick={() => setBuddy(null)} className="shrink-0 text-sm2 font-bold text-zine-terracotta cursor-pointer">
+                  {BUDDY_TEXTS.formRemove}
                 </button>
               </div>
             )}

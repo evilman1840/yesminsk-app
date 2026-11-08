@@ -50,6 +50,7 @@ import { EVENT_UPDATED, EVENT_EDIT } from './context/eventUpdates';
 import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, WishSummaryItem, MeetupStats, placeForMeetup, PollData } from './types';
 import { WISH_TEXTS, wishCounter, wishNotices } from './texts/wishes';
 import { FEED_TEXTS } from './texts/feed';
+import { GoTogetherSheet } from './components/common/BuddySheets';
 import { MEETUP_TEXTS } from './texts/meetups';
 
 // Сколько анкет сервер отдаёт за раз (PEOPLE_PAGE на сервере)
@@ -170,6 +171,8 @@ export const App: React.FC = () => {
   const [matchPopupUser, setMatchPopupUser] = useState<UserProfile | null>(null);
   // Сходка, открытая по ссылке-приглашению или из уведомления бота
   const [sharedEvent, setSharedEvent] = useState<AppEvent | null>(null);
+  const [sharedEventBuddy, setSharedEventBuddy] = useState(false); // «Позвать ещё» от бота: открыть сходку сразу с «👯 Позвать с собой»
+  const [goTogetherWith, setGoTogetherWith] = useState<UserProfile | null>(null); // «👯 Пойдём на сходку вместе» из «На связи»
 
   // Новости проекта и счётчик непрочитанных
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -661,6 +664,7 @@ export const App: React.FC = () => {
         const found = loadedEvents.find(e => String(e.id) === target.eventId);
         if (found) {
           setSharedEvent(found);
+          if (target.buddy) setSharedEventBuddy(true);
           // «✅ Точно приду» / «❌ Отменить» из напоминания или сообщения организатора
           if (found.isJoined && target.rsvp === 'yes' && !found.myConfirmed) {
             api.confirmEvent(found.id)
@@ -1329,6 +1333,7 @@ export const App: React.FC = () => {
                 onSelectUser={(u) => setSelectedUser(u)}
                 onReact={handleReact}
                 onUnmatch={handleUnmatch}
+                onGoTogether={(u) => setGoTogetherWith(u)}
                 onSkip={handleSkip}
                 onUnskip={handleUnskip}
                 onOpenWishKind={(kind, sport) => setWishKind({ kind, sport })}
@@ -1429,15 +1434,34 @@ export const App: React.FC = () => {
           )}
 
           {sharedEvent && isTab && !matchPopupUser && (
-            <BottomSheet title={sharedEvent.title} onClose={() => setSharedEvent(null)}>
+            <BottomSheet
+              title={sharedEvent.title}
+              onClose={() => {
+                setSharedEvent(null);
+                setSharedEventBuddy(false);
+              }}
+            >
               <EventDetails
                 event={sharedEvent}
+                openBuddy={sharedEventBuddy}
                 onJoin={async (options) => {
                   const updated = await handleJoinEvent(sharedEvent, options);
                   if (updated) setSharedEvent(updated);
                 }}
               />
             </BottomSheet>
+          )}
+
+          {goTogetherWith && (
+            <GoTogetherSheet
+              friend={goTogetherWith}
+              onClose={() => setGoTogetherWith(null)}
+              onCreate={({ template, when, opt }) => {
+                setPendingCreate({ ...(template ? { template } : {}), when, opt, source: 'buddy', buddy: { id: goTogetherWith.telegramId, name: goTogetherWith.firstName } });
+                setGoTogetherWith(null);
+                setCurrentScreen('events');
+              }}
+            />
           )}
 
           {/* Пока открыта анкета из списка — список спрятан, после закрытия анкеты вернётся */}

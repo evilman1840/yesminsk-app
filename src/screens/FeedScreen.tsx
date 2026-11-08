@@ -9,6 +9,7 @@ import { photoSrc } from '../components/common/PhotoPicker';
 import { USERNAME_TEXTS } from '../texts/profile';
 import { PHOTO_TEXTS } from '../texts/photos';
 import { FEED_TEXTS } from '../texts/feed';
+import { BUDDY_TEXTS } from '../texts/buddies';
 import { UndoToast } from '../components/ui/UndoToast';
 import { markPersonSeen } from '../utils/seenPeople';
 import { WishReel, pickReelWishes, reelSlotAfter } from '../components/common/WishReel';
@@ -35,6 +36,7 @@ export interface FeedScreenProps {
   onSelectUser: (user: UserProfile) => void;
   onReact: (user: UserProfile, type: ReactionType) => Promise<unknown> | void;
   onUnmatch?: (user: UserProfile) => Promise<void>;        // «Отменить» в «На связи»
+  onGoTogether?: (user: UserProfile) => void;              // «👯 Пойдём на сходку вместе» в «На связи»
   onSkip?: (user: UserProfile) => void;                    // свайп влево: пропустить на 3 дня
   onUnskip?: (user: UserProfile, index: number) => void;   // «Вернуть»
   onOpenWishKind?: (kind: string, sport?: string) => void; // нажали «Тоже хочет: …» — кто ещё хочет и «Собрать сходку»
@@ -77,6 +79,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   onSelectUser,
   onReact,
   onUnmatch,
+  onGoTogether,
   onSkip,
   onUnskip,
   isTourist = false,
@@ -341,6 +344,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               }}
               onReact={onReact}
               onUnmatch={onUnmatch ? () => onUnmatch(user) : undefined}
+              onGoTogether={onGoTogether ? () => onGoTogether(user) : undefined}
               onOpenWishKind={onOpenWishKind}
               onSkip={() => {
                 setJustSkipped({ user, index: users.findIndex((u) => u.telegramId === user.telegramId) });
@@ -469,8 +473,9 @@ const PersonReel: React.FC<{
   onReact: (user: UserProfile, type: ReactionType) => Promise<unknown> | void;
   onSkip: () => void;
   onUnmatch?: () => Promise<void>;
+  onGoTogether?: () => void;
   onOpenWishKind?: (kind: string, sport?: string) => void;
-}> = ({ user, tab, isFirst, myGoals, onOpen, onReact, onSkip, onUnmatch, onOpenWishKind }) => {
+}> = ({ user, tab, isFirst, myGoals, onOpen, onReact, onSkip, onUnmatch, onGoTogether, onOpenWishKind }) => {
   const [busy, setBusy] = useState<ReactionType | 'unmatch' | null>(null);
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
   const [isConfirmingUnmatch, setIsConfirmingUnmatch] = useState(false);
@@ -708,6 +713,19 @@ const PersonReel: React.FC<{
         ) : isConfirmingHide ? (
           confirmBox('🙈 Скрыть навсегда? Вы больше не увидите друг друга.', busy ? <Loader2 size={20} className="animate-spin" /> : 'Да, скрыть', () => react('dislike'), 'Нет', () => setIsConfirmingHide(false))
         ) : user.isMatch ? (
+          <div>
+          {/* Позвать на сходку компанией (не вдвоём): ближайшие сходки, общие желания или своя */}
+          {onGoTogether && (
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                onGoTogether();
+              }}
+              className="mb-2 w-full h-12 rounded-full border-2 border-zine-terracotta text-zine-terracotta text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform"
+            >
+              {BUDDY_TEXTS.goTogether}
+            </button>
+          )}
           <div className="flex gap-2">
             {onUnmatch && (
               <button
@@ -733,6 +751,7 @@ const PersonReel: React.FC<{
                 Написать
               </button>
             )}
+          </div>
           </div>
         ) : (
           waves === 'out' ? (

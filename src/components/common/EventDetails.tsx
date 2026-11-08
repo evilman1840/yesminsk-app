@@ -15,6 +15,8 @@ import { confirmAttendance, EVENT_UPDATED, EVENT_EDIT } from '../../context/even
 import { EVENT_MESSAGE_TEXTS as EM } from '../../texts/eventMessage';
 import { api } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
+import { BringBuddySheet } from './BuddySheets';
+import { BUDDY_TEXTS } from '../../texts/buddies';
 
 /**
  * Подробности сходки: когда, где, сколько идёт, кнопки «Пойду!», «Позвать друзей» и «Организатору»
@@ -63,7 +65,8 @@ export const EventDetails: React.FC<{
   // options — с кем идёшь; null — «Не пойду»
   onJoin: (options: JoinOptions | null) => Promise<unknown> | void;
   onReported?: () => void;
-}> = ({ event: eventProp, onJoin, onReported }) => {
+  openBuddy?: boolean; // «Позвать ещё» от бота: сразу открыть «👯 Позвать с собой»
+}> = ({ event: eventProp, onJoin, onReported, openBuddy }) => {
   // «Точно приду» или отказ участнику нажали здесь: шторка на карте держит свою копию сходки, поэтому ответ сервера подмешиваем сами.
   // Пришла новая сходка сверху — своя копия больше не нужна
   const [localEvent, setLocalEvent] = useState<AppEvent | null>(null);
@@ -75,6 +78,7 @@ export const EventDetails: React.FC<{
   const [noShowBusy, setNoShowBusy] = useState<number | null>(null);
   const event = localEvent && localEvent.id === eventProp.id ? { ...eventProp, ...localEvent } : eventProp;
   const [isJoinOpen, setIsJoinOpen] = useState(false);
+  const [isBuddyOpen, setIsBuddyOpen] = useState(false);
   const cat = eventCategoryOf(event);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
@@ -118,6 +122,30 @@ export const EventDetails: React.FC<{
   const left = event.maxParticipants ? Math.max(0, event.maxParticipants - taken) : null;
   // Кто идёт, кроме организатора (сервер присылает всех)
   const others = (event.participants || []).filter((p) => Number(p.telegramId) !== Number(event.creator?.telegramId));
+  // «👯 идут вместе»: пришли по приглашению знакомого
+  const buddyNames = (event.participants || []).filter((p) => p.buddy).map((p) => p.name);
+  // «👯 Позвать с собой»: сходка больше чем на двоих, до начала больше 3 часов, мне подходит и хватает мест на двоих
+  const canBringBuddy =
+    !isFull &&
+    !notForMe &&
+    new Date(event.dateTime).getTime() > Date.now() + 3 * 60 * 60 * 1000 &&
+    (!event.maxParticipants || event.maxParticipants > 2) &&
+    (left === null || left >= (event.isJoined || isCreator ? 1 : 2));
+  useEffect(() => {
+    if (openBuddy && canBringBuddy) setIsBuddyOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openBuddy]);
+  const buddyButton = canBringBuddy && (
+    <button
+      onClick={() => {
+        telegramService.haptic('selection');
+        setIsBuddyOpen(true);
+      }}
+      className="flex-1 min-w-0 h-14 rounded-zine-sm border-2 border-zine-terracotta text-zine-terracotta text-body font-bold whitespace-nowrap px-2 flex items-center justify-center active:scale-[0.98] transition-transform cursor-pointer"
+    >
+      {BUDDY_TEXTS.bringBuddy}
+    </button>
+  );
   const moreGroups = Math.max(0, (event.groupsCount ?? event.participantsCount) - 1 - others.length);
 
   return (
@@ -247,6 +275,7 @@ export const EventDetails: React.FC<{
             >
               {EM.button(others.length)}
             </button>
+            {event.buddyPairs ? <p className="text-sm2 font-semibold text-zine-ink">{BUDDY_TEXTS.pairsForHost(event.buddyPairs)}</p> : null}
             {/* Сходка уже началась — отметить, кто не пришёл (внутренний рейтинг, человеку не сообщаем) */}
             {isStarted && <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{MEETUP_TEXTS.noShowHint}</p>}
             {!isStarted && event.byRequest && others.some((p) => !p.approved) && (
@@ -266,6 +295,7 @@ export const EventDetails: React.FC<{
                       <span className="block text-cap text-zine-inkMuted truncate">
                         {event.byRequest && <span className="font-semibold text-zine-ink">{MEETUP_TEXTS.peopleCount(1 + (p.guests || 0))} · </span>}
                         {p.confirmed && <span className="font-semibold text-zine-sage">✅ {MEETUP_TEXTS.confirmedOne} · </span>}
+                        {p.buddy && <span className="font-semibold text-zine-terracotta">{BUDDY_TEXTS.goingTogether} · </span>}
                         {p.username ? `@${p.username}` : EM.noUsername}
                       </span>
                     </span>
@@ -369,6 +399,11 @@ export const EventDetails: React.FC<{
                       <Check size={12} strokeWidth={3.5} />
                     </span>
                   )}
+                  {p.buddy && (
+                    <span aria-label={BUDDY_TEXTS.goingTogether} title={BUDDY_TEXTS.goingTogether} className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-zine-cardElevated text-[12px] flex items-center justify-center shadow">
+                      👯
+                    </span>
+                  )}
                   {(p.guests || p.withKids) && (
                     <span className="absolute -bottom-1 -right-1 px-1 rounded-full bg-zine-cardElevated text-[11px] font-bold text-zine-ink shadow">
                       {p.withKids ? '👶' : ''}
@@ -388,6 +423,7 @@ export const EventDetails: React.FC<{
           </div>
         )}
 
+        {!isCreator && buddyNames.length > 1 && <p className="mt-2 text-sm2 font-semibold text-zine-terracotta">{BUDDY_TEXTS.together(buddyNames.join(', '))}</p>}
         <div className="mt-3 flex items-center gap-2 text-sm2 text-zine-inkMuted">
           <Users size={17} className="shrink-0 text-zine-terracotta" />
           <span>{eventPeopleLine(event)}</span>
@@ -461,6 +497,7 @@ export const EventDetails: React.FC<{
               <Edit2 size={20} />
               <span>Изменить</span>
             </button>
+            {buddyButton}
             <button
               onClick={deleteOwn}
               disabled={isDeleting}
@@ -471,13 +508,14 @@ export const EventDetails: React.FC<{
             </button>
           </div>
         ) : (
+        <div className="flex gap-2">
         <button
           onClick={() => {
             telegramService.haptic('medium');
             setIsJoinOpen(true);
           }}
           disabled={isFull || approvedLock || Boolean(notForMe)}
-          className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
+          className={`${buddyButton ? 'flex-1 min-w-0 px-2 text-body gap-1.5 whitespace-nowrap' : 'w-full text-lead gap-2'} h-14 rounded-zine-sm font-bold flex items-center justify-center active:scale-[0.98] transition-transform cursor-pointer ${
             event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : isFull || notForMe ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'bg-zine-terracotta text-white'
           }`}
         >
@@ -496,13 +534,16 @@ export const EventDetails: React.FC<{
             )
           ) : event.isJoined ? (
             <>
-              <Check size={22} strokeWidth={3} />
-              <span>Я иду{myNote ? ` (${myNote})` : ''} · изменить</span>
+              <Check size={buddyButton ? 18 : 22} strokeWidth={3} className="shrink-0" />
+              {/* Рядом «👯 Позвать с собой» — коротко, нажатие всё так же открывает изменение */}
+              <span className="truncate">Я иду{myNote ? ` (${myNote})` : ''}{buddyButton ? '' : ' · изменить'}</span>
             </>
           ) : (
             <span>{event.byRequest ? MEETUP_TEXTS.requestJoin : 'Пойду!'}</span>
           )}
         </button>
+        {buddyButton}
+        </div>
         )}
         {/* «По записи»: заявка ждёт — можно отменить; подтверждена — только через организатора */}
         {event.isJoined && !isCreator && event.byRequest && (
@@ -588,6 +629,7 @@ export const EventDetails: React.FC<{
       )}
       {isMessageOpen && <MessageParticipantsSheet eventId={String(event.id)} onClose={() => setIsMessageOpen(false)} />}
 
+      {isBuddyOpen && <BringBuddySheet event={event} onClose={() => setIsBuddyOpen(false)} />}
       {isJoinOpen && <JoinSheet event={event} onConfirm={async (o) => onJoin(o)} onLeave={async () => onJoin(null)} onClose={() => setIsJoinOpen(false)} />}
       {isReportOpen && <ReportSheet targetType="event" targetId={event.id} targetName={event.title} onClose={() => setIsReportOpen(false)} onReported={() => onReported?.()} />}
     </div>

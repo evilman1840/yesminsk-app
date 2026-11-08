@@ -280,7 +280,9 @@ export interface AppEvent {
     confirmed?: boolean; // «✅ Точно приду» — значок у аватарки
     approved?: boolean;  // «По записи»: организатор подтвердил
     noShow?: boolean;    // организатор отметил «Не пришёл(ла)» (приходит только организатору)
+    buddy?: boolean;     // «👯 идут вместе»: пришёл по приглашению знакомого или позвал сам
   }>;
+  buddyPairs?: number;   // организатору: сколько пар пришло по «👯 Пойдём вместе»
 }
 
 // Что уходит на сервер при создании и изменении сходки
@@ -304,6 +306,7 @@ export interface EventPayload {
   wishGroupId?: string;
   byRequest?: boolean;
   inviteIds?: number[]; // «Позвать в компанию»: бот пришлёт им приглашение от меня
+  buddyId?: number;     // «👯 Пойдём вместе»: после публикации бот позовёт этого знакомого
   audienceGender?: AudienceGender;
   ageMin?: number | null;
   ageMax?: number | null;
@@ -398,7 +401,7 @@ export interface MeetupPlace {
   placeType?: string; // тип места: под него подбираются шаблоны
 }
 // Откуда открыли форму сходки — для воронки в /stats
-export type MeetupFormSource = 'feed' | 'empty' | 'place' | 'link' | 'map' | 'people';
+export type MeetupFormSource = 'feed' | 'empty' | 'place' | 'link' | 'map' | 'people' | 'buddy';
 export interface MeetupCreateRequest {
   place?: MeetupPlace;
   template?: string;
@@ -407,6 +410,7 @@ export interface MeetupCreateRequest {
   wishGroupId?: string; // «Соберу я» из сообщения бота
   opt?: string;         // предвыбранный вариант доп. поля (вид спорта)
   invite?: { id: number; name: string }[]; // «Позвать в компанию» из «Тоже хотят»
+  buddy?: { id: number; name: string };    // «👯 Пойдём вместе» → «Собери свою сходку»: кого бот позовёт после публикации
 }
 
 // Сколько ещё можно взять с собой: свободные места минус я сам (моя прошлая запись не в счёт)

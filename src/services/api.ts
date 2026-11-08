@@ -20,6 +20,29 @@ const API_BASE_URL = getApiBaseUrl();
 // Полный адрес файла на сервере (например, фото из новостей: /api/news/photo/…)
 export const serverUrl = (path: string) => API_BASE_URL.replace(/\/api$/, '') + path;
 
+// «👯 Пойдём на сходку вместе»
+export interface BuddyPerson {
+  telegramId: number;
+  firstName: string;
+  age?: number;
+  areaName?: string;
+  avatarUrl: string;
+  invited?: string | null; // уже звали на эту сходку: pending, accepted, declined, expired, undelivered
+}
+export interface BuddyOptions {
+  friend: BuddyPerson;
+  events: (AppEvent & { bothLike?: boolean })[];
+  wishes: { kind: string; sport: string | null; what: string; when: string; timeWindow: WishWindow }[];
+  left: number;
+  limit: number;
+}
+export interface EventBuddies {
+  people: BuddyPerson[];
+  left: number;
+  limit: number;
+  closed?: string | null; // почему звать сюда нельзя (сходка скоро, на двоих, мест не хватает)
+}
+
 export interface NewsItem {
   id: string;
   text: string;
@@ -516,6 +539,20 @@ class ApiService {
   // Модератор удаляет чужую сходку; reason — его текст организатору
   async adminDeleteEvent(eventId: string, reason: string): Promise<{ success: boolean }> {
     return this.request(`/events/${eventId}/delete`, { method: 'POST', body: JSON.stringify({ reason }) });
+  }
+
+  // «👯 Пойдём на сходку вместе»: куда позвать знакомого из «На связи»
+  async getBuddyOptions(friendId: number): Promise<BuddyOptions> {
+    return this.request(`/buddies/${friendId}/options`);
+  }
+
+  // «👯 Позвать с собой» в карточке сходки: кого из «На связи» можно позвать
+  async getEventBuddies(eventId: string): Promise<EventBuddies> {
+    return this.request(`/events/${eventId}/buddies`);
+  }
+
+  async sendBuddyInvite(eventId: string, toId: number, source: 'people' | 'event'): Promise<{ delivered: boolean; warning?: string; event: AppEvent; left: number }> {
+    return this.request('/buddies/invite', { method: 'POST', body: JSON.stringify({ eventId, toId, source }) });
   }
 
   // Записаться или поменять, с кем идёшь (повторный вызов обновляет запись)
