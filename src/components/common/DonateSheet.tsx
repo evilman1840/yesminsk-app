@@ -16,6 +16,9 @@ const supportedLine = (n: number) => {
   return `Уже ${n === 1 ? 'поддержал' : 'поддержали'} ${n} ${few ? 'человека' : 'человек'}`;
 };
 
+// «из 500 рублей», «из 21 рубля»
+const ofRubles = (n: number) => (Number.isInteger(n) && n % 10 === 1 && n % 100 !== 11 ? 'рубля' : 'рублей');
+
 // 51% приютам, волонтёрам и организаторам сходок, 49% проекту
 const SHELTER_SHARE = 51;
 
@@ -83,7 +86,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
         <p className="text-body text-zine-ink">
           {month ? (
             <>
-              {month.name}: <b>{num(month.raised)}</b> из {num(month.goal)} р.
+              {month.name}: <b>{num(month.raised)}</b> из {num(month.goal)} {ofRubles(month.goal)}
             </>
           ) : (
             <span className="text-zine-inkMuted">Загружаю…</span>
