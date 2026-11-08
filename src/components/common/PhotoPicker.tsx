@@ -4,6 +4,7 @@ import { api, serverUrl } from '../../services/api';
 import { telegramService } from '../../services/telegram';
 import { compressImage } from '../../utils/compressImage';
 import { PHOTO_TEXTS as T } from '../../texts/photos';
+import { thumb } from '../../utils/thumb';
 
 export interface PickedPhoto {
   id: string;  // file_id на сервере ('' — ещё грузится)
@@ -59,7 +60,7 @@ export const PhotoPicker: React.FC<{
       <div className="grid grid-cols-3 gap-2">
         {value.map((p, i) => (
           <div key={p.url} className="relative aspect-square rounded-zine-sm overflow-hidden bg-zine-card">
-            <img src={photoSrc(p.url.split('#')[0])} alt="" className="w-full h-full object-cover" />
+            <img src={thumb(photoSrc(p.url.split('#')[0]))} alt="" className="w-full h-full object-cover" />
             {!p.id && (
               <span className="absolute inset-0 bg-black/40 flex items-center justify-center text-white">
                 <Loader2 size={22} className="animate-spin" />

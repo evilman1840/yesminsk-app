@@ -394,7 +394,7 @@ const MinskMapContent: React.FC<{
               geometry={place.coordinates}
               properties={{
                 placeId: place.id,
-                photo: place.photos[0] ? serverUrl(place.photos[0]) : placePlaceholder(PLACE_MOODS[place.moods[0]]?.emoji || '📍'),
+                photo: place.photos[0] ? thumb(serverUrl(place.photos[0])) : placePlaceholder(PLACE_MOODS[place.moods[0]]?.emoji || '📍'),
                 emoji: PLACE_MOODS[place.moods[0]]?.emoji || '📍'
               }}
               options={{
@@ -773,7 +773,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
                   ? [thumb(item.user.avatarUrl), '', item.user.firstName, 'Человек рядом']
                   : item.kind === 'event'
                   ? ['', EVENT_CATEGORIES_CONFIG[item.event.category]?.emoji || '📍', item.event.title, 'Сходка']
-                  : [item.place.photos[0] ? serverUrl(item.place.photos[0]) : '', PLACE_MOODS[item.place.moods[0]]?.emoji || '📍', item.place.name, 'Место'];
+                  : [item.place.photos[0] ? thumb(serverUrl(item.place.photos[0])) : '', PLACE_MOODS[item.place.moods[0]]?.emoji || '📍', item.place.name, 'Место'];
               return (
                 <button key={i} onClick={pick} className="w-full p-3 rounded-zine-sm bg-zine-card flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform">
                   {img ? (

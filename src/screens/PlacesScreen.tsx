@@ -305,6 +305,8 @@ const PlaceReel: React.FC<{
   events?: AppEvent[];
 }> = ({ place, isFirst, onOpen, onToggleSave, onCreateEvent, onNotInterested, events = [] }) => {
   const [photoIndex, setPhotoIndex] = useState(0);
+  // Грузим только открытые фото и одно следующее: раньше карточка сразу качала все 5 по ~85 КБ
+  const [opened, setOpened] = useState<Set<number>>(() => new Set([0]));
   const placeEvents = eventsAtPlace(place, events);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -322,7 +324,10 @@ const PlaceReel: React.FC<{
   const commentsCount = place.tipsCount + (place.reviews?.length || 0);
   const showPhoto = (step: number) => {
     telegramService.haptic('selection');
-    setPhotoIndex((i) => (i + step + place.photos.length) % place.photos.length);
+    const n = place.photos.length;
+    const next = (photoIndex + step + n) % n;
+    setPhotoIndex(next);
+    setOpened((o) => (o.has(next) ? o : new Set(o).add(next)));
   };
 
   return (
@@ -337,7 +342,8 @@ const PlaceReel: React.FC<{
       {/* Фото — без надписей и кнопок поверх, только точки и стрелки. Тап по центру — карточка места */}
       <div className="relative mx-3 flex-1 min-h-[42%] rounded-zine overflow-hidden bg-gradient-to-br from-[#5B7B68] to-[#2B2623]">
         {place.photos.length > 0 ? (
-          place.photos.map((photo, i) => (
+          place.photos.map((photo, i) =>
+            !opened.has(i) && i !== (photoIndex + 1) % place.photos.length ? null : (
             <img
               key={photo}
               src={serverUrl(photo)}
