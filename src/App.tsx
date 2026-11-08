@@ -275,7 +275,7 @@ export const App: React.FC = () => {
   const [isBotOk, setIsBotOk] = useState(botAccessOk);
   const [isBotBlocked, setIsBotBlocked] = useState(false); // бот упёрся в блокировку: человек остановил бота
   useEffect(() => onBotAccessChange(() => setIsBotOk(botAccessOk())), []);
-  const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | 'safety' | null>(null);
+  const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | 'safety' | 'buddy' | null>(null);
   const [tip, setTip] = useState<{ id: string; text: string; first?: boolean } | null>(null); // запись автора (/tip, /tiptop в боте)
   const [poll, setPoll] = useState<PollData | null>(null); // опрос автора (/poll в боте)
   // «Закрепи чат»: Telegram не говорит, закреплён ли чат, — верим «Всё сделано» или крестику, больше не показываем
@@ -1141,6 +1141,9 @@ export const App: React.FC = () => {
           exact: { window: w.timeWindow, placeId: w.placeId, counter: wishCounter(w), includesMe: w.includesMe }
         })
     })),
+    // «👯 Пойдём вместе»: есть кто-то «На связи» — напоминаем, что на сходку можно позвать его.
+    // В «Людях» не нужно: там кнопка прямо под анкетой
+    matches.length > 0 && currentScreen !== 'feed' && { id: 'buddy', text: NOTICE_TEXTS.buddy, hideDays: 7, onClick: () => setNoticeSheet('buddy') },
     !currentUser.genderConfirmed && isGenderPromptDismissed && {
       id: 'gender',
       text: NOTICE_TEXTS.gender,
@@ -1534,6 +1537,23 @@ export const App: React.FC = () => {
               <p className="text-body text-zine-ink">{NOTICE_TEXTS.safetyText}</p>
               <button onClick={() => setNoticeSheet(null)} className="mt-4 w-full h-12 rounded-zine-sm bg-zine-card text-body font-semibold text-zine-ink cursor-pointer">
                 {NOTICE_TEXTS.safetyDone}
+              </button>
+            </BottomSheet>
+          )}
+
+          {noticeSheet === 'buddy' && (
+            <BottomSheet title={NOTICE_TEXTS.buddyTitle} onClose={() => setNoticeSheet(null)}>
+              <p className="text-body text-zine-ink">{NOTICE_TEXTS.buddyText}</p>
+              <button
+                onClick={() => {
+                  setNoticeSheet(null);
+                  setSelectedUser(null);
+                  setCurrentScreen('feed');
+                  setFeedOpenTab({ tab: 'matches', at: Date.now() });
+                }}
+                className="mt-4 w-full h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer active:scale-[0.99] transition-transform"
+              >
+                {NOTICE_TEXTS.buddyGo}
               </button>
             </BottomSheet>
           )}
