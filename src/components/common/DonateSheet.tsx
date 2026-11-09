@@ -21,11 +21,13 @@ const fedLine = (n: number) => {
 };
 
 // Подсказки суммы: банк по ссылке сумму не принимает, человек вводит её сам
+// 1 рубль = 1 пирожок. По выписке за 24.10–9.11 (45 донатов): чаще всего 5 р. (треть), потом 1 р.;
+// 20–30 р. — всего 4 доната, но это треть денег. 100 р. не было ни разу, поэтому верх шкалы — 30
 const TIERS = [
-  { kind: 'one', name: 'Пирожок', rub: 5 },
-  { kind: 'two', name: 'Два пирожка', rub: 10 },
-  { kind: 'basket', name: 'Корзинка', rub: 25 },
-  { kind: 'loaf', name: 'Каравай', rub: 50 }
+  { kind: 'one', name: 'Пирожок', rub: 1 },
+  { kind: 'two', name: 'Тарелка', rub: 5 },
+  { kind: 'basket', name: 'Корзинка', rub: 10 },
+  { kind: 'loaf', name: 'Каравай', rub: 30 }
 ] as const;
 const PIES = 20; // пирожков на противне = цель месяца
 
@@ -86,20 +88,17 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
 
   return (
     <BottomSheet title="Накорми Печку 🥧" onClose={onClose}>
-      {/* 1. Печка и зачем ей пирожки */}
-      <div className="flex items-end gap-3">
-        <Pechka mood={moodFor(filled)} size={96} className="shrink-0" />
-        <p className="text-sm2 text-zine-inkMuted">
-          На Печке работает весь ГУЛЯЙ!: карта, сходки, игры. В сказке она угощала пирожками, теперь наша очередь.
+      {/* 1. Печка и слово от Миши — коротко, чтобы кнопка доната была видна без прокрутки */}
+      <div className="flex items-center gap-3">
+        <Pechka mood={moodFor(filled)} size={72} className="shrink-0" />
+        <p className="text-sm2 text-zine-ink">
+          Я делаю ГУЛЯЙ! один, без инвесторов и рекламы. Каждый пирожок — это сервер, новое в приложении и помощь приютам.{' '}
+          <b>Миша Спасатель</b>
         </p>
       </div>
-      <p className="mt-3 p-3 rounded-zine-sm bg-zine-mustard/10 border border-dashed border-zine-mustard/50 text-sm2 text-zine-ink">
-        Я делаю приложение один, без инвесторов и рекламы. Каждый пирожок — это сервер, новые функции и помощь приютам.{' '}
-        <b>Миша Спасатель</b>
-      </p>
 
       {/* 2. Цель месяца = сытость Печки, шкала из пирожков */}
-      <div className="mt-3 p-4 rounded-zine bg-zine-card">
+      <div className="mt-3 px-3 py-2.5 rounded-zine bg-zine-card">
         {month ? (
           <p className="flex flex-wrap justify-between gap-x-3 text-sm2 text-zine-ink">
             <span>
@@ -112,16 +111,15 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
         ) : (
           <p className="text-sm2 text-zine-inkMuted">Загружаю…</p>
         )}
-        <div className="mt-2 grid grid-cols-10 gap-1 text-zine-inkMuted/50" aria-hidden>
+        <div className="mt-1.5 grid grid-cols-10 gap-1 text-zine-inkMuted/50" aria-hidden>
           {Array.from({ length: PIES }, (_, i) => (
             <Pie key={i} empty={i >= pies} />
           ))}
         </div>
-        <p className="mt-2 text-cap text-zine-inkMuted">🐾 51% отдаю приютам, волонтёрам и организаторам сходок</p>
-        <p className="text-cap text-zine-inkMuted">🛠 49%, чтобы ГУЛЯЙ! работал и становился лучше</p>
+        <p className="mt-1.5 text-cap text-zine-inkMuted">🐾 51% приютам и сходкам · 🛠 49% на ГУЛЯЙ!</p>
       </div>
 
-      {/* 3. Сколько пирожков — подсказка, и главная кнопка с суммой */}
+      {/* 3. Сколько пирожков (1 рубль = 1 пирожок) — подсказка, и главная кнопка с суммой */}
       <div className="mt-3 grid grid-cols-4 gap-2" role="group" aria-label="Сколько пирожков">
         {TIERS.map((t, i) => (
           <button
@@ -131,7 +129,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
               setTier(i);
             }}
             aria-pressed={tier === i}
-            className={`py-2 px-1 rounded-zine-sm border-2 flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${
+            className={`py-1.5 px-1 rounded-zine-sm border-2 flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${
               tier === i ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-card'
             }`}
           >
@@ -150,7 +148,9 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
         <span className="block text-lead font-bold">Накормить донатом · {TIERS[tier].rub} р.</span>
         <span className="block text-cap font-medium opacity-90">онлайн на карту</span>
       </button>
-      <p className="mt-1 text-cap text-zine-inkMuted text-center">Сумма — подсказка, в банке можно ввести любую</p>
+      <p className="mt-1.5 text-cap text-zine-inkMuted text-center">
+        <b className="text-zine-ink">1 рубль = 1 пирожок.</b> Можно любую сумму: её вводишь сам в банке
+      </p>
 
       <button
         onClick={() => setShowOther((v) => !v)}
