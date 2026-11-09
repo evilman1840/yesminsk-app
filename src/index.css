@@ -427,3 +427,31 @@ textarea.field {
   .serial-frame { transition: none; }
 }
 .serial-frame.on { pointer-events: auto; }
+
+/* Премьера сериала: письмо Миши на весь экран */
+.serial-intro .intro-spot { background: radial-gradient(120% 60% at 50% 0%, rgba(226,160,63,.22), transparent 60%), radial-gradient(90% 45% at 50% 100%, rgba(217,92,60,.35), transparent 70%); animation: intro-fade 1s ease both; }
+.serial-intro .intro-rays { background: repeating-conic-gradient(from 0deg, rgba(255,246,230,.07) 0 9deg, transparent 9deg 22deg); border-radius: 50%;
+  -webkit-mask: radial-gradient(circle, #000 0, #000 18%, transparent 62%); mask: radial-gradient(circle, #000 0, #000 18%, transparent 62%);
+  opacity: 0; animation: intro-fade .8s ease forwards, intro-spin 40s linear infinite; }
+.serial-intro .intro-up { opacity: 0; animation: intro-up .6s cubic-bezier(.2,.8,.2,1) forwards; }
+.serial-intro .intro-pop { opacity: 0; animation: intro-pop .6s cubic-bezier(.3,1.6,.5,1) forwards; }
+.serial-intro .intro-letter { opacity: 0; transform-origin: 50% 100%; animation: intro-letter .55s cubic-bezier(.3,1.7,.5,1) forwards; }
+.serial-intro .intro-tv-on { opacity: 0; transform-box: fill-box; transform-origin: center; animation: intro-tv-on .55s ease-out forwards; }
+.serial-intro .intro-tv { animation: serial-bob 3s 3.4s infinite ease-in-out; }
+.serial-intro .intro-btn { opacity: 0; animation: intro-up .6s cubic-bezier(.2,.8,.2,1) forwards, intro-pulse 2.2s 4.4s ease-in-out infinite; }
+.serial-intro .intro-shine { background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); transform: skewX(-20deg); animation: intro-shine 2.8s 4s ease-in-out infinite; }
+.serial-intro .intro-confetti { opacity: 0; animation-name: intro-confetti; animation-timing-function: cubic-bezier(.3,.6,.6,1); animation-fill-mode: forwards; }
+@keyframes intro-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes intro-spin { to { transform: rotate(360deg) } }
+@keyframes intro-up { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+@keyframes intro-pop { 0% { opacity: 0; transform: scale(.4) } 100% { opacity: 1; transform: none } }
+@keyframes intro-letter { 0% { opacity: 0; transform: translateY(-38px) rotate(-12deg) scale(.6) } 100% { opacity: 1; transform: none } }
+@keyframes intro-tv-on { 0% { opacity: 1; transform: scale(1, .04); filter: brightness(3) } 45% { transform: scale(1, .04); filter: brightness(3) } 100% { opacity: 1; transform: none; filter: none } }
+@keyframes intro-pulse { 50% { transform: scale(1.03) } }
+@keyframes intro-shine { 0% { left: -50% } 45%, 100% { left: 130% } }
+@keyframes intro-confetti { 0% { opacity: 1; transform: translate(0, -20px) rotate(0) } 85% { opacity: 1 } 100% { opacity: 0; transform: translate(var(--x), 105vh) rotate(var(--r)) } }
+@media (prefers-reduced-motion: reduce) {
+  .serial-intro .intro-up, .serial-intro .intro-pop, .serial-intro .intro-letter, .serial-intro .intro-tv-on, .serial-intro .intro-btn, .serial-intro .intro-rays { opacity: 1; animation: none; transform: none; }
+  .serial-intro .intro-confetti, .serial-intro .intro-shine { display: none; }
+  .serial-intro .intro-tv { animation: none; }
+}

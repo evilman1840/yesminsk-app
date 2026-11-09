@@ -37,8 +37,9 @@ import { POLL_TEXTS } from './texts/poll';
 // Куда может вести кнопка после голоса в опросе
 const POLL_TABS: TabId[] = ['main', 'feed', 'events', 'places', 'games'];
 import { NewsScreen } from './screens/NewsScreen';
-import { useSerial, SerialSource } from './serial/useSerial';
-import { SERIAL_PUBLIC } from './serial/episodes';
+import { isReleased, useSerial, SerialSource } from './serial/useSerial';
+import { EPISODES, SERIAL_PUBLIC } from './serial/episodes';
+import { SerialIntro } from './serial/SerialIntro';
 import { SerialPlayer } from './serial/SerialPlayer';
 import { SerialDefs, SerialResumeStrip, SerialSheet, SerialStrip, SerialTv, SerialTvProvider } from './serial/SerialBits';
 import type { SerialEpisode } from './serial/episodes';
@@ -191,6 +192,22 @@ export const App: React.FC = () => {
   const playSerialJoy = () => {
     const ep = serial.takeJoy();
     if (ep) setTimeout(() => setSerialPlaying((cur) => cur || { ep, source: 'joy' }), 900);
+  };
+  // Премьера: письмо Миши на весь экран — один раз каждому, когда вышла первая серия
+  const [introSeen, setIntroSeen] = useState(() => {
+    try {
+      return localStorage.getItem('serial_intro_seen') === '1';
+    } catch {
+      return true;
+    }
+  });
+  const closeIntro = () => {
+    setIntroSeen(true);
+    try {
+      localStorage.setItem('serial_intro_seen', '1');
+    } catch {
+      /* приватный режим */
+    }
   };
   // Сходка, открытая по ссылке-приглашению или из уведомления бота
   const [sharedEvent, setSharedEvent] = useState<AppEvent | null>(null);
@@ -1781,6 +1798,15 @@ export const App: React.FC = () => {
           )}
 
           <SerialDefs />
+          {serialOn && !introSeen && isTab && !serialPlaying && isReleased(EPISODES[0]) && (
+            <SerialIntro
+              onClose={closeIntro}
+              onWatch={() => {
+                closeIntro();
+                setSerialPlaying({ ep: EPISODES[0], source: 'intro' });
+              }}
+            />
+          )}
           {serialSheetOpen && (
             <SerialSheet
               serial={serial}
