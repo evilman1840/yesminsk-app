@@ -30,6 +30,8 @@ import { TabBar, TabId } from './components/ui/TabBar';
 import { BottomSheet } from './components/ui/BottomSheet';
 import { EventDetails } from './components/common/EventDetails';
 import { DonateSheet } from './components/common/DonateSheet';
+import { HostDonateSheet } from './components/common/HostDonateSheet';
+import { markHostDonateSeen, takeHostDonateTurn, unseenHostEvents } from './utils/hostDonate';
 import { PollSheet } from './components/common/PollSheet';
 import { POLL_TEXTS } from './texts/poll';
 // Куда может вести кнопка после голоса в опросе
@@ -207,6 +209,9 @@ export const App: React.FC = () => {
     }
   });
   const [isDonateOpen, setIsDonateOpen] = useState(false);
+  // Организатор сходки с оплатой ему (отметили позже, не при создании): при входе — окно «Донат для ГУЛЯЙ»
+  const [isHostDonateOpen, setIsHostDonateOpen] = useState(false);
+  const hostDonateChecked = useRef(false);
   const [isPollOpen, setIsPollOpen] = useState(false);
 
   // Окно «Поделиться» (позвать друзей, позвать на сходку)
@@ -480,6 +485,16 @@ export const App: React.FC = () => {
       return [];
     }
   }, []);
+
+  useEffect(() => {
+    if (hostDonateChecked.current || !isMeLoaded || !events.length) return;
+    hostDonateChecked.current = true;
+    const mine = unseenHostEvents(events, currentUser.telegramId);
+    if (mine.length && takeHostDonateTurn()) {
+      markHostDonateSeen(mine.map((e) => String(e.id)));
+      setIsHostDonateOpen(true);
+    }
+  }, [events, isMeLoaded, currentUser.telegramId]);
 
   // «Хотят пообщаться» и «На связи». Если кто-то ответил 👋, пока нас не было, показываем окно
   const fetchInbox = useCallback(async (showNewMatch = false) => {
@@ -1648,6 +1663,11 @@ export const App: React.FC = () => {
                 {NOTICE_TEXTS.pinDone}
               </button>
             </BottomSheet>
+          )}
+
+          {/* Не поверх других окон: дождётся, пока их закроют */}
+          {isHostDonateOpen && isTab && currentUser.ageConfirmed && (currentUser.genderConfirmed || isGenderPromptDismissed) && currentUser.legalVersion === LEGAL_VERSION && !isHomeTipOpen && !isDonateOpen && !sharedEvent && !matchPopupUser && !selectedUser && (
+            <HostDonateSheet onClose={() => setIsHostDonateOpen(false)} />
           )}
 
           {isHomeTipOpen && isTab && currentUser.ageConfirmed && !sharedEvent && !matchPopupUser && !selectedUser && <AddToHomeSheet onClose={closeHomeTip} />}

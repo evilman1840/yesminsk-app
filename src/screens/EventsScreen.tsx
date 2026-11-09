@@ -7,6 +7,7 @@ import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { HostDonateSheet } from '../components/common/HostDonateSheet';
+import { markHostDonateSeen, takeHostDonateTurn } from '../utils/hostDonate';
 import { formatEventDate } from './MapScreen';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { MapPicker } from '../components/common/MapPicker';
@@ -177,18 +178,6 @@ const BAR_WISHES = 4;
 // Подсказка у звезды «Мои»: сколько раз показали и когда (чтобы не больше двух раз)
 const MINE_HINT_KEY = 'yesminsk_mine_hint';
 const MINE_HINT_TIMES = 2;
-// Напоминание о донате после сходки со взносом: не чаще раза в неделю
-const HOST_DONATE_KEY = 'yesminsk_host_donate_at';
-const hostDonateDue = () => {
-  try {
-    const last = Number(localStorage.getItem(HOST_DONATE_KEY) || 0);
-    if (Date.now() - last < 7 * 24 * 3600 * 1000) return false;
-    localStorage.setItem(HOST_DONATE_KEY, String(Date.now()));
-  } catch {
-    // Хранилище недоступно — просто покажем
-  }
-  return true;
-};
 const WINDOW_BOOST: Record<WishWindow, number> = { today: 3, tomorrow: 2, weekend: 1.5, week: 1 };
 const nextWishBarTurn = () => {
   try {
@@ -852,11 +841,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           await api.updateEvent(editingEventId, payload);
         }
       } else {
-        if (onCreateEvent) {
-          await onCreateEvent(payload);
-        } else {
-          await api.createEvent(payload);
-        }
+        const created = onCreateEvent ? await onCreateEvent(payload) : await api.createEvent(payload);
+        // По этой сходке окно доната — только сейчас, при входе в приложение второй раз не покажем
+        const createdId = created && String(created.id || created._id || '');
+        if (createdId) markHostDonateSeen([createdId]);
       }
 
       if (!editingEventId && formSession.current) {
@@ -867,7 +855,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       telegramService.haptic('success');
       onRefreshEvents?.();
       // Новая сходка со взносом организатору — попросить поддержать приложение (не чаще раза в неделю)
-      if (!editingEventId && isPaid && payTo === 'host' && hostDonateDue()) setHostDonateOpen(true);
+      if (!editingEventId && isPaid && payTo === 'host' && takeHostDonateTurn()) setHostDonateOpen(true);
     } catch (err: any) {
       failForm(err.message || M.saveFailed, 'server');
     } finally {
