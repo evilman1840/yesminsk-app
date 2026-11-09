@@ -381,6 +381,15 @@ export const telegramService = {
     });
   },
 
+  // «Морской бой»: позвать знакомого
+  shareSeaInvite(code: string) {
+    openShare({
+      title: 'Позвать сыграть',
+      text: 'Сыграем в «Морской бой»? Один на один, расставляй корабли 🚢',
+      link: `https://t.me/${BOT}?startapp=sea_${code}`
+    });
+  },
+
   // Отправить ссылку в чат Telegram (выбор чата)
   shareToTelegram(link: string, text: string) {
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
@@ -392,7 +401,7 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; wishGroupId?: string; game?: { id?: string; code?: string; tractor?: boolean } } {
+  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; wishGroupId?: string; game?: { id?: string; code?: string; tractor?: boolean; sea?: { id?: string; code?: string } } } {
     const params = new URLSearchParams(window.location.search);
     const startParam = tg()?.initDataUnsafe?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
@@ -423,7 +432,14 @@ export const telegramService = {
       wishGroupId: params.get('wishGroup') || undefined, // «Кто ещё хочет» из «Хочу сходить»
       // Игры: «Твой ход» от бота (?game=<id>), приглашение знакомого (startapp=game_<код>), просто раздел (?tab=games, startapp=games)
       // «Трактор в Минске»: ссылка startapp=tractor (?play=tractor) открывает его первый экран
-      game: startParam === 'tractor' || params.get('play') === 'tractor'
+      // «Морской бой»: «Заходи» от бота (?sea=<id>), приглашение знакомого (startapp=sea_<код>), просто игра (startapp=sea)
+      game: params.get('sea')
+        ? { sea: { id: params.get('sea') || undefined } }
+        : startParam.startsWith('sea_')
+        ? { sea: { code: startParam.slice(4) } }
+        : startParam === 'sea' || params.get('play') === 'sea'
+        ? { sea: {} }
+        : startParam === 'tractor' || params.get('play') === 'tractor'
         ? { tractor: true }
         : params.get('game')
         ? { id: params.get('game') || undefined }

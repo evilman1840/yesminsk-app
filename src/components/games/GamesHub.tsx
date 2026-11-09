@@ -1,5 +1,6 @@
 import React from 'react';
-import { GameSummary, GameLobby, GameView } from '../../games/types';
+import { GameSummary, GameLobby, GameView, SeaLobby } from '../../games/types';
+import { SEA_TEXTS as ST } from '../../texts/sea';
 import { TRACTOR_TEXTS as TT } from '../../texts/tractors';
 import { GAME_TEXTS as T } from '../../texts/games';
 import { telegramService } from '../../services/telegram';
@@ -17,14 +18,17 @@ export const GamesHub: React.FC<{
   boardArt: React.ReactNode;
   onFive: () => void;
   onTractor: () => void;
-}> = ({ summary, lobby, mine, boardArt, onFive, onTractor }) => {
+  seaLobby: SeaLobby | null;
+  seaArt: React.ReactNode;
+  onSea: () => void;
+}> = ({ summary, lobby, mine, boardArt, onFive, onTractor, seaLobby, seaArt, onSea }) => {
   const tr = summary?.tractor;
   const open = (fn: () => void) => () => {
     telegramService.haptic('light');
     fn();
   };
   return (
-    <main className="flex-1 min-h-0 px-4 pb-4 flex flex-col gap-3">
+    <main className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 flex flex-col gap-3">
       <GameCard
         onClick={open(onFive)}
         art={<div className="absolute inset-0 flex items-center justify-center bg-zine-card">{boardArt}</div>}
@@ -40,6 +44,18 @@ export const GamesHub: React.FC<{
           { value: lobby?.totalGames != null ? lobby.totalGames.toLocaleString('ru-RU') : '…', label: T.hubGames(lobby?.totalGames ?? 0) },
           { value: lobby ? String(lobby.searching) : '…', label: T.hubSearching, tone: lobby?.searching ? 'text-zine-sage' : '' },
           { value: lobby?.livePlayers != null ? lobby.livePlayers.toLocaleString('ru-RU') : '…', label: T.hubLivePlayers }
+        ]}
+      />
+      <GameCard
+        onClick={open(onSea)}
+        art={<div className="absolute inset-0 flex items-center justify-center bg-zine-sky/10">{seaArt}</div>}
+        badge={<span className="h-6 px-2.5 rounded-full bg-zine-terracotta text-white text-cap font-semibold flex items-center">{ST.badgeNew}</span>}
+        title={ST.title}
+        hint={ST.cardHint}
+        stats={[
+          { value: seaLobby ? seaLobby.totalGames.toLocaleString('ru-RU') : '…', label: ST.hubGames(seaLobby?.totalGames ?? 0) },
+          { value: seaLobby ? String(seaLobby.searching) : '…', label: ST.hubSearching, tone: seaLobby?.searching ? 'text-zine-sage' : '' },
+          { value: seaLobby ? String(seaLobby.playing) : '…', label: ST.hubPlaying, tone: seaLobby?.playing ? 'text-zine-sage' : '' }
         ]}
       />
       <GameCard
@@ -72,7 +88,7 @@ const GameCard: React.FC<{
 }> = ({ onClick, art, badge, title, hint, stats }) => (
   <button
     onClick={onClick}
-    className="flex-1 min-h-[220px] w-full flex flex-col text-left rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-sm overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
+    className="flex-1 shrink-0 min-h-[220px] w-full flex flex-col text-left rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-sm overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
   >
     <div className="relative flex-1 min-h-[72px]">
       {art}

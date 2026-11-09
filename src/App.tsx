@@ -664,7 +664,7 @@ export const App: React.FC = () => {
       }
       // Игры пока проверяет автор: раздел открывается только админам, приглашение от админа — любому.
       // «Трактор в Минске» по ссылке startapp=tractor — всем, кому открыт раздел
-      if (target.game && (target.game.code || target.game.id || gamesOpenRef.current)) {
+      if (target.game && (target.game.code || target.game.id || target.game.sea?.code || target.game.sea?.id || gamesOpenRef.current)) {
         setGameLaunch(target.game);
         setCurrentScreen(prev => (prev === 'main' ? 'games' : prev));
       }

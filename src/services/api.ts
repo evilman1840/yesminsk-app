@@ -1,5 +1,5 @@
 import { telegramService } from './telegram';
-import type { GameView, GameLobby, GameSummary, TractorMatchResult } from '../games/types';
+import type { GameView, GameLobby, GameSummary, TractorMatchResult, SeaView, SeaLobby } from '../games/types';
 import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData, MeetupStats } from '../types';
 
 /**
@@ -696,6 +696,64 @@ class ApiService {
 
   async gameBlock(id: string): Promise<void> {
     await this.request(`/games/${id}/block`, { method: 'POST' });
+  }
+
+  // «Морской бой»: то же, что у «Крестиков-Ноликов», плюс расстановка и выстрел
+  async seaSearch(incognito: boolean): Promise<SeaView> {
+    return this.request<SeaView>('/sea/search', { method: 'POST', body: JSON.stringify({ incognito }) });
+  }
+
+  async seaInvite(incognito: boolean): Promise<SeaView> {
+    return this.request<SeaView>('/sea/invite', { method: 'POST', body: JSON.stringify({ incognito }) });
+  }
+
+  async seaJoin(code: string, incognito: boolean): Promise<SeaView> {
+    return this.request<SeaView>(`/sea/join/${encodeURIComponent(code)}`, { method: 'POST', body: JSON.stringify({ incognito }) });
+  }
+
+  async seaMine(): Promise<SeaView[]> {
+    return this.request<SeaView[]>('/sea/mine', {}, true);
+  }
+
+  async seaLobby(): Promise<SeaLobby> {
+    return this.request<SeaLobby>('/sea/lobby', {}, true);
+  }
+
+  async seaGet(id: string, opts: { since?: number; wait?: boolean; signal?: AbortSignal } = {}): Promise<SeaView> {
+    const q = opts.wait ? `?wait=1&since=${opts.since ?? 0}` : '';
+    return this.request<SeaView>(`/sea/${id}${q}`, { signal: opts.signal }, Boolean(opts.wait));
+  }
+
+  async seaFleet(id: string, fleet: string): Promise<SeaView> {
+    return this.request<SeaView>(`/sea/${id}/fleet`, { method: 'POST', body: JSON.stringify({ fleet }) });
+  }
+
+  async seaShot(id: string, cell: number): Promise<SeaView> {
+    return this.request<SeaView>(`/sea/${id}/shot`, { method: 'POST', body: JSON.stringify({ cell }) });
+  }
+
+  async seaSay(id: string, say: string): Promise<SeaView> {
+    return this.request<SeaView>(`/sea/${id}/say`, { method: 'POST', body: JSON.stringify({ say }) });
+  }
+
+  async seaLeave(id: string, keepalive = false): Promise<SeaView> {
+    return this.request<SeaView>(`/sea/${id}/leave`, { method: 'POST', keepalive }, keepalive);
+  }
+
+  async seaAway(id: string): Promise<void> {
+    await this.request(`/sea/${id}/away`, { method: 'POST', keepalive: true }, true);
+  }
+
+  async seaRematch(id: string): Promise<SeaView> {
+    return this.request<SeaView>(`/sea/${id}/rematch`, { method: 'POST' });
+  }
+
+  async seaBlock(id: string): Promise<void> {
+    await this.request(`/sea/${id}/block`, { method: 'POST' });
+  }
+
+  seaBotPlayed(): void {
+    this.request('/sea/bot-played', { method: 'POST' }, true).catch(() => {});
   }
 }
 

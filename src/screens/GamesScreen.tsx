@@ -14,7 +14,10 @@ import { askBotAccess } from '../services/botAccess';
 import { TractorGame } from '../components/games/TractorGame';
 import { TractorHome } from '../components/games/TractorHome';
 import { GamesHub } from '../components/games/GamesHub';
+import { SeaGame, SeaArt } from '../components/games/SeaGame';
+import { SeaLobby } from '../games/types';
 import { Celebration } from '../components/games/Celebration';
+import { formatElapsed, Toggle, PickRow, Avatar, SayBar } from '../components/games/GameBits';
 import { SIZE, emptyBoard, place, winLineAt, botMove, BotLevel } from '../games/five';
 
 /**
@@ -43,7 +46,7 @@ const store = {
 
 // hub — меню из двух игр; menu — меню Крестиков-Ноликов;
 // tractorHome и tractor — первый экран и сама игра «Трактор в Минске»
-type Phase = 'hub' | 'menu' | 'search' | 'game' | 'tractorHome' | 'tractor';
+type Phase = 'hub' | 'menu' | 'search' | 'game' | 'tractorHome' | 'tractor' | 'sea';
 type Pick = 'random' | 'bot' | 'friend';
 
 // ---------- Партия с ботом: та же форма, что у сервера ----------
@@ -94,7 +97,7 @@ export const GamesScreen: React.FC<{
   const openUser = useOpenUser();
   const home: Phase = 'hub'; // раздел начинается с меню из двух игр
   const [phase, setPhase] = useState<Phase>(
-    initial?.tractor ? 'tractorHome' : initial?.id || initial?.code || initial?.botCell !== undefined || initial?.search ? 'game' : home
+    initial?.sea ? 'sea' : initial?.tractor ? 'tractorHome' : initial?.id || initial?.code || initial?.botCell !== undefined || initial?.search ? 'game' : home
   );
   const [summary, setSummary] = useState<GameSummary | null>(null);
 
@@ -105,11 +108,18 @@ export const GamesScreen: React.FC<{
       firstInitial.current = false;
       return;
     }
-    const empty = initial && !initial.id && !initial.code && initial.botCell === undefined && !initial.search && !initial.tractor;
+    const empty = initial && !initial.id && !initial.code && initial.botCell === undefined && !initial.search && !initial.tractor && !initial.sea;
     if (empty) setPhase((p) => (p === 'menu' ? home : p));
+    if (initial?.sea) {
+      setSeaLaunch(initial.sea);
+      setPhase('sea');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);
   const [game, setGame] = useState<GameView | null>(null);
+  // «Морской бой»: с чем открыли (приглашение, партия) и счётчик для карточки в меню
+  const [seaLaunch, setSeaLaunch] = useState<{ id?: string; code?: string } | undefined>(initial?.sea);
+  const [seaLobby, setSeaLobby] = useState<SeaLobby | null>(null);
   const [incognito, setIncognitoState] = useState(() => store.get('yesminsk_game_incognito', '0') === '1');
   const [level, setLevelState] = useState<BotLevel>(() => (store.get('yesminsk_game_level', 'easy') === 'normal' ? 'normal' : 'easy'));
   const [mine, setMine] = useState<GameView[]>([]);
@@ -232,6 +242,11 @@ export const GamesScreen: React.FC<{
   useEffect(() => {
     if (phase !== 'menu' && phase !== 'hub') return;
     api.gameMine().then(setMine).catch(() => {});
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'hub') return;
+    api.seaLobby().then(setSeaLobby).catch(() => {});
   }, [phase]);
 
   // Мои победы, рекорды и рейтинг дня — для меню из двух игр и первого экрана трактора
@@ -675,6 +690,7 @@ export const GamesScreen: React.FC<{
   // «Назад»: из партии — в меню (живую партию со случайным игроком — только сдавшись), из меню — из игр
   const back = async () => {
     const g = gameRef.current;
+    if (phase === 'sea') return setPhase(home);
     if (phase === 'tractor') return setPhase('tractorHome');
     if (phase === 'tractorHome') return setPhase(home);
     if (phase === 'hub') return onBack();
@@ -688,10 +704,13 @@ export const GamesScreen: React.FC<{
     setGame(null);
     setPhase('menu');
   };
-  useBackButton(phase === home ? null : back); // меню игр — вкладка, «назад» в нём не нужен
+  useBackButton(phase === home || phase === 'sea' ? null : back); // у «Морского боя» своя кнопка «Назад» // меню игр — вкладка, «назад» в нём не нужен
   useEffect(() => {
+    if (phase === 'sea') return; // фазу сообщает сам «Морской бой»
     onPhaseChange?.(phase === 'hub' ? 'menu' : phase === 'tractor' || phase === 'tractorHome' ? 'game' : phase);
   }, [phase, onPhaseChange]);
+  // В «Морском бое» нижнее меню не показываем: там своя кнопка «Назад»
+  const seaPhase = useCallback(() => onPhaseChange?.('game'), [onPhaseChange]);
 
   // Главная кнопка: «Ещё партию» после окончания
   const finished = game?.status === 'finished';
@@ -711,7 +730,7 @@ export const GamesScreen: React.FC<{
 
   return (
     <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden select-none">
-      {phase !== 'tractor' && phase !== 'tractorHome' && (
+      {phase !== 'tractor' && phase !== 'tractorHome' && phase !== 'sea' && (
       <header className="shrink-0 px-5 pt-4 pb-2">
         <div className="flex items-center gap-1">
           {phase !== home && ( // стрелка видна и в Telegram: его «Назад» в шапке легко не заметить
@@ -826,9 +845,16 @@ export const GamesScreen: React.FC<{
           boardArt={<MiniBoardArt className="w-[132px]" />}
           onFive={() => setPhase('menu')}
           onTractor={() => setPhase('tractorHome')}
+          seaLobby={seaLobby}
+          seaArt={<SeaArt className="w-[132px]" />}
+          onSea={() => {
+            setSeaLaunch(undefined);
+            setPhase('sea');
+          }}
         />
       )}
       {phase === 'tractorHome' && <TractorHome summary={summary} onPlay={() => setPhase('tractor')} onBack={back} />}
+      {phase === 'sea' && <SeaGame key={seaLaunch?.code || seaLaunch?.id || 'menu'} launch={seaLaunch} onExit={() => setPhase(home)} onPhaseChange={seaPhase} />}
       {phase === 'tractor' && <TractorGame onExit={() => setPhase('tractorHome')} onQuit={() => setPhase(home)} onSaved={setSummary} />}
 
       {phase === 'search' && (
@@ -997,41 +1023,6 @@ const RulesSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   </BottomSheet>
 );
 
-const formatElapsed = (ms: number) => {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-};
-
-const Toggle: React.FC<{ on: boolean }> = ({ on }) => (
-  <span className={`w-12 h-7 shrink-0 rounded-full p-0.5 transition-colors ${on ? 'bg-zine-terracotta' : 'bg-zine-border'}`}>
-    <span className={`block w-6 h-6 rounded-full bg-white shadow-zine-sm transition-transform ${on ? 'translate-x-5' : ''}`} />
-  </span>
-);
-
-// Выбор соперника: карточка с отметкой; у бота под ней — уровень
-const PickRow: React.FC<{ icon: React.ReactNode; title: string; hint: string; selected: boolean; onClick: () => void; children?: React.ReactNode }> = ({
-  icon,
-  title,
-  hint,
-  selected,
-  onClick,
-  children
-}) => (
-  <div className={`rounded-zine bg-zine-cardElevated border-2 transition-colors ${selected ? 'border-zine-terracotta' : 'border-zine-border'}`}>
-    <button onClick={onClick} role="radio" aria-checked={selected} className="w-full min-h-[60px] px-3 py-2.5 flex items-center gap-3 text-left cursor-pointer">
-      <span className={`w-10 h-10 shrink-0 rounded-zine-sm flex items-center justify-center ${selected ? 'bg-zine-terracotta text-white' : 'bg-zine-terracotta/10 text-zine-terracotta'}`}>{icon}</span>
-      <span className="flex-1 min-w-0">
-        <span className="block text-body font-bold text-zine-ink">{title}</span>
-        <span className="block text-cap text-zine-inkMuted">{hint}</span>
-      </span>
-      <span className={`w-6 h-6 shrink-0 rounded-full border-2 flex items-center justify-center ${selected ? 'bg-zine-terracotta border-zine-terracotta text-white' : 'border-zine-border'}`}>
-        {selected && <Check size={14} strokeWidth={3} />}
-      </span>
-    </button>
-    {children}
-  </div>
-);
-
 // Сколько людей сейчас в играх. Нуля не показываем: тогда — сколько партий сыграли сегодня
 const LobbyCard: React.FC<{ lobby: GameLobby | null; onToggleNotify: () => void }> = ({ lobby, onToggleNotify }) => {
   const live = lobby ? (lobby.searching > 0 ? T.liveSearching(lobby.searching) : lobby.playing > 0 ? T.livePlaying(lobby.playing) : '') : '';
@@ -1126,17 +1117,6 @@ const Mark: React.FC<{ mark: 'x' | 'o' }> = ({ mark }) =>
       <circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="3" fill="none" />
     </svg>
   );
-
-const Avatar: React.FC<{ player?: GamePlayer; size: number }> = ({ player, size }) => {
-  const [broken, setBroken] = useState(false);
-  const style = { width: size, height: size };
-  if (player?.avatar && !broken) return <img src={player.avatar} alt="" style={style} onError={() => setBroken(true)} className="rounded-full object-cover bg-zine-card shrink-0" />;
-  return (
-    <span style={{ ...style, fontSize: size * 0.55 }} className="rounded-full bg-zine-card flex items-center justify-center shrink-0 leading-none">
-      {player?.emoji || (player?.name ? player.name[0] : '?')}
-    </span>
-  );
-};
 
 const PlayersBar: React.FC<{ game: GameView; bubble: { from: number; text: string; key: string } | null; onOpen: (telegramId: number) => void }> = ({ game, bubble, onOpen }) => {
   const order = [game.me, 1 - game.me];
@@ -1233,36 +1213,6 @@ const BOT_IDLE = ['🤌', '🗿', '💅', '🤯'];
 const BOT_WON = ['Это база', '💅', '🗿'];
 const BOT_LOST = ['😭', 'Это было больно 🥀', '🤯'];
 const BOT_DRAW = ['🤝', '🗿'];
-
-const SayBar: React.FC<{ label: string; reply: { text: string; key: string } | null; onSay: (key: string, text: string) => void }> = ({ label, reply, onSay }) => (
-  <div className="mt-3">
-    <p key={reply?.key || 'label'} className={`px-1 text-cap font-semibold ${reply ? 'text-zine-terracotta say-hint-in' : 'text-zine-inkMuted'}`} aria-live="polite">
-      {reply ? T.sayReply(reply.text) : label}
-    </p>
-    <div className="mt-1.5 -mx-3 px-3 overflow-x-auto [scrollbar-width:none]">
-      <div className="flex gap-1.5 w-max">
-        {T.emojis.map(([key, e], i) => (
-          <button
-            key={`${key}-${reply?.key || ''}`}
-            onClick={() => onSay(key, e)}
-            aria-label={`Отправить ${e}`}
-            style={{ '--d': `${i * 0.06}s` } as React.CSSProperties}
-            className={`w-11 h-11 rounded-full text-[22px] flex items-center justify-center cursor-pointer active:scale-90 transition-transform ${
-              reply ? 'bg-zine-terracotta/15 say-pulse' : 'bg-zine-card'
-            }`}
-          >
-            {e}
-          </button>
-        ))}
-        {T.phrases.map(([k, text]) => (
-          <button key={k} onClick={() => onSay(k, text)} className="h-11 px-3.5 rounded-full bg-zine-card text-sm2 font-semibold text-zine-ink whitespace-nowrap cursor-pointer active:scale-95 transition-transform">
-            {text}
-          </button>
-        ))}
-      </div>
-    </div>
-  </div>
-);
 
 const ResultCard: React.FC<{
   game: GameView;

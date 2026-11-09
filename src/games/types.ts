@@ -73,3 +73,40 @@ export interface TractorMatchResult {
   best: number;
   crash: Record<string, number>;
 }
+
+// «Морской бой»: партия так, как её присылает сервер (и так же устроена партия с ботом)
+export interface SeaPlayer extends GamePlayer {
+  ready?: boolean; // расставил корабли
+}
+
+export interface SeaView {
+  id: string;
+  game: 'sea';
+  mode: 'random' | 'invite' | 'bot';
+  status: GameStatus;
+  phase: 'placing' | 'battle';
+  placeLeft?: number; // мс до конца расстановки
+  v?: number;
+  inviteCode?: string;
+  size: number;
+  turn: number;
+  me: number;
+  moves: number;
+  lastShot?: { by: number; cell: number };
+  winner: number;
+  reason?: GameReason;
+  myFleet: string;    // мои корабли
+  myBoard: string;    // куда стрелял соперник
+  enemyBoard: string; // куда стрелял я
+  enemyFleet?: string; // корабли соперника — после партии
+  shipsLeft: [number, number]; // [мои, соперника]
+  say?: { from: number; text: string; at: string };
+  nextId?: string;
+  players: SeaPlayer[];
+}
+
+export interface SeaLobby {
+  searching: number;
+  playing: number;
+  totalGames: number;
+}
