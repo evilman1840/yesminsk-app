@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, Pause, Play } from 'lucide-react';
 import { api } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { useBackButton } from '../hooks/useTelegram';
@@ -25,6 +25,14 @@ export const SerialPlayer: React.FC<{
   const [progress, setProgress] = useState(0);
   const [pop, setPop] = useState(false);
   const maxSent = useRef(-1);
+  // Пауза: кнопка под крестиком, удержание пальца на кадре (как в сторис) или свёрнутое приложение
+  const [pausedBtn, setPausedBtn] = useState(false);
+  const [held, setHeld] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const paused = pausedBtn || held || hidden;
+  const elapsed = useRef(0);
+  const holdTimer = useRef(0);
+  const holdUsed = useRef(false);
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const next = EPISODES.find((e) => e.n === ep.n + 1) || null;
   const nextOpen = next && isReleased(next);
@@ -47,27 +55,64 @@ export const SerialPlayer: React.FC<{
     api.serialView(ep.n, cur, total, source).catch(() => {});
   }, [cur, ep.n, total, source]);
 
-  // Кадры идут сами
+  useEffect(() => {
+    const onVis = () => setHidden(document.hidden);
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
+
+  // Новый кадр — время с нуля (эффект стоит раньше таймера и срабатывает первым)
+  useEffect(() => {
+    elapsed.current = 0;
+    setProgress(0);
+  }, [cur, ep.n]);
+
+  // Кадры идут сами; на паузе время стоит и потом продолжается с того же места
   useEffect(() => {
     const dur = cur < ep.frames.length ? ep.frames[cur].dur : 0;
-    setProgress(0);
     if (!dur || reduce) {
       setProgress(1);
       return;
     }
-    const start = performance.now();
+    if (paused) return;
+    let last = performance.now();
     let raf = 0;
     const tick = () => {
-      const p = Math.min(1, (performance.now() - start) / dur);
+      const now = performance.now();
+      elapsed.current += now - last;
+      last = now;
+      const p = Math.min(1, elapsed.current / dur);
       setProgress(p);
       if (p >= 1) setCur((c) => Math.min(total - 1, c + 1));
       else raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [cur, ep, total, reduce]);
+  }, [cur, ep, total, reduce, paused]);
 
   const go = (d: number) => setCur((c) => Math.max(0, Math.min(total - 1, c + d)));
+  // Тап — листать, удержание дольше 0,2 с — пауза, пока палец на экране
+  const holdStart = () => {
+    holdUsed.current = false;
+    window.clearTimeout(holdTimer.current);
+    holdTimer.current = window.setTimeout(() => {
+      holdUsed.current = true;
+      setHeld(true);
+    }, 200);
+  };
+  const holdEnd = () => {
+    window.clearTimeout(holdTimer.current);
+    setHeld(false);
+  };
+  const tap = (d: number) => {
+    if (holdUsed.current) {
+      holdUsed.current = false;
+      return;
+    }
+    setPausedBtn(false); // листаешь — значит, смотришь дальше
+    go(d);
+  };
+  const zone = { onPointerDown: holdStart, onPointerUp: holdEnd, onPointerLeave: holdEnd, onPointerCancel: holdEnd, onContextMenu: (e: React.MouseEvent) => e.preventDefault() };
   const frame = cur < ep.frames.length ? ep.frames[cur] : null;
 
   const tryIt = (t: SerialTry) => {
@@ -88,7 +133,7 @@ export const SerialPlayer: React.FC<{
 
   return createPortal(
     <div className="serial fixed inset-0 z-[70] bg-black flex items-center justify-center" role="dialog" aria-label={`Не Одна Дома. ${ep.title}`}>
-      <div className="serial-stage w-full max-w-[min(100vw,calc(var(--tg-viewport-stable-height,100vh)*9/16))] aspect-[9/16] max-h-full sm:rounded-[22px]">
+      <div className={`serial-stage ${paused ? 'paused' : ''} w-full max-w-[min(100vw,calc(var(--tg-viewport-stable-height,100vh)*9/16))] aspect-[9/16] max-h-full sm:rounded-[22px]`}>
         {ep.frames.map((f, i) => (
           <div key={i} className={`serial-frame ${i === cur ? 'on' : ''}`} dangerouslySetInnerHTML={{ __html: f.html }} />
         ))}
@@ -146,8 +191,8 @@ export const SerialPlayer: React.FC<{
         </div>
 
         {/* Тап-зоны: слева назад, справа дальше */}
-        <button aria-label="Назад" onClick={() => go(-1)} className="absolute inset-y-0 left-0 w-[32%] z-[5] cursor-pointer" />
-        {cur < total - 1 && <button aria-label="Дальше" onClick={() => go(1)} className="absolute inset-y-0 right-0 w-[68%] z-[5] cursor-pointer" />}
+        <button aria-label="Назад" onClick={() => tap(-1)} {...zone} className="absolute inset-y-0 left-0 w-[32%] z-[5] cursor-pointer" />
+        {cur < total - 1 && <button aria-label="Дальше" onClick={() => tap(1)} {...zone} className="absolute inset-y-0 right-0 w-[68%] z-[5] cursor-pointer" />}
 
         {frame?.try && (
           <button
@@ -158,6 +203,19 @@ export const SerialPlayer: React.FC<{
           </button>
         )}
 
+        {frame && !reduce && (
+          <button
+            onClick={() => {
+              telegramService.haptic('selection');
+              setPausedBtn((v) => !v);
+            }}
+            aria-label={pausedBtn ? 'Продолжить' : 'Пауза'}
+            aria-pressed={pausedBtn}
+            className="absolute z-30 top-[68px] right-2.5 w-10 h-10 rounded-full bg-black/35 text-white grid place-items-center cursor-pointer"
+          >
+            {pausedBtn ? <Play size={18} fill="currentColor" className="ml-0.5" /> : <Pause size={18} fill="currentColor" />}
+          </button>
+        )}
         <button
           onClick={onClose}
           aria-label="Закрыть серию"
