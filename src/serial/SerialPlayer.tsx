@@ -86,7 +86,7 @@ export const SerialPlayer: React.FC<{
   };
 
   return createPortal(
-    <div className="serial fixed inset-0 z-[70] bg-black/90 flex items-center justify-center" role="dialog" aria-label={`Не Одна Дома. ${ep.title}`}>
+    <div className="serial fixed inset-0 z-[70] bg-black flex items-center justify-center" role="dialog" aria-label={`Не Одна Дома. ${ep.title}`}>
       <div className="serial-stage w-full max-w-[min(100vw,calc(var(--tg-viewport-stable-height,100vh)*9/16))] aspect-[9/16] max-h-full sm:rounded-[22px]">
         {ep.frames.map((f, i) => (
           <div key={i} className={`serial-frame ${i === cur ? 'on' : ''}`} dangerouslySetInnerHTML={{ __html: f.html }} />

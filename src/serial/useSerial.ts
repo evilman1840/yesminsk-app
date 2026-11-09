@@ -28,9 +28,16 @@ const PREVIEW = import.meta.env.DEV || store.get('serial_preview') === '1';
 let adminPreview = false;
 export const isReleased = (ep: SerialEpisode, now = Date.now()) => PREVIEW || adminPreview || new Date(ep.releaseAt).getTime() <= now;
 
-// «во вторник», «в четверг», «в субботу» — по Минску
+// «сегодня в 10:00», «завтра» или «в четверг» — по Минску
 const DAYS = ['в воскресенье', 'в понедельник', 'во вторник', 'в среду', 'в четверг', 'в пятницу', 'в субботу'];
-export const releaseDay = (ep: SerialEpisode) => DAYS[new Date(new Date(ep.releaseAt).getTime() + 3 * 3600 * 1000).getUTCDay()];
+const minskDay = (t: number) => Math.floor((t + 3 * 3600 * 1000) / 86400000);
+export const releaseDay = (ep: SerialEpisode) => {
+  const t = new Date(ep.releaseAt).getTime();
+  const diff = minskDay(t) - minskDay(Date.now());
+  if (diff <= 0) return 'сегодня в 10:00';
+  if (diff === 1) return 'завтра';
+  return DAYS[new Date(t + 3 * 3600 * 1000).getUTCDay()];
+};
 
 /**
  * Состояние сериала: какие серии вышли, какие я открывал, сердечки.

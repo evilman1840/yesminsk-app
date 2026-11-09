@@ -106,7 +106,7 @@ export const SerialSheet: React.FC<{
   return (
     <BottomSheet title="Не Одна Дома" onClose={onClose}>
       <p className="-mt-1 mb-3 text-sm2 text-zine-inkMuted">
-        {none ? 'Мини-сериал про нас. Начни с первой серии, это 30 секунд' : 'Мини-сериал про нас · новая серия через день'}
+        {none ? 'Мини-сериал про нас. Начни с первой серии, это 30 секунд' : 'Мини-сериал про нас · новая серия каждый день'}
       </p>
       <EpisodeRow serial={serial} onOpen={onOpen} />
       <button

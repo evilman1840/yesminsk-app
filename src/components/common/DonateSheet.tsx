@@ -87,7 +87,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
   const last = fund?.lastTransfer;
 
   return (
-    <BottomSheet title="Накорми Печку 🥧" onClose={onClose}>
+    <BottomSheet title="Накорми ГУЛЯЙ 🥧" onClose={onClose}>
       {/* 1. Печка и слово от Миши — коротко, чтобы кнопка доната была видна без прокрутки */}
       <div className="flex items-center gap-3">
         <Pechka mood={moodFor(filled)} size={72} className="shrink-0" />
