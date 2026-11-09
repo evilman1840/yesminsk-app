@@ -11,7 +11,16 @@ export const SHELTERS_URL = 'https://clck.ru/3Wqp86';
 export const STAR_AMOUNTS = [50, 100, 250, 500];
 
 // Главная кнопка «💳 Поддержать картой»
+// Своя сумма: человек вводит её в банке
 export const CARD_URL = 'https://www.alfabank.by/share/?transferLinkId=697bdff3d6f242317b6e3cab&version=INSNC3';
+
+// Перевод на карту с уже заданной суммой (рубли → ссылка Альфа-Банка)
+export const CARD_URL_BY_RUB: Record<number, string> = {
+  1: 'https://www.alfabank.by/share?transferLinkId=6af19be4ccaa0344c73ba4b8&version=INSNC3',
+  5: 'https://www.alfabank.by/share?transferLinkId=6af19c4accaa0344c73ba4b9&version=INSNC3',
+  10: 'https://www.alfabank.by/share?transferLinkId=6af19c61ccaa0344c73ba4ba&version=INSNC3',
+  30: 'https://www.alfabank.by/share?transferLinkId=6af19c7bccaa0344c73ba4bb&version=INSNC3'
+};
 
 // «Другие способы»: реквизиты, копируются одним нажатием
 export interface DonateCopy {

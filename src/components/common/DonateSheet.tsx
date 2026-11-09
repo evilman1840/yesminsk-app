@@ -4,7 +4,7 @@ import { Loader2, Copy, Check, ChevronDown } from 'lucide-react';
 import { BottomSheet } from '../ui/BottomSheet';
 import { api } from '../../services/api';
 import { telegramService } from '../../services/telegram';
-import { STAR_AMOUNTS, CARD_URL, DONATE_COPY } from '../../config/donate';
+import { STAR_AMOUNTS, CARD_URL, CARD_URL_BY_RUB, DONATE_COPY } from '../../config/donate';
 import { isOwnPhoto, NO_PHOTO } from '../../utils/thumb';
 import { Pechka, Pie, TierIcon, moodFor } from '../ui/Pechka';
 
@@ -20,7 +20,7 @@ const fedLine = (n: number) => {
   return `Уже ${n === 1 ? 'кормил' : 'кормили'} Печку ${n} ${few ? 'человека' : 'человек'}`;
 };
 
-// Подсказки суммы: банк по ссылке сумму не принимает, человек вводит её сам
+// У каждой суммы своя ссылка в банке (сумма уже подставлена); своя сумма — по CARD_URL
 // 1 рубль = 1 пирожок. По выписке за 24.10–9.11 (45 донатов): чаще всего 5 р. (треть), потом 1 р.;
 // 20–30 р. — всего 4 доната, но это треть денег. 100 р. не было ни разу, поэтому верх шкалы — 30
 const TIERS = [
@@ -142,14 +142,20 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
         ))}
       </div>
       <button
-        onClick={() => telegramService.openLink(CARD_URL)}
+        onClick={() => telegramService.openLink(CARD_URL_BY_RUB[TIERS[tier].rub] || CARD_URL)}
         className="mt-3 w-full min-h-14 py-2 rounded-zine-sm bg-zine-terracotta text-white cursor-pointer active:scale-[0.99] transition-transform"
       >
         <span className="block text-lead font-bold">Накормить донатом · {TIERS[tier].rub} р.</span>
         <span className="block text-cap font-medium opacity-90">онлайн на карту</span>
       </button>
       <p className="mt-1.5 text-cap text-zine-inkMuted text-center">
-        <b className="text-zine-ink">1 рубль = 1 пирожок.</b> Можно любую сумму: её вводишь сам в банке
+        <b className="text-zine-ink">1 рубль = 1 пирожок.</b> Другая сумма?{' '}
+        <button
+          onClick={() => telegramService.openLink(CARD_URL)}
+          className="font-semibold text-zine-terracotta underline underline-offset-2 cursor-pointer"
+        >
+          Ввести свою
+        </button>
       </p>
 
       <button
