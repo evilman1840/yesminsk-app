@@ -6,22 +6,28 @@ import { api } from '../../services/api';
 import { telegramService } from '../../services/telegram';
 import { STAR_AMOUNTS, CARD_URL, DONATE_COPY } from '../../config/donate';
 import { isOwnPhoto, NO_PHOTO } from '../../utils/thumb';
+import { Pechka, Pie, TierIcon, moodFor } from '../ui/Pechka';
 
 const num = (n: number) => (Math.round(n * 100) / 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 const dayMonth = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 
-// «Уже поддержал 1 человек», «Уже поддержали 22 человека», «Уже поддержали 51 человек»
-// (при 21, 31, 51… тоже «поддержали»: так звучит естественнее)
-const supportedLine = (n: number) => {
-  const few = n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14);
-  return `Уже ${n === 1 ? 'поддержал' : 'поддержали'} ${n} ${few ? 'человека' : 'человек'}`;
-};
-
 // «из 500 рублей», «из 21 рубля»
 const ofRubles = (n: number) => (Number.isInteger(n) && n % 10 === 1 && n % 100 !== 11 ? 'рубля' : 'рублей');
 
-// 51% приютам, волонтёрам и организаторам сходок, 49% проекту
-const SHELTER_SHARE = 51;
+// «Уже кормили Печку 23 человека» — так же, как «поддержали»: естественнее при 21, 31…
+const fedLine = (n: number) => {
+  const few = n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14);
+  return `Уже ${n === 1 ? 'кормил' : 'кормили'} Печку ${n} ${few ? 'человека' : 'человек'}`;
+};
+
+// Подсказки суммы: банк по ссылке сумму не принимает, человек вводит её сам
+const TIERS = [
+  { kind: 'one', name: 'Пирожок', rub: 5 },
+  { kind: 'two', name: 'Два пирожка', rub: 10 },
+  { kind: 'basket', name: 'Корзинка', rub: 25 },
+  { kind: 'loaf', name: 'Каравай', rub: 50 }
+] as const;
+const PIES = 20; // пирожков на противне = цель месяца
 
 /**
  * Окно «Поддержать проект»: всё понятно за 3 секунды и без прокрутки.
@@ -34,6 +40,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
   const [showOther, setShowOther] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [tier, setTier] = useState(1);
   const fund = useFund();
 
   const copyValue = async (value: string) => {
@@ -73,50 +80,84 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
   if (thanks) return <ThanksSheet onClose={onClose} />;
 
   const month = fund?.month;
-  const filled = month ? Math.min(100, (month.raised / Math.max(1, month.goal)) * 100) : 0;
+  const filled = month ? Math.min(100, (month.raised / Math.max(1, month.goal)) * 100) : null;
+  const pies = filled === null ? 0 : Math.round((filled / 100) * PIES);
   const last = fund?.lastTransfer;
 
   return (
-    <BottomSheet title="ГУЛЯЙ! живёт на донаты 🧡" onClose={onClose}>
-      {/* 1. Кто делает и что нужно */}
-      <p className="text-body text-zine-ink">Делаю один. Миша Спасатель Позднев.</p>
-      <p className="text-body font-bold text-zine-ink">Нужна ТВОЯ финансовая поддержка.</p>
-
-      {/* 2. Цель месяца: заполнено 51/49 терракотой (приютам) и зелёным (проекту) */}
-      <div className="mt-4 p-4 rounded-zine bg-zine-card">
-        <p className="text-body text-zine-ink">
-          {month ? (
-            <>
-              {month.name}: <b>{num(month.raised)}</b> из {num(month.goal)} {ofRubles(month.goal)}
-            </>
-          ) : (
-            <span className="text-zine-inkMuted">Загружаю…</span>
-          )}
+    <BottomSheet title="Накорми Печку 🥧" onClose={onClose}>
+      {/* 1. Печка и зачем ей пирожки */}
+      <div className="flex items-end gap-3">
+        <Pechka mood={moodFor(filled)} size={96} className="shrink-0" />
+        <p className="text-sm2 text-zine-inkMuted">
+          На Печке работает весь ГУЛЯЙ!: карта, сходки, игры. В сказке она угощала пирожками, теперь наша очередь.
         </p>
-        <div className="mt-2 h-3 rounded-full overflow-hidden bg-zine-border" aria-hidden>
-          <div className="h-full flex" style={{ width: `${filled}%` }}>
-            <span className="bg-zine-terracotta" style={{ width: `${SHELTER_SHARE}%` }} />
-            <span className="bg-zine-sage" style={{ width: `${100 - SHELTER_SHARE}%` }} />
-          </div>
+      </div>
+      <p className="mt-3 p-3 rounded-zine-sm bg-zine-mustard/10 border border-dashed border-zine-mustard/50 text-sm2 text-zine-ink">
+        Я делаю приложение один, без инвесторов и рекламы. Каждый пирожок — это сервер, новые функции и помощь приютам.{' '}
+        <b>Миша Спасатель</b>
+      </p>
+
+      {/* 2. Цель месяца = сытость Печки, шкала из пирожков */}
+      <div className="mt-3 p-4 rounded-zine bg-zine-card">
+        {month ? (
+          <p className="flex flex-wrap justify-between gap-x-3 text-sm2 text-zine-ink">
+            <span>
+              {month.name}: Печка ГУЛЯЙ сыта на <b className="text-body">{Math.round(filled!)}%</b>
+            </span>
+            <span className="text-zine-inkMuted">
+              {num(month.raised)} из {num(month.goal)} {ofRubles(month.goal)}
+            </span>
+          </p>
+        ) : (
+          <p className="text-sm2 text-zine-inkMuted">Загружаю…</p>
+        )}
+        <div className="mt-2 grid grid-cols-10 gap-1 text-zine-inkMuted/50" aria-hidden>
+          {Array.from({ length: PIES }, (_, i) => (
+            <Pie key={i} empty={i >= pies} />
+          ))}
         </div>
         <p className="mt-2 text-cap text-zine-inkMuted">🐾 51% отдаю приютам, волонтёрам и организаторам сходок</p>
         <p className="text-cap text-zine-inkMuted">🛠 49%, чтобы ГУЛЯЙ! работал и становился лучше</p>
       </div>
 
-      {/* 3. Главная кнопка */}
+      {/* 3. Сколько пирожков — подсказка, и главная кнопка с суммой */}
+      <div className="mt-3 grid grid-cols-4 gap-2" role="group" aria-label="Сколько пирожков">
+        {TIERS.map((t, i) => (
+          <button
+            key={t.kind}
+            onClick={() => {
+              telegramService.haptic('selection');
+              setTier(i);
+            }}
+            aria-pressed={tier === i}
+            className={`py-2 px-1 rounded-zine-sm border-2 flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${
+              tier === i ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-card'
+            }`}
+          >
+            <span className="h-[30px] flex items-center">
+              <TierIcon kind={t.kind} />
+            </span>
+            <span className="text-[12px] leading-tight text-zine-inkMuted text-center">{t.name}</span>
+            <span className="text-sm2 font-bold text-zine-ink">{t.rub} р.</span>
+          </button>
+        ))}
+      </div>
       <button
         onClick={() => telegramService.openLink(CARD_URL)}
-        className="mt-4 w-full h-14 rounded-zine-sm bg-zine-terracotta text-white text-lead font-bold cursor-pointer active:scale-[0.99] transition-transform"
+        className="mt-3 w-full min-h-14 py-2 rounded-zine-sm bg-zine-terracotta text-white cursor-pointer active:scale-[0.99] transition-transform"
       >
-        💳 Поддержать картой
+        <span className="block text-lead font-bold">Накормить донатом · {TIERS[tier].rub} р.</span>
+        <span className="block text-cap font-medium opacity-90">онлайн на карту</span>
       </button>
+      <p className="mt-1 text-cap text-zine-inkMuted text-center">Сумма — подсказка, в банке можно ввести любую</p>
 
       <button
         onClick={() => setShowOther((v) => !v)}
         aria-expanded={showOther}
         className="mt-1 w-full h-11 flex items-center justify-center gap-1 text-sm2 font-semibold text-zine-inkMuted cursor-pointer"
       >
-        Другие способы
+        Другие способы: ЕРИП, телефон, звёзды
         <ChevronDown size={18} className={`transition-transform ${showOther ? 'rotate-180' : ''}`} />
       </button>
 
@@ -164,7 +205,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
 
       {/* 4. Две строки доверия */}
       <div className="mt-3 space-y-1">
-        {fund?.people ? <p className="text-sm2 text-zine-ink">🧡 {supportedLine(fund.people)}</p> : null}
+        {fund?.people ? <p className="text-sm2 text-zine-ink">🧡 {fedLine(fund.people)}</p> : null}
         {last &&
           (onOpenNews ? (
             <button onClick={onOpenNews} className="block w-full text-left text-sm2 text-zine-ink cursor-pointer">
@@ -182,7 +223,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
         onClick={() => setThanks(true)}
         className="mt-3 mx-auto block px-3 h-10 text-cap font-semibold text-zine-inkMuted underline underline-offset-2 cursor-pointer"
       >
-        Готово, перевод сделан ✓
+        Готово, Печка накормлена ✓
       </button>
     </BottomSheet>
   );
@@ -258,7 +299,7 @@ const ThanksSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <div className="relative mt-3 mx-auto w-full max-w-[260px] aspect-[4/5] rounded-zine overflow-hidden bg-zine-card shadow-zine">
               <img src={done.card.avatarUrl} alt={done.card.firstName} className="absolute inset-0 h-full w-full object-cover" />
               <span className="absolute top-3 left-3 h-7 px-2.5 rounded-full bg-white/90 text-zine-ink text-cap font-bold flex items-center shadow">
-                🧡 Поддерживаю проект
+                🥧 Кормлю ГУЛЯЙ-Печку
               </span>
               <div className="absolute inset-x-0 bottom-0 px-3 pt-10 pb-3 bg-gradient-to-t from-black/75 to-transparent text-white">
                 <p className="font-serif font-bold text-title leading-tight">
@@ -285,10 +326,12 @@ const ThanksSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   }
 
   return (
-    <BottomSheet title="Спасибо огромное! 🧡" onClose={onClose}>
+    <BottomSheet title="Ням! Спасибо 🧡" onClose={onClose}>
+      <Pechka mood="eating" size={130} className="mx-auto" />
+      <p className="mt-2 mb-3 text-body text-zine-ink text-center">Печка тёплая, ГУЛЯЙ! работает. А пирожки она вернёт сходками.</p>
       <div className="space-y-2">
         <Option checked={badge} onChange={() => setBadge((v) => !v)}>
-          Добавить значок «🧡 Поддерживаю проект» в мою анкету
+          Добавить значок «🥧 Кормлю ГУЛЯЙ-Печку» в мою анкету
         </Option>
         <Option checked={named} onChange={() => setNamed((v) => !v)}>
           Можно сказать мне спасибо по имени в новостях приложения и Тредсе
