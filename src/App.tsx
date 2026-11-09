@@ -171,6 +171,7 @@ export const App: React.FC = () => {
   const [matchPopupUser, setMatchPopupUser] = useState<UserProfile | null>(null);
   // Сходка, открытая по ссылке-приглашению или из уведомления бота
   const [sharedEvent, setSharedEvent] = useState<AppEvent | null>(null);
+  const [sharedEventAttendance, setSharedEventAttendance] = useState(false); // «Нет, отмечу» от бота: сразу к «Кто пришёл»
   const [sharedEventBuddy, setSharedEventBuddy] = useState(false); // «Позвать ещё» от бота: открыть сходку сразу с «👯 Позвать с собой»
   const [goTogetherWith, setGoTogetherWith] = useState<UserProfile | null>(null); // «👯 Пойдём на сходку вместе» из «На связи»
 
@@ -667,6 +668,7 @@ export const App: React.FC = () => {
         if (found) {
           setSharedEvent(found);
           if (target.buddy) setSharedEventBuddy(true);
+          if (target.attendance) setSharedEventAttendance(true);
           // «✅ Точно приду» / «❌ Отменить» из напоминания или сообщения организатора
           if (found.isJoined && target.rsvp === 'yes' && !found.myConfirmed) {
             api.confirmEvent(found.id)
@@ -1444,11 +1446,13 @@ export const App: React.FC = () => {
               onClose={() => {
                 setSharedEvent(null);
                 setSharedEventBuddy(false);
+                setSharedEventAttendance(false);
               }}
             >
               <EventDetails
                 event={sharedEvent}
                 openBuddy={sharedEventBuddy}
+                openAttendance={sharedEventAttendance}
                 onJoin={async (options) => {
                   const updated = await handleJoinEvent(sharedEvent, options);
                   if (updated) setSharedEvent(updated);

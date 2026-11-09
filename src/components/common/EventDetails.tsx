@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { thumb } from '../../utils/thumb';
 import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus, Edit2, Trash2 } from 'lucide-react';
-import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES, audienceLabel } from '../../types';
+import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES, audienceLabel, isGathering } from '../../types';
 import { HelpLine } from './HelpLine';
 import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
@@ -25,7 +25,7 @@ import { BUDDY_TEXTS } from '../../texts/buddies';
 export const eventPeopleLine = (ev: AppEvent) => {
   const groups = ev.groupsCount ?? ev.participantsCount;
   return [
-    `Идут: ${ev.participantsCount || 1}${ev.maxParticipants ? ` из ${ev.maxParticipants}` : ''}`,
+    isGathering(ev) ? MEETUP_TEXTS.gathering(ev.participantsCount || 1) : `Идут: ${ev.participantsCount || 1}${ev.maxParticipants ? ` из ${ev.maxParticipants}` : ''}`,
     groups && groups < ev.participantsCount ? `${groups} ${groups === 1 ? 'компания' : groups < 5 ? 'компании' : 'компаний'}` : '',
     ev.withKidsCount ? `👶 ${ev.withKidsCount}` : ''
   ]
@@ -66,7 +66,8 @@ export const EventDetails: React.FC<{
   onJoin: (options: JoinOptions | null) => Promise<unknown> | void;
   onReported?: () => void;
   openBuddy?: boolean; // «Позвать ещё» от бота: сразу открыть «👯 Позвать с собой»
-}> = ({ event: eventProp, onJoin, onReported, openBuddy }) => {
+  openAttendance?: boolean; // «Нет, отмечу» от бота: сразу к списку «Кто пришёл»
+}> = ({ event: eventProp, onJoin, onReported, openBuddy, openAttendance }) => {
   // «Точно приду» или отказ участнику нажали здесь: шторка на карте держит свою копию сходки, поэтому ответ сервера подмешиваем сами.
   // Пришла новая сходка сверху — своя копия больше не нужна
   const [localEvent, setLocalEvent] = useState<AppEvent | null>(null);
@@ -76,6 +77,8 @@ export const EventDetails: React.FC<{
   const [counting, setCounting] = useState<{ telegramId: number; name: string; people: number } | null>(null); // «По записи»: сколько человек
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [noShowBusy, setNoShowBusy] = useState<number | null>(null);
+  const [isAttendanceSaving, setIsAttendanceSaving] = useState(false);
+  const attendanceRef = useRef<HTMLDivElement>(null);
   const event = localEvent && localEvent.id === eventProp.id ? { ...eventProp, ...localEvent } : eventProp;
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [isBuddyOpen, setIsBuddyOpen] = useState(false);
@@ -131,6 +134,13 @@ export const EventDetails: React.FC<{
     new Date(event.dateTime).getTime() > Date.now() + 3 * 60 * 60 * 1000 &&
     (!event.maxParticipants || event.maxParticipants > 2) &&
     (left === null || left >= (event.isJoined || isCreator ? 1 : 2));
+  // «Нет, отмечу» из бота: прокрутить к списку «Кто пришёл»
+  useEffect(() => {
+    if (!openAttendance || !isCreator || !isStarted) return;
+    const t = setTimeout(() => attendanceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openAttendance]);
   useEffect(() => {
     if (openBuddy && canBringBuddy) setIsBuddyOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -277,7 +287,12 @@ export const EventDetails: React.FC<{
             </button>
             {event.buddyPairs ? <p className="text-sm2 font-semibold text-zine-ink">{BUDDY_TEXTS.pairsForHost(event.buddyPairs)}</p> : null}
             {/* Сходка уже началась — отметить, кто не пришёл (внутренний рейтинг, человеку не сообщаем) */}
-            {isStarted && <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{MEETUP_TEXTS.noShowHint}</p>}
+            {isStarted && (
+              <div ref={attendanceRef} className="scroll-mt-4 pt-1">
+                <SectionTitle>{MEETUP_TEXTS.attendanceTitle}</SectionTitle>
+                <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{MEETUP_TEXTS.attendanceHint}</p>
+              </div>
+            )}
             {!isStarted && event.byRequest && others.some((p) => !p.approved) && (
               <p className="text-sm2 font-bold text-zine-terracotta">⏳ {MEETUP_TEXTS.pendingCount(others.filter((p) => !p.approved).length)}</p>
             )}
@@ -335,9 +350,12 @@ export const EventDetails: React.FC<{
                   )}
                 </div>
                 {/* «По записи»: заявка ждёт — подтвердить */}
+                {/* «Кто пришёл»: галочка стоит у всех, снять — «Не пришёл(ла)» */}
                 {isStarted && (
                   <button
                     type="button"
+                    role="checkbox"
+                    aria-checked={!p.noShow}
                     disabled={noShowBusy === p.telegramId}
                     onClick={async () => {
                       setNoShowBusy(p.telegramId);
@@ -345,17 +363,22 @@ export const EventDetails: React.FC<{
                         applyUpdate(await api.markNoShow(String(event.id), p.telegramId, !p.noShow));
                         telegramService.haptic('selection');
                       } catch (err: any) {
+                        telegramService.haptic('error');
                         telegramService.alert(err?.message || 'Не получилось, попробуй ещё раз');
                       } finally {
                         setNoShowBusy(null);
                       }
                     }}
-                    className={`mt-1.5 ml-[52px] h-9 px-4 rounded-full text-sm2 font-bold inline-flex items-center gap-1.5 cursor-pointer active:scale-[0.98] transition-transform ${
-                      p.noShow ? 'bg-zine-danger text-white' : 'bg-zine-card text-zine-ink border border-zine-border'
-                    }`}
+                    className="mt-1 ml-[52px] min-h-[44px] pr-3 inline-flex items-center gap-2.5 text-sm2 font-semibold text-zine-ink select-none active:opacity-70"
                   >
-                    {noShowBusy === p.telegramId ? <Loader2 size={16} className="animate-spin" /> : null}
-                    {p.noShow ? MEETUP_TEXTS.noShowOn : MEETUP_TEXTS.noShowOff}
+                    <span
+                      className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center border-2 ${
+                        p.noShow ? 'border-zine-border bg-zine-paper' : 'border-zine-sage bg-zine-sage text-white'
+                      }`}
+                    >
+                      {noShowBusy === p.telegramId ? <Loader2 size={14} className="animate-spin" /> : !p.noShow ? <Check size={15} strokeWidth={3} /> : null}
+                    </span>
+                    <span className={p.noShow ? 'text-zine-inkMuted line-through' : ''}>{MEETUP_TEXTS.attendanceCame(p.name)}</span>
                   </button>
                 )}
                 {!isStarted && event.byRequest && !p.approved && (
@@ -381,6 +404,33 @@ export const EventDetails: React.FC<{
                 )}
               </div>
             ))}
+            {/* «Готово»: список проверен — так считаем честную явку, даже если пришли все */}
+            {isStarted &&
+              (event.attendanceAnswer ? (
+                <p className="text-sm2 font-semibold text-zine-sage">{MEETUP_TEXTS.attendanceSaved}</p>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isAttendanceSaving}
+                  onClick={async () => {
+                    setIsAttendanceSaving(true);
+                    telegramService.haptic('medium');
+                    try {
+                      applyUpdate(await api.confirmAttendance(String(event.id)));
+                      telegramService.haptic('success');
+                    } catch (err: any) {
+                      telegramService.haptic('error');
+                      telegramService.alert(err?.message || 'Не получилось, попробуй ещё раз');
+                    } finally {
+                      setIsAttendanceSaving(false);
+                    }
+                  }}
+                  className="w-full h-12 rounded-zine-sm bg-zine-sage text-white text-body font-bold flex items-center justify-center gap-2 select-none active:scale-[0.99] transition-transform"
+                >
+                  {isAttendanceSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
+                  {MEETUP_TEXTS.attendanceDone}
+                </button>
+              ))}
           </div>
         )}
 

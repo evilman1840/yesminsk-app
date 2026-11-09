@@ -91,6 +91,13 @@ export const EVENT_CATEGORY_ROWS: EventCategory[][] = [
 ];
 
 // Категория сходки для показа: у «Своей идеи» подпись берём ту, что вписал автор
+// «Компания собирается · уже N»: ещё не началась, идут меньше трёх (с организатором), есть места и это не «на двоих»
+export const GATHERING_BELOW = 3;
+export const isGathering = (ev: { dateTime: string | Date; participantsCount: number; maxParticipants?: number }) => {
+  const n = ev.participantsCount || 1;
+  return n < GATHERING_BELOW && new Date(ev.dateTime).getTime() > Date.now() && ev.maxParticipants !== 2 && (!ev.maxParticipants || n < ev.maxParticipants);
+};
+
 export const eventCategoryOf = (ev: { category: EventCategory; customCategory?: string }) => {
   const cfg = EVENT_CATEGORIES_CONFIG[ev.category] || EVENT_CATEGORIES_CONFIG.walk;
   return ev.category === 'other' && ev.customCategory?.trim() ? { ...cfg, label: ev.customCategory.trim() } : cfg;
@@ -283,6 +290,8 @@ export interface AppEvent {
     buddy?: boolean;     // «👯 идут вместе»: пришёл по приглашению знакомого или позвал сам
   }>;
   buddyPairs?: number;   // организатору: сколько пар пришло по «👯 Пойдём вместе»
+  recruiting?: boolean;  // «Помощь в наборе»: до начала меньше 48 часов, а идут меньше трёх
+  attendanceAnswer?: 'all' | 'marked'; // организатору: ответил ли «Все, кто записался, пришли?»
 }
 
 // Что уходит на сервер при создании и изменении сходки

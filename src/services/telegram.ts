@@ -392,7 +392,7 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; wishGroupId?: string; game?: { id?: string; code?: string; tractor?: boolean } } {
+  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; wishGroupId?: string; game?: { id?: string; code?: string; tractor?: boolean } } {
     const params = new URLSearchParams(window.location.search);
     const startParam = tg()?.initDataUnsafe?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
@@ -414,6 +414,7 @@ export const telegramService = {
       eventId,
       rsvp: rsvp === 'yes' || rsvp === 'no' ? rsvp : undefined,
       buddy: params.get('buddy') === '1', // «Позвать ещё» от бота: сразу шторка «👯 Позвать с собой»
+      attendance: params.get('attendance') === '1', // «Нет, отмечу» от бота: сразу к списку «Кто пришёл»
       tab: params.get('tab') || undefined,
       placeId: create || want ? undefined : params.get('place') || undefined,
       create,

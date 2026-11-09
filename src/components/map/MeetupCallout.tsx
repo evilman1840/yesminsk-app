@@ -39,7 +39,12 @@ export function pickMeetupCallouts(events: AppEvent[], myId: number | undefined,
   });
   const friends = new Set(matchIds);
   const friendOf = (e: AppEvent) => e.participants?.find((p) => friends.has(Number(p.telegramId)))?.name;
-  const ordered = [...candidates.filter((e) => friendOf(e)), ...candidates.filter((e) => !friendOf(e))].slice(0, 4);
+  // «Помощь в наборе» (скоро, а идут меньше трёх) — сразу после сходок знакомых
+  const ordered = [
+    ...candidates.filter((e) => friendOf(e)),
+    ...candidates.filter((e) => !friendOf(e) && e.recruiting),
+    ...candidates.filter((e) => !friendOf(e) && !e.recruiting)
+  ].slice(0, 4);
 
   const list: MeetupCallout[] = ordered.map((e) => {
     const friend = friendOf(e);

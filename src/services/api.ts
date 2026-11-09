@@ -586,6 +586,11 @@ class ApiService {
     return this.request<AppEvent>(`/events/${eventId}/noshow`, { method: 'POST', body: JSON.stringify({ telegramId, noShow }) });
   }
 
+  // «Кто пришёл» → «Готово»: организатор проверил список
+  async confirmAttendance(eventId: string): Promise<AppEvent> {
+    return this.request<AppEvent>(`/events/${eventId}/attendance`, { method: 'POST' });
+  }
+
   // «✅ Точно приду»
   async confirmEvent(eventId: string): Promise<AppEvent> {
     return this.request<AppEvent>(`/events/${eventId}/confirm`, { method: 'POST' });

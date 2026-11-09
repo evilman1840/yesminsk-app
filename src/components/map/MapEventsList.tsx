@@ -1,11 +1,11 @@
 import React from 'react';
 import { MapPin, Check } from 'lucide-react';
-import { AppEvent, eventCategoryOf } from '../../types';
+import { AppEvent, eventCategoryOf, isGathering } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { thumb } from '../../utils/thumb';
 import { formatDistance } from '../common/UserBottomSheet';
 import { whenText } from './MeetupCallout';
-import { MAP_EVENTS_TEXTS as T } from '../../texts/meetups';
+import { MAP_EVENTS_TEXTS as T, MEETUP_TEXTS as M } from '../../texts/meetups';
 
 /**
  * Сходки на карте списком — вместо кружочков. Порядок тот же, что в ленте «Сходки» (по тому, насколько подходит).
@@ -52,7 +52,7 @@ export const MapEventsList: React.FC<{
                       ))}
                     </span>
                     <span className="text-cap text-zine-inkMuted whitespace-nowrap">
-                      {T.going(ev.participantsCount || 1, ev.maxParticipants)}
+                      {isGathering(ev) ? M.gathering(ev.participantsCount || 1) : T.going(ev.participantsCount || 1, ev.maxParticipants)}
                     </span>
                     {ev.isJoined && (
                       <span className="ml-auto h-6 px-2 rounded-full bg-zine-sage text-white text-cap font-bold flex items-center gap-1 whitespace-nowrap">

@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff, SlidersHorizontal, X, MapPin } from 'lucide-react';
-import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, EVENT_CATEGORY_ROWS, LEGACY_CATEGORIES, isLegacyCategory, eventCategoryOf, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats } from '../types';
+import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, EVENT_CATEGORY_ROWS, LEGACY_CATEGORIES, isLegacyCategory, eventCategoryOf, isGathering, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -1924,7 +1924,7 @@ export const EventReel: React.FC<{
             ))}
           </span>
           <span className="shrink-0 text-sm2 text-zine-inkMuted whitespace-nowrap">
-            {M.goingCount(ev.participantsCount || 1, ev.maxParticipants)}
+            {isGathering(ev) ? M.gathering(ev.participantsCount || 1) : M.goingCount(ev.participantsCount || 1, ev.maxParticipants)}
           </span>
         </div>
       </div>
