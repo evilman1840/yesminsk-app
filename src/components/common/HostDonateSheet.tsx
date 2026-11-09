@@ -7,12 +7,12 @@ import { TierIcon } from '../ui/Pechka';
 import { ThanksSheet } from './DonateSheet';
 import { MEETUP_TEXTS as M } from '../../texts/meetups';
 
-// Те же пирожки, что в обычном донате, но суммы в три раза больше: сходка со взносом
+// Те же пончики, что в обычном донате, но суммы в три раза больше: сходка со взносом
 const TIERS = [
-  { kind: 'one', name: 'Пирожок', rub: 3 },
-  { kind: 'two', name: 'Тарелка', rub: 15 },
-  { kind: 'basket', name: 'Корзинка', rub: 30 },
-  { kind: 'loaf', name: 'Каравай', rub: 90 }
+  { kind: 'one', name: 'Пончик', rub: 3 },
+  { kind: 'plate', name: 'Тарелка', rub: 15 },
+  { kind: 'box', name: 'Коробка', rub: 30 },
+  { kind: 'hill', name: 'Гора', rub: 90 }
 ] as const;
 
 const ERIP = DONATE_COPY[0];
@@ -52,7 +52,7 @@ export const HostDonateSheet: React.FC<{ onClose: () => void }> = ({ onClose }) 
       <p className="text-body text-zine-ink">{M.hostDonateText}</p>
       <p className="mt-1.5 text-sm2 text-zine-inkMuted">{M.hostDonateSign}</p>
 
-      <div className="mt-3 grid grid-cols-4 gap-2" role="group" aria-label="Сколько пирожков">
+      <div className="mt-3 grid grid-cols-4 gap-2" role="group" aria-label="Сколько пончиков">
         {TIERS.map((t, i) => (
           <button
             key={t.kind}

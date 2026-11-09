@@ -1,8 +1,9 @@
 import React from 'react';
+import { DONUT, DONUT_VIEWBOX, TIER_SVG } from './donuts';
 
 /**
  * Печка ГУЛЯЙ — персонаж сериала «Не Одна Дома», на ней «работает» приложение.
- * Её кормят пирожками (донатами). Настроение — от цели месяца:
+ * Её кормят донатами — пончиками 🍩. Настроение — от цели месяца:
  * hungry < 30%, ok 30–80%, happy > 80%, eating — сразу после доната.
  * Цвета свои, одинаковые в светлой и тёмной теме
  */
@@ -82,9 +83,7 @@ export const Pechka: React.FC<{ mood?: PechkaMood; size?: number; className?: st
         </g>
         {mood === 'eating' && (
           <>
-            <g transform="translate(62 104) rotate(-12)">
-              <PiePath />
-            </g>
+            <g transform="translate(64 98) rotate(-12) scale(.85)" dangerouslySetInnerHTML={{ __html: DONUT }} />
             <g fill="#E2A03F">
               <circle cx="46" cy="152" r="2.5" />
               <circle cx="116" cy="150" r="2" />
@@ -99,54 +98,19 @@ export const Pechka: React.FC<{ mood?: PechkaMood; size?: number; className?: st
   );
 };
 
-// Пирожок 38×21 — для шкалы, подсказок суммы и рта Печки
-const PiePath: React.FC = () => (
-  <>
-    <path d="M0 14 C0 0 38 0 38 14 C38 21 0 21 0 14Z" fill="#E2A03F" stroke={LINE} strokeWidth="2.2" />
-    <path d="M7 9 l3 3 3 -3 3 3 3 -3 3 3 3 -3 3 3" fill="none" stroke="#B97A22" strokeWidth="2" />
-  </>
-);
-
-export const Pie: React.FC<{ empty?: boolean; className?: string }> = ({ empty, className = '' }) => (
-  <svg viewBox="-2 -2 42 24" aria-hidden className={`block w-full h-auto ${className}`}>
-    {empty ? (
-      <path d="M0 14 C0 0 38 0 38 14 C38 21 0 21 0 14Z" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3" />
-    ) : (
-      <PiePath />
-    )}
-  </svg>
-);
-
-// Подсказки суммы: пирожок, два пирожка, корзинка, каравай
-export const TierIcon: React.FC<{ kind: 'one' | 'two' | 'basket' | 'loaf' }> = ({ kind }) => {
-  if (kind === 'basket')
-    return (
-      <svg viewBox="0 0 48 34" height="30" aria-hidden className="block max-w-full">
-        <path d="M8 14 Q24 -2 40 14" fill="none" stroke={LINE} strokeWidth="2.5" />
-        <path d="M10 10 C10 2 26 2 26 10Z M20 10 C20 2 38 2 38 10Z" fill="#E2A03F" stroke={LINE} strokeWidth="2" />
-        <path d="M4 12 H44 L39 32 H9Z" fill="#B97A22" stroke={LINE} strokeWidth="2.5" />
-        <path d="M8 19 H40 M10 26 H38" stroke="#8C5A16" strokeWidth="2" />
-      </svg>
-    );
-  if (kind === 'loaf')
-    return (
-      <svg viewBox="0 0 48 34" height="30" aria-hidden className="block max-w-full">
-        <ellipse cx="24" cy="20" rx="21" ry="12" fill="#C98A2E" stroke={LINE} strokeWidth="2.5" />
-        <ellipse cx="24" cy="17" rx="15" ry="7" fill="#E2A03F" />
-        <path d="M16 15 q8 -6 16 0" fill="none" stroke="#fff" strokeWidth="2" opacity=".6" />
-        <circle cx="24" cy="15" r="3" fill="#F4EFEA" stroke={LINE} strokeWidth="1.5" />
-      </svg>
-    );
-  return (
-    <svg viewBox={`-2 -2 ${kind === 'two' ? 58 : 44} 32`} height="30" aria-hidden className="block max-w-full">
-      {kind === 'two' && (
-        <g transform="translate(14 0)">
-          <PiePath />
-        </g>
-      )}
-      <g transform="translate(0 8)">
-        <PiePath />
-      </g>
+// Пончик 42×38 — для шкалы цели месяца; пустой — пунктирное колечко
+export const Donut: React.FC<{ empty?: boolean; className?: string }> = ({ empty, className = '' }) =>
+  empty ? (
+    <svg viewBox={DONUT_VIEWBOX} aria-hidden className={`block w-full h-auto ${className}`}>
+      <ellipse cx="20" cy="20" rx="17" ry="13" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3" />
+      <ellipse cx="20" cy="19" rx="5" ry="3.6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2 2.5" />
     </svg>
+  ) : (
+    <svg viewBox={DONUT_VIEWBOX} aria-hidden className={`block w-full h-auto ${className}`} dangerouslySetInnerHTML={{ __html: DONUT }} />
   );
-};
+
+// Подсказки суммы: пончик, тарелка, коробка, гора пончиков
+export type TierKind = keyof typeof TIER_SVG;
+export const TierIcon: React.FC<{ kind: TierKind }> = ({ kind }) => (
+  <svg viewBox={TIER_SVG[kind].viewBox} height="30" aria-hidden className="block max-w-full" dangerouslySetInnerHTML={{ __html: TIER_SVG[kind].html }} />
+);

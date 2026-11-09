@@ -523,7 +523,7 @@ const PersonReel: React.FC<{
     setPhotoIndex((i) => (i + step + gallery.length) % gallery.length);
   };
   // Статусы человека: на связи, хочет пообщаться, гид, «поныть», «могу сейчас».
-  // «🥧 Кормлю ГУЛЯЙ-Печку» — плашкой на фото, чтобы не занимать место под ним
+  // «🍩 Кормлю ГУЛЯЙ-Печку» — плашкой на фото, чтобы не занимать место под ним
   // На своей вкладке «На связи» и «Хочет пообщаться» не повторяем; «Эмпат» — в анкете
   const statuses = [
     user.isMatch && tab !== 'matches' && { text: '🤝 На связи', cls: 'bg-zine-sage text-white' },
@@ -594,7 +594,7 @@ const PersonReel: React.FC<{
         else onSkip();
       }}
     >
-      {/* Фото — без надписей и кнопок поверх, только точки, стрелки и «🥧 Кормлю ГУЛЯЙ-Печку».
+      {/* Фото — без надписей и кнопок поверх, только точки, стрелки и «🍩 Кормлю ГУЛЯЙ-Печку».
           Сжимается первым (до 26%), чтобы кнопки внизу не срезались — в «На связи» их больше */}
       <div ref={seenRef} className="relative mx-3 flex-1 min-h-[26%] rounded-zine overflow-hidden bg-zine-card">
         <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} onLoad={preloadNext} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
@@ -620,7 +620,7 @@ const PersonReel: React.FC<{
         )}
         {user.isSupporter && (
           <span className="absolute top-3 left-3 z-20 h-7 px-2.5 rounded-full bg-white/90 text-zine-ink text-cap font-bold flex items-center shadow pointer-events-none">
-            🥧 Кормлю ГУЛЯЙ-Печку
+            🍩 Кормлю ГУЛЯЙ-Печку
           </span>
         )}
         {/* Подсказка про жесты — только на первой карточке, внизу фото */}
