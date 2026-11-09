@@ -15,12 +15,13 @@ export const SerialPlayer: React.FC<{
   ep: SerialEpisode;
   source: SerialSource;
   serial: SerialState;
+  startFrame?: number; // вернулся после «Попробовать» — с кадра, где остановился
   onClose: () => void;
-  onTry: (to: SerialTry['to']) => void;
+  onTry: (to: SerialTry['to'], nextFrame: number) => void;
   onOpen: (ep: SerialEpisode, source: SerialSource) => void;
-}> = ({ ep, source, serial, onClose, onTry, onOpen }) => {
+}> = ({ ep, source, serial, startFrame = 0, onClose, onTry, onOpen }) => {
   const total = ep.frames.length + 1; // + кадр с сердечком
-  const [cur, setCur] = useState(0);
+  const [cur, setCur] = useState(startFrame);
   const [progress, setProgress] = useState(0);
   const [pop, setPop] = useState(false);
   const maxSent = useRef(-1);
@@ -32,9 +33,9 @@ export const SerialPlayer: React.FC<{
 
   useBackButton(onClose);
 
-  // Новая серия — с обложки
+  // Новая серия — с обложки (или с кадра, где остановился)
   useEffect(() => {
-    setCur(0);
+    setCur(Math.min(startFrame, total - 1));
     maxSent.current = -1;
     serial.markOpened(ep.n);
   }, [ep.n]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -72,7 +73,7 @@ export const SerialPlayer: React.FC<{
   const tryIt = (t: SerialTry) => {
     telegramService.haptic('light');
     api.serialTry(ep.n).catch(() => {});
-    onTry(t.to);
+    onTry(t.to, Math.min(cur + 1, total - 1));
     onClose();
   };
 

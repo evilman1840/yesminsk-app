@@ -38,7 +38,7 @@ import { NewsScreen } from './screens/NewsScreen';
 import { useSerial, SerialSource } from './serial/useSerial';
 import { SERIAL_PUBLIC } from './serial/episodes';
 import { SerialPlayer } from './serial/SerialPlayer';
-import { SerialDefs, SerialSheet, SerialStrip, SerialTv, SerialTvProvider } from './serial/SerialBits';
+import { SerialDefs, SerialResumeStrip, SerialSheet, SerialStrip, SerialTv, SerialTvProvider } from './serial/SerialBits';
 import type { SerialEpisode } from './serial/episodes';
 import { PlacesScreen } from './screens/PlacesScreen';
 import { GamesScreen } from './screens/GamesScreen';
@@ -175,7 +175,9 @@ export const App: React.FC = () => {
   const [matches, setMatches] = useState<UserProfile[]>([]);
   const [matchPopupUser, setMatchPopupUser] = useState<UserProfile | null>(null);
   // Сериал «Не Одна Дома»: какая серия сейчас играет и откуда её открыли
-  const [serialPlaying, setSerialPlaying] = useState<{ ep: SerialEpisode; source: SerialSource } | null>(null);
+  const [serialPlaying, setSerialPlaying] = useState<{ ep: SerialEpisode; source: SerialSource; frame?: number } | null>(null);
+  // Нажал «Попробовать» — серия ждёт: после доната продолжится сама, после перехода на экран — плашка «Досмотреть»
+  const [serialResume, setSerialResume] = useState<{ ep: SerialEpisode; source: SerialSource; frame: number; afterDonate: boolean } | null>(null);
   const [serialSheetOpen, setSerialSheetOpen] = useState(false);
   // «Момент радости» после новой сходки ждёт, пока человек уйдёт с экрана создания
   const serialJoyPending = useRef(false);
@@ -1458,7 +1460,16 @@ export const App: React.FC = () => {
           </SerialTvProvider>
 
           {/* Над меню одно место: новая серия важнее подсказок; посмотрел или ✕ — подсказки возвращаются */}
-          {stripOn ? (
+          {isTab && serialResume && !serialResume.afterDonate ? (
+            <SerialResumeStrip
+              ep={serialResume.ep}
+              onOpen={() => {
+                setSerialPlaying({ ep: serialResume.ep, source: serialResume.source, frame: serialResume.frame });
+                setSerialResume(null);
+              }}
+              onClose={() => setSerialResume(null)}
+            />
+          ) : stripOn ? (
             <SerialStrip serial={serial} onOpen={(ep) => setSerialPlaying({ ep, source: 'strip' })} />
           ) : (
             isTab && isMeLoaded && currentScreen !== 'profile_edit' && currentScreen !== 'games' && <NoticeBar notices={notices} />
@@ -1720,8 +1731,16 @@ export const App: React.FC = () => {
 
           {isDonateOpen && (
             <DonateSheet
-              onClose={() => setIsDonateOpen(false)}
+              onClose={() => {
+                setIsDonateOpen(false);
+                // Открыли донат из серии — досматриваем с того же места
+                if (serialResume?.afterDonate) {
+                  setSerialPlaying({ ep: serialResume.ep, source: serialResume.source, frame: serialResume.frame });
+                  setSerialResume(null);
+                }
+              }}
               onOpenNews={() => {
+                setSerialResume(null);
                 setIsDonateOpen(false);
                 handleNavigate('news');
               }}
@@ -1762,10 +1781,12 @@ export const App: React.FC = () => {
             <SerialPlayer
               ep={serialPlaying.ep}
               source={serialPlaying.source}
+              startFrame={serialPlaying.frame}
               serial={serial}
               onClose={() => setSerialPlaying(null)}
               onOpen={(ep, source) => setSerialPlaying({ ep, source })}
-              onTry={(to) => {
+              onTry={(to, nextFrame) => {
+                setSerialResume({ ep: serialPlaying.ep, source: serialPlaying.source, frame: nextFrame, afterDonate: to === 'donate' });
                 if (to === 'events') handleNavigate('events');
                 else if (to === 'donate') setIsDonateOpen(true);
                 else {

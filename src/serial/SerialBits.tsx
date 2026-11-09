@@ -1,5 +1,5 @@
 import React, { cloneElement, createContext, isValidElement, useContext, useId } from 'react';
-import { X, ChevronRight } from 'lucide-react';
+import { X, ChevronRight, Play } from 'lucide-react';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { telegramService } from '../services/telegram';
 import { SERIAL_DEFS } from './defs';
@@ -51,6 +51,27 @@ export const SerialStrip: React.FC<{ serial: SerialState; onOpen: (ep: SerialEpi
     </div>
   );
 };
+
+/** После «Попробовать» над меню: вернуться к серии с того же кадра */
+export const SerialResumeStrip: React.FC<{ ep: SerialEpisode; onOpen: () => void; onClose: () => void }> = ({ ep, onOpen, onClose }) => (
+  <div className="relative h-0 z-40">
+    <div className="absolute inset-x-2 bottom-2 rounded-zine bg-[#2B2623] text-[#FFF6E6] shadow-zine-float flex items-center gap-2 pl-2 pr-1 py-1.5">
+      <button onClick={onOpen} aria-label={`Досмотреть серию ${ep.n}`} className="flex-1 min-w-0 flex items-center gap-2.5 text-left cursor-pointer">
+        <Face who={ep.thumb} size={36} />
+        <span className="flex-1 min-w-0">
+          <span className="block font-hand font-bold text-[22px] leading-none truncate">Досмотреть серию {ep.n}</span>
+          <span className="block mt-0.5 text-cap text-[#FFF6E6]/80 truncate">Не Одна Дома · с того места</span>
+        </span>
+        <span aria-hidden className="shrink-0 w-10 h-10 rounded-full bg-zine-terracotta text-white grid place-items-center">
+          <Play size={18} fill="currentColor" className="ml-0.5" />
+        </span>
+      </button>
+      <button onClick={onClose} aria-label="Не досматривать" className="shrink-0 w-9 h-9 grid place-items-center text-[#FFF6E6]/70 cursor-pointer">
+        <X size={18} />
+      </button>
+    </div>
+  </div>
+);
 
 /** Ряд серий: вышедшие и следующая с днём выхода */
 const EpisodeRow: React.FC<{ serial: SerialState; onOpen: (ep: SerialEpisode) => void }> = ({ serial, onOpen }) => {
