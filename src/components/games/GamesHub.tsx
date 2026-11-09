@@ -88,9 +88,10 @@ const GameCard: React.FC<{
 }> = ({ onClick, art, badge, title, hint, stats }) => (
   <button
     onClick={onClick}
-    className="flex-1 shrink-0 min-h-[220px] w-full flex flex-col text-left rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-sm overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
+    className="shrink-0 w-full flex flex-col text-left rounded-zine bg-zine-cardElevated border border-zine-border shadow-zine-sm overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
   >
-    <div className="relative flex-1 min-h-[72px]">
+    {/* Картинка — постоянной высоты: карточек три, меню прокручивается, и сжимать её нельзя */}
+    <div className="relative h-[156px] shrink-0 overflow-hidden">
       {art}
       <div className="absolute left-3 top-3">{badge}</div>
     </div>
