@@ -1221,7 +1221,7 @@ const BOT_ANSWERS: Record<string, string[]> = {
   fire: ['🔥', '💅'],
   sixseven: ['67!', '🗿'],
   base: ['Это база', '🤌'],
-  cringe: ['Минус вайб', '💀'],
+  cringe: ['Пу-Пу-Пууу', '💀'],
   minusvibe: ['Кринж…', '😭'],
   nochance: ['🗿', 'Ещё одну и спать'],
   hurt: ['😭', '💅'],
