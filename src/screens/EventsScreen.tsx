@@ -1608,7 +1608,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             </Field>
 
             <Field label={M.priceLabel}>
-              {/* Бесплатно / свои траты (кассе, заведению) / взнос организатору: три равные кнопки в ряд, значок над словом */}
+              {/* Бесплатно / кассе или кафе / мне (организатору): три равные кнопки в ряд, значок над словом */}
               <div className="grid grid-cols-3 gap-2" role="group" aria-label={M.priceLabel}>
                 {([
                   ['free', M.priceFree],

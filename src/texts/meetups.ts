@@ -54,7 +54,7 @@ export const MEETUP_TEXTS = {
   duration: (minutes: number) => `≈ ${String(Math.round((minutes / 60) * 10) / 10).replace('.', ',')} ч`,
 
   // Цена: по умолчанию бесплатно
-  priceLabel: 'Сколько стоит?',
+  priceLabel: 'Кому платят?',
   // «По записи»
   byRequestLabel: 'Как записываться?',
   byRequestOff: 'Свободно',
@@ -97,18 +97,18 @@ export const MEETUP_TEXTS = {
   gathering: (n: number) => `Компания собирается · уже ${n}`,
   pendingCount: (n: number) => `Ждут подтверждения: ${n}`,
   priceFree: '💚 Бесплатно',
-  priceVenue: '🎟 Свои траты',
-  priceHost: '🙋 Взнос',
+  priceVenue: '🎟 Кассе или кафе',
+  priceHost: '🙋 Мне',
   priceAmountPlaceholder: 'Примерно сколько BYN с человека (можно не писать)',
-  priceVenueHint: 'Каждый сам платит кассе или заведению: билет в кино, вход в музей, кофе. Тебе деньги не идут.',
+  priceVenueHint: 'Билет в кино, вход в музей, кофе. Каждый платит сам, тебе деньги не идут.',
   priceHostFixed: 'Фиксированно',
   priceHostDonation: 'Донат',
   priceHostAmountPlaceholder: 'Сколько BYN с человека',
   priceDonationAmountPlaceholder: 'Обычно сколько BYN (можно не писать)',
   priceForPlaceholder: 'За что: аренда игр, чай, материалы',
-  priceHostHint: 'Деньги получаешь ты: за настолки, мастер-класс, аренду зала. Напиши, за что, так людям спокойнее.',
+  priceHostHint: 'Ты берёшь деньги за настолку, танцы, мастер-класс, аренду зала. Напиши, за что, так людям спокойнее.',
   priceDonationHint: 'Каждый даёт сколько не жалко. Можно подсказать обычную сумму.',
-  priceHostNeedAmount: 'Напиши, сколько BYN взнос, или выбери «Донат»',
+  priceHostNeedAmount: 'Напиши, сколько BYN платят тебе, или выбери «Донат»',
 
   // После публикации сходки со взносом: напоминание поддержать приложение
   hostDonateTitle: '🙋 Сходка со взносом опубликована',
@@ -169,7 +169,7 @@ export const MEETUP_TEXTS = {
   emptyText: 'Собери первую сходку, это займёт минуту.'
 };
 
-// Пометка цены сходки: «💚 Бесплатно», «🎟 Свои траты, примерно 15 BYN», «🙋 Взнос организатору 10 BYN», «🙋 Донат организатору»
+// Пометка цены сходки: «💚 Бесплатно», «🎟 Билет или чек на месте, ~15 BYN», «🙋 Организатору 10 BYN», «🙋 Донат организатору»
 type PriceEv = { isPaid?: boolean; price?: number; payTo?: string; donation?: boolean; payFor?: string };
 const byn = (n: number) => `${String(n).replace('.', ',')} BYN`;
 // withFor — с «за что» в скобках (в подробной карточке; в ленте строка короткая)
@@ -177,15 +177,15 @@ export const priceLabel = (ev: PriceEv, withFor = false) => {
   if (!ev.isPaid) return MEETUP_TEXTS.priceFree;
   const base =
     ev.payTo !== 'host'
-      ? ev.price ? `🎟 Свои траты, примерно ${byn(ev.price)}` : '🎟 Свои траты'
+      ? ev.price ? `🎟 Билет или чек на месте, ~${byn(ev.price)}` : '🎟 Билет или чек на месте'
       : ev.donation
         ? ev.price ? `🙋 Донат организатору, обычно ${byn(ev.price)}` : '🙋 Донат организатору'
-        : ev.price ? `🙋 Взнос организатору ${byn(ev.price)}` : '🙋 Взнос организатору';
+        : ev.price ? `🙋 Организатору ${byn(ev.price)}` : '🙋 Платят организатору';
   return withFor && ev.payTo === 'host' && ev.payFor ? `${base} (${ev.payFor})` : base;
 };
 export const priceShort = (ev: PriceEv) => {
   if (!ev.isPaid) return 'бесплатно';
-  const kind = ev.payTo !== 'host' ? 'свои траты' : ev.donation ? 'донат' : 'взнос';
+  const kind = ev.payTo !== 'host' ? 'на месте' : ev.donation ? 'донат' : 'организатору';
   return ev.price ? `${kind} ~${byn(ev.price)}` : kind;
 };
 
