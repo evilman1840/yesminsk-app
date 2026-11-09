@@ -277,6 +277,9 @@ export interface AppEvent {
   ageMax?: number | null; // возраст «до»
   notForMe?: string;    // почему мне нельзя записаться (модератор видит и сходки не для него)
   price?: number;       // примерно сколько, BYN с человека
+  payTo?: PayTo;        // кому платят (нет поля — заведению)
+  donation?: boolean;   // взнос организатору — донат по желанию
+  payFor?: string;      // за что взнос: «аренда игр»
   participants?: Array<{
     telegramId: number;
     name: string;
@@ -293,6 +296,9 @@ export interface AppEvent {
   recruiting?: boolean;  // «Помощь в наборе»: до начала меньше 48 часов, а идут меньше трёх
   attendanceAnswer?: 'all' | 'marked'; // организатору: ответил ли «Все, кто записался, пришли?»
 }
+
+// Кому платят на платной сходке: кассе или заведению (кино, кафе) или организатору (настолка, мастер-класс)
+export type PayTo = 'venue' | 'host';
 
 // Что уходит на сервер при создании и изменении сходки
 export interface EventPayload {
@@ -312,6 +318,9 @@ export interface EventPayload {
   photos?: string[]; // id фото на сервере
   isPaid?: boolean;
   price?: number;
+  payTo?: PayTo;
+  donation?: boolean;
+  payFor?: string;
   wishGroupId?: string;
   byRequest?: boolean;
   inviteIds?: number[]; // «Позвать в компанию»: бот пришлёт им приглашение от меня

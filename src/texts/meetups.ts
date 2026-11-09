@@ -97,9 +97,31 @@ export const MEETUP_TEXTS = {
   gathering: (n: number) => `Компания собирается · уже ${n}`,
   pendingCount: (n: number) => `Ждут подтверждения: ${n}`,
   priceFree: '💚 Бесплатно',
-  pricePaid: '💸 Платно',
+  priceVenue: '🎟 Свои траты',
+  priceHost: '🙋 Взнос',
   priceAmountPlaceholder: 'Примерно сколько BYN с человека (можно не писать)',
-  priceHint: 'Например, билет, аренда или вход. Чтобы никто не удивлялся на месте.',
+  priceVenueHint: 'Каждый сам платит кассе или заведению: билет в кино, вход в музей, кофе. Тебе деньги не идут.',
+  priceHostFixed: 'Фиксированно',
+  priceHostDonation: 'Донат',
+  priceHostAmountPlaceholder: 'Сколько BYN с человека',
+  priceDonationAmountPlaceholder: 'Обычно сколько BYN (можно не писать)',
+  priceForPlaceholder: 'За что: аренда игр, чай, материалы',
+  priceHostHint: 'Деньги получаешь ты: за настолки, мастер-класс, аренду зала. Напиши, за что, так людям спокойнее.',
+  priceDonationHint: 'Каждый даёт сколько не жалко. Можно подсказать обычную сумму.',
+  priceHostNeedAmount: 'Напиши, сколько BYN взнос, или выбери «Донат»',
+
+  // После публикации сходки со взносом: напоминание поддержать приложение
+  hostDonateTitle: '🙋 Сходка со взносом опубликована',
+  hostDonateText:
+    'Классно, что ты собираешь людей! Приложение я делаю сам, и оно бесплатное и для тебя, и для участников. Раз сходка со взносом, будет честно отправить немного Печке ГУЛЯЙ.',
+  hostDonateSign: '🤗 Миша Спасатель',
+  hostDonateBtn: (rub: number) => `💳 Донат для ГУЛЯЙ · ${rub} р.`,
+  hostDonateBtnSub: 'онлайн на карту',
+  hostDonateOwn: 'Другая сумма?',
+  hostDonateOwnLink: 'Ввести свою',
+  hostDonateErip: 'Через ЕРИП: скопируй счёт и пополни его в ЕРИП из приложения своего банка',
+  hostDonateDone: 'Готово, Печка накормлена ✓',
+  hostDonateLater: 'Позже',
 
   // «Поныть»
   supportRulesTitle: '🫂 Правила встречи подключатся сами',
@@ -147,11 +169,25 @@ export const MEETUP_TEXTS = {
   emptyText: 'Собери первую сходку, это займёт минуту.'
 };
 
-// Пометка цены сходки: «💚 Бесплатно», «💸 Платно», «💸 Платно, примерно 15 BYN»
-export const priceLabel = (ev: { isPaid?: boolean; price?: number }) =>
-  !ev.isPaid ? MEETUP_TEXTS.priceFree : ev.price ? `${MEETUP_TEXTS.pricePaid}, примерно ${String(ev.price).replace('.', ',')} BYN` : MEETUP_TEXTS.pricePaid;
-export const priceShort = (ev: { isPaid?: boolean; price?: number }) =>
-  !ev.isPaid ? 'бесплатно' : ev.price ? `~${String(ev.price).replace('.', ',')} BYN` : 'платно';
+// Пометка цены сходки: «💚 Бесплатно», «🎟 Свои траты, примерно 15 BYN», «🙋 Взнос организатору 10 BYN», «🙋 Донат организатору»
+type PriceEv = { isPaid?: boolean; price?: number; payTo?: string; donation?: boolean; payFor?: string };
+const byn = (n: number) => `${String(n).replace('.', ',')} BYN`;
+// withFor — с «за что» в скобках (в подробной карточке; в ленте строка короткая)
+export const priceLabel = (ev: PriceEv, withFor = false) => {
+  if (!ev.isPaid) return MEETUP_TEXTS.priceFree;
+  const base =
+    ev.payTo !== 'host'
+      ? ev.price ? `🎟 Свои траты, примерно ${byn(ev.price)}` : '🎟 Свои траты'
+      : ev.donation
+        ? ev.price ? `🙋 Донат организатору, обычно ${byn(ev.price)}` : '🙋 Донат организатору'
+        : ev.price ? `🙋 Взнос организатору ${byn(ev.price)}` : '🙋 Взнос организатору';
+  return withFor && ev.payTo === 'host' && ev.payFor ? `${base} (${ev.payFor})` : base;
+};
+export const priceShort = (ev: PriceEv) => {
+  if (!ev.isPaid) return 'бесплатно';
+  const kind = ev.payTo !== 'host' ? 'свои траты' : ev.donation ? 'донат' : 'взнос';
+  return ev.price ? `${kind} ~${byn(ev.price)}` : kind;
+};
 
 // Призыв к сходкам в строке подсказок
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

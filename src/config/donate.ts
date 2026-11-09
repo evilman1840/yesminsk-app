@@ -22,6 +22,14 @@ export const CARD_URL_BY_RUB: Record<number, string> = {
   30: 'https://www.alfabank.by/share?transferLinkId=6af19c7bccaa0344c73ba4bb&version=INSNC3'
 };
 
+// Окно организатору после сходки со взносом: суммы в три раза больше обычных
+export const HOST_CARD_URL_BY_RUB: Record<number, string> = {
+  3: 'https://www.alfabank.by/share?transferLinkId=6af1c59accaa0344c73ba4db&version=INSNC3',
+  15: 'https://www.alfabank.by/share?transferLinkId=6af1c5c52b121e1f5b5f45db&version=INSNC3',
+  30: 'https://www.alfabank.by/share?transferLinkId=6af1c5f9ebe8c7414bb59793&version=INSNC3',
+  90: 'https://www.alfabank.by/share?transferLinkId=6af1c5e2b7dee03105082959&version=INSNC3'
+};
+
 // «Другие способы»: реквизиты, копируются одним нажатием
 export interface DonateCopy {
   emoji: string;

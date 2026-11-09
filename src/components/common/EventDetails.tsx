@@ -192,7 +192,7 @@ export const EventDetails: React.FC<{
             {EVENT_TAGS[t].emoji} {EVENT_TAGS[t].label}
           </span>
         ))}
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-card text-zine-ink">{priceLabel(event)}</span>
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-card text-zine-ink">{priceLabel(event, true)}</span>
         {event.byRequest && (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm2 font-semibold bg-zine-terracotta/10 text-zine-terracotta">{MEETUP_TEXTS.byRequestBadge}</span>
         )}

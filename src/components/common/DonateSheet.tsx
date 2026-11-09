@@ -267,7 +267,7 @@ interface MyCard {
  * Суммы и счётчик людей не меняются. Вторая галочка попадает в список /thanks у автора.
  * После «Готово» со значком показываем «СПАСИБО!» и превью своей анкеты, чтобы было видно, как она теперь выглядит
  */
-const ThanksSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const ThanksSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [badge, setBadge] = useState(false);
   const [named, setNamed] = useState(false);
   const [busy, setBusy] = useState(false);

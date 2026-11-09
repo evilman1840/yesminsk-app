@@ -2,10 +2,11 @@ import { SerialTvSlot, useSerialTv } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff, SlidersHorizontal, X, MapPin } from 'lucide-react';
-import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, EVENT_CATEGORY_ROWS, LEGACY_CATEGORIES, isLegacyCategory, eventCategoryOf, isGathering, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats } from '../types';
+import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, EVENT_CATEGORY_ROWS, LEGACY_CATEGORIES, isLegacyCategory, eventCategoryOf, isGathering, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats, PayTo } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
+import { HostDonateSheet } from '../components/common/HostDonateSheet';
 import { formatEventDate } from './MapScreen';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
 import { MapPicker } from '../components/common/MapPicker';
@@ -176,6 +177,18 @@ const BAR_WISHES = 4;
 // Подсказка у звезды «Мои»: сколько раз показали и когда (чтобы не больше двух раз)
 const MINE_HINT_KEY = 'yesminsk_mine_hint';
 const MINE_HINT_TIMES = 2;
+// Напоминание о донате после сходки со взносом: не чаще раза в неделю
+const HOST_DONATE_KEY = 'yesminsk_host_donate_at';
+const hostDonateDue = () => {
+  try {
+    const last = Number(localStorage.getItem(HOST_DONATE_KEY) || 0);
+    if (Date.now() - last < 7 * 24 * 3600 * 1000) return false;
+    localStorage.setItem(HOST_DONATE_KEY, String(Date.now()));
+  } catch {
+    // Хранилище недоступно — просто покажем
+  }
+  return true;
+};
 const WINDOW_BOOST: Record<WishWindow, number> = { today: 3, tomorrow: 2, weekend: 1.5, week: 1 };
 const nextWishBarTurn = () => {
   try {
@@ -267,6 +280,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   // Цена: по умолчанию бесплатно
   const [isPaid, setIsPaid] = useState(false);
+  const [payTo, setPayTo] = useState<PayTo>('venue'); // кому платят: заведению или организатору
+  const [donation, setDonation] = useState(false);     // взнос организатору — донат по желанию
+  const [payFor, setPayFor] = useState('');            // за что взнос
+  const [hostDonateOpen, setHostDonateOpen] = useState(false); // опубликовал сходку со взносом — напомнить про донат
   const [byRequest, setByRequest] = useState(false); // «По записи»
   // «Соберу я» из «Хочу сходить»: после публикации бот напишет остальным
   const [wishGroupId, setWishGroupId] = useState<string | null>(null);
@@ -502,6 +519,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setPhotos([]);
     setIsPhotoUploading(false);
     setIsPaid(false);
+    setPayTo('venue');
+    setDonation(false);
+    setPayFor('');
     setByRequest(false);
     setPrice('');
     setWishGroupId(null);
@@ -579,6 +599,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setDurationMinutes(ev.durationMinutes || 0);
     setPhotos((ev.photos || []).map(photoFromUrl));
     setIsPaid(Boolean(ev.isPaid));
+    setPayTo(ev.payTo === 'host' ? 'host' : 'venue');
+    setDonation(Boolean(ev.donation));
+    setPayFor(ev.payFor || '');
     setByRequest(Boolean(ev.byRequest));
     setPrice(ev.price ? String(ev.price).replace('.', ',') : '');
     setIsPhotoUploading(false);
@@ -604,6 +627,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setTags([]);
       setMaxParticipants('0');
       setIsPaid(false);
+      setPayTo('venue');
+      setDonation(false);
+      setPayFor('');
       setPrice('');
       autoText.current = { title: '', description: '' };
     } else {
@@ -619,6 +645,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       setMaxParticipants(String(tpl.seats || 0));
       setDurationMinutes(tpl.durationMinutes || 0);
       setIsPaid(Boolean(tpl.paid));
+      setPayTo('venue');
+      setDonation(false);
+      setPayFor('');
       setPrice('');
       autoText.current = { title: nextTitle, description: nextDescription };
     }
@@ -755,6 +784,11 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       failForm(M.customCategoryRequired, 'customCategory');
       return;
     }
+    // Фиксированный взнос организатору — без суммы непонятно, сколько нести
+    if (isPaid && payTo === 'host' && !donation && !(Number(price.replace(',', '.')) > 0)) {
+      failForm(M.priceHostNeedAmount, 'hostPrice');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -804,6 +838,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         isPaid,
         byRequest,
         price: isPaid && price ? Number(price.replace(',', '.')) || undefined : undefined,
+        payTo: isPaid ? payTo : undefined,
+        donation: isPaid && payTo === 'host' ? donation : undefined,
+        payFor: isPaid && payTo === 'host' ? payFor.trim() : undefined,
         // «Делим аренду» без суммы — просто не указываем
         ...(template?.fields.length ? { extras: Object.fromEntries(Object.entries(extras).filter(([, v]) => v && v !== 'split')) } : {})
       };
@@ -829,6 +866,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       closeModal();
       telegramService.haptic('success');
       onRefreshEvents?.();
+      // Новая сходка со взносом организатору — попросить поддержать приложение (не чаще раза в неделю)
+      if (!editingEventId && isPaid && payTo === 'host' && hostDonateDue()) setHostDonateOpen(true);
     } catch (err: any) {
       failForm(err.message || M.saveFailed, 'server');
     } finally {
@@ -1569,23 +1608,54 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             </Field>
 
             <Field label={M.priceLabel}>
-              <div className="flex gap-2">
-                {[false, true].map((paid) => (
-                  <button
-                    type="button"
-                    key={String(paid)}
-                    onClick={() => {
-                      telegramService.haptic('selection');
-                      setIsPaid(paid);
-                    }}
-                    className={`h-11 px-4 rounded-full border-2 text-sm2 font-semibold cursor-pointer transition-colors ${
-                      isPaid === paid ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
-                    }`}
-                  >
-                    {paid ? M.pricePaid : M.priceFree}
-                  </button>
-                ))}
+              {/* Бесплатно / свои траты (кассе, заведению) / взнос организатору: три равные кнопки в ряд, значок над словом */}
+              <div className="grid grid-cols-3 gap-2" role="group" aria-label={M.priceLabel}>
+                {([
+                  ['free', M.priceFree],
+                  ['venue', M.priceVenue],
+                  ['host', M.priceHost]
+                ] as const).map(([kind, label]) => {
+                  const active = kind === 'free' ? !isPaid : isPaid && payTo === kind;
+                  const [emoji, ...words] = label.split(' ');
+                  return (
+                    <button
+                      type="button"
+                      key={kind}
+                      aria-pressed={active}
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        setIsPaid(kind !== 'free');
+                        if (kind !== 'free') setPayTo(kind);
+                      }}
+                      className={`py-2 px-1 rounded-zine-sm border-2 flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${
+                        active ? 'border-zine-terracotta bg-zine-terracotta/10' : 'border-zine-border bg-zine-cardElevated'
+                      }`}
+                    >
+                      <span className="text-[22px] leading-none">{emoji}</span>
+                      <span className={`text-sm2 leading-tight text-center font-semibold ${active ? 'text-zine-terracotta' : 'text-zine-ink'}`}>{words.join(' ')}</span>
+                    </button>
+                  );
+                })}
               </div>
+              {isPaid && payTo === 'host' && (
+                <div className="flex gap-2 mt-2">
+                  {[false, true].map((don) => (
+                    <button
+                      type="button"
+                      key={String(don)}
+                      onClick={() => {
+                        telegramService.haptic('selection');
+                        setDonation(don);
+                      }}
+                      className={`h-10 px-4 rounded-full border-2 text-sm2 font-semibold cursor-pointer transition-colors ${
+                        donation === don ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta' : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                      }`}
+                    >
+                      {don ? M.priceHostDonation : M.priceHostFixed}
+                    </button>
+                  ))}
+                </div>
+              )}
               {isPaid && (
                 <>
                   <input
@@ -1593,10 +1663,21 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                     inputMode="decimal"
                     value={price}
                     onChange={(e) => setPrice(e.target.value.replace(/[^\d.,]/g, '').slice(0, 7))}
-                    placeholder={M.priceAmountPlaceholder}
+                    placeholder={payTo === 'venue' ? M.priceAmountPlaceholder : donation ? M.priceDonationAmountPlaceholder : M.priceHostAmountPlaceholder}
                     className="field mt-2"
                   />
-                  <p className="mt-1.5 text-cap text-zine-inkMuted">{M.priceHint}</p>
+                  {payTo === 'host' && (
+                    <input
+                      type="text"
+                      value={payFor}
+                      onChange={(e) => setPayFor(e.target.value.slice(0, 60))}
+                      placeholder={M.priceForPlaceholder}
+                      className="field mt-2"
+                    />
+                  )}
+                  <p className="mt-1.5 text-cap text-zine-inkMuted">
+                    {payTo === 'venue' ? M.priceVenueHint : donation ? M.priceDonationHint : M.priceHostHint}
+                  </p>
                 </>
               )}
             </Field>
@@ -1716,6 +1797,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           }}
         />
       )}
+      {hostDonateOpen && <HostDonateSheet onClose={() => setHostDonateOpen(false)} />}
+
       {wishToast !== null && (
         <InfoToast
           title={WISH_TEXTS.toastTitle}
