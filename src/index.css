@@ -384,3 +384,46 @@ textarea.field {
 @media (prefers-reduced-motion: reduce) {
   .pechka-blink, .pechka-puff, .pechka-flame, .pechka-chew, .pechka-shake { animation: none; }
 }
+
+/* «Не Одна Дома»: цвета персонажей одинаковые в обеих темах, кадры всегда светлые, как комикс */
+.serial {
+  --line: #2B2623; --skin: #EDBB95; --skin-sh: #D49B74; --hair-m: #3B2619; --beard: #5C3F2A;
+  --hair-v: #2A1B16; --hair-v2: #5A2E22; --vest: #F6C9A3; --vest-sh: #E3A97F; --sleeve: #4E5A45;
+  --cap: #1F2329; --glass: #26323B; --tee: #FFFFFF; --jog: #DCD7CB; --stas: #E2A03F; --stas-hair: #C8642E;
+}
+.serial-stage { position: relative; overflow: hidden; background: #1E2233; user-select: none; -webkit-user-select: none; }
+.serial-frame { position: absolute; inset: 0; opacity: 0; transition: opacity .35s ease; pointer-events: none; }
+.serial-frame.on { opacity: 1; }
+.serial-frame > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.serial-frame .cap { position: absolute; left: 16px; right: 16px; z-index: 4; font-family: 'Caveat', cursive; font-weight: 600; color: #2B2623;
+  background: #FFF6E6; border: 2px solid #2B2623; border-radius: 6px; padding: 6px 12px; font-size: 24px; line-height: 1.1; box-shadow: 3px 3px 0 #2B2623; }
+.serial-frame .bubble { position: absolute; z-index: 4; font-family: 'Caveat', cursive; font-weight: 600; color: #2B2623; background: #fff;
+  border: 2px solid #2B2623; border-radius: 18px; padding: 8px 14px; font-size: 25px; line-height: 1.05; }
+.serial-frame .bubble::after { content: ""; position: absolute; width: 16px; height: 16px; background: #fff; border: 2px solid #2B2623;
+  border-top: 0; border-left: 0; transform: rotate(45deg); }
+.serial-frame .bubble.down::after { bottom: -9px; left: 36px; }
+.serial-frame .bubble.down-r::after { bottom: -9px; right: 40px; }
+.serial-frame .note-card { position: absolute; z-index: 4; left: 16px; right: 16px; background: #FFFDF9; color: #2B2623; border-radius: 14px;
+  padding: 10px 14px; font-size: 15px; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+.serial-frame .cover-title { position: absolute; left: 22px; right: 22px; top: 54px; z-index: 4; color: #FFF6E6; }
+.serial-frame .cover-title .ep { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .9; }
+.serial-frame .cover-title h3 { font-family: 'Caveat', cursive; font-weight: 700; font-size: 64px; line-height: .9; margin: 8px 0 8px; text-shadow: 3px 3px 0 #2B2623; }
+.serial-frame .cover-title p { margin: 0; font-family: 'Caveat', cursive; font-weight: 600; font-size: 26px; line-height: 1.1; }
+.serial .blink { animation: pechka-blink 4.5s infinite; transform-box: fill-box; transform-origin: center; }
+.serial .puff { animation: pechka-puff 3s infinite ease-out; transform-box: fill-box; transform-origin: center; }
+.serial .puff.late { animation-delay: 1.5s; }
+.serial .glow { animation: serial-glow 2.6s infinite ease-in-out; }
+.serial .bob { animation: serial-bob 3s infinite ease-in-out; }
+.serial .wave { animation: serial-wave 1s infinite ease-in-out; transform-box: fill-box; transform-origin: 20% 100%; }
+@keyframes serial-glow { 50% { opacity: .55 } }
+@keyframes serial-bob { 50% { transform: translateY(-5px) } }
+@keyframes serial-wave { 50% { transform: rotate(-16deg) } }
+@keyframes serial-heart { 40% { transform: scale(1.3) } }
+.serial-heart-pop { animation: serial-heart .4s; }
+@keyframes serial-tv-ring { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+.serial-tv-ring { animation: serial-tv-ring 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .serial .blink, .serial .puff, .serial .glow, .serial .bob, .serial .wave, .serial-heart-pop, .serial-tv-ring { animation: none; }
+  .serial-frame { transition: none; }
+}
+.serial-frame.on { pointer-events: auto; }

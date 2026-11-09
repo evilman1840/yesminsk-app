@@ -1,3 +1,4 @@
+import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Bot, Shuffle, UserPlus, ChevronRight, HelpCircle, Check } from 'lucide-react';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -720,10 +721,11 @@ export const GamesScreen: React.FC<{
           )}
           <h1 className="flex-1 min-w-0 font-serif font-bold text-display text-zine-ink">{phase === 'hub' ? T.hubTitle : T.title}</h1>
           {phase === 'menu' && (
-            <button onClick={openRules} aria-label={T.howToPlay} className="w-11 h-11 -mr-2 rounded-full flex items-center justify-center text-zine-terracotta cursor-pointer active:opacity-70">
+            <button onClick={openRules} aria-label={T.howToPlay} className="w-11 h-11 rounded-full flex items-center justify-center text-zine-terracotta cursor-pointer active:opacity-70">
               <HelpCircle size={24} />
             </button>
           )}
+          {phase === 'menu' && <SerialTvSlot />}
         </div>
       </header>
       )}

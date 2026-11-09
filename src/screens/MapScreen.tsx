@@ -1,3 +1,4 @@
+import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { api } from '../services/api';
@@ -400,22 +401,28 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               </button>
             )}
 
-            {/* Новости проекта — рупор (аватарку тут ждут свою). Новые — оранжевая обводка и счётчик */}
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                onOpenNews();
-              }}
-              aria-label="Новости проекта"
-              className={`relative w-14 h-14 shrink-0 rounded-[18px] flex items-center justify-center active:scale-95 transition-transform cursor-pointer bg-zine-card text-zine-ink ${unreadNews > 0 ? 'ring-2 ring-inset ring-zine-terracotta' : ''}`}
-            >
-              <Megaphone className="w-[22px] h-[22px] -rotate-12" strokeWidth={2} />
-              {unreadNews > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center border-2 border-zine-paper">
-                  {unreadNews}
-                </span>
-              )}
-            </button>
+            {/* Сериал «Не Одна Дома» и новости проекта — телевизор, такой же на всех вкладках */}
+            <SerialTvSlot
+              size={56}
+              fallback={
+                // Пока сериал не для всех — прежний рупор новостей. Новые — оранжевая обводка и счётчик
+                <button
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    onOpenNews();
+                  }}
+                  aria-label="Новости проекта"
+                  className={`relative w-14 h-14 shrink-0 rounded-[18px] flex items-center justify-center active:scale-95 transition-transform cursor-pointer bg-zine-card text-zine-ink ${unreadNews > 0 ? 'ring-2 ring-inset ring-zine-terracotta' : ''}`}
+                >
+                  <Megaphone className="w-[22px] h-[22px] -rotate-12" strokeWidth={2} />
+                  {unreadNews > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center border-2 border-zine-paper">
+                      {unreadNews}
+                    </span>
+                  )}
+                </button>
+              }
+            />
           </div>
 
           {/* Вкладки карты: Всё / Люди / Сходки / Места; у «Всё» и «Люди» рядом фильтры людей */}

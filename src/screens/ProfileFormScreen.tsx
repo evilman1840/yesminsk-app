@@ -1,3 +1,4 @@
+import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff } from 'lucide-react';
 import { AREA_GROUPS, RENAMED_AREAS } from '../config/areas';
@@ -410,6 +411,11 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           <h1 className="font-serif font-bold text-display text-zine-ink">
             {isFirstTime ? 'Расскажи о себе' : 'Моя анкета'}
           </h1>
+          {!isFirstTime && (
+            <span className="ml-auto -mr-1">
+              <SerialTvSlot />
+            </span>
+          )}
         </div>
         {isFirstTime && (
           <p className="mt-2 text-body text-zine-inkMuted">Пара минут, и тебя увидят люди рядом.</p>

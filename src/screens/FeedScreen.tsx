@@ -1,3 +1,4 @@
+import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2, Undo2, X } from 'lucide-react';
 import { AppEvent, JoinOptions, MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
@@ -229,7 +230,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                   telegramService.haptic('selection');
                   setTab(t.id);
                 }}
-                className={`flex-auto min-w-0 h-[38px] px-1 rounded-full text-[14px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                className={`flex-auto min-w-0 h-[38px] px-0.5 rounded-full text-[14px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
                   tab === t.id ? 'bg-zine-ink text-zine-paper' : 'text-zine-inkMuted'
                 }`}
               >
@@ -260,6 +261,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               </span>
             )}
           </button>
+          <SerialTvSlot />
         </div>
 
         {/* Выбранная цель — видно, что список отфильтрован; крестик сбрасывает */}

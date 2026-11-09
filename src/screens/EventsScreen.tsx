@@ -1,3 +1,4 @@
+import { SerialTvSlot, useSerialTv } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff, SlidersHorizontal, X, MapPin } from 'lucide-react';
@@ -206,6 +207,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   initialEdit,
   onInitialEditUsed
 }) => {
+  // Телевизор сериала в шапке (пока только у админов); без него — шапка как была
+  const tv = useSerialTv();
   const currentTgUser = telegramService.getUser();
   const currentUserId = propUserId || currentTgUser?.id;
 
@@ -853,6 +856,26 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     activeCategory && { key: 'cat', label: `${activeCategory[2]} ${activeCategory[1]}`.trim(), onClear: () => setSelectedCategory('all') }
   ].filter(Boolean) as { key: string; label: string; onClear: () => void }[];
 
+  const filterButton = (shape: string) => (
+        <button
+          onClick={() => {
+            telegramService.haptic('selection');
+            setIsFiltersOpen(true);
+          }}
+          aria-label={activeFilters > 0 ? `Фильтры: ${activeFilters}` : 'Фильтры'}
+          className={`relative w-11 h-11 shrink-0 ${shape} flex items-center justify-center transition-colors cursor-pointer ${
+            activeFilters > 0 ? 'bg-zine-ink text-zine-paper' : 'bg-zine-card text-zine-ink'
+          }`}
+        >
+          <SlidersHorizontal size={20} />
+          {activeFilters > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center">
+              {activeFilters}
+            </span>
+          )}
+        </button>
+  );
+
   return (
     <div className="h-full w-full bg-zine-paper flex flex-col overflow-hidden">
       {/* Шапка на однотонном фоне, чтобы карточка была чистой. Название экрана уже есть в нижнем меню */}
@@ -892,23 +915,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             ))}
           </div>
 
-          <button
-            onClick={() => {
-              telegramService.haptic('selection');
-              setIsFiltersOpen(true);
-            }}
-            aria-label={activeFilters > 0 ? `Фильтры: ${activeFilters}` : 'Фильтры'}
-            className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-              activeFilters > 0 ? 'bg-zine-ink text-zine-paper' : 'bg-zine-card text-zine-ink'
-            }`}
-          >
-            <SlidersHorizontal size={20} />
-            {activeFilters > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center">
-                {activeFilters}
-              </span>
-            )}
-          </button>
+          {tv ? <SerialTvSlot /> : filterButton('rounded-full')}
 
           {/* Подсказка под звездой: нажатие ведёт в «Мои», сама исчезает через 8 секунд */}
           {mineHint && (
@@ -942,22 +949,24 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
         {/* «Хочу сходить» в одну строку высотой с «Собрать»: шторка желаний (выбрать, куда хочется).
             Кто уже хочет — первой пилюлей в ряду ниже, она ведёт на список этих людей */}
-        <div className="mt-2.5 flex gap-2 h-11">
+        <div className="mt-2.5 flex gap-1.5 h-11">
           <button
             onClick={() => openWish()}
             className="min-w-0 flex-1 pl-1.5 pr-2 rounded-zine-sm bg-zine-card border border-zine-border flex items-center gap-2 text-left active:scale-[0.98] transition-transform cursor-pointer"
           >
-            <span className="w-8 h-8 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center text-[16px] leading-none" aria-hidden>🙋</span>
+            <span className={`w-7 h-7 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center text-[15px] leading-none ${tv ? 'max-[369px]:hidden' : ''}`} aria-hidden>🙋</span>
             <span className="min-w-0 flex-1 text-body font-bold text-zine-ink truncate">{WISH_TEXTS.barTitle}</span>
             {!topWish && myWishCount > 0 && (
               <span className="min-w-[20px] h-5 px-1.5 shrink-0 rounded-full bg-zine-terracotta/15 text-zine-terracotta text-cap font-bold flex items-center justify-center">{myWishCount}</span>
             )}
-            <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />
+            {!tv && <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />}
           </button>
+          {/* С телевизором сериала в шапке фильтры переезжают сюда */}
+          {tv && filterButton('rounded-zine-sm')}
           {/* Не нашлось подходящей — собрать свою */}
           <button
             onClick={() => handleOpenCreateModal(undefined, undefined, 'feed')}
-            className="px-3.5 shrink-0 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-sm2 font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform cursor-pointer"
+            className="px-3 shrink-0 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-sm2 font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform cursor-pointer"
           >
             <Plus size={20} strokeWidth={2.5} />
             <span>{M.createButtonShort}</span>

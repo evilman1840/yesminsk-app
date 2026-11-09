@@ -34,6 +34,7 @@ export const NewsScreen: React.FC<{ news: NewsItem[]; isLoading: boolean; onOpen
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">
+        {/* Мини-сериал «Не Одна Дома»: все вышедшие серии */}
         {/* Сколько собрано донатов */}
         <FundBar />
         <button

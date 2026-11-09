@@ -1,3 +1,4 @@
+import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Bookmark, BookmarkCheck, CalendarPlus, ChevronLeft, ChevronRight, Plus, SlidersHorizontal, X } from 'lucide-react';
 import { PlaceItem, PlaceMood, AppEvent, JoinOptions, PLACE_MOODS, PLACE_TYPES, placeTypeEmoji, placesForKids, KIDS_LEVELS } from '../types';
@@ -133,6 +134,7 @@ export const PlacesScreen: React.FC<{
               </span>
             )}
           </button>
+          <SerialTvSlot />
         </div>
 
         {activeChips.length > 0 && (

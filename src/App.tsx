@@ -35,6 +35,11 @@ import { POLL_TEXTS } from './texts/poll';
 // Куда может вести кнопка после голоса в опросе
 const POLL_TABS: TabId[] = ['main', 'feed', 'events', 'places', 'games'];
 import { NewsScreen } from './screens/NewsScreen';
+import { useSerial, SerialSource } from './serial/useSerial';
+import { SERIAL_PUBLIC } from './serial/episodes';
+import { SerialPlayer } from './serial/SerialPlayer';
+import { SerialDefs, SerialSheet, SerialStrip, SerialTv, SerialTvProvider } from './serial/SerialBits';
+import type { SerialEpisode } from './serial/episodes';
 import { PlacesScreen } from './screens/PlacesScreen';
 import { GamesScreen } from './screens/GamesScreen';
 import type { GameLaunch } from './components/people/GameReel';
@@ -169,6 +174,20 @@ export const App: React.FC = () => {
   const [likedMe, setLikedMe] = useState<UserProfile[]>([]);
   const [matches, setMatches] = useState<UserProfile[]>([]);
   const [matchPopupUser, setMatchPopupUser] = useState<UserProfile | null>(null);
+  // Сериал «Не Одна Дома»: какая серия сейчас играет и откуда её открыли
+  const [serialPlaying, setSerialPlaying] = useState<{ ep: SerialEpisode; source: SerialSource } | null>(null);
+  const [serialSheetOpen, setSerialSheetOpen] = useState(false);
+  // «Момент радости» после новой сходки ждёт, пока человек уйдёт с экрана создания
+  const serialJoyPending = useRef(false);
+  // Сериал и телевизор в шапке: пока SERIAL_PUBLIC выключен — только админам (тестируют), остальным прежний вид.
+  // Локально — всегда, без сервера, чтобы проверять серии
+  const serialOn = (isMeLoaded && (SERIAL_PUBLIC || isAdmin)) || import.meta.env.DEV;
+  const serial = useSerial(serialOn, isAdmin);
+  // Сама открываем самую раннюю непросмотренную серию — один раз на серию, без других окон поверх
+  const playSerialJoy = () => {
+    const ep = serial.takeJoy();
+    if (ep) setTimeout(() => setSerialPlaying((cur) => cur || { ep, source: 'joy' }), 900);
+  };
   // Сходка, открытая по ссылке-приглашению или из уведомления бота
   const [sharedEvent, setSharedEvent] = useState<AppEvent | null>(null);
   const [sharedEventAttendance, setSharedEventAttendance] = useState(false); // «Нет, отмечу» от бота: сразу к «Кто пришёл»
@@ -918,6 +937,7 @@ export const App: React.FC = () => {
         coordinates: created.coordinates || [53.9045, 27.5615]
       };
       setEvents(prev => [normalized, ...prev]);
+      serialJoyPending.current = true; // опубликовал сходку — повод показать новую серию
       return normalized;
     }
     throw new Error('Не удалось создать сходку');
@@ -1048,6 +1068,15 @@ export const App: React.FC = () => {
 
   // Игры — вкладка, пока открыто меню; в партии нижнее меню и подсказки прячем
   const isTab = ['main', 'feed', 'events', 'places', 'news', 'profile_edit'].includes(currentScreen) || (currentScreen === 'games' && gamesPhase === 'menu');
+  const stripOn = isTab && serialOn && currentScreen !== 'profile_edit' && currentScreen !== 'news' && serial.showStrip;
+  // Телевизор в шапке: есть новая серия — сразу её, иначе шторка со всеми сериями и новостями проекта
+  const serialTv = (
+    <SerialTv
+      serial={serial}
+      unreadNews={unreadNews}
+      onClick={() => (serial.waiting ? setSerialPlaying({ ep: serial.waiting, source: 'tv' }) : setSerialSheetOpen(true))}
+    />
+  );
 
   // Места: сохранить и «Сходка сюда» — общие для карты и вкладки «Места»
   const toggleSavePlace = async (p: PlaceItem): Promise<PlaceItem> => {
@@ -1185,6 +1214,10 @@ export const App: React.FC = () => {
 
   const handleNavigate = (tab: TabId) => {
     setSelectedUser(null);
+    if (serialJoyPending.current) {
+      serialJoyPending.current = false;
+      playSerialJoy();
+    }
     setCurrentScreen(tab);
     if (tab === 'feed') fetchInbox();
     if (tab === 'games') {
@@ -1232,6 +1265,7 @@ export const App: React.FC = () => {
             </div>
           )}
 
+          <SerialTvProvider value={serialOn ? serialTv : null}>
           <div className="flex-1 min-h-0 relative">
             {currentScreen === 'onboarding' && <OnboardingScreen onAgree={handleAgreeRules} />}
 
@@ -1384,7 +1418,12 @@ export const App: React.FC = () => {
             )}
 
             {currentScreen === 'news' && (
-              <NewsScreen news={news} isLoading={isNewsLoading} onOpenDonate={() => setIsDonateOpen(true)} onBack={() => handleNavigate('main')} />
+              <NewsScreen
+                news={news}
+                isLoading={isNewsLoading}
+                onOpenDonate={() => setIsDonateOpen(true)}
+                onBack={() => handleNavigate('main')}
+              />
             )}
 
             {currentScreen === 'events' && (
@@ -1416,8 +1455,14 @@ export const App: React.FC = () => {
               />
             )}
           </div>
+          </SerialTvProvider>
 
-          {isTab && isMeLoaded && currentScreen !== 'profile_edit' && currentScreen !== 'games' && <NoticeBar notices={notices} />}
+          {/* Над меню одно место: новая серия важнее подсказок; посмотрел или ✕ — подсказки возвращаются */}
+          {stripOn ? (
+            <SerialStrip serial={serial} onOpen={(ep) => setSerialPlaying({ ep, source: 'strip' })} />
+          ) : (
+            isTab && isMeLoaded && currentScreen !== 'profile_edit' && currentScreen !== 'games' && <NoticeBar notices={notices} />
+          )}
 
           {isTab && (
             <TabBar
@@ -1689,7 +1734,44 @@ export const App: React.FC = () => {
             <MatchModal
               user={matchPopupUser}
               myAvatarUrl={currentUser.avatarUrl}
-              onClose={() => setMatchPopupUser(null)}
+              onClose={() => {
+                setMatchPopupUser(null);
+                playSerialJoy(); // взаимное «Пообщаться» — момент радости
+              }}
+            />
+          )}
+
+          <SerialDefs />
+          {serialSheetOpen && (
+            <SerialSheet
+              serial={serial}
+              unreadNews={unreadNews}
+              onOpen={(ep) => {
+                setSerialSheetOpen(false);
+                setSerialPlaying({ ep, source: 'shelf' });
+              }}
+              onOpenNews={() => {
+                setSerialSheetOpen(false);
+                handleNavigate('news');
+              }}
+              onClose={() => setSerialSheetOpen(false)}
+            />
+          )}
+
+          {serialPlaying && (
+            <SerialPlayer
+              ep={serialPlaying.ep}
+              source={serialPlaying.source}
+              serial={serial}
+              onClose={() => setSerialPlaying(null)}
+              onOpen={(ep, source) => setSerialPlaying({ ep, source })}
+              onTry={(to) => {
+                if (to === 'events') handleNavigate('events');
+                else {
+                  if (to === 'matches') setFeedOpenTab({ tab: 'matches', at: Date.now() });
+                  handleNavigate('feed');
+                }
+              }}
             />
           )}
         </div>

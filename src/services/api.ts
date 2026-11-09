@@ -348,6 +348,23 @@ class ApiService {
     return this.request('/poll/vote', { method: 'POST', body: JSON.stringify({ pollId, options, custom }) });
   }
 
+  // Сериал «Не Одна Дома»: что я посмотрел, сердечки по сериям
+  async getSerial(): Promise<{ seen: Record<number, { maxFrame: number; frames: number; liked: boolean }>; hearts: Record<number, number> }> {
+    return this.request('/serial', {}, true);
+  }
+
+  async serialView(ep: number, frame: number, frames: number, source: string): Promise<void> {
+    await this.request(`/serial/${ep}/view`, { method: 'POST', body: JSON.stringify({ frame, frames, source }) }, true);
+  }
+
+  async serialLike(ep: number, liked: boolean): Promise<{ hearts: number }> {
+    return this.request(`/serial/${ep}/like`, { method: 'POST', body: JSON.stringify({ liked }) }, true);
+  }
+
+  async serialTry(ep: number): Promise<void> {
+    await this.request(`/serial/${ep}/try`, { method: 'POST' }, true);
+  }
+
   // Ссылка на оплату звёздами Telegram
   async createDonateInvoice(stars: number): Promise<{ url: string }> {
     return this.request('/donate/invoice', {
