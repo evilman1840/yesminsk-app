@@ -1767,6 +1767,7 @@ export const App: React.FC = () => {
               onOpen={(ep, source) => setSerialPlaying({ ep, source })}
               onTry={(to) => {
                 if (to === 'events') handleNavigate('events');
+                else if (to === 'donate') setIsDonateOpen(true);
                 else {
                   if (to === 'matches') setFeedOpenTab({ tab: 'matches', at: Date.now() });
                   handleNavigate('feed');
