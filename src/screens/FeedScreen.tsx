@@ -594,8 +594,9 @@ const PersonReel: React.FC<{
         else onSkip();
       }}
     >
-      {/* Фото — без надписей и кнопок поверх, только точки, стрелки и «🥧 Кормлю ГУЛЯЙ-Печку» */}
-      <div ref={seenRef} className="relative mx-3 flex-1 min-h-[42%] rounded-zine overflow-hidden bg-zine-card">
+      {/* Фото — без надписей и кнопок поверх, только точки, стрелки и «🥧 Кормлю ГУЛЯЙ-Печку».
+          Сжимается первым (до 26%), чтобы кнопки внизу не срезались — в «На связи» их больше */}
+      <div ref={seenRef} className="relative mx-3 flex-1 min-h-[26%] rounded-zine overflow-hidden bg-zine-card">
         <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} onLoad={preloadNext} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
         {/* Несколько фото: тап слева и справа листает, как в сторис; по центру — анкета */}
         {gallery.length > 1 && (
