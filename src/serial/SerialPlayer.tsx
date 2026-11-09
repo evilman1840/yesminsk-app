@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { useBackButton } from '../hooks/useTelegram';
 import { EPISODES, SerialEpisode, SerialTry, SERIAL_TOTAL } from './episodes';
-import { isReleased, releaseDay, SerialSource, SerialState } from './useSerial';
+import { dayLabel, isReleased, releaseDay, SerialSource, SerialState } from './useSerial';
 
 /**
  * Серия как сторис: полоски сверху, тап справа — дальше, слева — назад, кадры идут сами.
@@ -121,12 +121,14 @@ export const SerialPlayer: React.FC<{
             </button>
           ) : (
             <p className="text-sm2 text-[#6B635C]">
-              {next ? (
+              {next || ep.n < SERIAL_TOTAL ? (
                 <>
-                  Серия {next.n} выйдет <b className="text-[#2B2623]">{releaseDay(next)}</b>
+                  Серия {ep.n + 1} выйдет{' '}
+                  <b className="text-[#2B2623]">
+                    {/* Следующую ещё не нарисовали — серии выходят каждый день, значит на следующий день после этой */}
+                    {next ? releaseDay(next, true) : dayLabel(new Date(ep.releaseAt).getTime() + 86400000, true)}
+                  </b>
                 </>
-              ) : ep.n < SERIAL_TOTAL ? (
-                'Новая серия скоро'
               ) : (
                 'Это был финал сезона 🎄'
               )}
