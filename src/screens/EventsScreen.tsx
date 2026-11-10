@@ -479,6 +479,35 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       .map((spot) => ({ key: `s-${spot.name}`, placeId: null as string | null, name: spot.name, text: spot.name, coords: spot.coords }))
   ];
 
+  // Выбор района вместо точного места: открывается чипом «🤔 Решим вместе» (или кнопкой, если ряда мест нет)
+  const areaPicker = isAreaPickerOpen ? (
+    <>
+      <p className="mb-1.5 text-cap text-zine-inkMuted">{M.areaOnlyHint}</p>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 mb-3">
+        {(me ? [...AREA_CHOICES].sort((a, b) => distanceMeters(me, a.coords) - distanceMeters(me, b.coords)) : AREA_CHOICES).map((area) => (
+          <button
+            type="button"
+            key={area.name}
+            onClick={() => {
+              telegramService.haptic('selection');
+              setLocationName(M.areaOnly(area.name));
+              setCustomCoords(area.coords);
+              setPlaceLabel(M.areaOnlyLabel);
+              setPlaceNotFound(false);
+              setIsPickedOnMap(true);
+              setPlaceId(null);
+              setIsAreaPickerOpen(false);
+              setFormError(null);
+            }}
+            className="h-10 px-3.5 shrink-0 rounded-full border-2 border-zine-border bg-zine-cardElevated text-sm2 text-zine-ink whitespace-nowrap cursor-pointer"
+          >
+            {area.name}
+          </button>
+        ))}
+      </div>
+    </>
+  ) : null;
+
   // Какие обязательные поля пустые — для подсказки и воронки
   const missingFields = () => {
     const list: string[] = [];
@@ -1304,6 +1333,21 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
               <>
               <p className="mb-1.5 text-cap font-semibold text-zine-inkMuted">{M.pickPlaceHint}</p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 mb-3">
+                {/* «Пока не знаю где» — первым: внизу под адресом его никто не находил (0 сходок за 5 дней) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setIsAreaPickerOpen((v) => !v);
+                  }}
+                  className={`h-10 px-3.5 shrink-0 rounded-full border-2 border-dashed text-sm2 whitespace-nowrap cursor-pointer transition-colors ${
+                    isAreaPickerOpen || placeLabel === M.areaOnlyLabel
+                      ? 'border-zine-terracotta bg-zine-terracotta/10 text-zine-terracotta font-semibold'
+                      : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                  }`}
+                >
+                  {M.areaChip}
+                </button>
                 {placeChips.map((chip) => {
                   const active = chip.placeId ? placeId === chip.placeId : !placeId && locationName === chip.name;
                   return (
@@ -1318,6 +1362,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                         setPlaceNotFound(false);
                         setIsPickedOnMap(Boolean(chip.placeId));
                         setPlaceId(chip.placeId);
+                        setIsAreaPickerOpen(false);
                         setFormError(null);
                       }}
                       className={`h-10 px-3.5 shrink-0 rounded-full border-2 text-sm2 whitespace-nowrap cursor-pointer transition-colors ${
@@ -1330,7 +1375,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   );
                 })}
               </div>
-
+              {areaPicker}
               </>
               )}
 
@@ -1379,8 +1424,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 </button>
               </div>
 
-              {/* Точного места нет — только район: сходку можно опубликовать сразу, а место решить с теми, кто запишется */}
-              {!customCoords && (
+              {/* Точного места нет — только район: сходку можно опубликовать сразу, а место решить с теми, кто запишется.
+                  Есть ряд готовых мест — этот вариант первым в ряду («🤔 Решим вместе»), отдельная кнопка не нужна */}
+              {placeChips.length === 0 && !customCoords && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1392,33 +1438,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   {M.areaOnlyBtn}
                 </button>
               )}
-              {isAreaPickerOpen && !customCoords && (
-                <>
-                  <p className="mt-2 mb-1.5 text-cap text-zine-inkMuted">{M.areaOnlyHint}</p>
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
-                    {(me ? [...AREA_CHOICES].sort((a, b) => distanceMeters(me, a.coords) - distanceMeters(me, b.coords)) : AREA_CHOICES).map((area) => (
-                      <button
-                        type="button"
-                        key={area.name}
-                        onClick={() => {
-                          telegramService.haptic('selection');
-                          setLocationName(M.areaOnly(area.name));
-                          setCustomCoords(area.coords);
-                          setPlaceLabel(M.areaOnlyLabel);
-                          setPlaceNotFound(false);
-                          setIsPickedOnMap(true);
-                          setPlaceId(null);
-                          setIsAreaPickerOpen(false);
-                          setFormError(null);
-                        }}
-                        className="h-10 px-3.5 shrink-0 rounded-full border-2 border-zine-border bg-zine-cardElevated text-sm2 text-zine-ink whitespace-nowrap cursor-pointer"
-                      >
-                        {area.name}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+              {placeChips.length === 0 && areaPicker}
 
               {customCoords && placeLabel && !isGeocoding && (
                 <div className="mt-2 p-3 rounded-zine-sm bg-zine-sage/15 flex items-center gap-3 text-zine-ink">
