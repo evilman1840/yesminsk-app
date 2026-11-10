@@ -188,10 +188,9 @@ export const App: React.FC = () => {
   // Локально — всегда, без сервера, чтобы проверять серии
   const serialOn = (isMeLoaded && (SERIAL_PUBLIC || isAdmin)) || import.meta.env.DEV;
   const serial = useSerial(serialOn, isAdmin);
-  // Сама открываем самую раннюю непросмотренную серию — один раз на серию, без других окон поверх
+  // Момент радости: серию сами не включаем (её тут же закрывали), а возвращаем плашку «Смотреть» над меню
   const playSerialJoy = () => {
-    const ep = serial.takeJoy();
-    if (ep) setTimeout(() => setSerialPlaying((cur) => cur || { ep, source: 'joy' }), 900);
+    serial.takeJoy();
   };
   // Премьера: письмо Миши на весь экран — один раз каждому, когда вышла первая серия
   const [introSeen, setIntroSeen] = useState(() => {

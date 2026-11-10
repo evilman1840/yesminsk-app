@@ -87,10 +87,15 @@ export function useSerial(enabled: boolean, preview = false) {
   };
   const showStrip = !!waiting && stripHidden !== String(waiting.n);
 
-  // «Момент радости»: серия открывается сама один раз на серию
+  // «Момент радости» (опубликовал сходку, взаимное 👋): раньше серия открывалась сама поверх экрана —
+  // так её закрывали сразу (12 из 16 ушли на обложке). Теперь только возвращаем плашку, если её скрыли. Один раз на серию
   const takeJoy = (): SerialEpisode | null => {
     if (!waiting || store.get(`serial_joy_${waiting.n}`)) return null;
     store.set(`serial_joy_${waiting.n}`, '1');
+    if (stripHidden === String(waiting.n)) {
+      store.set('serial_strip_hidden', '');
+      setStripHidden('');
+    }
     return waiting;
   };
 

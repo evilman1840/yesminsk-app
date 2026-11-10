@@ -132,6 +132,9 @@ export const SerialPlayer: React.FC<{
   const hasAudio = allAudio.length > 0;
   const sound = useFrameAudio(allAudio, frame ? frame.audio : ep.endAudio, `${ep.n}-${cur}`, paused);
 
+  // Чему учит серия: кнопка «Попробовать» из её кадров — повторяем на последнем кадре
+  const endTry = !frame ? ep.frames.find((f) => f.try)?.try || null : null;
+
   const tryIt = (t: SerialTry) => {
     telegramService.haptic('light');
     api.serialTry(ep.n).catch(() => {});
@@ -174,6 +177,17 @@ export const SerialPlayer: React.FC<{
             </svg>
           </button>
           <p className="text-sm2 text-[#6B635C]">{hearts > 0 ? `❤️ ${hearts}` : 'Будь первым, кому понравилось'}</p>
+          {/* «Попробовать» и здесь: посреди истории кнопка мелькает 8 секунд, а на последнем кадре таймера нет */}
+          {endTry && (
+            <button
+              onClick={() => tryIt(endTry)}
+              className={`relative z-10 mt-2 h-12 px-5 rounded-full font-bold border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] cursor-pointer ${
+                next && nextOpen ? 'bg-white text-[#2B2623]' : 'bg-[#D95C3C] text-white'
+              }`}
+            >
+              {endTry.label}
+            </button>
+          )}
           {next && nextOpen ? (
             <button
               onClick={() => onOpen(next, 'next')}
