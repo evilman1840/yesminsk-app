@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, Volume2, VolumeX } from 'lucide-react';
 import { api } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { useBackButton } from '../hooks/useTelegram';
 import { EPISODES, SerialEpisode, SerialTry, SERIAL_TOTAL } from './episodes';
 import { TvArt } from './SerialBits';
+import { useFrameAudio } from './useFrameAudio';
 import { dayLabel, isReleased, releaseDay, SerialSource, SerialState } from './useSerial';
 
 /**
@@ -126,6 +127,10 @@ export const SerialPlayer: React.FC<{
   };
   const zone = { onPointerDown: holdStart, onPointerUp: holdEnd, onPointerLeave: holdEnd, onPointerCancel: holdEnd, onContextMenu: (e: React.MouseEvent) => e.preventDefault() };
   const frame = cur < ep.frames.length ? ep.frames[cur] : null;
+  // Озвучка: реплики кадра, на последнем кадре — endAudio
+  const allAudio = [...ep.frames.flatMap((f) => f.audio || []), ...(ep.endAudio || [])];
+  const hasAudio = allAudio.length > 0;
+  const sound = useFrameAudio(allAudio, frame ? frame.audio : ep.endAudio, `${ep.n}-${cur}`, paused);
 
   const tryIt = (t: SerialTry) => {
     telegramService.haptic('light');
@@ -145,7 +150,7 @@ export const SerialPlayer: React.FC<{
 
   return createPortal(
     <div className="serial fixed inset-0 z-[70] bg-black flex items-center justify-center" role="dialog" aria-label={`Не Одна Дома. ${ep.title}`}>
-      <div className={`serial-stage ${paused ? 'paused' : ''} w-full max-w-[min(100vw,calc(var(--tg-viewport-stable-height,100vh)*9/16))] aspect-[9/16] max-h-full sm:rounded-[22px]`}>
+      <div onPointerDown={sound.retry} className={`serial-stage ${paused ? 'paused' : ''} w-full max-w-[min(100vw,calc(var(--tg-viewport-stable-height,100vh)*9/16))] aspect-[9/16] max-h-full sm:rounded-[22px]`}>
         {ep.frames.map((f, i) => (
           <div key={i} className={`serial-frame ${i === cur ? 'on' : ''}`} dangerouslySetInnerHTML={{ __html: f.html }} />
         ))}
@@ -247,6 +252,40 @@ export const SerialPlayer: React.FC<{
           </button>
         )}
 
+        {/* На обложке — подсказка, что серию можно смотреть со звуком; нажатие тоже включает */}
+        {hasAudio && sound.muted && cur === 0 && (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              telegramService.haptic('selection');
+              // Обложка с начала — чтобы реплика успела прозвучать целиком
+              elapsed.current = 0;
+              setProgress(0);
+              sound.setMuted(false);
+            }}
+            className="absolute z-20 right-4 top-[46%] max-w-[210px] rounded-[14px] bg-white border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] px-3 py-2 text-left text-[14px] leading-snug text-[#2B2623] cursor-pointer"
+          >
+            <b>Серия со звуком 🔊</b>
+            <br />
+            Включи кнопкой вверху справа ↗ или нажми сюда
+          </button>
+        )}
+        {hasAudio && (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              telegramService.haptic('selection');
+              // Звук не пустили — эта кнопка его и включает, а не выключает
+              if (sound.blocked) sound.retry();
+              else sound.setMuted(!sound.muted);
+            }}
+            aria-label={sound.muted ? 'Включить звук' : 'Выключить звук'}
+            aria-pressed={!sound.muted}
+            className={`absolute z-30 top-[68px] right-2.5 w-10 h-10 rounded-full bg-black/35 text-white grid place-items-center cursor-pointer ${sound.blocked ? 'serial-tv-ring' : ''}`}
+          >
+            {sound.muted || sound.blocked ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </button>
+        )}
         <button
           onClick={onClose}
           aria-label="Закрыть серию"
