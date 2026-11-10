@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../services/api';
 import { EPISODES, SerialEpisode } from './episodes';
 
-export type SerialSource = 'intro' | 'joy' | 'strip' | 'shelf' | 'tv' | 'next' | 'link';
+export type SerialSource = 'intro' | 'joy' | 'strip' | 'shelf' | 'tv' | 'next' | 'link' | 'notice';
 type Seen = Record<number, { maxFrame: number; frames: number; liked: boolean }>;
 
 const store = {

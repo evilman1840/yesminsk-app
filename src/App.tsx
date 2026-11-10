@@ -1168,6 +1168,14 @@ export const App: React.FC = () => {
       onClick: () => setIsPollOpen(true)
     },
     tip?.first && tipNotice,
+    // Сериал: плашку с новой серией закрыли крестиком, не посмотрев — напоминаем обычной подсказкой
+    serialOn && serial.waiting && !serial.showStrip && {
+      id: `serial:${serial.waiting.n}`,
+      text: `📺 «Не Одна Дома»: серия ${serial.waiting.n} ждёт тебя. Новая — каждый день в 10:00`,
+      action: 'Смотреть →',
+      hideDays: 1,
+      onClick: () => setSerialPlaying({ ep: serial.waiting!, source: 'notice' })
+    },
     (!isBotOk || isBotBlocked) && {
       id: 'bot',
       text: isBotBlocked ? NOTICE_TEXTS.botBlocked : NOTICE_TEXTS.bot,
