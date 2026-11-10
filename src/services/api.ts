@@ -568,7 +568,7 @@ class ApiService {
     return this.request(`/events/${eventId}/buddies`);
   }
 
-  async sendBuddyInvite(eventId: string, toId: number, source: 'people' | 'event'): Promise<{ delivered: boolean; warning?: string; event: AppEvent; left: number }> {
+  async sendBuddyInvite(eventId: string, toId: number, source: 'people' | 'event' | 'match'): Promise<{ delivered: boolean; warning?: string; event: AppEvent; left: number }> {
     return this.request('/buddies/invite', { method: 'POST', body: JSON.stringify({ eventId, toId, source }) });
   }
 

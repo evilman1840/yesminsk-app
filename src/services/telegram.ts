@@ -401,7 +401,7 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; wishGroupId?: string; game?: { id?: string; code?: string; tractor?: boolean; sea?: { id?: string; code?: string } } } {
+  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; together?: boolean; wishGroupId?: string; game?: { id?: string; code?: string; tractor?: boolean; sea?: { id?: string; code?: string } } } {
     const params = new URLSearchParams(window.location.search);
     const startParam = tg()?.initDataUnsafe?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
@@ -429,6 +429,7 @@ export const telegramService = {
       create,
       want,
       userId: params.get('user') || undefined, // «Посмотреть анкету» из «хочет пообщаться»
+      together: params.get('together') === '1', // «👯 Пойдём вместе» из «Вы на связи!»: сразу шторка выбора сходки
       wishGroupId: params.get('wishGroup') || undefined, // «Кто ещё хочет» из «Хочу сходить»
       // Игры: «Твой ход» от бота (?game=<id>), приглашение знакомого (startapp=game_<код>), просто раздел (?tab=games, startapp=games)
       // «Трактор в Минске»: ссылка startapp=tractor (?play=tractor) открывает его первый экран

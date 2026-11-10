@@ -214,6 +214,7 @@ export const App: React.FC = () => {
   const [sharedEventAttendance, setSharedEventAttendance] = useState(false); // «Нет, отмечу» от бота: сразу к «Кто пришёл»
   const [sharedEventBuddy, setSharedEventBuddy] = useState(false); // «Позвать ещё» от бота: открыть сходку сразу с «👯 Позвать с собой»
   const [goTogetherWith, setGoTogetherWith] = useState<UserProfile | null>(null); // «👯 Пойдём на сходку вместе» из «На связи»
+  const [goTogetherFromBot, setGoTogetherFromBot] = useState(false); // шторку открыли кнопкой из «Вы на связи!»
 
   // Новости проекта и счётчик непрочитанных
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -692,7 +693,11 @@ export const App: React.FC = () => {
           .then((u) => {
             if (!u) return;
             setCurrentScreen('feed');
-            setSelectedUser(u);
+            // «👯 Пойдём вместе» из «Вы на связи!»: сразу выбор сходки; если уже не на связи — просто анкета
+            if (target.together && u.isMatch) {
+              setGoTogetherFromBot(true);
+              setGoTogetherWith(u);
+            } else setSelectedUser(u);
           })
           .catch(() => setLaunchNotice({ title: 'Анкета не найдена', text: 'Эта анкета скрыта или удалена. Загляни в «Люди», там есть и другие.', tab: 'feed' }));
       }
@@ -1560,10 +1565,15 @@ export const App: React.FC = () => {
           {goTogetherWith && (
             <GoTogetherSheet
               friend={goTogetherWith}
-              onClose={() => setGoTogetherWith(null)}
+              source={goTogetherFromBot ? 'match' : 'people'}
+              onClose={() => {
+                setGoTogetherWith(null);
+                setGoTogetherFromBot(false);
+              }}
               onCreate={({ template, when, opt }) => {
                 setPendingCreate({ ...(template ? { template } : {}), when, opt, source: 'buddy', buddy: { id: goTogetherWith.telegramId, name: goTogetherWith.firstName } });
                 setGoTogetherWith(null);
+                setGoTogetherFromBot(false);
                 setCurrentScreen('events');
               }}
             />

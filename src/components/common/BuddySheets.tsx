@@ -37,10 +37,11 @@ const sentAlert = (name: string, wasJoined: boolean, res: { delivered: boolean; 
 
 export const GoTogetherSheet: React.FC<{
   friend: { telegramId: number; firstName: string; avatarUrl?: string };
+  source?: 'people' | 'match'; // match — открыли кнопкой из сообщения «Вы на связи!» (для /stats)
   onClose: () => void;
   // «Собери свою сходку» или общее желание: форма сходки, бот позовёт после публикации
   onCreate: (opts: { template?: string; when?: WishWindow; opt?: string }) => void;
-}> = ({ friend, onClose, onCreate }) => {
+}> = ({ friend, source = 'people', onClose, onCreate }) => {
   const [data, setData] = useState<BuddyOptions | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState<string | null>(null);
@@ -57,7 +58,7 @@ export const GoTogetherSheet: React.FC<{
     telegramService.haptic('medium');
     setSending(ev.id);
     try {
-      const res = await api.sendBuddyInvite(ev.id, friend.telegramId, 'people');
+      const res = await api.sendBuddyInvite(ev.id, friend.telegramId, source);
       applyEvent(res.event);
       telegramService.haptic(res.delivered ? 'success' : 'warning');
       onClose();
