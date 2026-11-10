@@ -14,6 +14,8 @@ import { dayLabel, isReleased, releaseDay, SerialSource, SerialState } from './u
  * Серия как сторис: полоски сверху, тап справа — дальше, слева — назад, в центре — пауза/дальше смотреть, кадры идут сами.
  * Последний кадр — сердечко и следующая серия. Каждый новый кадр уходит в статистику
  */
+const HEART = 'M12 20.5s-7.5-4.6-9.3-9.2C1.5 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.7 3.5 4.5 6.8-1.8 4.6-9.3 9.2-9.3 9.2z';
+
 export const SerialPlayer: React.FC<{
   ep: SerialEpisode;
   source: SerialSource;
@@ -44,6 +46,7 @@ export const SerialPlayer: React.FC<{
   const nextSoon = !!next && new Date(next.releaseAt).getTime() > Date.now();
   const liked = !!serial.seen[ep.n]?.liked;
   const hearts = serial.hearts[ep.n] || 0;
+  const answered = !!serial.seen[ep.n]?.answer;
 
   useBackButton(onClose);
 
@@ -160,27 +163,42 @@ export const SerialPlayer: React.FC<{
         ))}
 
         {/* Последний кадр: сердечко и следующая серия */}
-        {/* С вопросом в конце кадр выше экрана — листается; сердечко тогда компактное, под вопросом */}
+        {/* С вопросом — по шагам: сначала только вопрос, после ответа одно действие и строчка про следующую серию */}
         <div className={`serial-frame ${cur === total - 1 ? 'on' : ''} bg-[#FAF7F2] flex flex-col items-center overflow-y-auto px-5 ${ep.question ? 'pt-24 pb-6' : 'px-6'} text-center text-[#2B2623]`}>
           <div className="my-auto w-full flex flex-col items-center gap-4">
-          {ep.question && <SerialQuestionCard ep={ep} serial={serial} />}
           {ep.question ? (
-            <button
-              onClick={toggleHeart}
-              aria-pressed={liked}
-              className="relative z-10 h-12 pl-2 pr-4 rounded-full bg-white border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] flex items-center gap-2 text-sm2 font-semibold cursor-pointer active:translate-y-0.5"
-            >
-              <svg viewBox="0 0 24 24" width="30" height="30" className={pop ? 'serial-heart-pop' : ''} aria-hidden>
-                <path
-                  d="M12 20.5s-7.5-4.6-9.3-9.2C1.5 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.7 3.5 4.5 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"
-                  fill={liked ? '#D95C3C' : 'transparent'}
-                  stroke="#D95C3C"
-                  strokeWidth="2.2"
-                />
-              </svg>
-              {liked ? 'Понравилась' : 'Понравилась серия?'}
-              {hearts > 0 && <span className="text-[#6B635C] font-normal">· {hearts}</span>}
-            </button>
+            <>
+              <SerialQuestionCard ep={ep} serial={serial} />
+              {/* После ответа — одно следующее действие: у «А ты?» это «Отметить: хочу…» в карточке, у «Угадай» — «Попробовать» */}
+              {answered && ep.question.kind === 'guess' && endTry && (
+                <button
+                  onClick={() => tryIt(endTry)}
+                  className="relative z-10 h-12 px-5 rounded-full bg-[#D95C3C] text-white font-bold border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] cursor-pointer active:translate-y-0.5"
+                >
+                  {endTry.label}
+                </button>
+              )}
+              {answered &&
+                (next && nextOpen ? (
+                  <button
+                    onClick={() => onOpen(next, 'next')}
+                    className="relative z-10 h-12 px-5 rounded-full bg-white text-[#2B2623] font-bold border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] cursor-pointer active:translate-y-0.5"
+                  >
+                    Смотреть серию {next.n} →
+                  </button>
+                ) : (
+                  <p className="text-sm2 text-[#6B635C]">
+                    {next || ep.n < SERIAL_TOTAL ? (
+                      <>
+                        Серия {ep.n + 1} выйдет{' '}
+                        <b className="text-[#2B2623]">{next ? releaseDay(next, true) : dayLabel(new Date(ep.releaseAt).getTime() + 86400000, true)}</b> · ищи в 📺 справа вверху
+                      </>
+                    ) : (
+                      'Это был финал сезона 🎄'
+                    )}
+                  </p>
+                ))}
+            </>
           ) : (
           <>
           <p className="font-hand font-bold text-[38px] leading-none">Понравилась серия?</p>
@@ -200,14 +218,12 @@ export const SerialPlayer: React.FC<{
             </svg>
           </button>
           <p className="text-sm2 text-[#6B635C]">{hearts > 0 ? `❤️ ${hearts}` : 'Будь первым, кому понравилось'}</p>
-          </>
-          )}
           {/* «Попробовать» и здесь: посреди истории кнопка мелькает 8 секунд, а на последнем кадре таймера нет */}
           {endTry && (
             <button
               onClick={() => tryIt(endTry)}
               className={`relative z-10 mt-2 h-12 px-5 rounded-full font-bold border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] cursor-pointer ${
-                (next && nextOpen) || ep.question ? 'bg-white text-[#2B2623]' : 'bg-[#D95C3C] text-white'
+                next && nextOpen ? 'bg-white text-[#2B2623]' : 'bg-[#D95C3C] text-white'
               }`}
             >
               {endTry.label}
@@ -251,8 +267,25 @@ export const SerialPlayer: React.FC<{
               </p>
             </div>
           )}
+          </>
+          )}
           </div>
         </div>
+
+        {/* С вопросом сердечко — значок в углу, как в сторис: не спорит с вопросом */}
+        {ep.question && cur === total - 1 && (
+          <button
+            onClick={toggleHeart}
+            aria-pressed={liked}
+            aria-label="Понравилась серия"
+            className="absolute z-30 top-6 left-2.5 h-10 pl-2 pr-3 rounded-full bg-black/35 text-white text-sm2 font-semibold flex items-center gap-1 cursor-pointer"
+          >
+            <svg viewBox="0 0 24 24" width="24" height="24" className={pop ? 'serial-heart-pop' : ''} aria-hidden>
+              <path d={HEART} fill={liked ? '#D95C3C' : 'transparent'} stroke={liked ? '#D95C3C' : '#fff'} strokeWidth="2.2" />
+            </svg>
+            {hearts > 0 && hearts}
+          </button>
+        )}
 
         {/* Разгадка вчерашнего «Угадай» — на обложке */}
         {cur === 0 && <SerialReveal ep={ep} serial={serial} />}
