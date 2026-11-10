@@ -3,7 +3,19 @@
 export type SerialTry = { label: string; to: 'events' | 'people' | 'matches' | 'donate' };
 // audio — реплики кадра по порядку (файлы в public/serial/), dur должен быть не короче их суммы
 export interface SerialFrame { html: string; dur: number; try?: SerialTry; audio?: string[] }
-export interface SerialEpisode { n: number; title: string; releaseAt: string; color: string; thumb: string; frames: SerialFrame[]; endAudio?: string[] /* озвучка кадра с сердечком */ }
+/**
+ * Вопрос в конце серии (на кадре с сердечком), чтобы не просто смотрели:
+ * guess — «угадай, что дальше»: answer — верный вариант, reveal — разгадка на обложке следующей серии;
+ * you — «а ты?»: у варианта может быть wish — тогда после ответа кнопка «🙋 Отметить: хочу…» (желание — только по нажатию)
+ */
+export interface SerialQuestion {
+  kind: 'guess' | 'you';
+  text: string;
+  options: { id: string; label: string; wish?: { kind: string; timeWindow: 'today' | 'tomorrow' | 'weekend' | 'week'; what: string } }[];
+  answer?: string;
+  reveal?: string;
+}
+export interface SerialEpisode { n: number; title: string; releaseAt: string; color: string; thumb: string; frames: SerialFrame[]; endAudio?: string[] /* озвучка кадра с сердечком */; question?: SerialQuestion }
 
 export const SERIAL_TOTAL = 20;
 
@@ -16,6 +28,7 @@ export const EPISODES: SerialEpisode[] = [
   "releaseAt": "2026-11-10T07:00:00Z",
   "color": "#D95C3C",
   "thumb": "vasya",
+  "question": {"kind": "you", "text": "А тебе куда хочется на этой неделе?", "options": [{"id": "coffee", "label": "☕ На кофе", "wish": {"kind": "coffee", "timeWindow": "week", "what": "на кофе"}}, {"id": "walk", "label": "🚶 Погулять", "wish": {"kind": "walk", "timeWindow": "week", "what": "погулять"}}, {"id": "boardgames", "label": "🎲 На настолки", "wish": {"kind": "boardgames", "timeWindow": "week", "what": "на настолки"}}]},
   "endAudio": ["ep1/ep1-f5-narr.mp3"],
   "frames": [
    {
@@ -50,6 +63,7 @@ export const EPISODES: SerialEpisode[] = [
   "releaseAt": "2026-11-11T07:00:00Z",
   "color": "#5B7B68",
   "thumb": "stas",
+  "question": {"kind": "guess", "text": "Что Васька ответит Лизе?", "options": [{"id": "together", "label": "👯 Позовёт на сходку"}, {"id": "chat", "label": "💬 Будут переписываться"}, {"id": "silent", "label": "🙈 Промолчит"}], "answer": "together", "reveal": "Васька позвала Лизу с собой на сходку 👯"},
   "frames": [
    {
     "dur": 5000,
@@ -79,6 +93,7 @@ export const EPISODES: SerialEpisode[] = [
   "releaseAt": "2026-11-12T07:00:00Z",
   "color": "#E2A03F",
   "thumb": "lisa",
+  "question": {"kind": "guess", "text": "Кто чихает в углу?", "options": [{"id": "pechka", "label": "🔥 Печка"}, {"id": "stas", "label": "🤧 Стас"}, {"id": "tractor", "label": "🚜 Тракторыч"}], "answer": "pechka", "reveal": "Чихнула Печка, наш сервер 🔥"},
   "frames": [
    {
     "dur": 5000,

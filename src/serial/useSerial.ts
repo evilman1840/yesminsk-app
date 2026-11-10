@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { EPISODES, SerialEpisode } from './episodes';
 
 export type SerialSource = 'intro' | 'joy' | 'strip' | 'shelf' | 'tv' | 'next' | 'link' | 'notice';
-type Seen = Record<number, { maxFrame: number; frames: number; liked: boolean }>;
+type Seen = Record<number, { maxFrame: number; frames: number; liked: boolean; answer?: string; wished?: boolean }>;
 
 const store = {
   get: (k: string) => {
@@ -46,6 +46,7 @@ export function useSerial(enabled: boolean, preview = false) {
   adminPreview = preview;
   const [seen, setSeen] = useState<Seen>({});
   const [hearts, setHearts] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<Record<number, Record<string, number>>>({});
   const [loaded, setLoaded] = useState(false);
   const [now, setNow] = useState(Date.now());
 
@@ -56,6 +57,7 @@ export function useSerial(enabled: boolean, preview = false) {
       .then((r) => {
         setSeen(r.seen || {});
         setHearts(r.hearts || {});
+        setAnswers(r.answers || {});
       })
       .catch(() => {})
       .finally(() => setLoaded(true));
@@ -79,6 +81,21 @@ export function useSerial(enabled: boolean, preview = false) {
     if (r) setHearts((h) => ({ ...h, [n]: r.hearts }));
   }, []);
 
+  // Вопрос в конце серии: сразу показываем мой ответ, потом — проценты с сервера
+  const answer = useCallback(async (n: number, option: string) => {
+    setSeen((s) => ({ ...s, [n]: { ...(s[n] || { maxFrame: 0, frames: 0, liked: false }), answer: s[n]?.answer || option } }));
+    setAnswers((a) => ({ ...a, [n]: { ...(a[n] || {}), [option]: ((a[n] || {})[option] || 0) + 1 } }));
+    const r = await api.serialAnswer(n, option).catch(() => null);
+    if (r) {
+      setAnswers((a) => ({ ...a, [n]: r.answers }));
+      setSeen((s) => ({ ...s, [n]: { ...(s[n] || { maxFrame: 0, frames: 0, liked: false }), answer: r.answer } }));
+    }
+  }, []);
+  const markWished = useCallback((n: number) => {
+    setSeen((s) => ({ ...s, [n]: { ...(s[n] || { maxFrame: 0, frames: 0, liked: false }), wished: true } }));
+    api.serialWished(n).catch(() => {});
+  }, []);
+
   // Плашка: ✕ прячет её до следующей серии
   const [stripHidden, setStripHidden] = useState(() => store.get('serial_strip_hidden') || '');
   const hideStrip = (n: number) => {
@@ -99,7 +116,7 @@ export function useSerial(enabled: boolean, preview = false) {
     return waiting;
   };
 
-  return { seen, hearts, released, upcoming, waiting, markOpened, setLiked, showStrip, hideStrip, takeJoy };
+  return { seen, hearts, answers, released, upcoming, waiting, markOpened, setLiked, answer, markWished, showStrip, hideStrip, takeJoy };
 }
 
 export type SerialState = ReturnType<typeof useSerial>;

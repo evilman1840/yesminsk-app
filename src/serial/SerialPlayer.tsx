@@ -6,6 +6,7 @@ import { telegramService } from '../services/telegram';
 import { useBackButton } from '../hooks/useTelegram';
 import { EPISODES, SerialEpisode, SerialTry, SERIAL_TOTAL } from './episodes';
 import { TvArt } from './SerialBits';
+import { SerialQuestionCard, SerialReveal } from './SerialQuestion';
 import { useFrameAudio } from './useFrameAudio';
 import { dayLabel, isReleased, releaseDay, SerialSource, SerialState } from './useSerial';
 
@@ -159,7 +160,29 @@ export const SerialPlayer: React.FC<{
         ))}
 
         {/* Последний кадр: сердечко и следующая серия */}
-        <div className={`serial-frame ${cur === total - 1 ? 'on' : ''} bg-[#FAF7F2] flex flex-col items-center justify-center gap-4 px-6 text-center text-[#2B2623]`}>
+        {/* С вопросом в конце кадр выше экрана — листается; сердечко тогда компактное, под вопросом */}
+        <div className={`serial-frame ${cur === total - 1 ? 'on' : ''} bg-[#FAF7F2] flex flex-col items-center overflow-y-auto px-5 ${ep.question ? 'pt-24 pb-6' : 'px-6'} text-center text-[#2B2623]`}>
+          <div className="my-auto w-full flex flex-col items-center gap-4">
+          {ep.question && <SerialQuestionCard ep={ep} serial={serial} />}
+          {ep.question ? (
+            <button
+              onClick={toggleHeart}
+              aria-pressed={liked}
+              className="relative z-10 h-12 pl-2 pr-4 rounded-full bg-white border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] flex items-center gap-2 text-sm2 font-semibold cursor-pointer active:translate-y-0.5"
+            >
+              <svg viewBox="0 0 24 24" width="30" height="30" className={pop ? 'serial-heart-pop' : ''} aria-hidden>
+                <path
+                  d="M12 20.5s-7.5-4.6-9.3-9.2C1.5 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.7 3.5 4.5 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"
+                  fill={liked ? '#D95C3C' : 'transparent'}
+                  stroke="#D95C3C"
+                  strokeWidth="2.2"
+                />
+              </svg>
+              {liked ? 'Понравилась' : 'Понравилась серия?'}
+              {hearts > 0 && <span className="text-[#6B635C] font-normal">· {hearts}</span>}
+            </button>
+          ) : (
+          <>
           <p className="font-hand font-bold text-[38px] leading-none">Понравилась серия?</p>
           <button
             onClick={toggleHeart}
@@ -177,12 +200,14 @@ export const SerialPlayer: React.FC<{
             </svg>
           </button>
           <p className="text-sm2 text-[#6B635C]">{hearts > 0 ? `❤️ ${hearts}` : 'Будь первым, кому понравилось'}</p>
+          </>
+          )}
           {/* «Попробовать» и здесь: посреди истории кнопка мелькает 8 секунд, а на последнем кадре таймера нет */}
           {endTry && (
             <button
               onClick={() => tryIt(endTry)}
               className={`relative z-10 mt-2 h-12 px-5 rounded-full font-bold border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] cursor-pointer ${
-                next && nextOpen ? 'bg-white text-[#2B2623]' : 'bg-[#D95C3C] text-white'
+                (next && nextOpen) || ep.question ? 'bg-white text-[#2B2623]' : 'bg-[#D95C3C] text-white'
               }`}
             >
               {endTry.label}
@@ -226,7 +251,11 @@ export const SerialPlayer: React.FC<{
               </p>
             </div>
           )}
+          </div>
         </div>
+
+        {/* Разгадка вчерашнего «Угадай» — на обложке */}
+        {cur === 0 && <SerialReveal ep={ep} serial={serial} />}
 
         {/* Полоски */}
         <div className="absolute top-2.5 inset-x-2.5 z-20 flex gap-1" aria-hidden>

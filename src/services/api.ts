@@ -349,7 +349,11 @@ class ApiService {
   }
 
   // Сериал «Не Одна Дома»: что я посмотрел, сердечки по сериям
-  async getSerial(): Promise<{ seen: Record<number, { maxFrame: number; frames: number; liked: boolean }>; hearts: Record<number, number> }> {
+  async getSerial(): Promise<{
+    seen: Record<number, { maxFrame: number; frames: number; liked: boolean; answer?: string; wished?: boolean }>;
+    hearts: Record<number, number>;
+    answers?: Record<number, Record<string, number>>;
+  }> {
     return this.request('/serial', {}, true);
   }
 
@@ -359,6 +363,15 @@ class ApiService {
 
   async serialLike(ep: number, liked: boolean): Promise<{ hearts: number }> {
     return this.request(`/serial/${ep}/like`, { method: 'POST', body: JSON.stringify({ liked }) }, true);
+  }
+
+  // Вопрос в конце серии: ответ (один раз) и как ответили все
+  async serialAnswer(ep: number, option: string): Promise<{ answer: string; answers: Record<string, number> }> {
+    return this.request(`/serial/${ep}/answer`, { method: 'POST', body: JSON.stringify({ option }) }, true);
+  }
+
+  async serialWished(ep: number): Promise<void> {
+    await this.request(`/serial/${ep}/wished`, { method: 'POST' }, true);
   }
 
   async serialTry(ep: number): Promise<void> {
