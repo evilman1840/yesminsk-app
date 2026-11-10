@@ -10,7 +10,7 @@ import { GAME_TEXTS as GT } from '../../texts/games';
 import { SeaView, SeaPlayer, SeaLobby } from '../../games/types';
 import { askBotAccess } from '../../services/botAccess';
 import { SEA, SEA_LETTERS, randomFleet, rotateShip, fire, shotView, shipsLeft, emptyShots, botShot, SeaBotLevel, ShotResult } from '../../games/sea';
-import { formatElapsed, Toggle, PickRow, Avatar, SayBar } from './GameBits';
+import { formatElapsed, Toggle, PickRow, Avatar } from './GameBits';
 import { Celebration } from './Celebration';
 
 /**
@@ -127,6 +127,7 @@ export const SeaGame: React.FC<{
   const [bubble, setBubble] = useState<{ from: number; text: string; key: string } | null>(null);
   const [reply, setReply] = useState<{ text: string; key: string } | null>(null);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [phrasesOpen, setPhrasesOpen] = useState(false);
   const rulesSeen = useRef(store.get('yesminsk_sea_rules_seen', '0') === '1');
   const [celebrate, setCelebrate] = useState<{ kind: 'win' | 'lose'; key: string } | null>(null);
   const celebrated = useRef('');
@@ -690,12 +691,12 @@ export const SeaGame: React.FC<{
 
   return (
     <div className="flex flex-col h-full w-full bg-zine-paper overflow-hidden select-none">
-      <header className="shrink-0 px-5 pt-4 pb-2">
+      <header className={`shrink-0 px-5 ${phase === 'game' ? 'pt-2 pb-1' : 'pt-4 pb-2'}`}>
         <div className="flex items-center gap-1">
           <button onClick={back} aria-label="Назад" className="w-11 h-11 -ml-2 rounded-full flex items-center justify-center text-zine-ink cursor-pointer">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="flex-1 min-w-0 font-serif font-bold text-display text-zine-ink">{T.title}</h1>
+          <h1 className={`flex-1 min-w-0 font-serif font-bold text-zine-ink ${phase === 'game' ? 'text-title' : 'text-display'}`}>{T.title}</h1>
           <button onClick={openRules} aria-label={T.howToPlay} className="w-11 h-11 rounded-full flex items-center justify-center text-zine-terracotta cursor-pointer active:opacity-70">
             <HelpCircle size={24} />
           </button>
@@ -831,7 +832,9 @@ export const SeaGame: React.FC<{
       {phase === 'game' && !game && <main className="flex-1 flex items-center justify-center text-zine-inkMuted text-body">{T.loading}</main>}
 
       {phase === 'game' && game && (
-        <main className="flex-1 overflow-y-auto px-3 pb-4 flex flex-col">
+        // Расстановка и бой помещаются в один экран без прокрутки: поле подстраивается под высоту.
+        // После боя — карточка итога ниже, тогда экран прокручивается
+        <main className={`flex-1 min-h-0 px-3 pb-3 flex flex-col ${finished || game.status === 'waiting' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
           {game.mode === 'bot' && (bgSearch || found) && (
             <SearchBanner found={found} elapsed={now - searchStarted} left={foundLeft} onCancel={() => { telegramService.haptic('light'); stopBg(); }} onGo={switchToFound} />
           )}
@@ -855,88 +858,94 @@ export const SeaGame: React.FC<{
           {/* Расстановка */}
           {game.status === 'active' && game.phase === 'placing' && (
             <>
-              <div className="mt-3 mb-2 flex items-baseline justify-between gap-2 px-1">
-                <h2 className="font-serif font-bold text-title text-zine-ink">{placing ? T.placeTitle : T.mySea}</h2>
+              <div className="mt-2 mb-1.5 flex items-baseline justify-between gap-2 px-1">
+                <h2 className="font-serif font-bold text-lead text-zine-ink">{placing ? T.placeTitle : T.mySea}</h2>
                 {game.mode !== 'bot' && <span className={`text-sm2 font-semibold tabular-nums ${placeSec <= 15 ? 'text-zine-terracotta' : 'text-zine-inkMuted'}`}>{T.placeLeft(placeSec)}</span>}
               </div>
-              <SeaBoard fleet={placing ? draft : game.myFleet} shots={emptyShots()} showShips onTap={placing ? tapOwn : undefined} labels />
+              <FitBoard>
+                <SeaBoard fleet={placing ? draft : game.myFleet} shots={emptyShots()} showShips onTap={placing ? tapOwn : undefined} labels />
+              </FitBoard>
+              <p className="mt-1.5 px-1 h-5 text-cap text-zine-inkMuted text-center truncate">
+                {placing ? T.placeHint : game.mode !== 'bot' && opp ? (opp.ready ? T.oppReady : T.oppPlacing) : ''}
+              </p>
               {placing ? (
-                <>
-                  <p className="mt-2 px-1 text-sm2 text-zine-inkMuted text-center">{T.placeHint}</p>
-                  <div className="mt-3 flex gap-2">
-                    <button onClick={shuffle} className="flex-1 h-12 rounded-full border border-zine-border bg-zine-cardElevated text-zine-ink text-body font-semibold cursor-pointer active:scale-[0.98] transition-transform">
-                      {T.shuffle}
+                <div className="mt-1.5 flex gap-2">
+                  <button onClick={shuffle} className="flex-1 h-11 rounded-full border border-zine-border bg-zine-cardElevated text-zine-ink text-sm2 font-semibold cursor-pointer active:scale-[0.98] transition-transform">
+                    {T.shuffle}
+                  </button>
+                  {!isNativeMain && (
+                    <button onClick={submitFleet} disabled={busy} className="flex-1 h-11 rounded-full bg-zine-terracotta text-white text-sm2 font-bold cursor-pointer disabled:opacity-60 active:scale-[0.98] transition-transform">
+                      {T.ready}
                     </button>
-                    {!isNativeMain && (
-                      <button onClick={submitFleet} disabled={busy} className="flex-1 h-12 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer disabled:opacity-60 active:scale-[0.98] transition-transform">
-                        {T.ready}
-                      </button>
-                    )}
-                  </div>
-                </>
+                  )}
+                </div>
               ) : (
-                <p className="mt-4 px-3 py-3 rounded-zine bg-zine-card text-body text-zine-ink text-center">{T.waitingOpp}</p>
+                <p className="mt-1.5 px-3 py-2.5 rounded-zine bg-zine-card text-sm2 text-zine-ink text-center">{T.waitingOpp}</p>
               )}
-              {game.mode !== 'bot' && opp && <p className="mt-3 text-sm2 text-center text-zine-inkMuted">{opp.ready ? T.oppReady : T.oppPlacing}</p>}
+              <SayRow reply={reply} onSay={say} onPhrases={() => setPhrasesOpen(true)} />
+              <button onClick={resign} className="mt-1 h-9 self-center px-4 rounded-full text-zine-inkMuted text-sm2 font-semibold cursor-pointer">
+                🚪 {T.resign}
+              </button>
             </>
           )}
 
           {/* Бой и итог */}
           {(game.status === 'finished' || (game.status === 'active' && game.phase === 'battle')) && (
             <>
-              <div className="mt-2 mb-1.5 h-7 flex items-center justify-center text-sm2 font-semibold">
-                {toast ? (
-                  <span key={toast.key} className={`fade-swap px-3 py-0.5 rounded-full ${toast.tone === 'good' ? 'bg-zine-sage/20 text-zine-ink' : toast.tone === 'bad' ? 'bg-zine-terracotta/15 text-zine-terracotta' : 'bg-zine-card text-zine-inkMuted'}`}>
-                    {toast.text}
-                  </span>
-                ) : game.status === 'active' ? (
-                  <span className={game.turn === game.me ? 'text-zine-terracotta' : 'text-zine-inkMuted'}>
-                    {game.turn === game.me ? T.yourShot : game.mode === 'bot' ? T.botThinking : T.theirShot}
-                  </span>
-                ) : (
-                  game.enemyFleet && <span className="text-zine-inkMuted">{T.enemyRevealed}</span>
-                )}
+              <div className="mt-2 mb-1 h-7 flex items-center justify-between gap-2 px-1">
+                <span className="shrink-0 text-cap font-bold text-zine-ink">
+                  {T.enemySea} <span className="font-semibold text-zine-inkMuted tabular-nums">· 🚢 {game.shipsLeft[1]}</span>
+                </span>
+                <span className="min-w-0 text-sm2 font-semibold truncate">
+                  {toast ? (
+                    <span key={toast.key} className={`fade-swap inline-block px-2.5 py-0.5 rounded-full ${toast.tone === 'good' ? 'bg-zine-sage/20 text-zine-ink' : toast.tone === 'bad' ? 'bg-zine-terracotta/15 text-zine-terracotta' : 'bg-zine-card text-zine-inkMuted'}`}>
+                      {toast.text}
+                    </span>
+                  ) : game.status === 'active' ? (
+                    <span className={game.turn === game.me ? 'text-zine-terracotta' : 'text-zine-inkMuted'}>
+                      {game.turn === game.me ? T.yourShot : game.mode === 'bot' ? T.botThinking : T.theirShot}
+                    </span>
+                  ) : (
+                    game.enemyFleet && <span className="text-zine-inkMuted text-cap">{T.enemyRevealedShort}</span>
+                  )}
+                </span>
               </div>
 
-              <BoardTitle title={T.enemySea} left={game.shipsLeft[1]} />
-              <SeaBoard
-                fleet={game.status === 'finished' ? game.enemyFleet || '' : ''}
-                shots={game.enemyBoard}
-                showShips={game.status === 'finished'}
-                last={game.lastShot && game.lastShot.by === game.me ? game.lastShot.cell : -1}
-                onTap={game.status === 'active' && game.turn === game.me ? shoot : undefined}
-                dim={game.status === 'active' && game.turn !== game.me}
-                labels
-              />
+              <FitBoard fixed={finished}>
+                <SeaBoard
+                  fleet={game.status === 'finished' ? game.enemyFleet || '' : ''}
+                  shots={game.enemyBoard}
+                  showShips={game.status === 'finished'}
+                  last={game.lastShot && game.lastShot.by === game.me ? game.lastShot.cell : -1}
+                  onTap={game.status === 'active' && game.turn === game.me ? shoot : undefined}
+                  dim={game.status === 'active' && game.turn !== game.me}
+                  labels
+                />
+              </FitBoard>
 
-              <div className="mt-3 flex gap-3 items-start">
-                <div className="w-[46%] shrink-0">
-                  <BoardTitle title={T.mySea} left={game.shipsLeft[0]} small />
+              {/* Свой флот — рядом с подписью и кнопкой «Завершить игру» */}
+              <div className="mt-2 flex gap-3 items-stretch">
+                <div className="w-[36%] max-w-[150px] shrink-0">
                   <SeaBoard fleet={game.myFleet} shots={game.myBoard} showShips last={game.lastShot && game.lastShot.by !== game.me ? game.lastShot.cell : -1} mini />
                 </div>
-                {game.status === 'active' && (
-                  <div className="flex-1 min-w-0 flex flex-col gap-1 pt-6">
-                    {game.mode !== 'bot' && opp && !opp.online && (
-                      <p className="px-2.5 py-2 rounded-zine-sm bg-zine-mustard/15 text-cap text-zine-ink">{opp.away ? T.oppAwayNote : T.oppNotHereNote}</p>
+                <div className="flex-1 min-w-0 flex flex-col justify-between gap-1.5">
+                  <div>
+                    <p className="text-sm2 font-bold text-zine-ink">{T.mySea}</p>
+                    <p className="text-cap text-zine-inkMuted tabular-nums">🚢 {T.shipsLeft(game.shipsLeft[0])}</p>
+                    {game.status === 'active' && game.mode !== 'bot' && opp && !opp.online && (
+                      <p className="mt-1 px-2 py-1.5 rounded-zine-sm bg-zine-mustard/15 text-cap text-zine-ink">{opp.away ? T.oppAwayNote : T.oppNotHereNote}</p>
                     )}
-                    <button onClick={openRules} className="h-10 px-2 rounded-full text-zine-inkMuted text-sm2 font-semibold cursor-pointer inline-flex items-center gap-1.5">
-                      <HelpCircle size={17} /> {T.howToPlay}
-                    </button>
-                    <button onClick={resign} className="h-10 px-2 rounded-full text-zine-inkMuted text-sm2 font-semibold cursor-pointer text-left">
-                      🏳️ {T.resign}
-                    </button>
                   </div>
-                )}
+                  {game.status === 'active' && (
+                    <button onClick={resign} className="h-10 px-3 self-start rounded-full border border-zine-border text-zine-ink text-sm2 font-semibold cursor-pointer active:scale-[0.98] transition-transform">
+                      🚪 {T.resign}
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {game.status === 'active' && (
-                <SayBar label={game.mode === 'bot' ? GT.sayLabelBot : GT.sayLabel(opp?.name)} reply={reply} onSay={say} />
-              )}
+              {game.status === 'active' && <SayRow reply={reply} onSay={say} onPhrases={() => setPhrasesOpen(true)} />}
             </>
-          )}
-
-          {game.status === 'active' && game.phase === 'placing' && (
-            <SayBar label={game.mode === 'bot' ? GT.sayLabelBot : GT.sayLabel(opp?.name)} reply={reply} onSay={say} />
           )}
 
           {finished && (
@@ -961,6 +970,16 @@ export const SeaGame: React.FC<{
         </main>
       )}
 
+      {phrasesOpen && (
+        <PhrasesSheet
+          label={game?.mode === 'bot' ? GT.sayLabelBot : GT.sayLabel(opp?.name)}
+          onClose={() => setPhrasesOpen(false)}
+          onSay={(k, t) => {
+            setPhrasesOpen(false);
+            say(k, t);
+          }}
+        />
+      )}
       {rulesOpen && <RulesSheet onClose={closeRules} />}
       {celebrate && <Celebration key={celebrate.key} kind={celebrate.kind} />}
     </div>
@@ -1008,11 +1027,57 @@ const SearchBanner: React.FC<{ found: SeaView | null; elapsed: number; left: num
   );
 };
 
-const BoardTitle: React.FC<{ title: string; left: number; small?: boolean }> = ({ title, left, small }) => (
-  <div className={`flex items-baseline justify-between gap-2 ${small ? 'mb-1' : 'mb-1.5 px-1'}`}>
-    <span className={`font-bold text-zine-ink ${small ? 'text-cap' : 'text-sm2'}`}>{title}</span>
-    <span className={`tabular-nums text-zine-inkMuted ${small ? 'text-[12px]' : 'text-cap'}`} aria-label={T.shipsLeft(left)}>🚢 {small ? left : T.shipsLeft(left)}</span>
+/**
+ * Поле, которое помещается в оставшееся место: квадрат по меньшей из сторон (ширина или высота).
+ * fixed — после боя: экран прокручивается, поле просто во всю ширину
+ */
+const FitBoard: React.FC<{ fixed?: boolean; children: React.ReactNode }> = ({ fixed, children }) =>
+  fixed ? (
+    <div className="w-full max-w-[420px] self-center shrink-0">{children}</div>
+  ) : (
+    <div className="flex-1 min-h-[160px] flex justify-center" style={{ containerType: 'size' } as React.CSSProperties}>
+      <div style={{ width: 'min(100cqw, 100cqh)' }}>{children}</div>
+    </div>
+  );
+
+// Эмодзи — одной строкой во всю ширину, последняя кнопка открывает готовые фразы
+const SayRow: React.FC<{ reply: { text: string; key: string } | null; onSay: (key: string, text: string) => void; onPhrases: () => void }> = ({ reply, onSay, onPhrases }) => (
+  <div className="relative mt-2 shrink-0">
+    {reply && (
+      <span key={reply.key} className="say-hint-in absolute -top-7 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-zine-ink text-zine-paper text-cap font-semibold whitespace-nowrap shadow-zine-float" aria-live="polite">
+        {GT.sayReply(reply.text)}
+      </span>
+    )}
+    <div className="grid grid-cols-8 gap-1.5">
+      {GT.emojis.map(([key, e], i) => (
+        <button
+          key={`${key}-${reply?.key || ''}`}
+          onClick={() => onSay(key, e)}
+          aria-label={`Отправить ${e}`}
+          style={{ '--d': `${i * 0.06}s` } as React.CSSProperties}
+          className={`aspect-square max-h-11 rounded-full text-[20px] flex items-center justify-center cursor-pointer active:scale-90 transition-transform ${reply ? 'bg-zine-terracotta/15 say-pulse' : 'bg-zine-card'}`}
+        >
+          {e}
+        </button>
+      ))}
+      <button onClick={onPhrases} aria-label={T.phrases} className="aspect-square max-h-11 rounded-full bg-zine-ink text-zine-paper text-[18px] flex items-center justify-center cursor-pointer active:scale-90 transition-transform">
+        💬
+      </button>
+    </div>
   </div>
+);
+
+const PhrasesSheet: React.FC<{ label: string; onClose: () => void; onSay: (key: string, text: string) => void }> = ({ label, onClose, onSay }) => (
+  <BottomSheet title={T.phrases} onClose={onClose}>
+    <p className="-mt-1 mb-3 text-cap text-zine-inkMuted">{label}</p>
+    <div className="pb-4 flex flex-wrap gap-2">
+      {GT.phrases.map(([k, text]) => (
+        <button key={k} onClick={() => onSay(k, text)} className="h-11 px-4 rounded-full bg-zine-card text-body font-semibold text-zine-ink cursor-pointer active:scale-95 transition-transform">
+          {text}
+        </button>
+      ))}
+    </div>
+  </BottomSheet>
 );
 
 /**
@@ -1135,11 +1200,11 @@ const PlayersBar: React.FC<{ game: SeaView; bubble: { from: number; text: string
             <button
               onClick={() => canOpen && onOpen(p.telegramId!)}
               disabled={!canOpen}
-              className={`w-full h-16 px-3 rounded-zine-sm flex items-center gap-2.5 text-left border transition-colors ${
+              className={`w-full h-12 px-2.5 rounded-zine-sm flex items-center gap-2 text-left border transition-colors ${
                 active ? 'bg-zine-cardElevated border-zine-terracotta/60 shadow-zine-sm' : 'bg-zine-card border-transparent'
               } ${canOpen ? 'cursor-pointer active:scale-[0.98]' : ''}`}
             >
-              <Avatar player={p || { incognito: false, name: '', avatar: '', emoji: '👋', rematch: false, online: false }} size={40} />
+              <Avatar player={p || { incognito: false, name: '', avatar: '', emoji: '👋', rematch: false, online: false }} size={32} />
               <span className="min-w-0">
                 <span className="block text-sm2 font-bold text-zine-ink truncate">{isMe ? T.you : p?.name || T.friend}</span>
                 <span className="block text-cap text-zine-inkMuted truncate">
