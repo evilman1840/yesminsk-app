@@ -90,9 +90,37 @@ export const EventDetails: React.FC<{
   const [isAdminDeleteOpen, setIsAdminDeleteOpen] = useState(false);
   const isCreator = Number(event.creator?.telegramId) === Number(telegramService.getUser()?.id);
   const [isDeleting, setIsDeleting] = useState(false);
-  // Своя сходка: удалить отсюда же. Списки и открытые шторки уберут её по EVENT_DELETED
+  // Своя сходка: удалить отсюда же. Списки и открытые шторки уберут её по EVENT_DELETED.
+  // Если уже кто-то записался — сначала предлагаем передать сходку: раньше единственный способ «не пойти»
+  // был удалить её для всех (так пропадали почти все сходки, собранные ботом из «Хочу сходить»)
   const deleteOwn = async () => {
-    if (isDeleting || !(await telegramService.confirm(`Удалить сходку «${event.title}»?`, { destructive: true }))) return;
+    if (isDeleting) return;
+    const upcoming = new Date(event.dateTime).getTime() > Date.now();
+    const heir = upcoming ? others.find((p) => !event.byRequest || p.approved) : undefined;
+    if (heir) {
+      telegramService.haptic('warning');
+      const title = event.title.length > 60 ? `${event.title.slice(0, 59)}…` : event.title;
+      const choice = await telegramService.choose(MEETUP_TEXTS.leaveAsk(title, heir.name), [
+        { id: 'handover', text: MEETUP_TEXTS.leaveHandover(heir.name) },
+        { id: 'delete', text: MEETUP_TEXTS.leaveDelete, destructive: true }
+      ]);
+      if (!choice) return;
+      if (choice === 'handover') {
+        setIsDeleting(true);
+        try {
+          const res = await api.handoverEvent(String(event.id));
+          telegramService.haptic('success');
+          if (res.event?.id) window.dispatchEvent(new CustomEvent<AppEvent>(EVENT_UPDATED, { detail: res.event }));
+          onReported?.();
+          telegramService.alert(MEETUP_TEXTS.handedOver(res.newHost));
+        } catch (err: any) {
+          telegramService.alert(err?.message || MEETUP_TEXTS.handoverFailed);
+        } finally {
+          setIsDeleting(false);
+        }
+        return;
+      }
+    } else if (!(await telegramService.confirm(`Удалить сходку «${event.title}»?`, { destructive: true }))) return;
     setIsDeleting(true);
     try {
       await api.deleteEvent(String(event.id));

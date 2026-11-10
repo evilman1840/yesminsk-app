@@ -553,6 +553,11 @@ class ApiService {
     }
   }
 
+  // Организатор не сможет пойти: сходка переходит первому записавшемуся, организатор выходит из списка
+  async handoverEvent(eventId: string): Promise<{ success: boolean; newHost: string; event: AppEvent }> {
+    return this.request(`/events/${eventId}/handover`, { method: 'POST' });
+  }
+
   // Модератор удаляет чужую сходку; reason — его текст организатору
   async adminDeleteEvent(eventId: string, reason: string): Promise<{ success: boolean }> {
     return this.request(`/events/${eventId}/delete`, { method: 'POST', body: JSON.stringify({ reason }) });

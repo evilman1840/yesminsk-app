@@ -284,6 +284,29 @@ export const telegramService = {
     );
   },
 
+  /** Выбор из 2–3 вариантов в окне Telegram. Возвращает id нажатой кнопки или null (закрыли) */
+  choose(message: string, buttons: { id: string; text: string; destructive?: boolean }[]): Promise<string | null> {
+    const webapp = tg();
+    const text = message.slice(0, 256);
+    if (!webapp || !insideTelegram() || !webapp.isVersionAtLeast('6.2')) {
+      // В обычном браузере (разработка) — по очереди через confirm
+      for (const b of buttons) if (window.confirm(`${text}\n\n${b.text}?`)) return Promise.resolve(b.id);
+      return Promise.resolve(null);
+    }
+    return new Promise((resolve) =>
+      webapp.showPopup(
+        {
+          message: text,
+          buttons: [
+            ...buttons.slice(0, 2).map((b) => ({ id: b.id, type: b.destructive ? ('destructive' as const) : ('default' as const), text: b.text.slice(0, 64) })),
+            { id: 'cancel', type: 'cancel' as const }
+          ]
+        },
+        (id) => resolve(id && id !== 'cancel' ? id : null)
+      )
+    );
+  },
+
   getUser(): TelegramUser | null {
     const webapp = tg();
     if (webapp?.initDataUnsafe?.user) {
