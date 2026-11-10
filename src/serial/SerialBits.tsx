@@ -144,6 +144,30 @@ export const SerialSheet: React.FC<{
   );
 };
 
+/** Сам телевизор — в шапке и в подсказке в конце первой серии */
+export const TvArt: React.FC<{ size: number; fresh?: boolean; className?: string }> = ({ size, fresh = false, className }) => {
+  const clip = useId().replace(/:/g, '');
+  return (
+    <svg viewBox="0 0 44 44" width={size} height={size} className={className} aria-hidden>
+      <path d="M15 3 L21 10 M29 3 L23 10" stroke="#2B2623" strokeWidth="2" strokeLinecap="round" />
+      <rect x="3" y="10" width="38" height="31" rx="8" fill="#D95C3C" stroke="#2B2623" strokeWidth="2" />
+      <clipPath id={clip}>
+        <rect x="7" y="14" width="24" height="23" rx="5" />
+      </clipPath>
+      <g clipPath={`url(#${clip})`}>
+        <rect x="7" y="14" width="24" height="23" fill="#F6E2BD" />
+        <svg x="7" y="14" width="24" height="23" viewBox="50 54 100 96" preserveAspectRatio="xMidYMid slice">
+          <use href="#vasya" />
+          <use href={fresh ? '#v-open' : '#v-smile'} />
+        </svg>
+      </g>
+      <rect x="7" y="14" width="24" height="23" rx="5" fill="none" stroke="#2B2623" strokeWidth="1.5" />
+      <circle cx="36" cy="20" r="2" fill="#2B2623" />
+      <circle cx="36" cy="27" r="2" fill="#2B2623" />
+    </svg>
+  );
+};
+
 /**
  * Телевизор с Василисой — вход в сериал и новости, в шапке каждой вкладки.
  * Есть непросмотренная серия — вокруг кольцо как у сторис и точка, нажатие сразу включает серию
@@ -154,7 +178,6 @@ export const SerialTv: React.FC<{ serial: SerialState; unreadNews: number; size?
   size = 40,
   onClick
 }) => {
-  const clip = useId().replace(/:/g, '');
   const fresh = !!serial.waiting;
   const label = fresh ? `Не Одна Дома: новая серия ${serial.waiting!.n}` : unreadNews > 0 ? `Сериал и новости: ${unreadNews} новых` : 'Сериал и новости';
   return (
@@ -169,23 +192,7 @@ export const SerialTv: React.FC<{ serial: SerialState; unreadNews: number; size?
     >
       {fresh && <span aria-hidden className="absolute inset-0 rounded-[14px] p-[2px] bg-[conic-gradient(#D95C3C,#E2A03F,#D95C3C)] serial-tv-ring" />}
       {fresh && <span aria-hidden className="absolute inset-[2px] rounded-[12px] bg-zine-paper" />}
-      <svg viewBox="0 0 44 44" width={size - 6} height={size - 6} className="relative" aria-hidden>
-        <path d="M15 3 L21 10 M29 3 L23 10" stroke="#2B2623" strokeWidth="2" strokeLinecap="round" />
-        <rect x="3" y="10" width="38" height="31" rx="8" fill="#D95C3C" stroke="#2B2623" strokeWidth="2" />
-        <clipPath id={clip}>
-          <rect x="7" y="14" width="24" height="23" rx="5" />
-        </clipPath>
-        <g clipPath={`url(#${clip})`}>
-          <rect x="7" y="14" width="24" height="23" fill="#F6E2BD" />
-          <svg x="7" y="14" width="24" height="23" viewBox="50 54 100 96" preserveAspectRatio="xMidYMid slice">
-            <use href="#vasya" />
-            <use href={fresh ? '#v-open' : '#v-smile'} />
-          </svg>
-        </g>
-        <rect x="7" y="14" width="24" height="23" rx="5" fill="none" stroke="#2B2623" strokeWidth="1.5" />
-        <circle cx="36" cy="20" r="2" fill="#2B2623" />
-        <circle cx="36" cy="27" r="2" fill="#2B2623" />
-      </svg>
+      <TvArt size={size - 6} fresh={fresh} className="relative" />
       {(fresh || unreadNews > 0) && (
         <span aria-hidden className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-zine-terracotta ring-2 ring-zine-paper" />
       )}

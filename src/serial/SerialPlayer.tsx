@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Pause, Play } from 'lucide-react';
+import { X } from 'lucide-react';
 import { api } from '../services/api';
 import { telegramService } from '../services/telegram';
 import { useBackButton } from '../hooks/useTelegram';
 import { EPISODES, SerialEpisode, SerialTry, SERIAL_TOTAL } from './episodes';
+import { TvArt } from './SerialBits';
 import { dayLabel, isReleased, releaseDay, SerialSource, SerialState } from './useSerial';
 
 /**
- * Серия как сторис: полоски сверху, тап справа — дальше, слева — назад, кадры идут сами.
+ * Серия как сторис: полоски сверху, тап справа — дальше, слева — назад, в центре — пауза/дальше смотреть, кадры идут сами.
  * Последний кадр — сердечко и следующая серия. Каждый новый кадр уходит в статистику
  */
 export const SerialPlayer: React.FC<{
@@ -25,17 +26,20 @@ export const SerialPlayer: React.FC<{
   const [progress, setProgress] = useState(0);
   const [pop, setPop] = useState(false);
   const maxSent = useRef(-1);
-  // Пауза: кнопка под крестиком, удержание пальца на кадре (как в сторис) или свёрнутое приложение
-  const [pausedBtn, setPausedBtn] = useState(false);
+  // Пауза: тап по центру кадра (ещё тап — смотреть дальше), удержание пальца (как в сторис) или свёрнутое приложение
+  const [pausedTap, setPausedTap] = useState(false);
   const [held, setHeld] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const paused = pausedBtn || held || hidden;
+  const paused = pausedTap || held || hidden;
   const elapsed = useRef(0);
   const holdTimer = useRef(0);
   const holdUsed = useRef(false);
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const next = EPISODES.find((e) => e.n === ep.n + 1) || null;
   const nextOpen = next && isReleased(next);
+  // Конец первой серии: где теперь сериал и новости, и когда выйдет следующая (без учёта админского предпросмотра)
+  const tvHint = ep.n === 1;
+  const nextSoon = !!next && new Date(next.releaseAt).getTime() > Date.now();
   const liked = !!serial.seen[ep.n]?.liked;
   const hearts = serial.hearts[ep.n] || 0;
 
@@ -109,8 +113,16 @@ export const SerialPlayer: React.FC<{
       holdUsed.current = false;
       return;
     }
-    setPausedBtn(false); // листаешь — значит, смотришь дальше
+    setPausedTap(false); // листаешь — значит, смотришь дальше
     go(d);
+  };
+  const tapCenter = () => {
+    if (holdUsed.current) {
+      holdUsed.current = false;
+      return;
+    }
+    telegramService.haptic('selection');
+    setPausedTap((v) => !v);
   };
   const zone = { onPointerDown: holdStart, onPointerUp: holdEnd, onPointerLeave: holdEnd, onPointerCancel: holdEnd, onContextMenu: (e: React.MouseEvent) => e.preventDefault() };
   const frame = cur < ep.frames.length ? ep.frames[cur] : null;
@@ -164,7 +176,7 @@ export const SerialPlayer: React.FC<{
             >
               Смотреть серию {next.n} →
             </button>
-          ) : (
+          ) : tvHint ? null : (
             <p className="text-sm2 text-[#6B635C]">
               {next || ep.n < SERIAL_TOTAL ? (
                 <>
@@ -179,6 +191,22 @@ export const SerialPlayer: React.FC<{
               )}
             </p>
           )}
+          {tvHint && (
+            <div className="mt-3 w-full flex items-center gap-3 rounded-[14px] border-2 border-dashed border-[#2B2623]/40 bg-white/70 px-3.5 py-3 text-left">
+              <TvArt size={46} className="shrink-0" />
+              <p className="text-sm2 leading-snug text-[#2B2623]">
+                {nextSoon ? (
+                  <>
+                    Серия {next!.n} выйдет <b>{releaseDay(next!, true)}</b>. Ищи её в <b>телевизоре справа вверху</b> — там же новости проекта ↗
+                  </>
+                ) : (
+                  <>
+                    Новые серии и новости проекта теперь живут в <b>телевизоре справа вверху</b>. Заглядывай туда ↗
+                  </>
+                )}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Полоски */}
@@ -190,9 +218,25 @@ export const SerialPlayer: React.FC<{
           ))}
         </div>
 
-        {/* Тап-зоны: слева назад, справа дальше */}
-        <button aria-label="Назад" onClick={() => tap(-1)} {...zone} className="absolute inset-y-0 left-0 w-[32%] z-[5] cursor-pointer" />
-        {cur < total - 1 && <button aria-label="Дальше" onClick={() => tap(1)} {...zone} className="absolute inset-y-0 right-0 w-[68%] z-[5] cursor-pointer" />}
+        {/* Тап-зоны: слева назад, в центре пауза, справа дальше. На последнем кадре таймера нет — центр и право не нужны */}
+        <button aria-label="Назад" onClick={() => tap(-1)} {...zone} className="absolute inset-y-0 left-0 w-[30%] z-[5] cursor-pointer" />
+        {frame && !reduce && (
+          <button
+            aria-label={pausedTap ? 'Продолжить' : 'Пауза'}
+            aria-pressed={pausedTap}
+            onClick={tapCenter}
+            {...zone}
+            className="absolute inset-y-0 left-[30%] w-[40%] z-[5] cursor-pointer"
+          />
+        )}
+        {cur < total - 1 && (
+          <button
+            aria-label="Дальше"
+            onClick={() => tap(1)}
+            {...zone}
+            className={`absolute inset-y-0 right-0 z-[5] cursor-pointer ${frame && !reduce ? 'w-[30%]' : 'w-[70%]'}`}
+          />
+        )}
 
         {frame?.try && (
           <button
@@ -203,19 +247,6 @@ export const SerialPlayer: React.FC<{
           </button>
         )}
 
-        {frame && !reduce && (
-          <button
-            onClick={() => {
-              telegramService.haptic('selection');
-              setPausedBtn((v) => !v);
-            }}
-            aria-label={pausedBtn ? 'Продолжить' : 'Пауза'}
-            aria-pressed={pausedBtn}
-            className="absolute z-30 top-[68px] right-2.5 w-10 h-10 rounded-full bg-black/35 text-white grid place-items-center cursor-pointer"
-          >
-            {pausedBtn ? <Play size={18} fill="currentColor" className="ml-0.5" /> : <Pause size={18} fill="currentColor" />}
-          </button>
-        )}
         <button
           onClick={onClose}
           aria-label="Закрыть серию"
