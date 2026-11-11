@@ -63,14 +63,17 @@ export const EPISODES: SerialEpisode[] = [
   "releaseAt": "2026-11-11T07:00:00Z",
   "color": "#5B7B68",
   "thumb": "stas",
+  "endAudio": ["ep2/ep2-f5-narr.mp3"],
   "question": {"kind": "guess", "text": "Что Васька ответит Лизе?", "options": [{"id": "together", "label": "👯 Позовёт на сходку"}, {"id": "chat", "label": "💬 Будут переписываться"}, {"id": "silent", "label": "🙈 Промолчит"}], "answer": "together", "reveal": "Васька позвала Лизу с собой на сходку 👯"},
   "frames": [
    {
     "dur": 5000,
+    "audio": ["ep2/ep2-f1-narr.mp3"],
     "html": "<svg viewBox=\"0 0 360 640\" preserveAspectRatio=\"xMidYMid slice\" aria-hidden=\"true\"><rect width=\"360\" height=\"640\" fill=\"#5B7B68\"/><g fill=\"#4E6B5A\"><circle cx=\"40\" cy=\"300\" r=\"3\"/><circle cx=\"310\" cy=\"250\" r=\"3\"/><circle cx=\"80\" cy=\"380\" r=\"2.5\"/><circle cx=\"290\" cy=\"360\" r=\"2.5\"/></g>\n<path d=\"M0 560 Q180 520 360 560 V640 H0Z\" fill=\"#4E6B5A\"/><g transform=\"translate(150 330) scale(1.15)\"><use href=\"#stas\"/></g><g transform=\"translate(-10 400) scale(.95)\"><use href=\"#vasya\"/><use href=\"#v-open\"/></g></svg>\n<div class=\"cover-title\"><div class=\"ep\">Серия 2 из 20</div><h3>Не Одна<br>Дома</h3><p>Серия, где все машут</p></div>"
    },
    {
-    "dur": 8000,
+    "dur": 8500,
+    "audio": ["ep2/ep2-f2-narr.mp3", "ep2/ep2-f2-misha.mp3"],
     "try": {
      "label": "Попробовать: люди рядом",
      "to": "people"
@@ -79,10 +82,12 @@ export const EPISODES: SerialEpisode[] = [
    },
    {
     "dur": 7500,
+    "audio": ["ep2/ep2-f3-narr.mp3", "ep2/ep2-f3-stas.mp3"],
     "html": "<svg viewBox=\"0 0 360 640\" preserveAspectRatio=\"xMidYMid slice\" aria-hidden=\"true\"><rect width=\"360\" height=\"640\" fill=\"#FCEDE6\"/>\n<g font-family=\"Caveat, cursive\" font-size=\"17\" fill=\"#2B2623\">\n<g transform=\"rotate(-8 60 150)\"><rect x=\"18\" y=\"130\" width=\"92\" height=\"30\" rx=\"15\" fill=\"#fff\" stroke=\"#2B2623\" stroke-width=\"2\"/><text x=\"64\" y=\"151\" text-anchor=\"middle\">👋 Ваське</text></g>\n<g transform=\"rotate(6 280 140)\"><rect x=\"232\" y=\"120\" width=\"96\" height=\"30\" rx=\"15\" fill=\"#fff\" stroke=\"#2B2623\" stroke-width=\"2\"/><text x=\"280\" y=\"141\" text-anchor=\"middle\">👋 Печке</text></g>\n<g transform=\"rotate(-5 70 230)\"><rect x=\"14\" y=\"210\" width=\"118\" height=\"30\" rx=\"15\" fill=\"#fff\" stroke=\"#2B2623\" stroke-width=\"2\"/><text x=\"73\" y=\"231\" text-anchor=\"middle\">👋 Тракторычу</text></g>\n<g transform=\"rotate(7 290 220)\"><rect x=\"236\" y=\"204\" width=\"104\" height=\"30\" rx=\"15\" fill=\"#fff\" stroke=\"#2B2623\" stroke-width=\"2\"/><text x=\"288\" y=\"225\" text-anchor=\"middle\">👋 зеркалу</text></g></g>\n<g transform=\"translate(70 300) scale(1.25)\"><use href=\"#stas\"/></g>\n<g transform=\"translate(18 470) rotate(-6)\"><rect width=\"150\" height=\"64\" rx=\"8\" fill=\"#2B2623\"/><text x=\"75\" y=\"28\" text-anchor=\"middle\" font-family=\"-apple-system, Plus Jakarta Sans, sans-serif\" font-size=\"13\" font-weight=\"700\" fill=\"#FFF6E6\">Лимит 👋 на сегодня:</text><text x=\"75\" y=\"50\" text-anchor=\"middle\" font-family=\"Caveat, cursive\" font-size=\"20\" fill=\"#E2A03F\">всё!</text></g>\n<g transform=\"translate(250 560) scale(.9)\"><use href=\"#tractor\"/></g></svg>\n<div class=\"cap\" style=\"top:28px\">А Стас помахал вообще всем.</div>\n<div class=\"bubble down-r\" style=\"top:262px;right:16px;left:200px\">Как всё?!</div>"
    },
    {
-    "dur": 7500,
+    "dur": 10000,
+    "audio": ["ep2/ep2-f4-narr.mp3", "ep2/ep2-f4-liza.mp3", "ep2/ep2-f4-narr2.mp3"],
     "html": "<svg viewBox=\"0 0 360 640\" preserveAspectRatio=\"xMidYMid slice\" aria-hidden=\"true\"><defs><radialGradient id=\"screen2\"><stop offset=\"0\" stop-color=\"#FFF6E6\" stop-opacity=\".55\"/><stop offset=\"1\" stop-color=\"#FFF6E6\" stop-opacity=\"0\"/></radialGradient></defs>\n<rect width=\"360\" height=\"640\" fill=\"#1E2233\"/><circle cx=\"160\" cy=\"430\" r=\"190\" fill=\"url(#screen2)\"/>\n<g transform=\"translate(60 330) scale(1.2)\"><use href=\"#vasya\"/><use href=\"#v-open\"/></g>\n<g transform=\"translate(232 70) scale(.62)\"><use href=\"#lisa\"/></g></svg>\n<div class=\"note-card\" style=\"top:200px\">🤝 <b>Взаимно!</b> Лиза хочет пообщаться</div>\n<div class=\"bubble down-r\" style=\"top:236px;left:16px;right:80px\">Ты тоже новенькая? Я тоже боюсь идти одна…</div>\n<div class=\"cap\" style=\"bottom:110px;left:16px;right:16px;font-size:17px\">Продолжение — завтра</div>"
    }
   ]
