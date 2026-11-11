@@ -668,6 +668,16 @@ export const App: React.FC = () => {
         setGameLaunch(target.game);
         setCurrentScreen(prev => (prev === 'main' ? 'games' : prev));
       }
+      // Ссылка на серию (Reels, сторис, посты): сразу эта серия, а не вышла ещё — свежая из вышедших.
+      // Новичку тоже: сначала то, за чем пришёл, после серии — правила и анкета. Премьеру поверх уже не показываем
+      if (target.serial !== undefined && (SERIAL_PUBLIC || isAdminRef.current)) {
+        const out = EPISODES.filter((e) => isReleased(e));
+        const ep = out.find((e) => e.n === target.serial) || out[out.length - 1];
+        if (ep) {
+          closeIntro();
+          setSerialPlaying({ ep, source: 'link' });
+        }
+      }
       if (target.tab === 'places') {
         setCurrentScreen(prev => (prev === 'main' ? 'places' : prev));
       }
