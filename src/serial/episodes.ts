@@ -98,14 +98,17 @@ export const EPISODES: SerialEpisode[] = [
   "releaseAt": "2026-11-12T07:00:00Z",
   "color": "#E2A03F",
   "thumb": "lisa",
+  "endAudio": ["ep3/ep3-f6-narr.mp3"],
   "question": {"kind": "guess", "text": "Кто чихает в углу?", "options": [{"id": "pechka", "label": "🔥 Печка"}, {"id": "stas", "label": "🤧 Стас"}, {"id": "tractor", "label": "🚜 Тракторыч"}], "answer": "pechka", "reveal": "Чихнула Печка, наш сервер 🔥"},
   "frames": [
    {
     "dur": 5000,
+    "audio": ["ep3/ep3-f1-narr.mp3"],
     "html": "<svg viewBox=\"0 0 360 640\" preserveAspectRatio=\"xMidYMid slice\" aria-hidden=\"true\"><rect width=\"360\" height=\"640\" fill=\"#E2A03F\"/><g fill=\"#C98A2E\"><circle cx=\"40\" cy=\"300\" r=\"3\"/><circle cx=\"310\" cy=\"250\" r=\"3\"/><circle cx=\"80\" cy=\"380\" r=\"2.5\"/><circle cx=\"290\" cy=\"360\" r=\"2.5\"/></g>\n<path d=\"M0 560 Q180 520 360 560 V640 H0Z\" fill=\"#C98A2E\"/><g transform=\"translate(-6 360) scale(1.05)\"><use href=\"#vasya\"/><use href=\"#v-smile\"/></g><g transform=\"translate(150 360) scale(1.05)\"><use href=\"#lisa\"/></g></svg>\n<div class=\"cover-title\"><div class=\"ep\">Серия 3 из 20</div><h3>Не Одна<br>Дома</h3><p>Серия, где Васька зовёт с собой</p></div>"
    },
    {
-    "dur": 8000,
+    "dur": 9000,
+    "audio": ["ep3/ep3-f2-narr.mp3", "ep3/ep3-f2-misha.mp3"],
     "try": {
      "label": "Попробовать: «На связи»",
      "to": "matches"
@@ -113,15 +116,18 @@ export const EPISODES: SerialEpisode[] = [
     "html": "<svg viewBox=\"0 0 360 640\" preserveAspectRatio=\"xMidYMid slice\" aria-hidden=\"true\"><rect width=\"360\" height=\"640\" fill=\"#F6E2BD\"/><g fill=\"#EBCB95\"><circle cx=\"30\" cy=\"90\" r=\"4\"/><circle cx=\"330\" cy=\"140\" r=\"4\"/><circle cx=\"320\" cy=\"520\" r=\"4\"/><circle cx=\"50\" cy=\"300\" r=\"3\"/></g>\n<g transform=\"translate(160 250)\"><rect width=\"176\" height=\"150\" rx=\"22\" fill=\"#FFFDF9\" stroke=\"#2B2623\" stroke-width=\"3\"/>\n<text x=\"88\" y=\"40\" text-anchor=\"middle\" font-family=\"-apple-system, Plus Jakarta Sans, sans-serif\" font-size=\"15\" font-weight=\"700\" fill=\"#2B2623\">👯 Пойдём вместе?</text>\n<text x=\"88\" y=\"66\" text-anchor=\"middle\" font-family=\"-apple-system, Plus Jakarta Sans, sans-serif\" font-size=\"12\" fill=\"#6B635C\">Кофе и поболтать</text>\n<text x=\"88\" y=\"84\" text-anchor=\"middle\" font-family=\"-apple-system, Plus Jakarta Sans, sans-serif\" font-size=\"12\" fill=\"#6B635C\">завтра, 12:00</text>\n<rect x=\"24\" y=\"100\" width=\"128\" height=\"34\" rx=\"17\" fill=\"#D95C3C\"/><text x=\"88\" y=\"123\" text-anchor=\"middle\" font-family=\"-apple-system, Plus Jakarta Sans, sans-serif\" font-size=\"14\" font-weight=\"700\" fill=\"#fff\">Позвать Лизу</text></g>\n<g transform=\"translate(-20 345) scale(1.05)\"><use href=\"#misha\"/></g></svg>\n<div class=\"cap\" style=\"top:28px\">В прошлой серии: Лиза тоже боится идти одна.</div>\n<div class=\"bubble down\" style=\"top:88px;left:16px;right:110px\">Вдвоём не страшно! Позови кого-то из «На связи» на сходку с собой.</div>"
    },
    {
-    "dur": 7500,
+    "dur": 8500,
+    "audio": ["ep3/ep3-f3-narr.mp3", "ep3/ep3-f3-kris.mp3"],
     "html": "<svg viewBox=\"0 0 360 640\" preserveAspectRatio=\"xMidYMid slice\" aria-hidden=\"true\"><rect width=\"360\" height=\"640\" fill=\"#EAD3B5\"/><rect x=\"24\" y=\"60\" width=\"312\" height=\"190\" rx=\"8\" fill=\"#B9D3DB\" stroke=\"#2B2623\" stroke-width=\"4\"/>\n<path d=\"M180 60 V250 M24 155 H336\" stroke=\"#2B2623\" stroke-width=\"4\"/><rect y=\"520\" width=\"360\" height=\"120\" fill=\"#C8925C\"/>\n<g transform=\"translate(-30 330) scale(.95)\"><use href=\"#vasya\"/><use href=\"#v-open\"/></g>\n<g transform=\"translate(70 345) scale(.9)\"><use href=\"#lisa\"/></g>\n<g transform=\"translate(180 300) scale(1.05)\"><use href=\"#kira\"/></g>\n<rect x=\"0\" y=\"540\" width=\"360\" height=\"22\" fill=\"#A8743F\" stroke=\"#2B2623\" stroke-width=\"3\"/>\n<g transform=\"translate(120 506)\"><rect width=\"26\" height=\"30\" rx=\"4\" fill=\"#FFF6E6\" stroke=\"#2B2623\" stroke-width=\"2.5\"/><path d=\"M26 8 q10 0 10 9 q0 9 -10 9\" fill=\"none\" stroke=\"#2B2623\" stroke-width=\"2.5\"/></g></svg>\n<div class=\"cap\" style=\"top:28px\">Суббота. Кофейня. Они пришли вдвоём.</div>\n<div class=\"bubble down-r\" style=\"top:192px;left:96px;right:16px\">О, опять новенькие. Спорим, второй раз не придёте?</div>"
    },
    {
     "dur": 7500,
+    "audio": ["ep3/ep3-f4-dima.mp3", "ep3/ep3-f4-kris.mp3"],
     "html": "<svg viewBox=\"0 0 360 640\" preserveAspectRatio=\"xMidYMid slice\" aria-hidden=\"true\"><rect width=\"360\" height=\"640\" fill=\"#EAD3B5\"/><rect x=\"24\" y=\"60\" width=\"312\" height=\"190\" rx=\"8\" fill=\"#B9D3DB\" stroke=\"#2B2623\" stroke-width=\"4\"/>\n<path d=\"M180 60 V250 M24 155 H336\" stroke=\"#2B2623\" stroke-width=\"4\"/><rect y=\"520\" width=\"360\" height=\"120\" fill=\"#C8925C\"/>\n<g transform=\"translate(-36 360) scale(.85)\"><use href=\"#kira\"/></g>\n<g transform=\"translate(130 300) scale(1.2)\"><use href=\"#dima\"/></g>\n<rect x=\"0\" y=\"540\" width=\"360\" height=\"22\" fill=\"#A8743F\" stroke=\"#2B2623\" stroke-width=\"3\"/></svg>\n<div class=\"bubble down-r\" style=\"top:150px;left:90px;right:16px\">Не слушайте Крысу. Она сама тут каждую неделю 😄</div>\n<div class=\"bubble down\" style=\"top:290px;left:16px;right:190px\">Я Крис!</div>"
    },
    {
-    "dur": 6500,
+    "dur": 8000,
+    "audio": ["ep3/ep3-f5-narr.mp3", "ep3/ep3-f5-sneeze.mp3", "ep3/ep3-f5-narr2.mp3"],
     "html": "<svg viewBox=\"0 0 360 640\" preserveAspectRatio=\"xMidYMid slice\" aria-hidden=\"true\"><defs><radialGradient id=\"warm3\"><stop offset=\"0\" stop-color=\"#E2A03F\" stop-opacity=\".8\"/><stop offset=\"1\" stop-color=\"#E2A03F\" stop-opacity=\"0\"/></radialGradient></defs>\n<rect width=\"360\" height=\"640\" fill=\"#14182A\"/>\n<g opacity=\".35\"><g transform=\"translate(-30 330) scale(.95)\"><use href=\"#vasya\"/><use href=\"#v-worry\"/></g><g transform=\"translate(180 330) scale(.95)\"><use href=\"#dima\"/></g></g>\n<circle class=\"glow\" cx=\"300\" cy=\"580\" r=\"90\" fill=\"url(#warm3)\"/>\n<g class=\"blink\"><ellipse cx=\"284\" cy=\"574\" rx=\"9\" ry=\"11\" fill=\"#fff\"/><ellipse cx=\"314\" cy=\"574\" rx=\"9\" ry=\"11\" fill=\"#fff\"/><circle cx=\"280\" cy=\"576\" r=\"4.5\" fill=\"#2B2623\"/><circle cx=\"310\" cy=\"576\" r=\"4.5\" fill=\"#2B2623\"/></g>\n<text x=\"180\" y=\"200\" text-anchor=\"middle\" font-family=\"Caveat, cursive\" font-size=\"58\" fill=\"#FFF6E6\" transform=\"rotate(-6 180 200)\">А-А-АПЧХИ!</text></svg>\n<div class=\"cap\" style=\"top:28px\">И тут у всех мигнули телефоны…</div>\n<div class=\"cap\" style=\"bottom:120px;left:16px;right:120px;font-size:17px\">Кто чихает в углу? Узнаем завтра</div>"
    }
   ]
