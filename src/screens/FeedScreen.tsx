@@ -1,6 +1,6 @@
 import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2, Undo2, X } from 'lucide-react';
+import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2, X } from 'lucide-react';
 import { AppEvent, JoinOptions, MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType, useWaveState, WavesLeftNote, WavesOutCard } from '../components/common/Reactions';
@@ -656,18 +656,35 @@ const PersonReel: React.FC<{
           </div>
         )}
 
-        <h2 className="flex items-center gap-1 font-serif font-bold text-title leading-tight">
-          <span className="truncate">
-            {user.firstName}
-            {user.age ? <span className="font-sans font-medium text-zine-inkMuted">, {user.age}</span> : null}
-          </span>
-          <ChevronRight size={22} className="shrink-0 text-zine-inkMuted/70" aria-hidden />
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="flex-1 min-w-0 flex items-center gap-1 font-serif font-bold text-title leading-tight">
+            <span className="truncate">
+              {user.firstName}
+              {user.age ? <span className="font-sans font-medium text-zine-inkMuted">, {user.age}</span> : null}
+            </span>
+            <ChevronRight size={22} className="shrink-0 text-zine-inkMuted/70" aria-hidden />
+          </h2>
+          {/* «Удалить» из «На связи» — видно сразу, но маленькое и в стороне от «Написать»; спрашиваем на месте кнопок */}
+          {user.isMatch && onUnmatch && !isConfirmingUnmatch && (
+            <button
+              onClick={() => {
+                telegramService.haptic('warning');
+                setIsConfirmingUnmatch(true);
+              }}
+              className="shrink-0 h-8 pl-2 pr-2.5 rounded-full border border-zine-border text-zine-inkMuted text-cap font-semibold flex items-center gap-1 cursor-pointer active:scale-95 transition-transform"
+            >
+              <X size={14} />
+              {FEED_TEXTS.unmatch}
+            </button>
+          )}
+        </div>
         {/* Только район: расстояние считается от центра района и часто не сходится с жизнью */}
         <p className="mt-0.5 flex items-center gap-1.5 text-sm2 text-zine-inkMuted">
           <MapPin size={16} className="shrink-0" />
           <span className="truncate">{user.isTourist ? 'В Минске проездом' : user.areaName || 'Минск'}</span>
         </p>
+        {/* В «На связи» человек уже знаком: интересы прячем (они в полной анкете), чтобы фото и кнопки «как начать разговор» влезли */}
+        {!user.isMatch && (
         <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
           {/* Общие со мной интересы — первыми, с горчичной обводкой; затем «обычно хожу» и остальное */}
           {goals.filter((g) => common.has(g.id)).map((goal) => (
@@ -686,6 +703,7 @@ const PersonReel: React.FC<{
             </span>
           ))}
         </div>
+        )}
         {/* Почему показан: общие «Хочу сходить» и сходки */}
         {/* Не влезает в ширину — листается вправо; «Тоже хочет» (всегда последний) открывает, кто ещё хочет */}
         {user.why && user.why.length > 0 && (
@@ -714,7 +732,7 @@ const PersonReel: React.FC<{
             })}
           </div>
         )}
-        {user.bio && <p className="mt-2 text-sm2 text-zine-inkMuted line-clamp-2">{user.bio}</p>}
+        {user.bio && <p className={`mt-2 text-sm2 text-zine-inkMuted ${user.isMatch ? 'line-clamp-1' : 'line-clamp-2'}`}>{user.bio}</p>}
         {user.isMatch && !user.username && <p className="mt-2 text-cap text-zine-inkMuted/70">🤝 У человека нет @username, ссылку прислал бот в чате.</p>}
       </div>
 
@@ -766,25 +784,13 @@ const PersonReel: React.FC<{
             </div>
           )}
           <div className="flex gap-2">
-            {onUnmatch && (
-              <button
-                onClick={() => {
-                  telegramService.haptic('warning');
-                  setIsConfirmingUnmatch(true);
-                }}
-                className="flex-1 h-12 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Undo2 size={20} />
-                {FEED_TEXTS.unmatch}
-              </button>
-            )}
             {user.username && (
               <button
                 onClick={() => {
                   telegramService.haptic('medium');
                   telegramService.openChat(user.username);
                 }}
-                className="flex-[1.6] h-12 rounded-full bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 h-12 rounded-full bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Send size={20} />
                 Написать
