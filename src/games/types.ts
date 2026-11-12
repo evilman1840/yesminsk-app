@@ -9,7 +9,8 @@ export interface GamePlayer {
   online: boolean;
   away?: boolean; // свернул приложение
   isBot?: boolean;
-  level?: string;      // у бота: «полегче» или «посложнее»
+  level?: string;
+  username?: string;   // только в партиях из «На связи»: «Написать» после партии      // у бота: «полегче» или «посложнее»
 }
 
 export type GameStatus = 'searching' | 'waiting' | 'active' | 'finished' | 'cancelled';
@@ -32,6 +33,7 @@ export interface GameView {
   id: string;
   game: string;
   mode: 'random' | 'invite' | 'bot';
+  source?: 'match';    // позвали из «На связи»
   status: GameStatus;
   v?: number;          // версия партии на сервере: растёт с каждым изменением
   inviteCode?: string;
@@ -83,6 +85,7 @@ export interface SeaView {
   id: string;
   game: 'sea';
   mode: 'random' | 'invite' | 'bot';
+  source?: 'match';
   status: GameStatus;
   phase: 'placing' | 'battle';
   placeLeft?: number; // мс до конца расстановки

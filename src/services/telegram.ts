@@ -424,7 +424,7 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; together?: boolean; wishGroupId?: string; serial?: number; game?: { id?: string; code?: string; tractor?: boolean; sea?: { id?: string; code?: string } } } {
+  getLaunchTarget(): { eventId?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; together?: boolean; hello?: boolean; duel?: boolean; wishGroupId?: string; serial?: number; game?: { id?: string; code?: string; tractor?: boolean; sea?: { id?: string; code?: string } } } {
     const params = new URLSearchParams(window.location.search);
     const startParam = tg()?.initDataUnsafe?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
@@ -453,13 +453,20 @@ export const telegramService = {
       want,
       userId: params.get('user') || undefined, // «Посмотреть анкету» из «хочет пообщаться»
       together: params.get('together') === '1', // «👯 Пойдём вместе» из «Вы на связи!»: сразу шторка выбора сходки
+      hello: params.get('hello') === '1', // «✍️ Что написать» после жребия: шторка с готовыми фразами
+      duel: params.get('duel') === '1', // «🎲 Сыграть» из «Вы на связи!»: выбор игры
       wishGroupId: params.get('wishGroup') || undefined, // «Кто ещё хочет» из «Хочу сходить»
       // Сериал из Инстаграма и постов: startapp=serial_2 (?serial=2) — эта серия, startapp=serial (?serial=0) — свежая вышедшая
       serial: startParam === 'serial' ? 0 : /^serial_\d+$/.test(startParam) ? Number(startParam.slice(7)) : params.has('serial') ? Number(params.get('serial')) || 0 : undefined,
       // Игры: «Твой ход» от бота (?game=<id>), приглашение знакомого (startapp=game_<код>), просто раздел (?tab=games, startapp=games)
       // «Трактор в Минске»: ссылка startapp=tractor (?play=tractor) открывает его первый экран
       // «Морской бой»: «Заходи» от бота (?sea=<id>), приглашение знакомого (startapp=sea_<код>), просто игра (startapp=sea)
-      game: params.get('sea')
+      // «🎲 Играть» от бота, когда позвали из «На связи»: ?gameCode=<код> / ?seaCode=<код>
+      game: params.get('seaCode')
+        ? { sea: { code: params.get('seaCode') || undefined } }
+        : params.get('gameCode')
+        ? { code: params.get('gameCode') || undefined }
+        : params.get('sea')
         ? { sea: { id: params.get('sea') || undefined } }
         : startParam.startsWith('sea_')
         ? { sea: { code: startParam.slice(4) } }
@@ -556,10 +563,11 @@ export const telegramService = {
     this.openChat(BOT);
   },
 
-  openChat(username?: string) {
+  // text — уже набранное сообщение (t.me/{username}?text=…)
+  openChat(username?: string, text?: string) {
     if (!username) return;
     const cleanUsername = username.replace(/^@/, '');
-    const url = `https://t.me/${cleanUsername}`;
+    const url = `https://t.me/${cleanUsername}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
     
     const webapp = tg();
     if (webapp?.initData && webapp.openTelegramLink) {

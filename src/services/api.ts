@@ -256,7 +256,7 @@ class ApiService {
   async reactToUser(
     targetTelegramId: number,
     type: 'like' | 'dislike'
-  ): Promise<{ success: boolean; isMatch: boolean; user?: UserProfile }> {
+  ): Promise<{ success: boolean; isMatch: boolean; user?: UserProfile; firstMove?: 'me' | 'them' | null }> {
     return this.request('/reactions', {
       method: 'POST',
       body: JSON.stringify({ targetTelegramId, type })
@@ -264,6 +264,23 @@ class ApiService {
   }
 
   // «Отменить» в «На связи»: снять свой 👋
+  // «✍️ Что написать»: три готовые фразы для человека «На связи»
+  async getHello(friendId: number): Promise<{ friend: { telegramId: number; firstName: string; username: string; avatarUrl?: string }; phrases: string[]; firstMove: 'me' | 'them' | null }> {
+    return this.request(`/hello/${friendId}`);
+  }
+  pickHello(friendId: number) {
+    return this.request(`/hello/${friendId}/pick`, { method: 'POST', keepalive: true }, true).catch(() => {});
+  }
+
+  // «Готово, проверь»: сервер спрашивает @username у Telegram (initData в открытом приложении старый)
+  async checkUsername(): Promise<{ username: string | null }> {
+    return this.request('/users/me/username-check', { method: 'POST' });
+  }
+  // Шторки перед первым 👋 — для статистики
+  waveGateEvent(event: 'gender_shown' | 'gender_done' | 'username_shown' | 'username_done' | 'left') {
+    this.request('/users/me/wave-gate', { method: 'POST', body: JSON.stringify({ event }) }, true).catch(() => {});
+  }
+
   async unmatchUser(targetTelegramId: number): Promise<void> {
     await this.request('/reactions/unmatch', { method: 'POST', body: JSON.stringify({ targetTelegramId }) });
   }
@@ -648,8 +665,14 @@ class ApiService {
     return this.request<GameView>('/games/search', { method: 'POST', body: JSON.stringify({ incognito }) });
   }
 
-  async gameInvite(incognito: boolean): Promise<GameView> {
-    return this.request<GameView>('/games/invite', { method: 'POST', body: JSON.stringify({ incognito }) });
+  // toTelegramId — позвать человека из «На связи»: бот напишет ему сам (delivered — дошло ли)
+  async gameInvite(incognito: boolean, toTelegramId?: number): Promise<GameView & { delivered?: boolean }> {
+    return this.request('/games/invite', { method: 'POST', body: JSON.stringify({ incognito, toTelegramId }) });
+  }
+
+  // После партии из «На связи» нажали «Написать»
+  gameWrote(id: string, game: 'five' | 'sea') {
+    return this.request(`/${game === 'sea' ? 'sea' : 'games'}/${id}/wrote`, { method: 'POST', keepalive: true }, true).catch(() => {});
   }
 
   async gameJoin(code: string, incognito: boolean): Promise<GameView> {
@@ -721,8 +744,8 @@ class ApiService {
     return this.request<SeaView>('/sea/search', { method: 'POST', body: JSON.stringify({ incognito }) });
   }
 
-  async seaInvite(incognito: boolean): Promise<SeaView> {
-    return this.request<SeaView>('/sea/invite', { method: 'POST', body: JSON.stringify({ incognito }) });
+  async seaInvite(incognito: boolean, toTelegramId?: number): Promise<SeaView & { delivered?: boolean }> {
+    return this.request('/sea/invite', { method: 'POST', body: JSON.stringify({ incognito, toTelegramId }) });
   }
 
   async seaJoin(code: string, incognito: boolean): Promise<SeaView> {

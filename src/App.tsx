@@ -15,6 +15,8 @@ import { GenderPrompt } from './components/common/GenderPrompt';
 import { ACCOUNT_TEXTS } from './texts/account';
 import { AddToHomeSheet } from './components/common/AddToHomeSheet';
 import { OpenUserContext } from './context/openUser';
+import { GoTogetherContext } from './context/connect';
+import { HelloSheet, DuelSheet, UsernameSheet, markCoinSeen } from './components/common/ConnectSheets';
 import { askBotAccess, setBotAccessKnown, botAccessOk, onBotAccessChange } from './services/botAccess';
 import { PeopleFilters, loadFilters, saveFilters, filterQuery } from './components/people/PeopleFilters';
 import { WantNowButton } from './components/common/WantNowButton';
@@ -177,6 +179,7 @@ export const App: React.FC = () => {
   const [likedMe, setLikedMe] = useState<UserProfile[]>([]);
   const [matches, setMatches] = useState<UserProfile[]>([]);
   const [matchPopupUser, setMatchPopupUser] = useState<UserProfile | null>(null);
+  const [matchCoin, setMatchCoin] = useState<'me' | 'them' | null>(null); // жребий «кто пишет первым» для «Вы на связи!»
   // Сериал «Не Одна Дома»: какая серия сейчас играет и откуда её открыли
   const [serialPlaying, setSerialPlaying] = useState<{ ep: SerialEpisode; source: SerialSource; frame?: number } | null>(null);
   // Нажал «Попробовать» — серия ждёт: после доната продолжится сама, после перехода на экран — плашка «Досмотреть»
@@ -214,6 +217,12 @@ export const App: React.FC = () => {
   const [sharedEventBuddy, setSharedEventBuddy] = useState(false); // «Позвать ещё» от бота: открыть сходку сразу с «👯 Позвать с собой»
   const [goTogetherWith, setGoTogetherWith] = useState<UserProfile | null>(null); // «👯 Пойдём на сходку вместе» из «На связи»
   const [goTogetherFromBot, setGoTogetherFromBot] = useState(false); // шторку открыли кнопкой из «Вы на связи!»
+  // «✍️ Что написать» и «🎲 Сыграть» с человеком «На связи»
+  const [helloWith, setHelloWith] = useState<{ id: number; name: string } | null>(null);
+  const [duelWith, setDuelWith] = useState<{ id: number; name: string } | null>(null);
+  // Перед первым 👋: пол, потом @username. 👋 уйдёт сам, когда всё есть; «Потом» — без 👋
+  const [waveGate, setWaveGate] = useState<{ user: UserProfile; step: 'gender' | 'username' } | null>(null);
+  const waveGateResolve = useRef<((ok: boolean) => void) | null>(null);
 
   // Новости проекта и счётчик непрочитанных
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -294,16 +303,6 @@ export const App: React.FC = () => {
   const [initialPlaceId, setInitialPlaceId] = useState<string | null>(null);
   // Открыть форму сходки: из карточки места, по ссылке из бота или поста
   const [isAgePromptDismissed, setIsAgePromptDismissed] = useState(false);
-  // Пол выбран в окне «Кто ты?»: в анкету кладём, когда окно закроется (иначе оно исчезнет до шага 2)
-  const [genderSavedInPrompt, setGenderSavedInPrompt] = useState<Gender | null>(null);
-  // «Позже» в окне «Кто ты?» — не спрашиваем 3 дня
-  const [isGenderPromptDismissed, setIsGenderPromptDismissed] = useState(() => {
-    try {
-      return Date.now() - Number(localStorage.getItem('yesminsk_gender_later') || 0) < 3 * 24 * 60 * 60 * 1000;
-    } catch {
-      return false;
-    }
-  });
   // Для openUserById: актуальные списки без пересоздания функции
   const usersRef = useRef<UserProfile[]>([]);
   const likedMeRef = useRef<UserProfile[]>([]);
@@ -706,7 +705,9 @@ export const App: React.FC = () => {
             if (target.together && u.isMatch) {
               setGoTogetherFromBot(true);
               setGoTogetherWith(u);
-            } else setSelectedUser(u);
+            } else if (target.hello && u.isMatch && u.username) setHelloWith({ id: u.telegramId, name: u.firstName });
+            else if (target.duel && u.isMatch && gamesOpenRef.current) setDuelWith({ id: u.telegramId, name: u.firstName });
+            else setSelectedUser(u);
           })
           .catch(() => setLaunchNotice({ title: 'Анкета не найдена', text: 'Эта анкета скрыта или удалена. Загляни в «Люди», там есть и другие.', tab: 'feed' }));
       }
@@ -888,6 +889,19 @@ export const App: React.FC = () => {
       .catch(() => telegramService.alert('Эта анкета скрыта или удалена'));
   }, []);
 
+  // «👯 Пойдём вместе» по id (например, после партии с человеком «На связи»)
+  const goTogetherById = useCallback((telegramId: number) => {
+    const known = matchesRef.current.find((u) => u.telegramId === telegramId);
+    if (known) {
+      setGoTogetherWith(known);
+      return;
+    }
+    api
+      .getPublicUser(String(telegramId))
+      .then((u) => u?.isMatch && setGoTogetherWith(u))
+      .catch(() => {});
+  }, []);
+
   // «Пропустить» свайпом: убираем из ленты сейчас, вернётся через 3 дня
   const handleSkip = (user: UserProfile) => {
     const id = user.telegramId;
@@ -900,7 +914,38 @@ export const App: React.FC = () => {
     api.skipUser(user.telegramId, true).catch(() => {});
   };
 
+  // Шторки перед 👋: ждём, пока человек ответит. true — 👋 ушёл
+  const openWaveGate = (user: UserProfile, step: 'gender' | 'username') =>
+    new Promise<boolean>((resolve) => {
+      waveGateResolve.current?.(false);
+      waveGateResolve.current = resolve;
+      if (step === 'gender') api.waveGateEvent('gender_shown'); // username_shown отмечает сама шторка
+      setWaveGate({ user, step });
+    });
+  const finishWaveGate = () => {
+    const gate = waveGate;
+    const resolve = waveGateResolve.current;
+    waveGateResolve.current = null;
+    setWaveGate(null);
+    if (gate) sendReaction(gate.user, 'like').then((ok) => resolve?.(ok));
+    else resolve?.(false);
+  };
+  const leaveWaveGate = () => {
+    api.waveGateEvent('left');
+    waveGateResolve.current?.(false);
+    waveGateResolve.current = null;
+    setWaveGate(null);
+  };
+
   const handleReact = async (user: UserProfile, type: ReactionType): Promise<boolean> => {
+    if (type === 'like') {
+      if (!currentUser.genderConfirmed) return openWaveGate(user, 'gender');
+      if (!currentUser.username) return openWaveGate(user, 'username');
+    }
+    return sendReaction(user, type);
+  };
+
+  const sendReaction = async (user: UserProfile, type: ReactionType): Promise<boolean> => {
     // 👋 — чтобы бот смог сообщить, когда ответят взаимно
     if (type === 'like') askBotAccess();
     try {
@@ -930,10 +975,18 @@ export const App: React.FC = () => {
           localStorage.setItem('yesminsk_seen_matches', JSON.stringify([...seen, id]));
         } catch (e) {}
         telegramService.haptic('success');
+        setMatchCoin(result.firstMove || null);
+        if (result.firstMove) markCoinSeen(id); // монетку уже видел здесь — в «Что написать» сразу итог
         setMatchPopupUser(updated);
       }
       return true;
     } catch (err: any) {
+      // Сервер не видит пола или @username (например, анкету меняли с другого устройства) — те же шторки
+      if (err?.data?.code === 'NEED_GENDER' || err?.data?.code === 'NEED_USERNAME') {
+        const step = err.data.code === 'NEED_GENDER' ? 'gender' : 'username';
+        setCurrentUser((prev) => (step === 'gender' ? { ...prev, genderConfirmed: false } : { ...prev, username: undefined }));
+        return openWaveGate(user, step);
+      }
       // Дневной лимит 👋: в анкете вместо кнопки появится карточка, здесь — то же предложение заглянуть в сходки
       if (err?.data?.code === 'DAILY_WAVE_LIMIT') {
         setWaveQuota(err.data.waves);
@@ -1233,12 +1286,6 @@ export const App: React.FC = () => {
     // «👯 Пойдём вместе»: есть кто-то «На связи» — напоминаем, что на сходку можно позвать его.
     // В «Людях» не нужно: там кнопка прямо под анкетой
     matches.length > 0 && currentScreen !== 'feed' && { id: 'buddy', text: buddyTip.card, hideDays: 7, onClick: () => setNoticeSheet('buddy') },
-    !currentUser.genderConfirmed && isGenderPromptDismissed && {
-      id: 'gender',
-      text: NOTICE_TEXTS.gender,
-      hideDays: 7,
-      onClick: () => setIsGenderPromptDismissed(false)
-    },
     (!hasOwnPhoto || currentUser.bio.trim().length < 10) && {
       id: 'profile',
       text: NOTICE_TEXTS.profile,
@@ -1293,6 +1340,7 @@ export const App: React.FC = () => {
 
   return (
     <OpenUserContext.Provider value={openUserById}>
+    <GoTogetherContext.Provider value={goTogetherById}>
     <AdminContext.Provider value={isAdmin}>
     <YMaps
       query={{
@@ -1431,6 +1479,8 @@ export const App: React.FC = () => {
                 onReact={handleReact}
                 onUnmatch={handleUnmatch}
                 onGoTogether={(u) => setGoTogetherWith(u)}
+                onHello={(u) => setHelloWith({ id: u.telegramId, name: u.firstName })}
+                onDuel={gamesOpen ? (u) => setDuelWith({ id: u.telegramId, name: u.firstName }) : undefined}
                 onSkip={handleSkip}
                 onUnskip={handleUnskip}
                 onOpenWishKind={(kind, sport) => setWishKind({ kind, sport })}
@@ -1588,6 +1638,19 @@ export const App: React.FC = () => {
             />
           )}
 
+          {helloWith && <HelloSheet friendId={helloWith.id} name={helloWith.name} myAvatarUrl={currentUser.avatarUrl} onClose={() => setHelloWith(null)} />}
+          {duelWith && (
+            <DuelSheet
+              friendId={duelWith.id}
+              name={duelWith.name}
+              onClose={() => setDuelWith(null)}
+              onStarted={({ game, id }) => {
+                setDuelWith(null);
+                openGames(game === 'sea' ? { sea: { id } } : { id });
+              }}
+            />
+          )}
+
           {/* Пока открыта анкета из списка — список спрятан, после закрытия анкеты вернётся */}
           {wishKind && !selectedUser && (
             <WishKindSheet
@@ -1710,7 +1773,7 @@ export const App: React.FC = () => {
           )}
 
           {/* Не поверх других окон: дождётся, пока их закроют */}
-          {isHostDonateOpen && isTab && currentUser.ageConfirmed && (currentUser.genderConfirmed || isGenderPromptDismissed) && currentUser.legalVersion === LEGAL_VERSION && !isHomeTipOpen && !isDonateOpen && !sharedEvent && !matchPopupUser && !selectedUser && (
+          {isHostDonateOpen && isTab && currentUser.ageConfirmed && currentUser.legalVersion === LEGAL_VERSION && !isHomeTipOpen && !isDonateOpen && !sharedEvent && !matchPopupUser && !selectedUser && (
             <HostDonateSheet onClose={() => setIsHostDonateOpen(false)} />
           )}
 
@@ -1727,26 +1790,30 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* Пол не выбран: спрашиваем после возраста, даже если анкета заполнена не до конца (за вход — не больше одного окна) */}
-          {isMeLoaded && isTab && currentScreen !== 'profile_edit' && currentUser.ageConfirmed && !currentUser.genderConfirmed && currentUser.legalVersion === LEGAL_VERSION && !isGenderPromptDismissed && !isHomeTipOpen && !sharedEvent && !matchPopupUser && (
+          {/* Перед первым 👋: пол (можно «не указывать»), потом @username — иначе ответить будет некуда */}
+          {waveGate?.step === 'gender' && (
             <GenderPrompt
               myAge={Number(currentUser.age) || 25}
               onSave={async (gender) => {
                 await api.updateProfile({ gender, genderConfirmed: true });
-                // Пол сохраняем в анкете сразу, но окно не закрываем: дальше шаг «С кем комфортно»
-                setGenderSavedInPrompt(gender);
               }}
-              onSavePrefs={async (prefs) => {
-                await api.updateProfile(prefs);
-                setCurrentUser((prev) => ({ ...prev, ...prefs }));
+              onSavePrefs={async () => {}}
+              onChosen={(gender) => {
+                api.waveGateEvent('gender_done');
+                setCurrentUser((prev) => ({ ...prev, gender, genderConfirmed: true }));
+                if (currentUser.username) finishWaveGate();
+                else setWaveGate((g) => (g ? { ...g, step: 'username' } : g));
               }}
-              onClose={() => {
-                setIsGenderPromptDismissed(true);
-                if (genderSavedInPrompt) setCurrentUser((prev) => ({ ...prev, gender: genderSavedInPrompt, genderConfirmed: true }));
-                try {
-                  localStorage.setItem('yesminsk_gender_later', String(Date.now()));
-                } catch {}
+              onClose={leaveWaveGate}
+            />
+          )}
+          {waveGate?.step === 'username' && (
+            <UsernameSheet
+              onDone={(username) => {
+                setCurrentUser((prev) => ({ ...prev, username }));
+                finishWaveGate();
               }}
+              onLater={leaveWaveGate}
             />
           )}
 
@@ -1817,6 +1884,8 @@ export const App: React.FC = () => {
             <MatchModal
               user={matchPopupUser}
               myAvatarUrl={currentUser.avatarUrl}
+              onHello={matchPopupUser.username ? () => setHelloWith({ id: matchPopupUser.telegramId, name: matchPopupUser.firstName }) : undefined}
+              coin={matchCoin}
               onClose={() => {
                 setMatchPopupUser(null);
                 playSerialJoy(); // взаимное «Пообщаться» — момент радости
@@ -1873,6 +1942,7 @@ export const App: React.FC = () => {
       </div>
     </YMaps>
     </AdminContext.Provider>
+    </GoTogetherContext.Provider>
     </OpenUserContext.Provider>
   );
 };

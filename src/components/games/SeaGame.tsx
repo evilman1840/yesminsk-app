@@ -10,7 +10,7 @@ import { GAME_TEXTS as GT } from '../../texts/games';
 import { SeaView, SeaPlayer, SeaLobby } from '../../games/types';
 import { askBotAccess } from '../../services/botAccess';
 import { SEA, SEA_LETTERS, randomFleet, rotateShip, fire, shotView, shipsLeft, emptyShots, botShot, SeaBotLevel, ShotResult } from '../../games/sea';
-import { formatElapsed, Toggle, PickRow, Avatar } from './GameBits';
+import { formatElapsed, Toggle, PickRow, Avatar, DuelAfter } from './GameBits';
 import { Celebration } from './Celebration';
 
 /**
@@ -1318,6 +1318,8 @@ const ResultCard: React.FC<{
           {T.toMenu}
         </button>
       </div>
+      {!blockedDone && <DuelAfter game={game} kind="sea" />}
+
       {(canOpen || (game.mode !== 'bot' && !blockedDone)) && (
         <div className="mt-3 pt-3 border-t border-zine-border flex flex-wrap gap-2 justify-center">
           {canOpen && (

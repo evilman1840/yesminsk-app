@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import { GamePlayer } from '../../games/types';
 import { GAME_TEXTS as T } from '../../texts/games';
+import { DUEL_TEXTS as D } from '../../texts/hello';
+import { useGoTogether } from '../../context/connect';
+import { telegramService } from '../../services/telegram';
+import { api } from '../../services/api';
 
 /** Общие кусочки экранов игр с людьми: «Крестики-Нолики» и «Морской бой» */
 
@@ -80,3 +84,45 @@ export const SayBar: React.FC<{ label: string; reply: { text: string; key: strin
     </div>
   </div>
 );
+
+/**
+ * После партии с человеком «На связи»: написать ему (фраза уже набрана) и «Пойдём вместе».
+ * Проигравший выбирает, куда пойдёте — фраза зависит от итога
+ */
+export const DuelAfter: React.FC<{
+  game: { id: string; source?: 'match'; me: number; winner: number; reason?: string; players: GamePlayer[] };
+  kind: 'five' | 'sea';
+}> = ({ game, kind }) => {
+  const goTogether = useGoTogether();
+  const opp = game.players[1 - game.me];
+  if (game.source !== 'match' || !opp?.telegramId || opp.incognito) return null;
+  const quit = game.reason === 'resign' || game.reason === 'left';
+  const phrase = quit || game.winner === -1 ? D.phraseDraw : game.winner === game.me ? D.phraseWin : D.phraseLose;
+  return (
+    <div className="mt-3 pt-3 border-t border-zine-border flex flex-col gap-2">
+      {opp.username && (
+        <button
+          onClick={() => {
+            telegramService.haptic('medium');
+            api.gameWrote(game.id, kind);
+            telegramService.openChat(opp.username, phrase);
+          }}
+          className="w-full h-12 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer active:scale-[0.98] transition-transform"
+        >
+          {D.write}
+        </button>
+      )}
+      {goTogether && (
+        <button
+          onClick={() => {
+            telegramService.haptic('selection');
+            goTogether(opp.telegramId!);
+          }}
+          className="w-full h-12 rounded-full border-2 border-zine-terracotta text-zine-terracotta text-body font-bold cursor-pointer active:scale-[0.98] transition-transform"
+        >
+          {D.together}
+        </button>
+      )}
+    </div>
+  );
+};

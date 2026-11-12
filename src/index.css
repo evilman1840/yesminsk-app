@@ -460,3 +460,41 @@ textarea.field {
 }
 /* Серия на паузе — замирают и анимации в кадре (моргание, пар, покачивание) */
 .serial-stage.paused * { animation-play-state: paused !important; }
+
+/* Жребий «кто пишет первым»: монетка подлетает, крутится и падает лицом того, кому писать.
+   --coin-end — сколько повернуть (целые обороты + 180°, если выпало второму) */
+.coin-stage { perspective: 600px; }
+.coin-toss { animation: coin-toss 1.7s cubic-bezier(.3, 0, .3, 1) both; }
+/* Вращение и вспышка при приземлении — одним правилом, иначе вторая анимация перебьёт первую */
+.coin-spin { transform-style: preserve-3d; transform: rotateX(var(--coin-end)); animation: coin-spin 1.45s cubic-bezier(.15, .6, .35, 1) both, coin-land .5s 1.45s ease-out both; }
+.coin-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.coin-back { transform: rotateX(180deg); }
+.coin-shadow { animation: coin-shadow 1.7s cubic-bezier(.3, 0, .3, 1) both; }
+.coin-result { animation: coin-result .45s 1.6s ease-out both; }
+@keyframes coin-toss {
+  0% { transform: translateY(0); }
+  42% { transform: translateY(-110px); }
+  80% { transform: translateY(0); }
+  88% { transform: translateY(-12px); }
+  100% { transform: translateY(0); }
+}
+@keyframes coin-spin {
+  from { transform: rotateX(0deg); }
+  to { transform: rotateX(var(--coin-end)); }
+}
+@keyframes coin-shadow {
+  0%, 100% { transform: scaleX(1); opacity: .35; }
+  42% { transform: scaleX(.45); opacity: .12; }
+  80% { transform: scaleX(1); opacity: .35; }
+}
+@keyframes coin-land {
+  0% { box-shadow: 0 0 0 0 rgb(var(--c-mustard) / .7); }
+  100% { box-shadow: 0 0 0 18px rgb(var(--c-mustard) / 0); }
+}
+@keyframes coin-result {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coin-toss, .coin-spin, .coin-shadow, .coin-result { animation: none; }
+}

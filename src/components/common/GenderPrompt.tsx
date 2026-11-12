@@ -22,7 +22,7 @@ const Choice: React.FC<{ active: boolean; onClick: () => void; children: React.R
 );
 
 /**
- * Пол не выбран (стоит «Не скажу» по умолчанию): спрашиваем при входе.
+ * Пол не выбран (стоит «Не скажу» по умолчанию): спрашиваем перед первым 👋 (onChosen — после выбора 👋 уйдёт сам).
  * Шаг 2 — с кем комфортно гулять (пол и возраст компании), можно пропустить
  */
 export const GenderPrompt: React.FC<{
@@ -30,7 +30,8 @@ export const GenderPrompt: React.FC<{
   onSave: (gender: Gender) => Promise<void>;
   onSavePrefs: (prefs: { preferredGender: PreferredGender; preferredAgeRange: AgeRange }) => Promise<void>;
   onClose: () => void;
-}> = ({ myAge, onSave, onSavePrefs, onClose }) => {
+  onChosen?: (gender: Gender) => void; // перед первым 👋: сразу дальше, без шага «С кем комфортно»
+}> = ({ myAge, onSave, onSavePrefs, onClose, onChosen }) => {
   const [step, setStep] = useState<'gender' | 'prefs'>('gender');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +45,7 @@ export const GenderPrompt: React.FC<{
     try {
       await onSave(g);
       telegramService.haptic('success');
+      if (onChosen) return onChosen(g);
       setStep('prefs');
     } catch (err: any) {
       setError(err?.message || T.failed);

@@ -17,7 +17,7 @@ import { GamesHub } from '../components/games/GamesHub';
 import { SeaGame, SeaArt } from '../components/games/SeaGame';
 import { SeaLobby } from '../games/types';
 import { Celebration } from '../components/games/Celebration';
-import { formatElapsed, Toggle, PickRow, Avatar, SayBar } from '../components/games/GameBits';
+import { formatElapsed, Toggle, PickRow, Avatar, SayBar, DuelAfter } from '../components/games/GameBits';
 import { SIZE, emptyBoard, place, winLineAt, botMove, BotLevel } from '../games/five';
 
 /**
@@ -1214,7 +1214,7 @@ const BOT_WON = ['Это база', '💅', '🗿'];
 const BOT_LOST = ['😭', 'Это было больно 🥀', '🤯'];
 const BOT_DRAW = ['🤝', '🗿'];
 
-const ResultCard: React.FC<{
+export const ResultCard: React.FC<{
   game: GameView;
   rematchGone: boolean;
   blockedDone: boolean;
@@ -1285,6 +1285,8 @@ const ResultCard: React.FC<{
           {T.exitGame}
         </button>
       </div>
+
+      {!blockedDone && <DuelAfter game={game} kind="five" />}
 
       {(canOpen || (game.mode !== 'bot' && !blockedDone)) && (
         <div className="mt-3 pt-3 border-t border-zine-border flex flex-wrap gap-2 justify-center">

@@ -11,6 +11,7 @@ import { USERNAME_TEXTS } from '../texts/profile';
 import { PHOTO_TEXTS } from '../texts/photos';
 import { FEED_TEXTS } from '../texts/feed';
 import { BUDDY_TEXTS } from '../texts/buddies';
+import { HELLO_TEXTS, DUEL_TEXTS } from '../texts/hello';
 import { UndoToast } from '../components/ui/UndoToast';
 import { markPersonSeen } from '../utils/seenPeople';
 import { WishReel, pickReelWishes, reelSlotAfter } from '../components/common/WishReel';
@@ -38,6 +39,8 @@ export interface FeedScreenProps {
   onReact: (user: UserProfile, type: ReactionType) => Promise<unknown> | void;
   onUnmatch?: (user: UserProfile) => Promise<void>;        // «Отменить» в «На связи»
   onGoTogether?: (user: UserProfile) => void;              // «👯 Пойдём на сходку вместе» в «На связи»
+  onHello?: (user: UserProfile) => void;                   // «✍️ Что написать»: готовые фразы
+  onDuel?: (user: UserProfile) => void;                    // «🎲 Сыграть»: позвать в игру
   onSkip?: (user: UserProfile) => void;                    // свайп влево: пропустить на 3 дня
   onUnskip?: (user: UserProfile, index: number) => void;   // «Вернуть»
   onOpenWishKind?: (kind: string, sport?: string) => void; // нажали «Тоже хочет: …» — кто ещё хочет и «Собрать сходку»
@@ -81,6 +84,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   onReact,
   onUnmatch,
   onGoTogether,
+  onHello,
+  onDuel,
   onSkip,
   onUnskip,
   isTourist = false,
@@ -347,6 +352,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               onReact={onReact}
               onUnmatch={onUnmatch ? () => onUnmatch(user) : undefined}
               onGoTogether={onGoTogether ? () => onGoTogether(user) : undefined}
+              onHello={onHello && user.username ? () => onHello(user) : undefined}
+              onDuel={onDuel ? () => onDuel(user) : undefined}
               onOpenWishKind={onOpenWishKind}
               onSkip={() => {
                 setJustSkipped({ user, index: users.findIndex((u) => u.telegramId === user.telegramId) });
@@ -476,8 +483,10 @@ const PersonReel: React.FC<{
   onSkip: () => void;
   onUnmatch?: () => Promise<void>;
   onGoTogether?: () => void;
+  onHello?: () => void;
+  onDuel?: () => void;
   onOpenWishKind?: (kind: string, sport?: string) => void;
-}> = ({ user, tab, isFirst, myGoals, onOpen, onReact, onSkip, onUnmatch, onGoTogether, onOpenWishKind }) => {
+}> = ({ user, tab, isFirst, myGoals, onOpen, onReact, onSkip, onUnmatch, onGoTogether, onHello, onDuel, onOpenWishKind }) => {
   const [busy, setBusy] = useState<ReactionType | 'unmatch' | null>(null);
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
   const [isConfirmingUnmatch, setIsConfirmingUnmatch] = useState(false);
@@ -728,6 +737,33 @@ const PersonReel: React.FC<{
             >
               {BUDDY_TEXTS.goTogether}
             </button>
+          )}
+          {/* С чего начать разговор: готовые фразы или партия в игру */}
+          {(onHello || onDuel) && (
+            <div className="mb-2 flex gap-2">
+              {onHello && (
+                <button
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    onHello();
+                  }}
+                  className="flex-1 h-11 rounded-full bg-zine-mustard/20 text-zine-ink text-sm2 font-bold flex items-center justify-center cursor-pointer active:scale-[0.99] transition-transform"
+                >
+                  {HELLO_TEXTS.btn}
+                </button>
+              )}
+              {onDuel && (
+                <button
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    onDuel();
+                  }}
+                  className="flex-1 h-11 rounded-full bg-zine-mustard/20 text-zine-ink text-sm2 font-bold flex items-center justify-center cursor-pointer active:scale-[0.99] transition-transform"
+                >
+                  {DUEL_TEXTS.btn}
+                </button>
+              )}
+            </div>
           )}
           <div className="flex gap-2">
             {onUnmatch && (

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { HELLO_TEXTS } from '../../texts/hello';
+import { CoinFlip } from './CoinFlip';
 import { thumb } from '../../utils/thumb';
 import { Send, Lock, Loader2 } from 'lucide-react';
 import { UserProfile } from '../../types';
@@ -185,12 +187,15 @@ export const MatchModal: React.FC<{
   user: UserProfile;
   myAvatarUrl?: string;
   onClose: () => void;
-}> = ({ user, myAvatarUrl, onClose }) => {
+  onHello?: () => void; // «✍️ Что написать»: готовые фразы
+  coin?: 'me' | 'them' | null; // жребий «кто пишет первым»: монетка вместо двух фото
+}> = ({ user, myAvatarUrl, onClose, onHello, coin }) => {
   useBackButton(onClose);
   return (
   <div className="fixed inset-0 z-[60] flex items-center justify-center p-5">
     <div onClick={onClose} className="absolute inset-0 bg-black/55" />
     <div className="relative w-full max-w-[360px] bg-zine-cardElevated rounded-zine-lg p-6 shadow-zine-float text-center">
+      {coin ? null : (
       <div className="flex justify-center items-center mb-5 mt-1">
         {myAvatarUrl && (
           <img src={myAvatarUrl} alt="Ты" className="w-24 h-24 rounded-zine object-cover border-4 border-zine-cardElevated shadow-zine -rotate-6" />
@@ -198,12 +203,37 @@ export const MatchModal: React.FC<{
         <span className="text-[32px] -mx-3 z-10">🤝</span>
         <img src={thumb(user.avatarUrl)} alt={user.firstName} className="w-24 h-24 rounded-zine object-cover border-4 border-zine-cardElevated shadow-zine rotate-6" />
       </div>
+      )}
       <h2 className="font-serif font-bold text-display text-zine-ink mb-2">Вы на связи!</h2>
       <p className="text-body text-zine-inkMuted mb-6">
         Вы и {user.firstName} оба хотите пообщаться. Теперь можно написать в Telegram.
       </p>
 
-      <ChatButton user={user} className="w-full mb-2" />
+      {coin && (
+        <div className="-mt-3 mb-5">
+          <p className="text-sm2 font-semibold text-zine-inkMuted">{HELLO_TEXTS.coinAsk}</p>
+          <CoinFlip
+            result={coin}
+            me={{ avatarUrl: myAvatarUrl, label: HELLO_TEXTS.you }}
+            them={{ avatarUrl: user.avatarUrl, label: user.firstName }}
+            text={coin === 'me' ? HELLO_TEXTS.coinMe : HELLO_TEXTS.coinThem(user.firstName)}
+          />
+        </div>
+      )}
+
+      {coin === 'me' && onHello ? null : <ChatButton user={user} className="w-full mb-2" />}
+      {onHello && (
+        <button
+          onClick={() => {
+            telegramService.haptic('selection');
+            onClose();
+            onHello();
+          }}
+          className={`w-full h-12 mb-2 rounded-zine-sm text-body font-bold cursor-pointer ${coin === 'me' ? 'bg-zine-terracotta text-white shadow-zine-sm' : 'bg-zine-mustard/20 text-zine-ink'}`}
+        >
+          {HELLO_TEXTS.btn}
+        </button>
+      )}
       <button onClick={onClose} className="w-full h-12 text-body font-semibold text-zine-inkMuted cursor-pointer">
         Позже
       </button>
