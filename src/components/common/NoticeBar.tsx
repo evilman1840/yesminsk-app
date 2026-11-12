@@ -59,12 +59,13 @@ export const NoticeBar: React.FC<{ notices: Notice[] }> = ({ notices }) => {
 
   if (!left.length) {
     if (!hiddenNow.length) return null;
-    // Узкая «ручка» над меню, с терракотовой обводкой (на тёмных фото иначе сливается): высоты не занимает, карта и лента — до самого меню. z выше меню (у него z-40)
+    // Узкая «ручка» над меню, с терракотовой обводкой. Своя строка высотой 32px, а не поверх экрана:
+    // иначе закрывала нижние кнопки и ссылки («Не пойду» в карточке сходки, карточку места на карте)
     return (
-      <div className="relative h-0 z-50">
+      <div className="shrink-0 h-8 flex items-center justify-center bg-zine-paper">
         <button
           onClick={restore}
-          className="absolute left-1/2 -translate-x-1/2 -top-7 h-6 pl-2 pr-2.5 rounded-full bg-[#2B2623] border-[1.5px] border-zine-terracotta text-[#FAF7F2] text-[12px] font-semibold flex items-center gap-1 shadow-zine-float cursor-pointer active:scale-95 transition-transform"
+          className="h-6 pl-2 pr-2.5 rounded-full bg-[#2B2623] border-[1.5px] border-zine-terracotta text-[#FAF7F2] text-[12px] font-semibold flex items-center gap-1 shadow-zine-float cursor-pointer active:scale-95 transition-transform"
         >
           💡 {T.restore(hiddenNow.length)}
         </button>
