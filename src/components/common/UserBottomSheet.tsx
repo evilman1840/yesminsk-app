@@ -6,6 +6,8 @@ import { BottomSheet } from '../ui/BottomSheet';
 import { ReportSheet, SafetyTipsSheet } from './ReportSheet';
 import { photoSrc } from './PhotoPicker';
 import { telegramService } from '../../services/telegram';
+import { BUDDY_TEXTS } from '../../texts/buddies';
+import { HELLO_TEXTS, DUEL_TEXTS } from '../../texts/hello';
 
 interface UserBottomSheetProps {
   user: UserProfile;
@@ -13,6 +15,10 @@ interface UserBottomSheetProps {
   onClose: () => void;
   onReact: (user: UserProfile, type: ReactionType) => Promise<unknown> | void;
   onReported: (user: UserProfile) => void;
+  // «На связи»: те же поводы заговорить, что и на карточке в «Людях». Шторку закрываем, открывается следующая
+  onGoTogether?: (user: UserProfile) => void;
+  onHello?: (user: UserProfile) => void;
+  onDuel?: (user: UserProfile) => void;
 }
 
 export const formatDistance = (meters?: number) => {
@@ -28,7 +34,7 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => 
  * Анкета человека во всплывающей шторке (с карты и из ленты):
  * фото с именем, статусы, общее со мной, о себе, интересы; кнопки 👋 / «Написать» закреплены внизу
  */
-export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals, onClose, onReact, onReported }) => {
+export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals, onClose, onReact, onReported, onGoTogether, onHello, onDuel }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTipsOpen, setIsTipsOpen] = useState(false);
 
@@ -54,10 +60,49 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
   };
   const goesWith = user.goesWith && GOES_WITH[user.goesWith];
 
+  const then = (action?: (u: UserProfile) => void) =>
+    action &&
+    (() => {
+      telegramService.haptic('selection');
+      onClose();
+      action(user);
+    });
+  const goTogether = then(onGoTogether);
+  const hello = then(onHello);
+  const duel = then(onDuel);
+  // Как на карточке «На связи»: сходка вместе, «Что написать» и «Сыграть», под ними «Написать»
+  const matchButtons = (
+    <div>
+      {goTogether && (
+        <button
+          onClick={goTogether}
+          className="mb-2 w-full h-12 rounded-full border-2 border-zine-terracotta text-zine-terracotta text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform"
+        >
+          {BUDDY_TEXTS.goTogether}
+        </button>
+      )}
+      {(hello || duel) && (
+        <div className="mb-2 flex gap-2">
+          {hello && (
+            <button onClick={hello} className="flex-1 h-11 rounded-full bg-zine-mustard/20 text-zine-ink text-sm2 font-bold flex items-center justify-center cursor-pointer active:scale-[0.99] transition-transform">
+              {HELLO_TEXTS.btn}
+            </button>
+          )}
+          {duel && (
+            <button onClick={duel} className="flex-1 h-11 rounded-full bg-zine-mustard/20 text-zine-ink text-sm2 font-bold flex items-center justify-center cursor-pointer active:scale-[0.99] transition-transform">
+              {DUEL_TEXTS.btn}
+            </button>
+          )}
+        </div>
+      )}
+      <ChatButton user={user} className="w-full" />
+    </div>
+  );
+
   return (
     <BottomSheet
       onClose={onClose}
-      footer={user.isMatch ? <ChatButton user={user} className="w-full" /> : <ReactionButtons user={user} onReact={onReact} />}
+      footer={user.isMatch ? matchButtons : <ReactionButtons user={user} onReact={onReact} />}
     >
       {/* Фото с именем поверх */}
       <div className="relative -mt-1 rounded-zine overflow-hidden bg-zine-card">

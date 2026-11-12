@@ -5,6 +5,7 @@ import { MatchModal } from '../components/common/Reactions';
 import { HelloSheet, DuelSheet, UsernameSheet } from '../components/common/ConnectSheets';
 import { GenderPrompt } from '../components/common/GenderPrompt';
 import { FeedScreen } from '../screens/FeedScreen';
+import { UserBottomSheet } from '../components/common/UserBottomSheet';
 import { ResultCard } from '../screens/GamesScreen';
 import { loadFilters } from '../components/people/PeopleFilters';
 import { GameView } from '../games/types';
@@ -99,6 +100,9 @@ export const ConnectPreview: React.FC = () => {
         {screen === 'duel' && <DuelSheet friendId={2002} name="Аня" onClose={noop} onStarted={noop} />}
         {screen === 'gender' && <GenderPrompt myAge={27} onSave={async () => {}} onSavePrefs={async () => {}} onChosen={noop} onClose={noop} />}
         {screen === 'username' && <UsernameSheet onDone={noop} onLater={noop} />}
+        {screen === 'sheet' && (
+          <UserBottomSheet user={friend} myGoals={['walk', 'boardgames']} onClose={noop} onReact={noop} onReported={noop} onGoTogether={noop} onHello={noop} onDuel={noop} />
+        )}
         {screen === 'card' && (
           <div className="h-[100dvh] flex flex-col">
           <FeedScreen

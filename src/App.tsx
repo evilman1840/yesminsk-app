@@ -1597,6 +1597,9 @@ export const App: React.FC = () => {
               onClose={() => setSelectedUser(null)}
               onReact={handleReact}
               onReported={handleUserReported}
+              onGoTogether={(u) => setGoTogetherWith(u)}
+              onHello={(u) => setHelloWith({ id: u.telegramId, name: u.firstName })}
+              onDuel={gamesOpen ? (u) => setDuelWith({ id: u.telegramId, name: u.firstName }) : undefined}
             />
           )}
 
