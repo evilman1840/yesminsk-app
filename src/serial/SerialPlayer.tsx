@@ -6,6 +6,7 @@ import { telegramService } from '../services/telegram';
 import { useBackButton } from '../hooks/useTelegram';
 import { EPISODES, SerialEpisode, SerialTry, SERIAL_TOTAL } from './episodes';
 import { TvArt } from './SerialBits';
+import { Pechka } from '../components/ui/Pechka';
 import { SerialQuestionCard, SerialReveal } from './SerialQuestion';
 import { useFrameAudio } from './useFrameAudio';
 import { dayLabel, isReleased, releaseDay, SerialSource, SerialState } from './useSerial';
@@ -199,6 +200,34 @@ export const SerialPlayer: React.FC<{
                   </p>
                 ))}
             </>
+          ) : ep.endDonate ? (
+            // Серия про Печку: вместо большого сердечка — просьба покормить её и кнопка доната (сердечко в углу)
+            <>
+              <Pechka mood="hungry" size={132} />
+              <p className="font-hand font-bold text-[40px] leading-[.95]">Покорми Печку 🍩</p>
+              <p className="text-body leading-snug max-w-[290px]">
+                На Печке работают сериал, карта и сходки. Она живёт на донатах: <b className="whitespace-nowrap">1 пончик = 1 рубль</b>
+              </p>
+              <button
+                onClick={() => tryIt({ label: 'Донат', to: 'donate' })}
+                className="relative z-10 mt-1 h-12 px-6 rounded-full bg-[#D95C3C] text-white font-bold border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] cursor-pointer active:translate-y-0.5"
+              >
+                🍩 Донат
+              </button>
+              {next && nextOpen ? (
+                <button
+                  onClick={() => onOpen(next, 'next')}
+                  className="relative z-10 h-12 px-5 rounded-full bg-white text-[#2B2623] font-bold border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] cursor-pointer active:translate-y-0.5"
+                >
+                  Смотреть серию {next.n} →
+                </button>
+              ) : (
+                <p className="text-sm2 text-[#6B635C]">
+                  Серия {ep.n + 1} выйдет{' '}
+                  <b className="text-[#2B2623]">{next ? releaseDay(next, true) : dayLabel(new Date(ep.releaseAt).getTime() + 86400000, true)}</b>
+                </p>
+              )}
+            </>
           ) : (
           <>
           <p className="font-hand font-bold text-[38px] leading-none">Понравилась серия?</p>
@@ -272,8 +301,8 @@ export const SerialPlayer: React.FC<{
           </div>
         </div>
 
-        {/* С вопросом сердечко — значок в углу, как в сторис: не спорит с вопросом */}
-        {ep.question && cur === total - 1 && (
+        {/* С вопросом и с просьбой о донате сердечко — значок в углу, как в сторис: не спорит с вопросом */}
+        {(ep.question || ep.endDonate) && cur === total - 1 && (
           <button
             onClick={toggleHeart}
             aria-pressed={liked}
