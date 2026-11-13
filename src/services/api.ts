@@ -643,6 +643,16 @@ class ApiService {
     return this.request<AppEvent>(`/events/${eventId}/attendance`, { method: 'POST' });
   }
 
+  // «Сходки рядом»: настройки из анкеты сохраняются сразу
+  async saveNearbySettings(data: { on: boolean; perDay: number; radiusKm: number }): Promise<{ on: boolean; perDay: number; radiusKm: number; hasPoint: boolean }> {
+    return this.request('/users/nearby-settings', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  // Открыли сходку по кнопке из приглашения «Сходки рядом» — для статистики
+  async nearbyOpened(id: string): Promise<void> {
+    await this.request('/nearby/opened', { method: 'POST', body: JSON.stringify({ id }) });
+  }
+
   // «✅ Точно приду»
   async confirmEvent(eventId: string): Promise<AppEvent> {
     return this.request<AppEvent>(`/events/${eventId}/confirm`, { method: 'POST' });

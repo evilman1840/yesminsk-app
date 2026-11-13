@@ -17,6 +17,7 @@ import { api } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
 import { BringBuddySheet } from './BuddySheets';
 import { BUDDY_TEXTS } from '../../texts/buddies';
+import { NEARBY_TEXTS } from '../../texts/nearby';
 
 /**
  * Подробности сходки: когда, где, сколько идёт, кнопки «Пойду!», «Позвать друзей» и «Организатору»
@@ -517,6 +518,20 @@ export const EventDetails: React.FC<{
           </div>
         ) : null}
       </section>
+
+      {/* «Стесняешься идти?» — тем, кто ещё не был на сходках: ты не один такой, часть идёт впервые, можно зайти ненадолго */}
+      {event.comfort && !event.isJoined && !isCreator && !notForMe && (
+        <div className="mt-4 p-4 rounded-zine bg-zine-sage/15">
+          <p className="text-body font-bold text-zine-ink">{NEARBY_TEXTS.comfortTitle}</p>
+          <ul className="mt-1.5 space-y-1">
+            {event.comfort.lines.map((line) => (
+              <li key={line} className="text-sm2 text-zine-ink">
+                • {line}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* «Поныть» — правила встречи и куда обращаться, если совсем тяжело */}
       {event.category === 'support' && (

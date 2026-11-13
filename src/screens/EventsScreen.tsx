@@ -2027,6 +2027,8 @@ export const EventReel: React.FC<{
             {isGathering(ev) ? M.gathering(ev.participantsCount || 1) : M.goingCount(ev.participantsCount || 1, ev.maxParticipants)}
           </span>
         </div>
+        {/* «Стесняешься идти?» — тем, кто ещё не был на сходках; подробнее в карточке сходки */}
+        {ev.comfort && !ev.isJoined && !isCreator && !notForMe && <p className="mt-1.5 text-sm2 text-zine-sage font-semibold truncate">🫣 {ev.comfort.short}</p>}
       </div>
 
       {/* Кнопки под большим пальцем: «Позвать», «Неинтересно» и главное действие */}

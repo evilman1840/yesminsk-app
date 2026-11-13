@@ -22,6 +22,8 @@ import { DonateSheet } from '../components/common/DonateSheet';
 import { HiddenPlaces } from '../components/places/HiddenPlaces';
 import { useBackButton, useClosingConfirmation, useMainButton } from '../hooks/useTelegram';
 import { NO_PHOTO_URL } from '../utils/thumb';
+import { NearbySettingsBlock } from '../components/common/NearbySettingsBlock';
+import { NearbySettings } from '../texts/nearby';
 
 interface ProfileFormScreenProps {
   initialData?: {
@@ -52,6 +54,8 @@ interface ProfileFormScreenProps {
     guideAbout?: string;
     coordinates?: [number, number];
     photos?: string[];
+    locationManual?: boolean;
+    nearby?: NearbySettings; // блок «Сходки рядом»
   };
   onSave: (data: {
     name: string;
@@ -85,6 +89,8 @@ interface ProfileFormScreenProps {
   isFirstTime?: boolean;
   onPlacesChanged?: () => void; // вернули скрытое место — обновить список мест
   onEventsChanged?: () => void; // вернули скрытую сходку — обновить список сходок
+  focusNearby?: boolean; // открыли по «Настроить или выключить» из бота — сразу к блоку «Сходки рядом»
+  onNearbyChange?: (next: NearbySettings) => void;
 }
 
 
@@ -97,6 +103,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   isFirstTime = false,
   onPlacesChanged,
   onEventsChanged,
+  focusNearby,
+  onNearbyChange,
   onSetVent,
   onDeleteAccount,
   onAddToHome
@@ -916,6 +924,11 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 })}
               </div>
             </Section>
+          )}
+
+          {/* «Сходки рядом»: бот зовёт, когда недалеко создали сходку */}
+          {!isFirstTime && (
+            <NearbySettingsBlock value={initialData?.nearby} area={area} locationManual={initialData?.locationManual} focus={focusNearby} onChange={onNearbyChange} />
           )}
 
           {/* Скрытые места и сходки — можно вернуть в ленту */}

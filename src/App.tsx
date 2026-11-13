@@ -23,6 +23,7 @@ import { WantNowButton } from './components/common/WantNowButton';
 import { NoticeBar, Notice } from './components/common/NoticeBar';
 import { pickMeetupCallouts } from './components/map/MeetupCallout';
 import { NOTICE_TEXTS } from './texts/notices';
+import { NEARBY_TEXTS, NEARBY_DEFAULT, NearbySettings } from './texts/nearby';
 import { USERNAME_TEXTS } from './texts/profile';
 import { WishMembersSheet } from './components/common/WishMembersSheet';
 import { WishKindSheet } from './components/common/WishKindSheet';
@@ -135,6 +136,7 @@ export const App: React.FC = () => {
     coordinates: getSavedCoordinates(),
     shownCoordinates: null as [number, number] | null, // где тебя видят другие (смещённая метка)
     locationManual: false, // метку поставили вручную
+    nearby: NEARBY_DEFAULT as NearbySettings, // «Сходки рядом»: звать ли через бота, как часто и как далеко
     legalVersion: '' as string, // какую редакцию Соглашения и Политики человек принял
     hasAgreedToRules: false,
     genderConfirmed: false // пол выбран самим человеком
@@ -331,6 +333,23 @@ export const App: React.FC = () => {
       return false;
     }
   });
+  // «Сходки рядом»: подсказка висит, пока человек не откроет блок в анкете или не закроет её
+  const [focusNearby, setFocusNearby] = useState(false);
+  const [isNearbySeen, setIsNearbySeen] = useState(() => {
+    try {
+      return localStorage.getItem('yesminsk_nearby_seen') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const markNearbySeen = () => {
+    setIsNearbySeen(true);
+    try {
+      localStorage.setItem('yesminsk_nearby_seen', '1');
+    } catch {
+      // не запомнили — подсказка вернётся после перезапуска
+    }
+  };
   const markPinDone = () => {
     setIsPinDone(true);
     try {
@@ -614,7 +633,8 @@ export const App: React.FC = () => {
             legalVersion: me.legalVersion || '',
             genderConfirmed: Boolean(me.genderConfirmed) || (Boolean(me.gender) && me.gender !== 'not_specified'),
             hasAgreedToRules: Boolean(me.hasAgreedToRules),
-            locationManual: Boolean(me.locationManual)
+            locationManual: Boolean(me.locationManual),
+            nearby: me.nearby || prev.nearby
           }));
 
           // Может ли бот писать: сервер знает про «Старт» в боте, Telegram — про разрешение при запуске
@@ -661,6 +681,14 @@ export const App: React.FC = () => {
       if (target.tab === 'profile') {
         setCurrentScreen(prev => (prev === 'main' ? 'profile_edit' : prev));
       }
+      // «⚙️ Настроить или выключить» под приглашением «Сходки рядом» — анкета сразу на этом блоке
+      if (target.settings === 'nearby') {
+        setFocusNearby(true);
+        markNearbySeen();
+        setCurrentScreen(prev => (prev === 'main' ? 'profile_edit' : prev));
+      }
+      // Открыли сходку из приглашения «Сходки рядом» — отмечаем для статистики
+      if (target.nearPing) api.nearbyOpened(target.nearPing).catch(() => {});
       // Игры пока проверяет автор: раздел открывается только админам, приглашение от админа — любому.
       // «Трактор в Минске» по ссылке startapp=tractor — всем, кому открыт раздел
       if (target.game && (target.game.code || target.game.id || target.game.sea?.code || target.game.sea?.id || gamesOpenRef.current)) {
@@ -1294,6 +1322,18 @@ export const App: React.FC = () => {
     },
     !currentUser.username && { id: 'username', text: NOTICE_TEXTS.username, hideDays: 7, onClick: () => setNoticeSheet('username') },
     isBotOk && !isBotBlocked && !isPinDone && { id: 'pin', text: NOTICE_TEXTS.pin, hideDays: 365, onClick: () => setNoticeSheet('pin'), onDismiss: markPinDone },
+    isBotOk && !isBotBlocked && !isNearbySeen && currentUser.nearby.on && {
+      id: 'nearby',
+      text: NEARBY_TEXTS.notice,
+      action: NEARBY_TEXTS.noticeAction,
+      hideDays: 365,
+      onClick: () => {
+        setFocusNearby(true);
+        markNearbySeen();
+        handleNavigate('profile_edit');
+      },
+      onDismiss: markNearbySeen
+    },
     { id: 'safety', text: NOTICE_TEXTS.safety, hideDays: 30, onClick: () => setNoticeSheet('safety') },
     !tip?.first && tipNotice
   ].filter(Boolean) as Notice[];
@@ -1408,6 +1448,8 @@ export const App: React.FC = () => {
                   onSave={handleSaveProfile}
                   onPlacesChanged={fetchPlaces}
                   onEventsChanged={fetchEvents}
+                  focusNearby={focusNearby}
+                  onNearbyChange={(nearby) => setCurrentUser(prev => ({ ...prev, nearby }))}
                   onSetVent={handleSetVent}
                   onDeleteAccount={handleDeleteAccount}
                   onAddToHome={() => setIsHomeTipOpen(true)}
