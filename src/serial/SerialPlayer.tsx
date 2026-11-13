@@ -171,7 +171,8 @@ export const SerialPlayer: React.FC<{
             <>
               <SerialQuestionCard ep={ep} serial={serial} />
               {/* После ответа — одно следующее действие: у «А ты?» это «Отметить: хочу…» в карточке, у «Угадай» — «Попробовать» */}
-              {answered && ep.question.kind === 'guess' && endTry && (
+              {/* У «А ты?» без желаний (опрос для смеха) — тоже «Попробовать» */}
+              {answered && (ep.question.kind === 'guess' || !ep.question.options.some((o) => o.wish)) && endTry && (
                 <button
                   onClick={() => tryIt(endTry)}
                   className="relative z-10 h-12 px-5 rounded-full bg-[#D95C3C] text-white font-bold border-2 border-[#2B2623] shadow-[3px_3px_0_#2B2623] cursor-pointer active:translate-y-0.5"
