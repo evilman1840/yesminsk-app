@@ -63,7 +63,7 @@ const EVENTS: AppEvent[] = [
 ];
 
 const MONTH: MonthHost[] = [
-  ...[people.masha, people.dima, people.olya, people.kate].map((p) => ({ ...p, ...hostOf[p.telegramId] })),
+  ...[people.masha, people.dima, people.olya, people.kate].map((p, i) => ({ ...p, ...hostOf[p.telegramId], ...([9, 3, 1][i] ? { excellent: [9, 3, 1][i] } : {}) })),
   ...['Nick', 'Ира', 'Саша', 'Лена', 'Паша'].map((name, i) => ({ telegramId: 3000 + i, name, avatarUrl: avatar(name[0], '#7A6A5A'), held: 1 }))
 ];
 

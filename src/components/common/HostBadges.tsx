@@ -139,7 +139,7 @@ let hostsOnce: Promise<MonthHost[]> | null = null;
 export const loadMonthHosts = () => (hostsOnce ||= api.getMonthHosts().catch(() => ((hostsOnce = null), [])));
 
 /**
- * Список организаторов месяца: без мест и гонки — имена, значки и сколько сходок проведено.
+ * Список организаторов месяца: без мест и гонки — имена, значки, сколько сходок проведено и сколько раз их оценили «😍 Отлично».
  * Нажать на человека — анкета, «Сходка» — его ближайшая (если знаем, какие сходки мне видны)
  */
 const HostsList: React.FC<{
@@ -158,7 +158,9 @@ const HostsList: React.FC<{
             <img src={thumb(h.avatarUrl) || NO_PHOTO} alt="" loading="lazy" className="w-11 h-11 shrink-0 rounded-full object-cover bg-zine-paper" />
             <span className="min-w-0 flex-1">
               <span className="block text-body font-bold truncate">{h.name}</span>
-              <span className="block text-cap text-zine-inkMuted truncate">{M.hostedShort(h.held)}</span>
+              <span className="block text-cap text-zine-inkMuted truncate">{M.hostedShort(h.held)}
+                {h.excellent ? ` · 😍 ${h.excellent}` : null}
+              </span>
             </span>
           </button>
           <HostBadges host={h} hostsLink={false} className="bg-zine-paper" />

@@ -311,6 +311,7 @@ export interface HostInfo {
 // «Организаторы месяца»
 export interface MonthHost extends HostInfo {
   telegramId: number;
+  excellent?: number;   // сколько раз участники поставили его сходкам «😍 Отлично»; плохие оценки публично не показываем
   name: string;
   avatarUrl: string;
 }
