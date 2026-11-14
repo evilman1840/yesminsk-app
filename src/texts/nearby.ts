@@ -5,11 +5,11 @@
 export interface NearbySettings {
   on: boolean;
   perDay: number;   // 1 / 3 / 5, 0 — неважно
-  radiusKm: number; // 1 / 3 / 5, 0 — весь Минск
+  radiusKm: number; // -1 — мой район (+1,5 км), 1 / 3 / 5, 0 — весь Минск
   hasPoint?: boolean;
 }
 
-export const NEARBY_DEFAULT: NearbySettings = { on: true, perDay: 3, radiusKm: 3, hasPoint: true };
+export const NEARBY_DEFAULT: NearbySettings = { on: true, perDay: 3, radiusKm: -1, hasPoint: true };
 
 export const NEARBY_TEXTS = {
   title: 'Сходки рядом',
@@ -24,11 +24,16 @@ export const NEARBY_TEXTS = {
   ],
   radiusLabel: 'Как далеко',
   radius: [
+    { value: -1, label: 'мой район' },
     { value: 1, label: '1 км' },
     { value: 3, label: '3 км' },
     { value: 5, label: '5 км' },
     { value: 0, label: 'весь Минск' }
   ],
+  myArea: (area: string) => `📍 Позовём на сходки в районе «${area}» и в соседних, если до них не больше 1,5 км`,
+  myAreaPin: '📍 Позовём на сходки в районе твоей метки и в соседних, если до них не больше 1,5 км',
+  myAreaCenter: '📍 Ты в Минске проездом, поэтому зовём на сходки в центре города',
+  centerHint: '🏠 Район «Немига / Центр» мог поставиться сам. Живёшь в другом? Выбери его выше',
   fromArea: (area: string) => `📍 Расстояние считаем от района «${area}»`,
   fromPin: '📍 Расстояние считаем от твоей метки на карте',
   fromCenter: '📍 Ты в Минске проездом, поэтому считаем от центра города',

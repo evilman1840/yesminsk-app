@@ -39,10 +39,17 @@ export const NearbySettingsBlock: React.FC<{
     }
   };
 
+  const myArea = s.radiusKm === -1;
   const where =
     s.radiusKm === 0
       ? T.anywhere
-      : locationManual
+      : myArea && locationManual
+        ? T.myAreaPin
+        : myArea && isTouristArea(area)
+          ? T.myAreaCenter
+          : myArea && area && area !== 'Минск'
+            ? T.myArea(area)
+            : locationManual
         ? T.fromPin
         : isTouristArea(area)
           ? T.fromCenter
@@ -94,6 +101,7 @@ export const NearbySettingsBlock: React.FC<{
             {chips(T.radius, s.radiusKm, 'radiusKm')}
           </div>
           <p className="text-sm2 text-zine-inkMuted">{where}</p>
+          {s.radiusKm !== 0 && !locationManual && area === 'Немига / Центр' && <p className="text-sm2 text-zine-inkMuted">{T.centerHint}</p>}
         </div>
       ) : (
         <p className="mt-3 text-sm2 text-zine-inkMuted">{T.off}</p>
