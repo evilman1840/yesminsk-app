@@ -176,6 +176,8 @@ export interface EventsScreenProps {
   onOpenWishKind?: (kind: string, includesMe: boolean) => void; // пилюля «☕ Кофе 30»: все, кто хочет этого в любое время
 }
 
+// 🏆 «Организаторы месяца»: открывал ли хоть раз (пока нет — кубок мигает)
+const HOSTS_SEEN_KEY = 'yesminsk_hosts_seen';
 // Баннер «Хочу сходить»: из скольких лучших желаний показываем по очереди и насколько поднимаем ближайшие
 const BAR_WISHES = 4;
 // Подсказка у звезды «Мои»: сколько раз показали и когда (чтобы не больше двух раз)
@@ -315,7 +317,15 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   useEffect(() => {
     loadMonthHosts().then(setMonthHosts);
   }, []);
-  const [isHostsOpen, setIsHostsOpen] = useState(false); // 🏆 в шапке
+  const [isHostsOpen, setIsHostsOpen] = useState(false); // 🏆 в ряду чипов
+  // 🏆 мигает, пока человек ни разу не открыл «Организаторов месяца»
+  const [hostsSeen, setHostsSeen] = useState(() => {
+    try {
+      return localStorage.getItem(HOSTS_SEEN_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
   // Ближайшая сходка организатора из тех, что мне видны
   const nextEventOf = (id: number) =>
     events
@@ -1090,9 +1100,15 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 onClick={() => {
                   telegramService.haptic('selection');
                   setIsHostsOpen(true);
+                  if (!hostsSeen) {
+                    setHostsSeen(true);
+                    try {
+                      localStorage.setItem(HOSTS_SEEN_KEY, '1');
+                    } catch {}
+                  }
                 }}
                 aria-label={M.hostsTitle}
-                className="w-9 h-9 shrink-0 rounded-full bg-zine-card border border-zine-border text-[17px] leading-none flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+                className={`w-9 h-9 shrink-0 rounded-full bg-zine-card border border-zine-border text-[17px] leading-none flex items-center justify-center active:scale-95 transition-transform cursor-pointer ${hostsSeen ? '' : 'mine-pulse border-zine-mustard'}`}
               >
                 🏆
               </button>
