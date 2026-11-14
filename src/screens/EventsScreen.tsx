@@ -1966,6 +1966,18 @@ const REEL_BG: Record<EventCategory, string> = {
 /**
  * Сходка: сверху чистая обложка (фото или цвет категории со значком), под ней текст на сплошном фоне и кнопки под большим пальцем
  */
+// Дата на обложке: «Сегодня, 19:00», «Завтра, 17:00», дальше — «Вс, 22 ноября, 17:00»
+const coverDate = (iso: string) => {
+  const d = new Date(iso);
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(d) - day(new Date())) / 86400000);
+  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  if (diff === 0) return `Сегодня, ${time}`;
+  if (diff === 1) return `Завтра, ${time}`;
+  const s = formatEventDate(iso);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
 export const EventReel: React.FC<{
   event: AppEvent;
   isFirst: boolean;
@@ -2048,7 +2060,8 @@ export const EventReel: React.FC<{
       onSwipe={(dir) => (dir === 'right' ? onOpenDetails() : onNotInterested())}
     >
       {spotlight && <p className="shrink-0 px-4 pt-3 pb-2 text-sm2 font-bold text-zine-terracotta">✨ {spotlight.label}</p>}
-      {/* Обложка: первое фото сходки, без фото — цвет категории и крупный значок. Без надписей поверх (кроме «кто идёт» в «Людях») */}
+      {/* Обложка: первое фото сходки, без фото — цвет категории и крупный значок.
+          Поверх — главное, что читается за секунду: категория и кто идёт — сверху, когда — снизу */}
       <div
         ref={reelRef}
         onClick={onOpenDetails}
@@ -2058,6 +2071,31 @@ export const EventReel: React.FC<{
           <img src={photoSrc(ev.photos[0])} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" loading="lazy" />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-[88px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>
+        )}
+        <span className="absolute left-3 top-3 max-w-[calc(100%-140px)] h-9 px-3 rounded-full bg-black/55 backdrop-blur-sm text-white text-sm2 font-semibold flex items-center gap-1.5 pointer-events-none truncate">
+          {ev.isOfficial && <span className="text-zine-mustard">⭐</span>}
+          <span aria-hidden>{cat.emoji}</span>
+          <span className="truncate">{cat.label}</span>
+        </span>
+        <span className={`absolute left-3 ${spotlight ? 'top-14' : 'bottom-3'} max-w-[calc(100%-24px)] h-10 px-3.5 rounded-full bg-black/65 backdrop-blur-sm text-white text-body font-bold flex items-center whitespace-nowrap pointer-events-none`}>
+          {coverDate(ev.dateTime)}
+          {ev.durationMinutes ? <span className="ml-1 font-normal text-white/75">· {M.duration(ev.durationMinutes)}</span> : null}
+        </span>
+        {!spotlight && (
+          <span className="absolute right-3 top-3 h-9 pl-1 pr-3 rounded-full bg-black/65 backdrop-blur-sm text-white text-sm2 font-bold flex items-center gap-2 whitespace-nowrap pointer-events-none">
+            <span className="flex -space-x-2">
+              {people.slice(0, 3).map((p, i) => (
+                <img
+                  key={`${p?.telegramId}-${i}`}
+                  src={thumb(p?.avatarUrl) || NO_PHOTO}
+                  alt=""
+                  loading="lazy"
+                  className={`w-7 h-7 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-black/40'}`}
+                />
+              ))}
+            </span>
+            {ev.maxParticipants ? `${ev.participantsCount || 1} из ${ev.maxParticipants}` : `${ev.participantsCount || 1}`}
+          </span>
         )}
         {spotlight && goingNames.length > 0 && (
           <div className="absolute left-3 bottom-3 max-w-[calc(100%-24px)] pl-2 pr-3 py-1.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-cap font-semibold flex items-center gap-2 pointer-events-none">
@@ -2073,7 +2111,7 @@ export const EventReel: React.FC<{
           </div>
         )}
         {/* Подсказка про свайпы — только на первой карточке, внизу обложки */}
-        {isFirst && <SwipeHint className="bottom-3" left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" />}
+        {isFirst && <SwipeHint className="top-1/2 -translate-y-1/2" left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" />}
       </div>
 
       {/* Текст на сплошном фоне; нажатие мимо кнопок — подробности */}
@@ -2083,17 +2121,8 @@ export const EventReel: React.FC<{
         }}
         className="shrink-0 px-4 pt-3 text-zine-ink cursor-pointer"
       >
-        {/* Одна строка: рекомендуем · категория · пометки значками, затем цена и метки шаблона («💸 Платно»); не влезает — листается */}
-        <div data-no-swipe className="-mx-4 px-4 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right text-sm2 font-semibold text-zine-inkMuted whitespace-nowrap">
-          {ev.isOfficial && (
-            <>
-              <span className="shrink-0 text-zine-mustard">⭐ Рекомендуем</span>
-              <span className="shrink-0 text-zine-inkMuted/70">·</span>
-            </>
-          )}
-          <span className="shrink-0">
-            {cat.emoji} {cat.label}
-          </span>
+        {/* Одна строка: пометки значками, цена и метки шаблона («💸 Платно»); категория — на обложке. Не влезает — листается */}
+        <div data-no-swipe className="-mx-4 px-4 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right text-sm2 font-semibold text-zine-inkMuted whitespace-nowrap empty:hidden">
           {(ev.tags || []).length > 0 && (
             <span className="shrink-0" aria-label={(ev.tags || []).map((t) => EVENT_TAGS[t].label).join(', ')}>
               {(ev.tags || []).map((t) => EVENT_TAGS[t].emoji).join(' ')}
@@ -2106,45 +2135,20 @@ export const EventReel: React.FC<{
           ))}
         </div>
         <h2 className="mt-1 font-serif font-bold text-title leading-tight line-clamp-2">{ev.title}</h2>
-        <p className="mt-1 text-body font-semibold">
-          {formatEventDate(ev.dateTime)}
-          {ev.durationMinutes ? <span className="font-normal text-zine-inkMuted"> · {M.duration(ev.durationMinutes)}</span> : null}
-        </p>
         {/* Только место: расстояние часто не сходится с жизнью */}
         <p className="mt-0.5 flex items-center gap-1.5 text-sm2 text-zine-inkMuted">
           <MapPin size={16} className="shrink-0" />
           <span className="truncate">{ev.locationName}</span>
         </p>
-        {/* Организатор: значки и сколько сходок уже провёл. Новичков не подписываем — строка только у тех, кому есть что показать */}
-        {ev.host && (ev.host.held > 0 || ev.host.active || ev.host.supporter) && (
-          // Текст не режется: не влезли значки — уходят на следующую строку
-          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm2 text-zine-inkMuted">
-            <span className="min-w-0">
-              <span className="font-semibold text-zine-ink">{isCreator ? M.hostMine : M.hostLine(ev.creator?.name || '')}</span>
-              {ev.host.held > 0 && ` · ${M.hostedCount(ev.host.held)}`}
-            </span>
-            <HostBadges host={ev.host} />
-          </p>
-        )}
-        {/* Кто идёт: лица и сколько; много — ряд листается пальцем (не свайпает карточку) */}
-        <div className="mt-2.5 flex items-center gap-2">
-          <span data-no-swipe className={`min-w-0 flex -space-x-2 overflow-x-auto no-scrollbar py-0.5 ${people.length > 7 ? 'fade-right pr-3' : ''}`}>
-            {people.map((p, i) => (
-              <img
-                key={`${p?.telegramId}-${i}`}
-                src={thumb(p?.avatarUrl) || NO_PHOTO}
-                alt=""
-                loading="lazy"
-                className={`w-8 h-8 shrink-0 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-zine-paper'}`}
-              />
-            ))}
+        {/* Организатор — одной строкой: «Собирает Назар · проведена 1 сходка 🌱». Кто ещё идёт — лицами на обложке.
+            «Стесняешься?» — в подробностях сходки */}
+        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm2 text-zine-inkMuted">
+          <span className="min-w-0">
+            <span className="font-semibold text-zine-ink">{isCreator ? M.hostMine : M.hostLine(ev.creator?.name || '')}</span>
+            {ev.host && ev.host.held > 0 && ` · ${M.hostedCount(ev.host.held)}`}
           </span>
-          <span className="shrink-0 text-sm2 text-zine-inkMuted whitespace-nowrap">
-            {isGathering(ev) ? M.gathering(ev.participantsCount || 1) : M.goingCount(ev.participantsCount || 1, ev.maxParticipants)}
-          </span>
-        </div>
-        {/* «Стесняешься идти?» — тем, кто ещё не был на сходках; подробнее в карточке сходки */}
-        {ev.comfort && !ev.isJoined && !isCreator && !notForMe && <p className="mt-1.5 text-sm2 text-zine-sage font-semibold truncate">🫣 {ev.comfort.short}</p>}
+          {ev.host && <HostBadges host={ev.host} />}
+        </p>
       </div>
 
       {/* Кнопки под большим пальцем: «Позвать», «Неинтересно» и главное действие */}
@@ -2187,10 +2191,10 @@ export const EventReel: React.FC<{
                     telegramService.haptic('selection');
                     onNotInterested();
                   }}
-                  className="shrink-0 h-12 px-4 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+                  aria-label="Скрыть"
+                  className="w-12 h-12 shrink-0 rounded-full border border-zine-border flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
                 >
-                  <EyeOff size={19} className="shrink-0" />
-                  <span className="truncate">Скрыть</span>
+                  <EyeOff size={20} />
                 </button>
               )}
               <button
