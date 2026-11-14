@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { thumb } from '../../utils/thumb';
-import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus, Edit2, Trash2, Repeat2 } from 'lucide-react';
 import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES, audienceLabel, isGathering } from '../../types';
 import { HelpLine } from './HelpLine';
 import { telegramService } from '../../services/telegram';
@@ -11,7 +11,8 @@ import { MEETUP_TEXTS, priceLabel } from '../../texts/meetups';
 import { photoSrc } from './PhotoPicker';
 import { useOpenUser } from '../../context/openUser';
 import { useIsAdmin, EVENT_DELETED } from '../../context/admin';
-import { confirmAttendance, EVENT_UPDATED, EVENT_EDIT } from '../../context/eventUpdates';
+import { confirmAttendance, EVENT_UPDATED, EVENT_EDIT, repeatEvent } from '../../context/eventUpdates';
+import { HostBadges } from './HostBadges';
 import { EVENT_MESSAGE_TEXTS as EM } from '../../texts/eventMessage';
 import { api } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
@@ -285,9 +286,12 @@ export const EventDetails: React.FC<{
             <Avatar src={thumb(event.creator?.avatarUrl)} name={event.creator?.name || '?'} />
             <span className="min-w-0 flex-1">
               <span className="block text-body font-bold text-zine-ink truncate">{isCreator ? 'Ты' : event.creator?.name}</span>
-              <span className="block text-sm2 text-zine-inkMuted">собирает сходку</span>
+              <span className="block text-sm2 text-zine-inkMuted truncate">
+                {event.host?.held ? `организатор · ${MEETUP_TEXTS.hostedShort(event.host.held)}` : 'собирает сходку'}
+              </span>
             </span>
           </button>
+          <HostBadges host={event.host} />
           {event.creator?.username && !isCreator && (
             <button
               onClick={() => {
@@ -580,17 +584,44 @@ export const EventDetails: React.FC<{
         {/* Главное действие — закреплено внизу шторки. Своя сходка — вместо «Пойду» управление */}
         {isCreator ? (
           <div className="flex gap-2">
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                window.dispatchEvent(new CustomEvent<AppEvent>(EVENT_EDIT, { detail: event }));
-              }}
-              className="flex-1 h-14 rounded-zine-sm bg-zine-ink text-zine-paper text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
-            >
-              <Edit2 size={20} />
-              <span>Изменить</span>
-            </button>
+            {/* Сходка прошла — менять нечего, зато можно собрать такую же ещё раз */}
+            {isStarted ? (
+              <button
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  repeatEvent(event);
+                }}
+                className="flex-1 h-14 rounded-zine-sm bg-zine-ink text-zine-paper text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                <Repeat2 size={20} />
+                <span>{MEETUP_TEXTS.repeat}</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  window.dispatchEvent(new CustomEvent<AppEvent>(EVENT_EDIT, { detail: event }));
+                }}
+                className="flex-1 h-14 rounded-zine-sm bg-zine-ink text-zine-paper text-lead font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                <Edit2 size={20} />
+                <span>Изменить</span>
+              </button>
+            )}
             {buddyButton}
+            {/* Будущую тоже можно повторить: «каждую субботу» собирают заранее */}
+            {!isStarted && (
+              <button
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  repeatEvent(event);
+                }}
+                aria-label={MEETUP_TEXTS.repeatMeetup}
+                className="w-14 h-14 shrink-0 rounded-zine-sm border border-zine-border text-zine-ink flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+              >
+                <Repeat2 size={20} />
+              </button>
+            )}
             <button
               onClick={deleteOwn}
               disabled={isDeleting}

@@ -1,6 +1,6 @@
 import { telegramService } from './telegram';
 import type { GameView, GameLobby, GameSummary, TractorMatchResult, SeaView, SeaLobby } from '../games/types';
-import { UserProfile, ActivityGoal, AppEvent, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData, MeetupStats } from '../types';
+import { UserProfile, ActivityGoal, AppEvent, MonthHost, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData, MeetupStats } from '../types';
 
 /**
  * Нормализация базового URL бэкенда.
@@ -535,6 +535,17 @@ class ApiService {
 
     const queryString = query.toString() ? `?${query.toString()}` : '';
     return this.request<AppEvent[]>(`/events${queryString}`);
+  }
+
+  // «Прошедшие» в «⭐ Мои»: последние свои сходки за три месяца, новые сверху
+  async getPastMine(): Promise<AppEvent[]> {
+    return this.request<AppEvent[]>('/events/past-mine', {}, true);
+  }
+
+  // «Организаторы месяца»: кто за последние 30 дней провёл больше всего сходок
+  async getMonthHosts(): Promise<MonthHost[]> {
+    const r = await this.request<{ hosts: MonthHost[] }>('/hosts/month', {}, true);
+    return r.hosts || [];
   }
 
   async createEvent(data: EventPayload): Promise<AppEvent> {

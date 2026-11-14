@@ -8,6 +8,9 @@ export const EVENT_UPDATED = 'yesminsk:event-updated';
 // Организатор нажал «Изменить» в подробной карточке (карта, места, ссылка): App откроет форму на вкладке «Сходки»
 export const EVENT_EDIT = 'yesminsk:event-edit';
 
+// «Повторить»: та же дорога, что у «Изменить», но форма откроется для новой сходки с этими же данными и датой через неделю
+export const repeatEvent = (event: AppEvent) => window.dispatchEvent(new CustomEvent<AppEvent>(EVENT_EDIT, { detail: { ...event, repeat: true } }));
+
 /**
  * «✅ Точно приду» из приложения. Вернёт обновлённую сходку или null, если не получилось
  */

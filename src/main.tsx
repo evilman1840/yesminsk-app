@@ -45,6 +45,9 @@ const root = ReactDOM.createRoot(document.getElementById('root')!);
 // Только при разработке: ?preview=connect — новые экраны «На связи» на выдуманных данных
 if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'connect') {
   import('./dev/ConnectPreview').then(({ ConnectPreview }) => root.render(<ConnectPreview />));
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'hosts') {
+  // ?preview=hosts — значки организаторов, «Организаторы месяца» и «Повторить» на выдуманных данных
+  import('./dev/HostsPreview').then(({ HostsPreview }) => root.render(<HostsPreview />));
 } else {
   root.render(
     <React.StrictMode>

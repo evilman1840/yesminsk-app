@@ -134,6 +134,8 @@ export interface UserProfile {
   availableUntil?: string; // «⚡ Хочу сейчас» — до этого времени
   isGuide?: boolean;       // «🧭 Покажу город» — местный гид-волонтёр
   isSupporter?: boolean;   // «🍩 Кормлю ГУЛЯЙ-Печку» — отметил после доната
+  hostedCount?: number;    // сколько сходок провёл(а) — считаются только состоявшиеся
+  hostActive?: boolean;    // «🔥 Активный организатор»
   guideAbout?: string;     // что может показать
   activeRecently?: boolean; // заходил(а) за последние 3 дня
   why?: string[];           // «почему показан»: общие планы и сходки (сервер)
@@ -296,6 +298,21 @@ export interface AppEvent {
   comfort?: { short: string; lines: string[] }; // «Стесняешься идти?» — тем, кто ещё не был на сходках
   recruiting?: boolean;  // «Помощь в наборе»: до начала меньше 48 часов, а идут меньше трёх
   attendanceAnswer?: 'all' | 'marked'; // организатору: ответил ли «Все, кто записался, пришли?»
+  host?: HostInfo;       // организатор: сколько сходок провёл и его значки
+  repeat?: boolean;      // только в приложении: «Повторить» — открыть форму новой сходки с этими же данными
+}
+
+// Организатор: считаются только состоявшиеся сходки (пришли хотя бы двое)
+export interface HostInfo {
+  held: number;         // всего проведено
+  active?: boolean;     // «🔥 Активный организатор»: три и больше сходок за два месяца
+  supporter?: boolean;  // «🍩 Кормит ГУЛЯЙ-Печку»
+}
+// «Организаторы месяца»
+export interface MonthHost extends HostInfo {
+  telegramId: number;
+  name: string;
+  avatarUrl: string;
 }
 
 // Кому платят на платной сходке: кассе или заведению (кино, кафе) или организатору (настолка, мастер-класс)
@@ -420,7 +437,7 @@ export interface MeetupPlace {
   placeType?: string; // тип места: под него подбираются шаблоны
 }
 // Откуда открыли форму сходки — для воронки в /stats
-export type MeetupFormSource = 'feed' | 'empty' | 'place' | 'link' | 'map' | 'people' | 'buddy';
+export type MeetupFormSource = 'feed' | 'empty' | 'place' | 'link' | 'map' | 'people' | 'buddy' | 'repeat' | 'hosts';
 export interface MeetupCreateRequest {
   place?: MeetupPlace;
   template?: string;

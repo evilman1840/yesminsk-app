@@ -1,12 +1,15 @@
 import { SerialTvSlot, useSerialTv } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
-import { Plus, Check, Loader2, Edit2, Trash2, Navigation, MapPinned, Share2, ChevronRight, EyeOff, SlidersHorizontal, X, MapPin } from 'lucide-react';
+import { Plus, Check, Loader2, Edit2, Trash2, Repeat2, Navigation, MapPinned, Share2, ChevronRight, EyeOff, SlidersHorizontal, X, MapPin } from 'lucide-react';
 import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, EVENT_CATEGORY_ROWS, LEGACY_CATEGORIES, isLegacyCategory, eventCategoryOf, isGathering, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats, PayTo } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { HostDonateSheet } from '../components/common/HostDonateSheet';
+import { HostBadges, HostsReel, HostsSheet, PastReel, loadMonthHosts } from '../components/common/HostBadges';
+import { useOpenUser } from '../context/openUser';
+import type { MonthHost } from '../types';
 import { markHostDonateSeen, takeHostDonateTurn } from '../utils/hostDonate';
 import { formatEventDate } from './MapScreen';
 import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
@@ -223,6 +226,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [isFiltersOpen, setIsFiltersOpen] = useState(false); // категория и «Мои» — в шторке
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [isRepeat, setIsRepeat] = useState(false); // форма открыта по «Повторить»
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [detailsEventId, setDetailsEventId] = useState<string | null>(null);
@@ -305,6 +309,23 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [myWishCount, setMyWishCount] = useState(0);
   const [proposeAt, setProposeAt] = useState(3);
   const [meetupStats, setMeetupStats] = useState<MeetupStats | null>(null);
+  // «Организаторы месяца» — карточка в ленте; не загрузились или их меньше двух — карточки просто нет
+  const [monthHosts, setMonthHosts] = useState<MonthHost[]>([]);
+  const openUser = useOpenUser();
+  useEffect(() => {
+    loadMonthHosts().then(setMonthHosts);
+  }, []);
+  const [isHostsOpen, setIsHostsOpen] = useState(false); // 🏆 в шапке
+  // Ближайшая сходка организатора из тех, что мне видны
+  const nextEventOf = (id: number) =>
+    events
+      .filter((e) => Number(e.creator?.telegramId) === id && new Date(e.dateTime).getTime() > Date.now())
+      .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())[0];
+  // «Прошедшие» в «⭐ Мои»: свои сходки за три месяца. Обновляем вместе со списком сходок (собрал новую, удалил старую)
+  const [pastMine, setPastMine] = useState<AppEvent[]>([]);
+  useEffect(() => {
+    api.getPastMine().then(setPastMine).catch(() => {});
+  }, [events.length]);
   const refreshWishes = () =>
     api
       .getWishes()
@@ -427,13 +448,18 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     .sort((a, b) => a.rank - b.rank || a.i - b.i)
     .map(({ e }) => e);
   // Лента: сходки и между ними карточки «Хочу сходить» (после 4-й и 10-й; сходок меньше — одна в конце). В «⭐ Мои» — без них
-  type FeedItem = { type: 'event'; ev: AppEvent } | { type: 'wish'; slot: number };
+  // «Организаторы месяца» — после второй сходки (сходка одна — после неё)
+  type FeedItem = { type: 'event'; ev: AppEvent } | { type: 'wish'; slot: number } | { type: 'hosts' } | { type: 'past' };
   const feedItems: FeedItem[] = [];
+  const hostsAfter = !onlyMine && monthHosts.length ? Math.min(1, filteredEvents.length - 1) : -1;
   filteredEvents.forEach((ev, i) => {
     feedItems.push({ type: 'event', ev });
+    if (i === hostsAfter) feedItems.push({ type: 'hosts' });
     const slot = onlyMine ? null : reelSlotAfter(i, filteredEvents.length);
     if (slot !== null) feedItems.push({ type: 'wish', slot });
   });
+  // «Прошедшие» — последней карточкой в «⭐ Мои» (и единственной, если впереди своих сходок нет)
+  if (onlyMine && pastMine.length) feedItems.push({ type: 'past' });
   const detailsEvent = detailsEventId ? events.find((e) => String(e.id) === detailsEventId) || null : null;
   const joinEvent = joinEventId ? events.find((e) => String(e.id) === joinEventId) || null : null;
   // После «Вернуть» — сразу показываем возвращённую карточку
@@ -549,6 +575,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setFormStep(templates && templates.length ? 'pick' : 'form');
     telegramService.haptic('selection');
     setEditingEventId(null);
+    setIsRepeat(false);
     setTitle('');
     setDescription('');
     const startCategory = presetCategory || 'cafe';
@@ -594,6 +621,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     telegramService.haptic('selection');
     const targetId = String(ev.id || (ev as any)._id);
     setEditingEventId(targetId);
+    setIsRepeat(false);
     setTitle(ev.title || '');
     setDescription(ev.description || '');
     // Старые общие типы («Кофе, бар», «Арт, кино») в форме — как первый из новых
@@ -627,6 +655,29 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     setFormStep('form');
     setFormError(null);
     setIsModalOpen(true);
+  };
+
+  // «Повторить»: новая сходка с теми же данными и фото, дата — тот же день недели и время, ближайшие через неделю.
+  // Остаётся проверить и нажать «Опубликовать»
+  const handleOpenRepeatModal = (ev: AppEvent) => {
+    handleOpenEditModal(ev);
+    setEditingEventId(null);
+    setIsRepeat(true);
+    formSession.current = { id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, done: false, source: 'repeat' };
+    track('opened', { source: 'repeat' });
+    setPlaceId(ev.placeId || null);
+    setPickPlaceType(undefined);
+    setWishGroupId(null);
+    setInvite([]);
+    setBuddy(null);
+    const d = new Date(ev.dateTime);
+    if (Number.isNaN(d.getTime())) {
+      setDateTime(toLocalInput(quickTimes().find((q) => q.id === 'tomorrowEvening')!.date));
+    } else {
+      do d.setDate(d.getDate() + 7);
+      while (d.getTime() < Date.now() + 60 * 60 * 1000);
+      setDateTime(toLocalInput(d));
+    }
   };
 
   // Выбрали шаблон — заполняем форму за человека
@@ -730,7 +781,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   useEffect(() => {
     if (!initialEdit) return;
     setDetailsEventId(null);
-    handleOpenEditModal(initialEdit);
+    if (initialEdit.repeat) handleOpenRepeatModal(initialEdit);
+    else handleOpenEditModal(initialEdit);
     onInitialEditUsed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialEdit]);
@@ -1015,8 +1067,22 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             {!topWish && myWishCount > 0 && (
               <span className="min-w-[20px] h-5 px-1.5 shrink-0 rounded-full bg-zine-terracotta/15 text-zine-terracotta text-cap font-bold flex items-center justify-center">{myWishCount}</span>
             )}
-            {!tv && <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />}
+            {/* Рядом 🏆 или фильтры — стрелку убираем, чтобы «Хочу сходить» не обрезалось */}
+            {!tv && !monthHosts.length && <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />}
           </button>
+          {/* 🏆 «Организаторы месяца» — тот же список, что карточкой в ленте. Во втором ряду: в первом фильтрам по времени и так тесно; организаторов нет — кнопки нет */}
+          {monthHosts.length > 0 && (
+            <button
+              onClick={() => {
+                telegramService.haptic('selection');
+                setIsHostsOpen(true);
+              }}
+              aria-label={M.hostsTitle}
+              className="w-11 shrink-0 rounded-zine-sm bg-zine-card border border-zine-border text-[18px] leading-none flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+            >
+              🏆
+            </button>
+          )}
           {/* С телевизором сериала в шапке фильтры переезжают сюда */}
           {tv && filterButton('rounded-zine-sm')}
           {/* Не нашлось подходящей — собрать свою */}
@@ -1078,7 +1144,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       </div>
 
       <div className="relative flex-1 min-h-0">
-      {filteredEvents.length === 0 ? (
+      {feedItems.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-center px-8 text-zine-ink">
           <div className="text-[48px] mb-3">🗓</div>
           <p className="font-serif font-bold text-title">{onlyMine ? M.mineEmptyTitle : M.emptyTitle}</p>
@@ -1113,6 +1179,22 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 <WishReel key={`wish-${item.slot}`} wish={w} proposeAt={proposeAt} stats={meetupStats} onWho={onOpenWishPeople} onOpen={() => openWish()} onOpenMine={() => openWish(undefined, true)} onChanged={refreshWishes} />
               );
             }
+            if (item.type === 'past') {
+              return <PastReel key="past" events={pastMine} emojiOf={(e) => eventTemplateEmoji(e, templates) || eventCategoryOf(e).emoji} dateOf={formatEventDate} onRepeat={handleOpenRepeatModal} />;
+            }
+            if (item.type === 'hosts') {
+              return (
+                <HostsReel
+                  key="hosts"
+                  hosts={monthHosts}
+                  nextEventOf={nextEventOf}
+                  onOpenUser={openUser}
+                  onOpenEvent={(e) => setDetailsEventId(String(e.id))}
+                  onCreate={() => handleOpenCreateModal(undefined, undefined, 'hosts')}
+                  onOpenAll={() => setIsHostsOpen(true)}
+                />
+              );
+            }
             const ev = item.ev;
             const isCreator = Boolean(
               currentUserId && (
@@ -1136,6 +1218,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                   handleJoin(ev, null);
                 }}
                 onEdit={() => handleOpenEditModal(ev)}
+                onRepeat={() => handleOpenRepeatModal(ev)}
                 onDelete={() => handleDeleteEvent(ev)}
                 onOpenDetails={() => setDetailsEventId(String(ev.id))}
                 onSeen={() => markEventSeen(String(ev.id))}
@@ -1203,6 +1286,8 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       )}
 
       {/* Подробности сходки — открываются свайпом вправо; там же «Пойду!» */}
+      {isHostsOpen && <HostsSheet hosts={monthHosts} nextEventOf={nextEventOf} onOpenEvent={(e) => setDetailsEventId(String(e.id))} onClose={() => setIsHostsOpen(false)} />}
+
       {detailsEvent && (
         <BottomSheet title={detailsEvent.title} onClose={() => setDetailsEventId(null)}>
           <EventDetails event={detailsEvent} onJoin={(o) => handleJoin(detailsEvent, o)} onReported={() => setDetailsEventId(null)} />
@@ -1252,12 +1337,14 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       )}
 
       {isModalOpen && formStep === 'form' && (
-        <BottomSheet title={editingEventId ? M.editMeetup : M.newMeetup} onClose={closeModal}>
+        <BottomSheet title={editingEventId ? M.editMeetup : isRepeat ? M.repeatMeetup : M.newMeetup} onClose={closeModal}>
           {/* noValidate: вместо всплывашек браузера (в Telegram их часто не видно) — наша подсказка, что именно не заполнено */}
           <form ref={formRef} onSubmit={handleSubmitForm} noValidate className="space-y-5">
             {formError && (
               <div ref={formErrorRef} className="p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">{formError}</div>
             )}
+
+            {isRepeat && !editingEventId && <p className="p-3 rounded-zine-sm bg-zine-sage/15 text-sm2 font-semibold text-zine-ink">🔁 {M.repeatHint}</p>}
 
             {/* «Позвать в компанию»: кого бот пригласит после публикации */}
             {!editingEventId && invite.length > 0 && (
@@ -1280,7 +1367,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             )}
 
             {/* Выбранный шаблон — можно сменить */}
-            {!editingEventId && template && templates && templates.length > 0 && (
+            {!editingEventId && !isRepeat && template && templates && templates.length > 0 && (
               <div className="flex items-center gap-3 p-3 rounded-zine-sm bg-zine-card">
                 <span className="text-[26px] leading-none">{template.emoji}</span>
                 <span className="flex-1 min-w-0 text-body font-bold text-zine-ink truncate">{template.name}</span>
@@ -1872,6 +1959,7 @@ export const EventReel: React.FC<{
   onJoin: () => void;
   onLeave: () => void;
   onEdit: () => void;
+  onRepeat?: () => void; // своя прошедшая сходка: вместо «Изменить» — «Повторить»
   onDelete: () => void;
   onOpenDetails: () => void;
   onNotInterested: () => void;
@@ -1879,7 +1967,7 @@ export const EventReel: React.FC<{
   emoji?: string | null;
   // Сходка в ленте «Людей»: тёмная карточка с подписью, кто из знакомых идёт, и толчок вибрацией при остановке
   spotlight?: { label: string; friendIds: Set<number> };
-}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onLeave, onEdit, onDelete, onOpenDetails, onNotInterested, onSeen, emoji, spotlight }) => {
+}> = ({ event: ev, isFirst, isCreator, isJoining, isDeleting, onJoin, onLeave, onEdit, onRepeat, onDelete, onOpenDetails, onNotInterested, onSeen, emoji, spotlight }) => {
   const [isConfirming, setIsConfirming] = useState(false);
   // Карточка видна больше секунды — считаем просмотренной
   const reelRef = useRef<HTMLDivElement>(null);
@@ -1932,6 +2020,7 @@ export const EventReel: React.FC<{
   const goingTotal = ev.participantsCount || people.length;
 
   const isPending = ev.isJoined && ev.byRequest && !ev.myApproved;
+  const isStarted = new Date(ev.dateTime).getTime() <= Date.now();
 
   return (
     <SwipeReel
@@ -2010,6 +2099,16 @@ export const EventReel: React.FC<{
           <MapPin size={16} className="shrink-0" />
           <span className="truncate">{ev.locationName}</span>
         </p>
+        {/* Организатор: значки и сколько сходок уже провёл. Новичков не подписываем — строка только у тех, кому есть что показать */}
+        {ev.host && (ev.host.held > 0 || ev.host.active || ev.host.supporter) && (
+          <p className="mt-1 flex items-center gap-1.5 text-sm2 text-zine-inkMuted">
+            <span className="min-w-0 truncate">
+              <span className="font-semibold text-zine-ink">{isCreator ? M.hostMine : M.hostLine(ev.creator?.name || '')}</span>
+              {ev.host.held > 0 && ` · ${M.hostedCount(ev.host.held)}`}
+            </span>
+            <HostBadges host={ev.host} />
+          </p>
+        )}
         {/* Кто идёт: лица и сколько; много — ряд листается пальцем (не свайпает карточку) */}
         <div className="mt-2.5 flex items-center gap-2">
           <span data-no-swipe className={`min-w-0 flex -space-x-2 overflow-x-auto no-scrollbar py-0.5 ${people.length > 7 ? 'fade-right pr-3' : ''}`}>
@@ -2048,11 +2147,11 @@ export const EventReel: React.FC<{
             // Своя сходка: организатор и так идёт — вместо «Пойду» управление
             <>
               <button
-                onClick={onEdit}
+                onClick={isStarted && onRepeat ? onRepeat : onEdit}
                 className="flex-1 h-12 rounded-full bg-zine-ink text-zine-paper text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
               >
-                <Edit2 size={19} />
-                <span>Изменить</span>
+                {isStarted && onRepeat ? <Repeat2 size={19} /> : <Edit2 size={19} />}
+                <span>{isStarted && onRepeat ? M.repeat : 'Изменить'}</span>
               </button>
               <button
                 onClick={onDelete}
