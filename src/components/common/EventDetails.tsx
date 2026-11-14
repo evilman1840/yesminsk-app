@@ -183,7 +183,9 @@ export const EventDetails: React.FC<{
       }}
       className="flex-1 min-w-0 h-14 rounded-zine-sm border-2 border-zine-terracotta text-zine-terracotta text-body font-bold whitespace-nowrap px-2 flex items-center justify-center active:scale-[0.98] transition-transform cursor-pointer"
     >
-      {BUDDY_TEXTS.bringBuddy}
+      {/* На узких экранах 👯 прячем, чтобы надпись влезла целиком */}
+      <span aria-hidden className="mr-1.5 max-[379px]:hidden">👯</span>
+      {BUDDY_TEXTS.bringBuddy.replace('👯', '').trim()}
     </button>
   );
   const moreGroups = Math.max(0, (event.groupsCount ?? event.participantsCount) - 1 - others.length);
@@ -276,22 +278,29 @@ export const EventDetails: React.FC<{
       <section className="mt-5">
         <SectionTitle>Кто идёт</SectionTitle>
         <div className="flex items-center gap-3">
-          {/* Нажать на организатора — его анкета */}
-          <button
-            type="button"
-            disabled={isCreator}
-            onClick={() => openUser(Number(event.creator.telegramId))}
-            className="min-w-0 flex-1 flex items-center gap-3 text-left cursor-pointer disabled:cursor-default"
+          {/* Нажать на организатора — его анкета. Значки — рядом с именем, чтобы «организатор · провёл N сходок» не обрезалось;
+              строка под именем переносится, а не режется. div, а не button: внутри кнопка значков */}
+          <div
+            role="button"
+            tabIndex={isCreator ? -1 : 0}
+            aria-disabled={isCreator}
+            onClick={() => !isCreator && openUser(Number(event.creator.telegramId))}
+            onKeyDown={(e) => {
+              if (!isCreator && (e.key === 'Enter' || e.key === ' ')) openUser(Number(event.creator.telegramId));
+            }}
+            className={`min-w-0 flex-1 flex items-center gap-3 text-left ${isCreator ? '' : 'cursor-pointer'}`}
           >
             <Avatar src={thumb(event.creator?.avatarUrl)} name={event.creator?.name || '?'} />
             <span className="min-w-0 flex-1">
-              <span className="block text-body font-bold text-zine-ink truncate">{isCreator ? 'Ты' : event.creator?.name}</span>
-              <span className="block text-sm2 text-zine-inkMuted truncate">
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="min-w-0 text-body font-bold text-zine-ink truncate">{isCreator ? 'Ты' : event.creator?.name}</span>
+                <HostBadges host={event.host} />
+              </span>
+              <span className="block text-sm2 text-zine-inkMuted">
                 {event.host?.held ? `организатор · ${MEETUP_TEXTS.hostedShort(event.host.held)}` : 'собирает сходку'}
               </span>
             </span>
-          </button>
-          <HostBadges host={event.host} />
+          </div>
           {event.creator?.username && !isCreator && (
             <button
               onClick={() => {

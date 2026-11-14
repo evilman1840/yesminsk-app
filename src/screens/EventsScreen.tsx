@@ -1067,22 +1067,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             {!topWish && myWishCount > 0 && (
               <span className="min-w-[20px] h-5 px-1.5 shrink-0 rounded-full bg-zine-terracotta/15 text-zine-terracotta text-cap font-bold flex items-center justify-center">{myWishCount}</span>
             )}
-            {/* Рядом 🏆 или фильтры — стрелку убираем, чтобы «Хочу сходить» не обрезалось */}
-            {!tv && !monthHosts.length && <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />}
+            {/* Рядом фильтры — стрелку убираем, чтобы «Хочу сходить» не обрезалось */}
+            {!tv && <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />}
           </button>
-          {/* 🏆 «Организаторы месяца» — тот же список, что карточкой в ленте. Во втором ряду: в первом фильтрам по времени и так тесно; организаторов нет — кнопки нет */}
-          {monthHosts.length > 0 && (
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                setIsHostsOpen(true);
-              }}
-              aria-label={M.hostsTitle}
-              className="w-11 shrink-0 rounded-zine-sm bg-zine-card border border-zine-border text-[18px] leading-none flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
-            >
-              🏆
-            </button>
-          )}
           {/* С телевизором сериала в шапке фильтры переезжают сюда */}
           {tv && filterButton('rounded-zine-sm')}
           {/* Не нашлось подходящей — собрать свою */}
@@ -1095,8 +1082,21 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </button>
         </div>
         {/* Быстрые желания: вид в одно нажатие, дальше только «когда» */}
-        {(wishKinds.length > 0 || topWish) && (
+        {(wishKinds.length > 0 || topWish || monthHosts.length > 0) && (
           <div className="mt-2 -mx-3 px-3 flex gap-1.5 overflow-x-auto no-scrollbar">
+            {/* 🏆 «Организаторы месяца» — тот же список, что карточкой в ленте. Первым в ряду чипов: в ряду с «Хочу сходить» он обрезал надпись; организаторов нет — кнопки нет */}
+            {monthHosts.length > 0 && (
+              <button
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  setIsHostsOpen(true);
+                }}
+                aria-label={M.hostsTitle}
+                className="w-9 h-9 shrink-0 rounded-full bg-zine-card border border-zine-border text-[17px] leading-none flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+              >
+                🏆
+              </button>
+            )}
             {/* «2 человека хотят на выставку на неделе» — список этих людей: 👋, позвать в компанию, «Я тоже хочу» */}
             {topWish && (
               <button
@@ -2101,8 +2101,9 @@ export const EventReel: React.FC<{
         </p>
         {/* Организатор: значки и сколько сходок уже провёл. Новичков не подписываем — строка только у тех, кому есть что показать */}
         {ev.host && (ev.host.held > 0 || ev.host.active || ev.host.supporter) && (
-          <p className="mt-1 flex items-center gap-1.5 text-sm2 text-zine-inkMuted">
-            <span className="min-w-0 truncate">
+          // Текст не режется: не влезли значки — уходят на следующую строку
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm2 text-zine-inkMuted">
+            <span className="min-w-0">
               <span className="font-semibold text-zine-ink">{isCreator ? M.hostMine : M.hostLine(ev.creator?.name || '')}</span>
               {ev.host.held > 0 && ` · ${M.hostedCount(ev.host.held)}`}
             </span>
