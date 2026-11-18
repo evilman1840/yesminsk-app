@@ -1,3 +1,5 @@
+import { ProfileInviteBanner } from './profile/ProfileInviteBanner';
+import { Questionnaire, questionnaireComplete, QUESTIONNAIRE_VERSION } from './profile/questionnaire';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { YMaps } from '@pbe/react-yandex-maps';
 import { setWaveQuota, setOpenMeetups } from './utils/waves';
@@ -112,6 +114,8 @@ export const App: React.FC = () => {
     age: '25',
     ageConfirmed: false, // человек сам указал возраст (25 стоит по умолчанию)
     profileCompleted: false, // указал возраст и интересы — только тогда анкету видят другие
+    questionnaire: undefined as Questionnaire | undefined,
+    profileInviteSeenVersion: 0,
     bio: '',
     gender: 'not_specified' as Gender,
     preferredGender: 'all' as PreferredGender,
@@ -171,6 +175,18 @@ export const App: React.FC = () => {
   useEffect(() => {
     isMeLoadedRef.current = isMeLoaded;
   }, [isMeLoaded]);
+  const [profileInviteOpen, setProfileInviteOpen] = useState(false);
+  const [focusQuestionnaire, setFocusQuestionnaire] = useState(false);
+  const [inviteDismissed, setInviteDismissed] = useState(false);
+  // Deep links always open their intended content first; no invitation during this session.
+  const inviteDeepLink = useMemo(() => Object.values(telegramService.getLaunchTarget()).some(v => v !== undefined && v !== false), []);
+  const inviteLocalSeen = (() => { try { return localStorage.getItem(`gulyai_profile_invite_${currentUser.telegramId}`) === String(QUESTIONNAIRE_VERSION); } catch { return false; } })();
+  const invitePending = isMeLoaded && currentUser.profileCompleted && currentUser.ageConfirmed && currentUser.genderConfirmed && currentUser.legalVersion === LEGAL_VERSION && !inviteDeepLink && !inviteDismissed && !inviteLocalSeen && currentUser.profileInviteSeenVersion < QUESTIONNAIRE_VERSION && !questionnaireComplete(currentUser.questionnaire);
+  const markProfileInviteSeen = useCallback(() => {
+    try { localStorage.setItem(`gulyai_profile_invite_${currentUser.telegramId}`, String(QUESTIONNAIRE_VERSION)); } catch {}
+    api.acknowledgeProfileInvite().then(({ version }) => setCurrentUser(prev => ({ ...prev, profileInviteSeenVersion: version }))).catch(() => {});
+  }, [currentUser.telegramId]);
+  useEffect(() => { if (invitePending) setProfileInviteOpen(true); }, [invitePending]);
   const [isFirstStepsHidden, setIsFirstStepsHidden] = useState(() => {
     try {
       return localStorage.getItem('yesminsk_first_steps_hidden') === '1';
@@ -605,6 +621,8 @@ export const App: React.FC = () => {
             age: me.age ? String(me.age) : prev.age,
             // Старые анкеты: если возраст не 25, его точно меняли руками
             ageConfirmed: Boolean(me.ageConfirmed) || (Boolean(me.age) && Number(me.age) !== 25),
+            questionnaire: me.questionnaire,
+            profileInviteSeenVersion: me.profileInviteSeenVersion || 0,
             bio: me.bio ?? prev.bio,
             gender: me.gender || prev.gender,
             preferredGender: me.preferredGender || prev.preferredGender,
@@ -796,6 +814,7 @@ export const App: React.FC = () => {
 
   // Сохранение профиля
   const handleSaveProfile = async (formData: {
+    questionnaire?: Questionnaire;
     name: string;
     age: string;
     ageConfirmed?: boolean;
@@ -832,6 +851,7 @@ export const App: React.FC = () => {
     } catch (e) {}
 
     const res = await api.updateProfile({
+      questionnaire: formData.questionnaire,
       name: formData.name,
       firstName: formData.name,
       age: Number(formData.age) || 25,
@@ -866,6 +886,10 @@ export const App: React.FC = () => {
       if (formData.isEmpath !== undefined && Boolean(saved.isEmpath) !== Boolean(formData.isEmpath)) notSaved.push('«Я эмпат»');
       if (formData.goesWith && saved.goesWith !== formData.goesWith) notSaved.push('«Обычно хожу»');
       if (formData.area && saved.areaName !== formData.area) notSaved.push('район');
+      if (formData.questionnaire && JSON.stringify(saved.questionnaire) !== JSON.stringify(formData.questionnaire)) {
+        // The server canonicalises blanks and exclusives, so use its saved representation.
+        if (!saved.questionnaire) notSaved.push('новые ответы');
+      }
       if (notSaved.length) {
         console.warn('Профиль: сервер не сохранил', notSaved, { sent: formData, saved });
         throw new Error(`Сервер не сохранил: ${notSaved.join(', ')}. Сделай скриншот и напиши разработчику`);
@@ -875,6 +899,7 @@ export const App: React.FC = () => {
     setCurrentUser(prev => ({
       ...prev,
       ...formData,
+      questionnaire: saved?.questionnaire || formData.questionnaire || prev.questionnaire,
       avatarUrl: formData.avatarUrl || prev?.avatarUrl, // фото не меняли — оставляем прежнее
       faceStatus: formData.avatarUrl ? 'pending' : prev.faceStatus, // новое фото сервер проверит заново
       profileCompleted: prev.profileCompleted || Boolean(formData.ageConfirmed && formData.goals?.length),
@@ -1444,6 +1469,7 @@ export const App: React.FC = () => {
               (isMeLoaded ? (
                 <ProfileFormScreen
                   isFirstTime={false}
+                  focusQuestionnaire={focusQuestionnaire}
                   initialData={currentUser}
                   onSave={handleSaveProfile}
                   onPlacesChanged={fetchPlaces}
@@ -1924,6 +1950,10 @@ export const App: React.FC = () => {
           )}
 
           {shareData && <ShareSheet data={shareData} onClose={() => setShareData(null)} />}
+
+          {profileInviteOpen && ['main', 'feed', 'events', 'places'].includes(currentScreen) && !isHomeTipOpen && !isHostDonateOpen && !isDonateOpen && !isPollOpen && !shareData && !goTogetherWith && !duelWith && !sharedEvent && !matchPopupUser && !helloWith && !selectedUser && !serialPlaying && !launchNotice && !waveGate && (
+            <ProfileInviteBanner onSeen={markProfileInviteSeen} onClose={() => { setInviteDismissed(true); setProfileInviteOpen(false); }} onContinue={() => { setInviteDismissed(true); setProfileInviteOpen(false); setFocusQuestionnaire(true); setCurrentScreen('profile_edit'); }} />
+          )}
 
           {matchPopupUser && (
             <MatchModal

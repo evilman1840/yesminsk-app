@@ -1,3 +1,7 @@
+import { BottomSheet } from '../components/ui/BottomSheet';
+import { QuestionnaireSummary } from '../profile/QuestionnaireSummary';
+import { QuestionnaireEditor } from '../profile/QuestionnaireEditor';
+import { Questionnaire, questionnaireCount, questionnaireComplete, legacyActivities } from '../profile/questionnaire';
 import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Check, ArrowLeft, Upload, Link as LinkIcon, Loader2, Navigation, Eye, EyeOff } from 'lucide-react';
@@ -27,6 +31,7 @@ import { NearbySettings } from '../texts/nearby';
 
 interface ProfileFormScreenProps {
   initialData?: {
+    questionnaire?: Questionnaire;
     name?: string;
     age?: string | number;
     ageConfirmed?: boolean;
@@ -58,6 +63,7 @@ interface ProfileFormScreenProps {
     nearby?: NearbySettings; // блок «Сходки рядом»
   };
   onSave: (data: {
+    questionnaire?: Questionnaire;
     name: string;
     age: string;
     ageConfirmed?: boolean;
@@ -89,6 +95,7 @@ interface ProfileFormScreenProps {
   isFirstTime?: boolean;
   onPlacesChanged?: () => void; // вернули скрытое место — обновить список мест
   onEventsChanged?: () => void; // вернули скрытую сходку — обновить список сходок
+  focusQuestionnaire?: boolean;
   focusNearby?: boolean; // открыли по «Настроить или выключить» из бота — сразу к блоку «Сходки рядом»
   onNearbyChange?: (next: NearbySettings) => void;
 }
@@ -103,12 +110,16 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   isFirstTime = false,
   onPlacesChanged,
   onEventsChanged,
+  focusQuestionnaire,
   focusNearby,
   onNearbyChange,
   onSetVent,
   onDeleteAccount,
   onAddToHome
 }) => {
+  const [questionnaire, setQuestionnaire] = useState<Questionnaire>(initialData?.questionnaire || { version: 1 });
+  const [savedQuestionnaire, setSavedQuestionnaire] = useState(JSON.stringify(initialData?.questionnaire || { version: 1 }));
+  const [publicPreview, setPublicPreview] = useState(false);
   const tgUser = telegramService.getUser();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalKind | null>(null);
@@ -187,6 +198,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
   const [isLocating, setIsLocating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [customUrl, setCustomUrl] = useState('');
@@ -196,6 +208,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
   // Несохранённый текст — Telegram переспросит перед закрытием
   const isDirty =
+    JSON.stringify(questionnaire) !== savedQuestionnaire ||
     name !== (initialData?.name || tgUser?.first_name || '') ||
     bio !== (initialData?.bio || '') ||
     customGoal !== (initialData?.customGoal || '') ||
@@ -206,7 +219,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const hasNativeSave = useMainButton({
     text: justSaved ? 'Сохранено ✓' : isFirstTime ? 'Готово, на карту!' : 'Сохранить',
     onClick: () => handleSave(),
-    loading: isSaving
+    loading: isSaving,
+    enabled: !isPhotoUploading && !isUploading,
+    active: !publicPreview
   });
 
   // Определение геолокации по GPS
@@ -250,7 +265,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   // Переключатели и выбор района сохраняются сразу — как «Хочется поныть» и тема. Текст — по кнопке
   // Ещё до 5 фото: сохраняются сами, как и настройки ниже
   const [photos, setPhotos] = useState<PickedPhoto[]>((initialData?.photos || []).map(photoFromUrl));
-  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+
   const photoIds = photos.map((p) => p.id).filter(Boolean);
 
   const settingsSnapshot = JSON.stringify([isEmpath, photoOnly, goesWith, area, digest, isGuide, isProfileActive, isPhotoUploading ? null : photoIds]);
@@ -311,6 +326,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
   // silent — автосохранение переключателей: без вибрации «успеха», но ошибки показываем
   const handleSave = async (silent = false) => {
+    if (isSaving || isPhotoUploading || isUploading) return;
     setErrorText(null);
     if (isPhotoUploading && !silent) {
       setErrorText(PHOTO_TEXTS.wait);
@@ -359,6 +375,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
       const isTourist = isTouristArea(area);
 
       await onSave({
+        questionnaire,
         name: name.trim(),
         age: age.trim(),
         ageConfirmed: true,
@@ -387,6 +404,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         guideAbout: guideAbout.trim(),
         coordinates
       });
+      setSavedQuestionnaire(JSON.stringify(questionnaire));
       telegramService.haptic(silent ? 'light' : 'success');
       if (!isFirstTime) {
         setJustSaved(true);
@@ -428,6 +446,72 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         {isFirstTime && (
           <p className="mt-2 text-body text-zine-inkMuted">Пара минут, и тебя увидят люди рядом.</p>
         )}
+
+          {/* С кем комфортно: пол, возраст компании, только с фото — сразу после «О себе», всегда раскрыто */}
+          <Section>
+            <span className="block text-body font-bold text-zine-ink">{GENDER_TEXTS.prefsTitle}</span>
+            <span className="block text-sm2 text-zine-inkMuted">{GENDER_TEXTS.prefsHint}</span>
+            <div className="mt-4 space-y-4">
+              <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">
+                🛡 Тебя увидят только те, кто подходит под эти настройки. Остальным твоя анкета не покажется.
+              </p>
+              <Label text="С кем комфортно встречаться">
+                <Segmented
+                  value={preferredGender}
+                  onChange={(v) => setPreferredGender(v as PreferredGender)}
+                  options={[
+                    { id: 'all', label: 'Со всеми' },
+                    { id: 'female', label: 'С женщинами' },
+                    { id: 'male', label: 'С мужчинами' }
+                  ]}
+                />
+              </Label>
+              <Label text="Возраст компании" hint={`от ${minAge} до ${maxAge}`}>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="18"
+                    max="99"
+                    value={minAge}
+                    onChange={(e) => setMinAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    onBlur={fixAgeRange}
+                    className="field text-center"
+                  />
+                  <span className="text-body text-zine-inkMuted">-</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="18"
+                    max="99"
+                    value={maxAge}
+                    onChange={(e) => setMaxAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    onBlur={fixAgeRange}
+                    className="field text-center"
+                  />
+                </div>
+              </Label>
+              {/* Только с фото: в обе стороны, сохраняется сразу */}
+              <button
+                type="button"
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  setPhotoOnly((v) => !v);
+                }}
+                className="w-full flex items-center justify-between gap-3 text-left cursor-pointer"
+              >
+                <span>
+                  <span className="block text-body font-bold text-zine-ink">{FACE_TEXTS.toggleTitle}</span>
+                  <span className="block text-sm2 text-zine-inkMuted">{FACE_TEXTS.toggleHint}</span>
+                </span>
+                <span className={`w-14 h-8 rounded-full p-1 transition-colors shrink-0 ${photoOnly ? 'bg-zine-terracotta' : 'bg-zine-border'}`}>
+                  <span className={`block w-6 h-6 rounded-full bg-white shadow transition-transform ${photoOnly ? 'translate-x-6' : 'translate-x-0'}`} />
+                </span>
+              </button>
+              {photoOnly && showNoFace && <p className="-mt-1 text-sm2 font-semibold text-zine-terracotta">{FACE_TEXTS.myPhotoNoFace}</p>}
+            </div>
+          </Section>
+
 
         {/* «Как это работает» — сразу наверху: раньше был «?» на карте */}
         {!isFirstTime && (
@@ -474,6 +558,19 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           {/* Нет @username — на связи тебе не смогут написать */}
           {!isFirstTime && !initialData?.username && <UsernameBanner />}
 
+          {!isFirstTime && <div className="rounded-zine bg-zine-card px-4 py-3">
+            <p className="text-body font-bold">{name}{age ? `, ${age}` : ''}</p>
+            <p className="text-sm2 text-zine-inkMuted">{area} · {questionnaireCount(questionnaire)} из 8 новых ответов</p>
+            <button type="button" onClick={() => setPublicPreview(true)} className="mt-2 w-full min-h-11 rounded-zine-sm border border-zine-border text-sm2 font-semibold">Посмотреть глазами других</button>
+          </div>}
+          <QuestionnaireEditor value={questionnaire} onChange={next => {
+            if (next.activities?.length && JSON.stringify(next.activities) !== JSON.stringify(questionnaire.activities)) {
+              const legacy = legacyActivities(next.activities);
+              setSelectedGoals(legacy.goals); setCustomGoal(legacy.customGoal);
+            }
+            setQuestionnaire(next);
+          }} focus={focusQuestionnaire} />
+          <ProfileGroup title="Фото и о себе" summary="Имя, возраст, фото и пара слов о тебе" open={isFirstTime}>
           {/* Фото */}
           <Section>
             <div className="flex flex-col items-center text-center">
@@ -590,73 +687,11 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             </div>
           </Section>
 
-          {/* С кем комфортно: пол, возраст компании, только с фото — сразу после «О себе», всегда раскрыто */}
-          <Section>
-            <span className="block text-body font-bold text-zine-ink">{GENDER_TEXTS.prefsTitle}</span>
-            <span className="block text-sm2 text-zine-inkMuted">{GENDER_TEXTS.prefsHint}</span>
-            <div className="mt-4 space-y-4">
-              <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">
-                🛡 Тебя увидят только те, кто подходит под эти настройки. Остальным твоя анкета не покажется.
-              </p>
-              <Label text="С кем комфортно встречаться">
-                <Segmented
-                  value={preferredGender}
-                  onChange={(v) => setPreferredGender(v as PreferredGender)}
-                  options={[
-                    { id: 'all', label: 'Со всеми' },
-                    { id: 'female', label: 'С женщинами' },
-                    { id: 'male', label: 'С мужчинами' }
-                  ]}
-                />
-              </Label>
-              <Label text="Возраст компании" hint={`от ${minAge} до ${maxAge}`}>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min="18"
-                    max="99"
-                    value={minAge}
-                    onChange={(e) => setMinAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                    onBlur={fixAgeRange}
-                    className="field text-center"
-                  />
-                  <span className="text-body text-zine-inkMuted">-</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min="18"
-                    max="99"
-                    value={maxAge}
-                    onChange={(e) => setMaxAge(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                    onBlur={fixAgeRange}
-                    className="field text-center"
-                  />
-                </div>
-              </Label>
-              {/* Только с фото: в обе стороны, сохраняется сразу */}
-              <button
-                type="button"
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setPhotoOnly((v) => !v);
-                }}
-                className="w-full flex items-center justify-between gap-3 text-left cursor-pointer"
-              >
-                <span>
-                  <span className="block text-body font-bold text-zine-ink">{FACE_TEXTS.toggleTitle}</span>
-                  <span className="block text-sm2 text-zine-inkMuted">{FACE_TEXTS.toggleHint}</span>
-                </span>
-                <span className={`w-14 h-8 rounded-full p-1 transition-colors shrink-0 ${photoOnly ? 'bg-zine-terracotta' : 'bg-zine-border'}`}>
-                  <span className={`block w-6 h-6 rounded-full bg-white shadow transition-transform ${photoOnly ? 'translate-x-6' : 'translate-x-0'}`} />
-                </span>
-              </button>
-              {photoOnly && showNoFace && <p className="-mt-1 text-sm2 font-semibold text-zine-terracotta">{FACE_TEXTS.myPhotoNoFace}</p>}
-            </div>
-          </Section>
 
+          </ProfileGroup>
+          <ProfileGroup title="Занятия и моя точка на карте" summary="Текущие интересы для фильтров, как ты ходишь, район" open={isFirstTime}>
           {/* Цели */}
-          <Section title="Что тебе интересно?" subtitle="Можно выбрать несколько">
+          {!questionnaire.activities?.length && <Section title="Что тебе интересно?" subtitle="Можно выбрать несколько">
             {selectedGoals.length === 0 && <p className="-mt-1 mb-3 text-cap font-semibold text-zine-terracotta">{AGE_TEXTS.goalsRequired}</p>}
             <div className="grid grid-cols-2 gap-2">
               {(Object.keys(GOALS_CONFIG) as ActivityGoal[]).filter((key) => key !== 'other').map((key) => {
@@ -709,6 +744,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             )}
           </Section>
 
+          }
+          {questionnaire.activities?.length > 0 && <p className="text-sm2 text-zine-inkMuted">Занятия для поиска обновляются по ответу «На что тебя можно позвать?» выше.</p>}
           {/* Обычно хожу: без компании, парой, компанией, с детьми */}
           <Section title="Обычно хожу" subtitle="Так проще найти тех, кто ходит так же">
             <div className="grid grid-cols-2 gap-2">
@@ -769,6 +806,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             </button>
           </Section>
 
+
+          </ProfileGroup>
+          <ProfileGroup title="Мои возможности" summary="Эмпат, поддержка и «Покажу город»" open={isFirstTime}>
           {/* «🫶 Эмпат» — отмечает сам человек; бейдж видно на карточке */}
           <Section>
             <button
@@ -862,6 +902,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
             </Section>
           )}
 
+
+          </ProfileGroup>
+          <ProfileGroup title="Настройки приложения" summary="Видимость, подборки, сходки рядом, оформление и аккаунт" open={isFirstTime}>
           {/* Видимость анкеты (режим невидимки) */}
           {!isFirstTime && (
             <button
@@ -993,10 +1036,20 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               {ACCOUNT_TEXTS.deleteLink}
             </button>
           )}
+
+          </ProfileGroup>
           {isDeleteOpen && onDeleteAccount && <DeleteAccountSheet onConfirm={onDeleteAccount} onClose={() => setIsDeleteOpen(false)} />}
         </div>
       </div>
 
+      {publicPreview && <BottomSheet title="Так тебя видят другие" onClose={() => setPublicPreview(false)}>
+        <img src={avatarUrl} alt={name} className="w-full max-h-[50vh] object-contain rounded-zine bg-zine-card" />
+        <h3 className="font-serif text-title font-bold mt-4">{name}, {age}</h3><p className="text-sm2 text-zine-inkMuted">{area}</p>
+        {bio && <p className="mt-3 text-body whitespace-pre-line">{bio}</p>}
+        <p className="mt-3 text-sm2">{selectedGoals.map(g => GOALS_CONFIG[g]?.label).join(' · ')}</p>
+        <QuestionnaireSummary value={questionnaire} />
+        <p className="mt-4 text-sm2 text-zine-inkMuted">Предпросмотр твоих текущих ответов. Изменения появятся у других после сохранения.</p>
+      </BottomSheet>}
       {/* Кнопка «Сохранить» всегда под рукой: в Telegram — нативная MainButton, в браузере — своя */}
       {(errorText || !hasNativeSave) && (
       <div className="shrink-0 px-5 pt-3 pb-3 bg-zine-paper border-t border-zine-border">
@@ -1005,7 +1058,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         {!hasNativeSave && (
         <button
           onClick={() => handleSave()}
-          disabled={isSaving}
+          disabled={isSaving || isPhotoUploading || isUploading}
           className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.99] transition-all cursor-pointer ${
             justSaved ? 'bg-zine-sage text-white' : 'bg-zine-terracotta active:bg-zine-terracottaHover text-white'
           }`}
@@ -1067,3 +1120,10 @@ const Segmented: React.FC<{ value: string; onChange: (v: string) => void; option
 );
 
 export default ProfileFormScreen;
+
+function ProfileGroup({ title, summary, open, children }: { title: string; summary: string; open?: boolean; children: React.ReactNode }) {
+  return <details open={open || undefined} className="rounded-zine border border-zine-border px-4 bg-zine-cardElevated">
+    <summary className="min-h-16 py-4 cursor-pointer text-body font-bold">{title}<span className="block mt-1 text-sm2 text-zine-inkMuted font-normal">{summary}</span></summary>
+    <div className="space-y-4 pb-4">{children}</div>
+  </details>;
+}

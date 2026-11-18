@@ -1,3 +1,4 @@
+import type { Questionnaire } from '../profile/questionnaire';
 export type ActivityGoal = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'other';
 export type Gender = 'male' | 'female' | 'not_specified';
 export type PreferredGender = 'all' | 'male' | 'female';
@@ -104,6 +105,7 @@ export const eventCategoryOf = (ev: { category: EventCategory; customCategory?: 
 };
 
 export interface UserProfile {
+  questionnaire?: Questionnaire;
   id: string;
   telegramId: number;
   username?: string;

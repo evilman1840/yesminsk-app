@@ -210,6 +210,19 @@ export const telegramService = {
    * Нативная MainButton: кладёт кнопку на верх стека.
    * update — поменять текст/загрузку, dispose — убрать (вернётся кнопка экрана ниже или скроется)
    */
+  hasSecondaryButton(): boolean {
+    const app = tg();
+    return Boolean(insideTelegram() && app?.isVersionAtLeast('7.10') && (app as any).SecondaryButton);
+  },
+
+  bindSecondaryButton(text: string, onClick: () => void): () => void {
+    if (!telegramService.hasSecondaryButton()) return () => {};
+    const button = (tg() as any).SecondaryButton;
+    button.setParams({ text, position: 'top', is_visible: true, is_active: true });
+    button.onClick(onClick);
+    return () => { button.offClick(onClick); button.hide(); };
+  },
+
   bindMainButton(state: MainButtonState, onClick: () => void): { update: (s: MainButtonState) => void; dispose: () => void } {
     const binding: MainButtonBinding = { state, onClick };
     mainStack.push(binding);

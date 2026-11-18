@@ -1,3 +1,4 @@
+import type { Questionnaire } from '../profile/questionnaire';
 import { telegramService } from './telegram';
 import type { GameView, GameLobby, GameSummary, TractorMatchResult, SeaView, SeaLobby } from '../games/types';
 import { UserProfile, ActivityGoal, AppEvent, MonthHost, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData, MeetupStats } from '../types';
@@ -133,6 +134,10 @@ class ApiService {
   // ПОЛЬЗОВАТЕЛИ
   // ==========================================
 
+  async acknowledgeProfileInvite(): Promise<{ version: number }> {
+    return this.request('/users/profile-invite-seen', { method: 'POST', body: '{}' });
+  }
+
   async getMe(): Promise<any> {
     return this.request<any>('/users/me');
   }
@@ -196,6 +201,7 @@ class ApiService {
   }
 
   async updateProfile(data: {
+    questionnaire?: Questionnaire;
     name?: string;
     firstName?: string;
     age?: number | string;

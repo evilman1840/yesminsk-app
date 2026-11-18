@@ -38,7 +38,7 @@ export const HostBadges: React.FC<{ host?: Partial<HostInfo> | null; className?:
           telegramService.haptic('selection');
           setIsOpen(true);
         }}
-        className={`shrink-0 h-7 px-2 rounded-full bg-zine-card border border-zine-border text-sm2 leading-none flex items-center gap-1 cursor-pointer active:scale-95 transition-transform ${className}`}
+        className={`shrink-0 min-h-11 px-3 rounded-full bg-zine-card border border-zine-border text-sm2 leading-none flex items-center gap-1 cursor-pointer active:scale-95 transition-transform ${className}`}
       >
         {starter && <span aria-hidden>🌱</span>}
         {host.active && <span aria-hidden>🔥</span>}

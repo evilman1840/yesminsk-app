@@ -1,0 +1,8 @@
+/* Keep the action visible even on short Telegram viewports; the centre remains scrollable. */
+@media (max-height: 780px) {
+  .profile-invite-circle { width: 132px; height: 132px; }
+  .profile-invite-hand { font-size: 22px; }
+  .profile-invite-title { font-size: 26px; }
+  .profile-invite-caption { min-height: 56px; }
+  .profile-invite-secondary { display: none; }
+}

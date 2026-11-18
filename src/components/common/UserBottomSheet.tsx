@@ -1,3 +1,5 @@
+import { QuestionnaireSummary } from '../../profile/QuestionnaireSummary';
+import { HostBadges } from './HostBadges';
 import React, { useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, EMPATH, isVentingNow, isAvailableNow, formatTime } from '../../types';
@@ -36,6 +38,7 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => 
  * фото с именем, статусы, общее со мной, о себе, интересы; кнопки 👋 / «Написать» закреплены внизу
  */
 export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals, onClose, onReact, onReported, onGoTogether, onHello, onDuel }) => {
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTipsOpen, setIsTipsOpen] = useState(false);
 
@@ -105,6 +108,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
       onClose={onClose}
       footer={user.isMatch ? matchButtons : <ReactionButtons user={user} onReact={onReact} />}
     >
+      {photoOpen && <BottomSheet title="Фото" onClose={() => setPhotoOpen(false)}><img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} className="w-full max-h-[70vh] object-contain rounded-zine bg-zine-card" />{gallery.length > 1 && <div className="flex gap-3 mt-3"><button type="button" onClick={() => setPhotoIndex(i => (i-1+gallery.length)%gallery.length)} className="flex-1 min-h-11 rounded-zine-sm bg-zine-card">Предыдущее</button><button type="button" onClick={() => setPhotoIndex(i => (i+1)%gallery.length)} className="flex-1 min-h-11 rounded-zine-sm bg-zine-card">Следующее</button></div>}</BottomSheet>}
       {/* Фото с именем поверх */}
       <div className="relative -mt-1 rounded-zine overflow-hidden bg-zine-card">
         {/* Главное фото и ещё до 5: листаются пальцем и тапом по краям */}
@@ -116,7 +120,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
         >
           {/* Без loading="lazy": в горизонтальной ленте «ленивые» фото начинают грузиться, только когда до них долистали */}
           {gallery.map((src) => (
-            <img key={src} src={src} alt={user.firstName} className="w-full shrink-0 snap-center aspect-[4/5] max-h-[52vh] object-cover" />
+            <img key={src} src={src} alt={user.firstName} className="w-full shrink-0 snap-center aspect-[4/5] max-h-[52vh] object-cover object-[center_35%]" />
           ))}
         </div>
         {gallery.length > 1 && (
@@ -126,23 +130,15 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
             ))}
           </div>
         )}
-        <div className="absolute top-5 left-3 right-3 flex flex-wrap gap-1.5 pointer-events-none">
-          {user.isMatch && <span className="px-3 py-1 rounded-full bg-zine-sage text-white text-sm2 font-bold shadow">🤝 На связи</span>}
-          {user.likedMe && !user.isMatch && <span className="px-3 py-1 rounded-full bg-white text-zine-ink text-sm2 font-bold shadow">👋 Хочет пообщаться</span>}
-          {user.isGuide && <span className="px-3 py-1 rounded-full bg-zine-sky text-white text-sm2 font-bold shadow">🧭 Покажу город</span>}
-          {user.isSupporter && <span className="px-3 py-1 rounded-full bg-white text-zine-ink text-sm2 font-bold shadow">🍩 Кормлю ГУЛЯЙ-Печку</span>}
-          {user.hostActive && <span className="px-3 py-1 rounded-full bg-white text-zine-ink text-sm2 font-bold shadow">🔥 Активный организатор</span>}
+        <div className="absolute top-4 left-3 right-3 flex items-start justify-between gap-2">
+          <div className="pointer-events-none">{isAvailableNow(user) ? <span className="inline-block px-3 py-1 rounded-full bg-zine-sage text-white text-sm2 font-bold">⚡ Могу сейчас</span> : user.isMatch ? <span className="inline-block px-3 py-1 rounded-full bg-zine-sage text-white text-sm2 font-bold">🤝 На связи</span> : user.likedMe ? <span className="inline-block px-3 py-1 rounded-full bg-zine-ink text-zine-paper text-sm2 font-bold">👋 Хочет пообщаться</span> : null}</div>
+          <button type="button" onClick={() => setPhotoOpen(true)} aria-label="Рассмотреть фото без подписей" className="w-11 h-11 shrink-0 rounded-full bg-black/40 text-white text-title">↗</button>
         </div>
         <div className="absolute inset-x-0 bottom-0 px-4 pt-16 pb-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white pointer-events-none">
           <h3 className="font-serif font-bold text-display leading-tight">
             {user.firstName}
             {user.age ? <span className="font-sans font-medium text-white/85">, {user.age}</span> : null}
           </h3>
-          {user.isEmpath && (
-            <p className="mt-0.5 text-sm2 font-semibold text-white/90">
-              {EMPATH.emoji} {EMPATH.label}: умею слушать и поддерживать
-            </p>
-          )}
           <p className="mt-1 flex items-center gap-1.5 text-sm2 text-white/85">
             <MapPin size={16} className="shrink-0" />
             <span className="truncate">
@@ -150,12 +146,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
               {distance && ` · ${distance}`}
             </span>
           </p>
-          {user.activeRecently && (
-            <p className="mt-1 flex items-center gap-2 text-cap font-semibold text-white/85">
-              <span className="w-2 h-2 rounded-full bg-[#4ADE80]" />
-              Недавно в приложении
-            </p>
-          )}
+
         </div>
       </div>
 
@@ -171,12 +162,13 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
         </p>
       )}
 
-      {/* Собирает сходки: сколько уже провёл(а) — считаются только состоявшиеся */}
-      {Boolean(user.hostedCount) && (
-        <p className="mt-3 p-3 rounded-zine-sm bg-zine-card text-body text-zine-ink">
-          <b>{user.hostActive ? '🔥' : '🌱'} Собирает сходки</b> · {MEETUP_TEXTS.hostedCount(user.hostedCount!)}
-        </p>
-      )}
+      {(Boolean(user.hostedCount) || user.isSupporter || user.isGuide || user.isEmpath) && <div className="mt-3 flex flex-wrap items-center gap-2">
+        {Boolean(user.hostedCount) && <p className="flex-1 text-sm2"><b>{user.hostActive ? '🔥 Активный организатор' : '🌱 Организатор'}</b><br />{MEETUP_TEXTS.hostedCount(user.hostedCount!)}</p>}
+        <HostBadges host={{ held: user.hostedCount || 0, active: user.hostActive, supporter: user.isSupporter }} />
+        {user.isGuide && <span className="text-sm2 rounded-full bg-zine-card px-3 py-2">🧭 Покажу город</span>}
+        {user.isEmpath && <span className="text-sm2 rounded-full bg-zine-card px-3 py-2">🫶 Эмпат</span>}
+        {user.activeRecently && <span className="w-full text-cap text-zine-inkMuted">Недавно в приложении</span>}
+      </div>}
 
       {commonGoals.length > 0 && (
         <p className="mt-3 p-3 rounded-zine-sm bg-zine-mustard/15 text-body text-zine-ink">
@@ -191,6 +183,9 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
         </section>
       )}
 
+      {goesWith && <p className="mt-4 text-body">{goesWith.emoji} Обычно хожу: <b>{goesWith.label.toLowerCase()}</b></p>}
+      <QuestionnaireSummary value={user.questionnaire} />
+      {!user.questionnaire?.activities?.length && (
       <section className="mt-5">
         <SectionTitle>Чем хочется заняться</SectionTitle>
         <div className="flex flex-wrap gap-1.5">
@@ -207,12 +202,10 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
             </span>
           ))}
         </div>
-        {goesWith && (
-          <p className="mt-3 text-body text-zine-ink">
-            {goesWith.emoji} Обычно хожу: <b>{goesWith.label.toLowerCase()}</b>
-          </p>
-        )}
+
       </section>
+
+      )}
 
       {user.isGuide && (
         <section className="mt-5 p-4 rounded-zine-sm bg-zine-sky/10 border border-zine-sky/25">

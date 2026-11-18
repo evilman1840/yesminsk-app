@@ -1,3 +1,4 @@
+import { HostBadges } from '../components/common/HostBadges';
 import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2, X } from 'lucide-react';
@@ -627,11 +628,7 @@ const PersonReel: React.FC<{
             </button>
           </>
         )}
-        {user.isSupporter && (
-          <span className="absolute top-3 left-3 z-20 h-7 px-2.5 rounded-full bg-white/90 text-zine-ink text-cap font-bold flex items-center shadow pointer-events-none">
-            🍩 Кормлю ГУЛЯЙ-Печку
-          </span>
-        )}
+        {statuses.length > 0 && <span className={`absolute top-3 left-3 z-20 max-w-[calc(100%-24px)] truncate h-8 px-3 rounded-full text-sm2 font-semibold flex items-center pointer-events-none ${statuses[0].cls}`}>{statuses[0].text}</span>}
         {/* Подсказка про жесты — только на первой карточке, внизу фото */}
         {isFirst && (
           <SwipeHint className="bottom-3" left={user.isMatch ? undefined : FEED_TEXTS.skipHint} right={canLike ? '👋' : undefined} extra={gallery.length > 1 ? PHOTO_TEXTS.tapHint : undefined} />
@@ -646,9 +643,9 @@ const PersonReel: React.FC<{
         className="shrink-0 px-4 pt-3 text-zine-ink cursor-pointer"
       >
         {/* Статусы — компактной строкой */}
-        {statuses.length > 0 && (
+        {statuses.length > 1 && (
           <div data-no-swipe className="mb-1.5 flex gap-1.5 overflow-x-auto no-scrollbar">
-            {statuses.map((st) => (
+            {statuses.slice(1).map((st) => (
               <span key={st.text} className={`h-7 px-2.5 shrink-0 whitespace-nowrap rounded-full text-cap font-bold flex items-center ${st.cls}`}>
                 {st.text}
               </span>
@@ -683,6 +680,11 @@ const PersonReel: React.FC<{
           <MapPin size={16} className="shrink-0" />
           <span className="truncate">{user.isTourist ? 'В Минске проездом' : user.areaName || 'Минск'}</span>
         </p>
+        {(Boolean(user.hostedCount) || user.isSupporter) && <div className="flex items-center gap-2 mt-1 min-h-11">
+          {Boolean(user.hostedCount) && <p className="flex-1 text-cap text-zine-inkMuted"><b className="text-zine-ink">{user.hostActive ? '🔥 Активный организатор' : '🌱 Организатор'}</b> · {MEETUP_TEXTS.hostedCount(user.hostedCount!)}</p>}
+          <HostBadges host={{ held: user.hostedCount || 0, active: user.hostActive, supporter: user.isSupporter }} />
+        </div>}
+        {!user.isMatch && user.questionnaire?.activities?.length > 0 && <p className="mt-1 text-sm2 line-clamp-1"><b>Позови на:</b> {user.questionnaire.activities.join(' · ')}</p>}
         {/* В «На связи» человек уже знаком: интересы прячем (они в полной анкете), чтобы фото и кнопки «как начать разговор» влезли */}
         {!user.isMatch && (
         <div data-no-swipe className="mt-2 -mx-4 px-4 flex gap-1.5 overflow-x-auto no-scrollbar fade-right">
