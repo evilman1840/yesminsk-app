@@ -1,3 +1,4 @@
+import { track } from '../../analytics/runtime';
 import React, { useState } from 'react';
 import { HELLO_TEXTS } from '../../texts/hello';
 import { CoinFlip } from './CoinFlip';
@@ -121,7 +122,7 @@ export const ReactionButtons: React.FC<{
     <div className="flex gap-2">
       {hideButton}
       <button
-        onClick={(e) => react(e, 'like')}
+        data-analytics="person_wave" onClick={(e) => react(e, 'like')}
         disabled={user.iLiked}
         className={`flex-1 h-12 px-4 rounded-zine-sm text-body font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer ${
           user.iLiked
@@ -145,9 +146,11 @@ export const ChatButton: React.FC<{ user: UserProfile; className?: string }> = (
   if (user.isMatch && user.username) {
     return (
       <button
+        data-analytics="chat_open"
         onClick={(e) => {
           e.stopPropagation();
           telegramService.haptic('medium');
+          track('gulyai_chat_opened');
           telegramService.openChat(user.username);
         }}
         className={`h-12 px-4 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-body font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.98] transition-all cursor-pointer ${className}`}

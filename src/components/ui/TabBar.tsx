@@ -32,6 +32,7 @@ export const TabBar: React.FC<{
       return (
         <button
           key={id}
+          data-analytics={({ main:"nav_map", feed:"nav_people", events:"nav_meetups", places:"nav_places", news:"nav_news", games:"nav_games", profile_edit:"nav_profile" } as const)[id]}
           onClick={() => {
             if (isActive) return;
             telegramService.haptic('selection');

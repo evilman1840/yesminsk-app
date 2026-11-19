@@ -1,3 +1,5 @@
+import { configureAnalytics, analyticsSessionScreen } from './analytics/runtime';
+import { ANALYTICS_PRIVACY_VERSION, AnalyticsScreen } from './analytics/contract';
 import { ProfileInviteBanner } from './profile/ProfileInviteBanner';
 import { Questionnaire, questionnaireComplete, QUESTIONNAIRE_VERSION } from './profile/questionnaire';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -116,6 +118,7 @@ export const App: React.FC = () => {
     profileCompleted: false, // указал возраст и интересы — только тогда анкету видят другие
     questionnaire: undefined as Questionnaire | undefined,
     profileInviteSeenVersion: 0,
+    analyticsAvailable: false,
     bio: '',
     gender: 'not_specified' as Gender,
     preferredGender: 'all' as PreferredGender,
@@ -175,6 +178,13 @@ export const App: React.FC = () => {
   useEffect(() => {
     isMeLoadedRef.current = isMeLoaded;
   }, [isMeLoaded]);
+  useEffect(() => {
+    const screen: AnalyticsScreen = ({ main:'map', feed:'people', events:'meetups', places:'places', news:'news', games:'games', profile_edit:'profile' } as const)[currentScreen] || 'registration';
+    analyticsSessionScreen(screen);
+  }, [currentScreen]);
+  useEffect(() => {
+    configureAnalytics(isMeLoaded && currentUser.analyticsAvailable && currentUser.hasAgreedToRules && currentUser.legalVersion===ANALYTICS_PRIVACY_VERSION && !['deleted','banned'].includes(currentScreen), (events,keepalive)=>api.sendAnalytics(events,keepalive));
+  }, [isMeLoaded,currentUser.analyticsAvailable,currentUser.hasAgreedToRules,currentUser.legalVersion,currentScreen]);
   const [profileInviteOpen, setProfileInviteOpen] = useState(false);
   const [focusQuestionnaire, setFocusQuestionnaire] = useState(false);
   const [inviteDismissed, setInviteDismissed] = useState(false);
@@ -621,6 +631,7 @@ export const App: React.FC = () => {
             age: me.age ? String(me.age) : prev.age,
             // Старые анкеты: если возраст не 25, его точно меняли руками
             ageConfirmed: Boolean(me.ageConfirmed) || (Boolean(me.age) && Number(me.age) !== 25),
+            analyticsAvailable: Boolean(me.analyticsAvailable),
             questionnaire: me.questionnaire,
             profileInviteSeenVersion: me.profileInviteSeenVersion || 0,
             bio: me.bio ?? prev.bio,

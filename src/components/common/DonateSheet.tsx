@@ -1,3 +1,5 @@
+import { track } from '../../analytics/runtime';
+import { useAnalyticsView } from '../../analytics/hooks';
 import React, { useState } from 'react';
 import { useFund } from './FundBar';
 import { Loader2, Copy, Check, ChevronDown } from 'lucide-react';
@@ -37,6 +39,7 @@ const DONUTS = 20; // пончиков на шкале = цель месяца
  * → две строки доверия → «Готово, перевод сделан ✓» (экран «Спасибо», на честном слове)
  */
 export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => void }> = ({ onClose, onOpenNews }) => {
+  useAnalyticsView('gulyai_donation_opened', undefined);
   const [busyStars, setBusyStars] = useState<number | null>(null);
   const [thanks, setThanks] = useState(false);
   const [showOther, setShowOther] = useState(false);
@@ -63,6 +66,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
   };
 
   const donateStars = async (stars: number) => {
+    track('gulyai_donation_checkout');
     setError(null);
     setBusyStars(stars);
     try {
@@ -142,7 +146,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
         ))}
       </div>
       <button
-        onClick={() => telegramService.openLink(CARD_URL_BY_RUB[TIERS[tier].rub] || CARD_URL)}
+        data-analytics="donation_checkout" onClick={() => { track('gulyai_donation_checkout'); telegramService.openLink(CARD_URL_BY_RUB[TIERS[tier].rub] || CARD_URL); }}
         className="mt-3 w-full min-h-14 py-2 rounded-zine-sm bg-zine-terracotta text-white cursor-pointer active:scale-[0.99] transition-transform"
       >
         <span className="block text-lead font-bold">Накормить донатом · {TIERS[tier].rub} р.</span>
@@ -151,7 +155,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
       <p className="mt-1.5 text-cap text-zine-inkMuted text-center">
         <b className="text-zine-ink">1 пончик = 1 рубль.</b> Другая сумма?{' '}
         <button
-          onClick={() => telegramService.openLink(CARD_URL)}
+          data-analytics="donation_checkout" onClick={() => { track('gulyai_donation_checkout'); telegramService.openLink(CARD_URL); }}
           className="font-semibold text-zine-terracotta underline underline-offset-2 cursor-pointer"
         >
           Ввести свою

@@ -1,3 +1,4 @@
+import type { ClientAnalyticsEvent } from '../analytics/contract';
 import type { Questionnaire } from '../profile/questionnaire';
 import { telegramService } from './telegram';
 import type { GameView, GameLobby, GameSummary, TractorMatchResult, SeaView, SeaLobby } from '../games/types';
@@ -133,6 +134,10 @@ class ApiService {
   // ==========================================
   // ПОЛЬЗОВАТЕЛИ
   // ==========================================
+
+  async sendAnalytics(events: ClientAnalyticsEvent[], keepalive = false): Promise<void> {
+    return this.request('/analytics/events', { method: 'POST', body: JSON.stringify({ events }), keepalive }, true);
+  }
 
   async acknowledgeProfileInvite(): Promise<{ version: number }> {
     return this.request('/users/profile-invite-seen', { method: 'POST', body: '{}' });

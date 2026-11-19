@@ -1,3 +1,4 @@
+import { useAnalyticsView } from '../../analytics/hooks';
 import React, { useEffect, useRef, useState } from 'react';
 import { thumb } from '../../utils/thumb';
 import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus, Edit2, Trash2, Repeat2 } from 'lucide-react';
@@ -72,6 +73,7 @@ export const EventDetails: React.FC<{
 }> = ({ event: eventProp, onJoin, onReported, openBuddy, openAttendance }) => {
   // «Точно приду» или отказ участнику нажали здесь: шторка на карте держит свою копию сходки, поэтому ответ сервера подмешиваем сами.
   // Пришла новая сходка сверху — своя копия больше не нужна
+  useAnalyticsView('gulyai_meetup_opened', eventProp.id);
   const [localEvent, setLocalEvent] = useState<AppEvent | null>(null);
   useEffect(() => setLocalEvent(null), [eventProp]);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -643,6 +645,7 @@ export const EventDetails: React.FC<{
         ) : (
         <div className="flex gap-2">
         <button
+          data-analytics="meetup_join"
           onClick={() => {
             telegramService.haptic('medium');
             setIsJoinOpen(true);

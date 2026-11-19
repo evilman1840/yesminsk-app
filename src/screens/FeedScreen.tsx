@@ -251,6 +251,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           </div>
 
           <button
+            data-analytics="people_filters"
             onClick={() => {
               telegramService.haptic('selection');
               setIsFiltersOpen(true);
@@ -295,7 +296,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               <div className="text-[44px] mb-3">🔍</div>
               <h3 className="font-serif font-bold text-title text-zine-ink mb-2">Под фильтры никто не подходит</h3>
               <p className="text-body text-zine-inkMuted mb-5">Попробуй ослабить фильтры, например увеличить расстояние.</p>
-              <button onClick={() => setIsFiltersOpen(true)} className="h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer">
+              <button data-analytics="people_filters" onClick={() => setIsFiltersOpen(true)} className="h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer">
                 Изменить фильтры
               </button>
             </div>
@@ -819,7 +820,7 @@ const PersonReel: React.FC<{
               Скрыть
             </button>
             <button
-              onClick={() => react('like')}
+              data-analytics="person_wave" onClick={() => react('like')}
               disabled={user.iLiked}
               className={`flex-[1.6] h-12 rounded-full text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer ${user.iLiked ? 'bg-zine-sage' : 'bg-zine-terracotta'}`}
             >

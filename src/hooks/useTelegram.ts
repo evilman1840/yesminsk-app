@@ -1,3 +1,5 @@
+import { AnalyticsElement } from '../analytics/contract';
+import { trackClick, trackImpression, whenAnalyticsEnabled } from '../analytics/runtime';
 import { useEffect, useRef } from 'react';
 import { telegramService } from '../services/telegram';
 
@@ -7,6 +9,7 @@ import { telegramService } from '../services/telegram';
  * В обычном браузере возвращает false: экран рисует запасную кнопку сам.
  */
 export function useMainButton(opts: {
+  analyticsElement?: AnalyticsElement;
   text: string;
   onClick: () => void;
   enabled?: boolean;
@@ -15,13 +18,15 @@ export function useMainButton(opts: {
 }): boolean {
   const { text, onClick, enabled = true, loading = false, active = true } = opts;
   const isNative = telegramService.isInsideTelegram();
+  const analyticsElement = useRef(opts.analyticsElement);
+  analyticsElement.current = opts.analyticsElement;
   const handler = useRef(onClick);
   handler.current = onClick;
   const binding = useRef<ReturnType<typeof telegramService.bindMainButton> | null>(null);
 
   useEffect(() => {
     if (!isNative || !active) return;
-    binding.current = telegramService.bindMainButton({ text, enabled, loading }, () => handler.current());
+    binding.current = telegramService.bindMainButton({ text, enabled, loading }, () => { if(analyticsElement.current) trackClick(analyticsElement.current); handler.current(); });
     return () => {
       binding.current?.dispose();
       binding.current = null;
@@ -34,6 +39,10 @@ export function useMainButton(opts: {
     binding.current?.update({ text, enabled, loading });
   }, [text, enabled, loading]);
 
+  useEffect(() => {
+    if(!isNative || !active || !enabled || !opts.analyticsElement)return;
+    return whenAnalyticsEnabled(()=>trackImpression(opts.analyticsElement!));
+  },[isNative,active,enabled,opts.analyticsElement]);
   return isNative;
 }
 

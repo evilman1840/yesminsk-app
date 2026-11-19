@@ -1,3 +1,5 @@
+import { useAnalyticsView } from '../../analytics/hooks';
+import { AnalyticsElement } from '../../analytics/contract';
 import React, { useEffect, useState } from 'react';
 import { thumb } from '../../utils/thumb';
 import { MapPin, Navigation, CalendarPlus, BookOpen, Loader2, Trash2, Bookmark, BookmarkCheck, Star, Clock, Phone, Globe, ChevronRight, Sparkles } from 'lucide-react';
@@ -79,6 +81,7 @@ export const PlaceSheet: React.FC<{
   events?: AppEvent[];
   onJoinEvent?: (event: AppEvent, options: JoinOptions | null) => Promise<AppEvent | null>;
 }> = ({ place, onClose, onCreateEvent, onToggleSave, events = [], onJoinEvent }) => {
+  useAnalyticsView('gulyai_place_opened', place.id);
   const placeEvents = eventsAtPlace(place, events);
   // «Хочу сходить» сюда: счётчики (без «поныть») и своя кнопка
   const [wishes, setWishes] = useState<WishSummaryItem[]>([]);
@@ -163,6 +166,7 @@ export const PlaceSheet: React.FC<{
       footer={
         <div className="grid grid-cols-3 gap-2">
           <ActionButton
+            analyticsElement="place_save"
             onClick={async () => {
               if (isSaving) return;
               telegramService.haptic(place.isSaved ? 'light' : 'success');
@@ -531,14 +535,16 @@ const amenityEmoji = (a: string) => {
 };
 
 // Кнопка из ряда главных действий: значок над подписью
-const ActionButton: React.FC<{ onClick: () => void; icon: React.ReactNode; label: string; active?: boolean; primary?: boolean }> = ({
+const ActionButton: React.FC<{ analyticsElement?: AnalyticsElement; onClick: () => void; icon: React.ReactNode; label: string; active?: boolean; primary?: boolean }> = ({
   onClick,
   icon,
   label,
   active,
-  primary
+  primary,
+  analyticsElement
 }) => (
   <button
+    data-analytics={analyticsElement}
     onClick={onClick}
     className={`h-[60px] rounded-zine-sm flex flex-col items-center justify-center gap-1 text-sm2 font-bold active:scale-[0.97] transition-transform cursor-pointer ${
       primary ? 'bg-zine-terracotta text-white' : active ? 'bg-zine-sage/15 text-zine-sage' : 'bg-zine-card text-zine-ink'

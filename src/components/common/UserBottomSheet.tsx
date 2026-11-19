@@ -1,3 +1,4 @@
+import { useAnalyticsView } from '../../analytics/hooks';
 import { QuestionnaireSummary } from '../../profile/QuestionnaireSummary';
 import { HostBadges } from './HostBadges';
 import React, { useRef, useState } from 'react';
@@ -38,6 +39,7 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => 
  * фото с именем, статусы, общее со мной, о себе, интересы; кнопки 👋 / «Написать» закреплены внизу
  */
 export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals, onClose, onReact, onReported, onGoTogether, onHello, onDuel }) => {
+  useAnalyticsView('gulyai_person_opened', user.telegramId);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTipsOpen, setIsTipsOpen] = useState(false);

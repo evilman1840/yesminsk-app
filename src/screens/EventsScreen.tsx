@@ -1084,7 +1084,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           {tv && filterButton('rounded-zine-sm')}
           {/* Не нашлось подходящей — собрать свою */}
           <button
-            onClick={() => handleOpenCreateModal(undefined, undefined, 'feed')}
+            data-analytics="meetup_create" onClick={() => handleOpenCreateModal(undefined, undefined, 'feed')}
             className="px-3 shrink-0 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-sm2 font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform cursor-pointer"
           >
             <Plus size={20} strokeWidth={2.5} />
@@ -2198,7 +2198,7 @@ export const EventReel: React.FC<{
                 </button>
               )}
               <button
-                onClick={onJoin}
+                data-analytics="meetup_join" onClick={onJoin}
                 disabled={isJoining || isFull || Boolean(notForMe)}
                 className={`flex-1 min-w-0 h-12 px-4 rounded-full text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer ${
                   isPending ? 'bg-zine-card text-zine-ink' : ev.isJoined ? 'bg-zine-sage text-white' : isFull || notForMe ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'bg-zine-terracotta text-white'

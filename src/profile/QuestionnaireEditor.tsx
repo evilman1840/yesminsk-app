@@ -1,3 +1,4 @@
+import { track } from '../analytics/runtime';
 import React, { useEffect, useRef, useState } from 'react';
 import { AREA_GROUPS } from '../config/areas';
 import { telegramService } from '../services/telegram';
@@ -6,11 +7,12 @@ import { CORE_QUESTIONS, EXTRA_QUESTIONS, PERSONAL_QUESTIONS, ChoiceQuestion, Qu
 const selectedStyle = 'border-zine-terracotta bg-zine-terracotta/10 text-zine-ink';
 const idleStyle = 'border-zine-border bg-zine-cardElevated text-zine-ink';
 export function QuestionnaireEditor({ value, onChange, focus }: { value: Questionnaire; onChange: (q: Questionnaire) => void; focus?: boolean }) {
+  const edited = useRef(false);
   const root = useRef<HTMLDetailsElement>(null);
   const [search, setSearch] = useState('');
   const [limitMessage, setLimitMessage] = useState('');
   useEffect(() => { if (focus && root.current) { root.current.open = true; root.current.scrollIntoView({ block: 'start', behavior: 'smooth' }); } }, [focus]);
-  const patch = (p: Partial<Questionnaire>) => onChange({ ...value, ...p, version: 1 });
+  const patch = (p: Partial<Questionnaire>) => { if(!edited.current){edited.current=true;track('gulyai_questionnaire_started');} onChange({ ...value, ...p, version: 1 }); };
   const toggle = (f: ChoiceQuestion, answer: string, personal = false) => {
     const before: string[] = personal ? value.personal?.[f.key]?.values || [] : value[f.key] || [];
     let next = before.includes(answer) ? before.filter(x => x !== answer) : f.max === 1 || answer === f.exclusive ? [answer] : [...before.filter(x => x !== f.exclusive), answer];
@@ -44,7 +46,7 @@ export function QuestionnaireEditor({ value, onChange, focus }: { value: Questio
     </details>;
   };
   return <details ref={root} className="rounded-zine border border-zine-border bg-zine-cardElevated px-4" id="new-questionnaire">
-    <summary className="min-h-16 py-4 cursor-pointer"><b className="text-body">Чтобы тебя было проще позвать</b><span className="block text-sm2 text-zine-inkMuted mt-1">{questionnaireCount(value)} из 8 основных ответов · добровольно</span></summary>
+    <summary data-analytics="profile_questionnaire" className="min-h-16 py-4 cursor-pointer"><b className="text-body">Чтобы тебя было проще позвать</b><span className="block text-sm2 text-zine-inkMuted mt-1">{questionnaireCount(value)} из 8 основных ответов · добровольно</span></summary>
     <p className="mb-4 text-sm2 text-zine-inkMuted">Любой вопрос можно пропустить. Основные ответы и «Хочу / Могу» будут видны другим. Сохрани изменения кнопкой «Сохранить».</p>
     {limitMessage && <p role="status" className="p-3 mb-3 bg-zine-card text-sm2">{limitMessage}</p>}
     {CORE_QUESTIONS.map(f => field(f))}

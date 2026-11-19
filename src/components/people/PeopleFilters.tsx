@@ -1,3 +1,5 @@
+import { track } from '../../analytics/runtime';
+import { useAnalyticsView } from '../../analytics/hooks';
 import React from 'react';
 import { UserProfile, PreferredGender, AgeRange, isAvailableNow, GoesWith, GOES_WITH, GoalFilter } from '../../types';
 import { telegramService } from '../../services/telegram';
@@ -164,6 +166,7 @@ export const PeopleFiltersSheet: React.FC<{
   resultCount: number;
   onClose: () => void;
 }> = ({ value: f, onChange, goal, onGoalChange, resultCount, onClose }) => {
+  useAnalyticsView('gulyai_filters_opened', undefined);
   const set = (patch: Partial<PeopleFilters>) => onChange({ ...f, ...patch });
   const toggleAge = (id: AgeBucket) => set({ ages: f.ages.includes(id) ? f.ages.filter((a) => a !== id) : [...f.ages, id] });
 
@@ -241,7 +244,7 @@ export const PeopleFiltersSheet: React.FC<{
         >
           Сбросить
         </button>
-        <button onClick={onClose} className="h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer">
+        <button onClick={()=>{track('gulyai_filters_applied',{filters_count:countActiveFilters(f)});onClose();}} className="h-12 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold cursor-pointer">
           {resultCount > 0 ? `Показать (${resultCount})` : 'Никого не нашлось'}
         </button>
       </div>

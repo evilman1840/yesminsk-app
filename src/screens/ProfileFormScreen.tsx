@@ -217,6 +217,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
 
   useBackButton(!isFirstTime && onBack ? onBack : null);
   const hasNativeSave = useMainButton({
+    analyticsElement: 'profile_save',
     text: justSaved ? 'Сохранено ✓' : isFirstTime ? 'Готово, на карту!' : 'Сохранить',
     onClick: () => handleSave(),
     loading: isSaving,
@@ -521,6 +522,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               telegramService.haptic('selection');
               setIsHelpOpen(true);
             }}
+            data-analytics="profile_help"
             className="mt-4 w-full p-4 rounded-zine bg-zine-terracotta/10 border border-zine-terracotta/25 flex items-center gap-3 text-left cursor-pointer"
           >
             <span className="text-[28px] leading-none">❓</span>
@@ -540,6 +542,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
               telegramService.haptic('selection');
               setIsDonateOpen(true);
             }}
+            data-analytics="profile_donate"
             className="mt-2 w-full p-4 rounded-zine bg-zine-cardElevated border border-zine-border flex items-center gap-3 text-left cursor-pointer"
           >
             <span className="heartbeat block text-[28px] leading-none">❤️</span>
@@ -1057,6 +1060,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         {errorText && <p className="mb-2 p-3 rounded-zine-sm bg-zine-danger/10 text-zine-danger text-sm2 font-semibold">⚠️ {errorText}</p>}
         {!hasNativeSave && (
         <button
+          data-analytics="profile_save"
           onClick={() => handleSave()}
           disabled={isSaving || isPhotoUploading || isUploading}
           className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.99] transition-all cursor-pointer ${

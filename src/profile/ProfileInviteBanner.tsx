@@ -1,3 +1,5 @@
+import { track } from '../analytics/runtime';
+import { useAnalyticsView } from '../analytics/hooks';
 import './profile.css';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -8,6 +10,7 @@ import { PROFILE_SUBTITLES } from './subtitles';
 
 /** The file is already encoded at 1.5×; playbackRate must stay at 1. */
 export function ProfileInviteBanner({ onSeen, onClose, onContinue }: { onSeen: () => void; onClose: () => void; onContinue: () => void }) {
+  useAnalyticsView('gulyai_profile_invite_shown', undefined);
   const video = useRef<HTMLVideoElement>(null);
   const logged = useRef(false);
   const [muted, setMuted] = useState(true);
@@ -15,12 +18,12 @@ export function ProfileInviteBanner({ onSeen, onClose, onContinue }: { onSeen: (
   const [progress, setProgress] = useState(0);
   const [time, setTime] = useState(0);
   const [failed, setFailed] = useState(false);
-  const close = () => { video.current?.pause(); telegramService.haptic('light'); onClose(); };
-  const next = () => { video.current?.pause(); telegramService.haptic('medium'); onContinue(); };
+  const close = () => { track('gulyai_profile_invite_later'); video.current?.pause(); telegramService.haptic('light'); onClose(); };
+  const next = () => { track('gulyai_profile_invite_continue'); video.current?.pause(); telegramService.haptic('medium'); onContinue(); };
   useBackButton(close);
   const nativeSecondary = telegramService.hasSecondaryButton();
   useEffect(() => telegramService.bindSecondaryButton('Позже', close), []);
-  const native = useMainButton({ text: 'Дополнить анкету', onClick: next });
+  const native = useMainButton({ text: 'Дополнить анкету', onClick: next, analyticsElement: 'invite_continue' });
   useEffect(() => {
     if (!logged.current) { logged.current = true; onSeen(); }
     const v = video.current;
@@ -51,7 +54,7 @@ export function ProfileInviteBanner({ onSeen, onClose, onContinue }: { onSeen: (
         <p className="profile-invite-secondary text-sm2 text-zine-inkMuted mt-2 text-balance">Так другим будет проще познакомиться с тобой и предложить что-то интересное.</p>
         <p className="font-hand text-[24px] mt-3">🤗 Миша Спасатель</p>
       </div>
-      </div><div className="pt-3 shrink-0">{!native && <button type="button" onClick={next} className="w-full min-h-14 rounded-zine-sm bg-zine-terracotta text-white text-lead font-bold">Дополнить анкету</button>}{!nativeSecondary && <button type="button" onClick={close} className="mt-2 w-full min-h-12 rounded-zine-sm bg-zine-card text-body font-semibold">Позже</button>}<p className="mt-2 text-center text-cap text-zine-inkMuted">Прежние ответы уже на месте.<br />Новые вопросы можно пропускать.</p></div>
+      </div><div className="pt-3 shrink-0">{!native && <button data-analytics="invite_continue" type="button" onClick={next} className="w-full min-h-14 rounded-zine-sm bg-zine-terracotta text-white text-lead font-bold">Дополнить анкету</button>}{!nativeSecondary && <button data-analytics="invite_later" type="button" onClick={close} className="mt-2 w-full min-h-12 rounded-zine-sm bg-zine-card text-body font-semibold">Позже</button>}<p className="mt-2 text-center text-cap text-zine-inkMuted">Прежние ответы уже на месте.<br />Новые вопросы можно пропускать.</p></div>
     </div>
   </div>, document.body);
 }
