@@ -1,6 +1,6 @@
 import { useAnalyticsView } from '../../analytics/hooks';
 import { QuestionnaireSummary } from '../../profile/QuestionnaireSummary';
-import { HostBadges } from './HostBadges';
+import { MeetupExperience } from './MeetupExperience';
 import React, { useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, EMPATH, isVentingNow, isAvailableNow, formatTime } from '../../types';
@@ -10,7 +10,6 @@ import { ReportSheet, SafetyTipsSheet } from './ReportSheet';
 import { photoSrc } from './PhotoPicker';
 import { telegramService } from '../../services/telegram';
 import { BUDDY_TEXTS } from '../../texts/buddies';
-import { MEETUP_TEXTS } from '../../texts/meetups';
 import { HELLO_TEXTS, DUEL_TEXTS } from '../../texts/hello';
 
 interface UserBottomSheetProps {
@@ -148,7 +147,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
               {distance && ` · ${distance}`}
             </span>
           </p>
-
+          <MeetupExperience user={user} className="mt-2" />
         </div>
       </div>
 
@@ -164,9 +163,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
         </p>
       )}
 
-      {(Boolean(user.hostedCount) || user.isSupporter || user.isGuide || user.isEmpath) && <div className="mt-3 flex flex-wrap items-center gap-2">
-        {Boolean(user.hostedCount) && <p className="flex-1 text-sm2"><b>{user.hostActive ? '🔥 Активный организатор' : '🌱 Организатор'}</b><br />{MEETUP_TEXTS.hostedCount(user.hostedCount!)}</p>}
-        <HostBadges host={{ held: user.hostedCount || 0, active: user.hostActive, supporter: user.isSupporter }} />
+      {(user.isGuide || user.isEmpath || user.activeRecently) && <div className="mt-3 flex flex-wrap items-center gap-2">
         {user.isGuide && <span className="text-sm2 rounded-full bg-zine-card px-3 py-2">🧭 Покажу город</span>}
         {user.isEmpath && <span className="text-sm2 rounded-full bg-zine-card px-3 py-2">🫶 Эмпат</span>}
         {user.activeRecently && <span className="w-full text-cap text-zine-inkMuted">Недавно в приложении</span>}

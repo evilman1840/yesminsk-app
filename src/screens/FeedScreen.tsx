@@ -1,4 +1,4 @@
-import { HostBadges } from '../components/common/HostBadges';
+import { MeetupExperience } from '../components/common/MeetupExperience';
 import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2, X } from 'lucide-react';
@@ -475,7 +475,7 @@ const LoadMoreSentinel: React.FC<{ onVisible: () => void }> = ({ onVisible }) =>
 /**
  * Человек: сверху чистое фото, под ним анкета на сплошном фоне и кнопки 🙈 и 👋 под большим пальцем
  */
-const PersonReel: React.FC<{
+export const PersonReel: React.FC<{
   user: UserProfile;
   tab: FeedTab;
   isFirst: boolean;
@@ -605,7 +605,7 @@ const PersonReel: React.FC<{
         else onSkip();
       }}
     >
-      {/* Фото — без надписей и кнопок поверх, только точки, стрелки и «🍩 Кормлю ГУЛЯЙ-Печку».
+      {/* Фото: статусы сверху, компактный опыт Сходок снизу.
           Сжимается первым (до 26%), чтобы кнопки внизу не срезались — в «На связи» их больше */}
       <div ref={seenRef} className="relative mx-3 flex-1 min-h-[26%] rounded-zine overflow-hidden bg-zine-card">
         <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} onLoad={preloadNext} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
@@ -630,9 +630,12 @@ const PersonReel: React.FC<{
           </>
         )}
         {statuses.length > 0 && <span className={`absolute top-3 left-3 z-20 max-w-[calc(100%-24px)] truncate h-8 px-3 rounded-full text-sm2 font-semibold flex items-center pointer-events-none ${statuses[0].cls}`}>{statuses[0].text}</span>}
+        <div className="absolute bottom-3 inset-x-3 z-20 pointer-events-none">
+          <MeetupExperience user={user} />
+        </div>
         {/* Подсказка про жесты — только на первой карточке, внизу фото */}
         {isFirst && (
-          <SwipeHint className="bottom-3" left={user.isMatch ? undefined : FEED_TEXTS.skipHint} right={canLike ? '👋' : undefined} extra={gallery.length > 1 ? PHOTO_TEXTS.tapHint : undefined} />
+          <SwipeHint className={user.attendedCount || user.hostedCount || user.isSupporter ? 'top-14' : 'bottom-3'} left={user.isMatch ? undefined : FEED_TEXTS.skipHint} right={canLike ? '👋' : undefined} extra={gallery.length > 1 ? PHOTO_TEXTS.tapHint : undefined} />
         )}
       </div>
 
@@ -681,10 +684,6 @@ const PersonReel: React.FC<{
           <MapPin size={16} className="shrink-0" />
           <span className="truncate">{user.isTourist ? 'В Минске проездом' : user.areaName || 'Минск'}</span>
         </p>
-        {(Boolean(user.hostedCount) || user.isSupporter) && <div className="flex items-center gap-2 mt-1 min-h-11">
-          {Boolean(user.hostedCount) && <p className="flex-1 text-cap text-zine-inkMuted"><b className="text-zine-ink">{user.hostActive ? '🔥 Активный организатор' : '🌱 Организатор'}</b> · {MEETUP_TEXTS.hostedCount(user.hostedCount!)}</p>}
-          <HostBadges host={{ held: user.hostedCount || 0, active: user.hostActive, supporter: user.isSupporter }} />
-        </div>}
         {!user.isMatch && user.questionnaire?.activities?.length > 0 && <p className="mt-1 text-sm2 line-clamp-1"><b>Позови на:</b> {user.questionnaire.activities.join(' · ')}</p>}
         {/* В «На связи» человек уже знаком: интересы прячем (они в полной анкете), чтобы фото и кнопки «как начать разговор» влезли */}
         {!user.isMatch && (

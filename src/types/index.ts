@@ -137,6 +137,7 @@ export interface UserProfile {
   isGuide?: boolean;       // «🧭 Покажу город» — местный гид-волонтёр
   isSupporter?: boolean;   // «🍩 Кормлю ГУЛЯЙ-Печку» — отметил после доната
   hostedCount?: number;    // сколько сходок провёл(а) — считаются только состоявшиеся
+  attendedCount?: number;  // прошедшие сходки с участием человека, включая свои, без отметки «Не пришёл(ла)»
   hostActive?: boolean;    // «🔥 Активный организатор»
   guideAbout?: string;     // что может показать
   activeRecently?: boolean; // заходил(а) за последние 3 дня
