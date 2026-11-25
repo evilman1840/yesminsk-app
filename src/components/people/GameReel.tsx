@@ -152,7 +152,6 @@ export const GameReel: React.FC<{ kind?: Kind; fallback?: Kind; onPlay: (launch:
         <button onClick={hide} className="mt-3 h-10 px-3 text-cap font-semibold text-zine-inkMuted cursor-pointer">
           {T.reelHide}
         </button>
-        <p className="text-cap text-zine-inkMuted">{T.reelScroll}</p>
       </div>
     </section>
   );

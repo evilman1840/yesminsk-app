@@ -25,6 +25,8 @@ import { askBotAccess, setBotAccessKnown, botAccessOk, onBotAccessChange } from 
 import { PeopleFilters, loadFilters, saveFilters, filterQuery } from './components/people/PeopleFilters';
 import { WantNowButton } from './components/common/WantNowButton';
 import { NoticeBar, Notice, NoticeHelpList } from './components/common/NoticeBar';
+import { ActivityButton, ActivitySheet } from './components/common/ActivityCenter';
+import { readActivitySeen, markActivitySeen } from './utils/activitySeen';
 import { pickMeetupCallouts } from './components/map/MeetupCallout';
 import { NOTICE_TEXTS } from './texts/notices';
 import { NEARBY_TEXTS, NEARBY_DEFAULT, NearbySettings } from './texts/nearby';
@@ -48,7 +50,7 @@ import { isReleased, useSerial, SerialSource } from './serial/useSerial';
 import { EPISODES, SERIAL_PUBLIC } from './serial/episodes';
 import { SerialIntro } from './serial/SerialIntro';
 import { SerialPlayer } from './serial/SerialPlayer';
-import { SerialDefs, SerialResumeStrip, SerialSheet, SerialStrip, SerialTv, SerialTvProvider } from './serial/SerialBits';
+import { SerialDefs, SerialResumeStrip, SerialSheet, SerialStrip, SerialTvProvider } from './serial/SerialBits';
 import type { SerialEpisode } from './serial/episodes';
 import { PlacesScreen } from './screens/PlacesScreen';
 import { GamesScreen } from './screens/GamesScreen';
@@ -213,11 +215,13 @@ export const App: React.FC = () => {
   // Нажал «Попробовать» — серия ждёт: после доната продолжится сама, после перехода на экран — плашка «Досмотреть»
   const [serialResume, setSerialResume] = useState<{ ep: SerialEpisode; source: SerialSource; frame: number; afterDonate: boolean } | null>(null);
   const [serialSheetOpen, setSerialSheetOpen] = useState(false);
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [activitySeen, setActivitySeen] = useState<Set<string>>(new Set());
+  useEffect(() => { setActivitySeen(readActivitySeen(currentUser.telegramId)); }, [currentUser.telegramId]);
   // «Момент радости» после новой сходки ждёт, пока человек уйдёт с экрана создания
   const serialJoyPending = useRef(false);
-  // Сериал и телевизор в шапке: пока SERIAL_PUBLIC выключен — только админам (тестируют), остальным прежний вид.
-  // Локально — всегда, без сервера, чтобы проверять серии
-  const serialOn = (isMeLoaded && (SERIAL_PUBLIC || isAdmin)) || import.meta.env.DEV;
+  // Сериал снят с интерфейса, включая администратора и локальный просмотр.
+  const serialOn = SERIAL_PUBLIC && isMeLoaded;
   const serial = useSerial(serialOn, isAdmin);
   // Момент радости: серию сами не включаем (её тут же закрывали), а возвращаем плашку «Смотреть» над меню
   const playSerialJoy = () => {
@@ -728,7 +732,7 @@ export const App: React.FC = () => {
       }
       // Ссылка на серию (Reels, сторис, посты): сразу эта серия, а не вышла ещё — свежая из вышедших.
       // Новичку тоже: сначала то, за чем пришёл, после серии — правила и анкета. Премьеру поверх уже не показываем
-      if (target.serial !== undefined && (SERIAL_PUBLIC || isAdminRef.current)) {
+      if (target.serial !== undefined && SERIAL_PUBLIC) {
         const out = EPISODES.filter((e) => isReleased(e));
         const ep = out.find((e) => e.n === target.serial) || out[out.length - 1];
         if (ep) {
@@ -1236,14 +1240,6 @@ export const App: React.FC = () => {
   // Игры — вкладка, пока открыто меню; в партии нижнее меню и подсказки прячем
   const isTab = ['main', 'feed', 'events', 'places', 'news', 'profile_edit'].includes(currentScreen) || (currentScreen === 'games' && gamesPhase === 'menu');
   const stripOn = isTab && serialOn && currentScreen !== 'profile_edit' && currentScreen !== 'news' && serial.showStrip;
-  // Телевизор в шапке: есть новая серия — сразу её, иначе шторка со всеми сериями и новостями проекта
-  const serialTv = (
-    <SerialTv
-      serial={serial}
-      unreadNews={unreadNews}
-      onClick={() => (serial.waiting ? setSerialPlaying({ ep: serial.waiting, source: 'tv' }) : setSerialSheetOpen(true))}
-    />
-  );
 
   // Места: сохранить и «Сходка сюда» — общие для карты и вкладки «Места»
   const toggleSavePlace = async (p: PlaceItem): Promise<PlaceItem> => {
@@ -1273,6 +1269,30 @@ export const App: React.FC = () => {
         !eventsBadgeSeen.has(String(e.id))
     ).length;
   }, [events, currentUser.telegramId, eventsBadgeSeen]);
+  const activityKeys = [
+    ...likedMe.map(u => `like:${u.telegramId}`),
+    ...matches.map(u => `match:${u.telegramId}`),
+    ...events.filter(e => !e.isJoined && Number(e.creator?.telegramId) !== Number(currentUser.telegramId) &&
+      new Date(e.dateTime).getTime() > Date.now() - 30 * 60000 && !eventsBadgeSeen.has(String(e.id))).map(e => `event:${e.id}`),
+    ...news.filter(n => new Date(n.createdAt).getTime() > newsSeenAt).map(n => `news:${n.id}`)
+  ];
+  const unseenActivity = activityKeys.filter(key => !activitySeen.has(key)).length;
+  const activitySignature = activityKeys.join('|');
+  useEffect(() => {
+    if (!isActivityOpen) return;
+    setActivitySeen(previous => activityKeys.some(key => !previous.has(key))
+      ? markActivitySeen(currentUser.telegramId, previous, activityKeys) : previous);
+  }, [isActivityOpen, activitySignature, currentUser.telegramId]);
+  const openActivity = () => {
+    setActivitySeen(previous => markActivitySeen(currentUser.telegramId, previous, activityKeys));
+    setIsActivityOpen(true);
+    fetchInbox();
+    fetchNews();
+    fetchEvents();
+  };
+  // Reuse the existing shared header slot; it now opens personal activity, never the serial.
+  const activityButton = isMeLoaded ? <ActivityButton avatarUrl={currentUser.avatarUrl} name={currentUser.name}
+    unread={unseenActivity} onClick={openActivity} /> : null;
 
   // «Первые шаги» для новичков
   const firstSteps = [
@@ -1466,7 +1486,7 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          <SerialTvProvider value={serialOn ? serialTv : null}>
+          <SerialTvProvider value={activityButton}>
           <div className="flex-1 min-h-0 relative">
             {currentScreen === 'onboarding' && <OnboardingScreen onAgree={handleAgreeRules} />}
 
@@ -1665,7 +1685,7 @@ export const App: React.FC = () => {
           </SerialTvProvider>
 
           {/* Над меню одно место: новая серия важнее подсказок; посмотрел или ✕ — подсказки возвращаются */}
-          {isTab && serialResume && !serialResume.afterDonate ? (
+          {serialOn && isTab && serialResume && !serialResume.afterDonate ? (
             <SerialResumeStrip
               ep={serialResume.ep}
               onOpen={() => {
@@ -1812,6 +1832,16 @@ export const App: React.FC = () => {
                 if (ev) setSharedEvent(ev);
               }}
             />
+          )}
+
+          {isActivityOpen && (
+            <ActivitySheet likes={likedMe.length} matches={matches.length} meetups={newEventsCount} unreadNews={unreadNews}
+              latestNews={news[0]?.text}
+              onClose={() => setIsActivityOpen(false)}
+              onLikes={() => { setIsActivityOpen(false); setFeedOpenTab({ tab: 'likes', at: Date.now() }); handleNavigate('feed'); }}
+              onMatches={() => { setIsActivityOpen(false); setFeedOpenTab({ tab: 'matches', at: Date.now() }); handleNavigate('feed'); }}
+              onMeetups={() => { setIsActivityOpen(false); handleNavigate('events'); }}
+              onNews={() => { setIsActivityOpen(false); handleNavigate('news'); }} />
           )}
 
           {noticeSheet === 'all' && (
@@ -2011,7 +2041,7 @@ export const App: React.FC = () => {
             />
           )}
 
-          <SerialDefs />
+          {serialOn && <SerialDefs />}
           {serialOn && !introSeen && isTab && !serialPlaying && isReleased(EPISODES[0]) && (
             <SerialIntro
               onClose={closeIntro}
@@ -2021,7 +2051,7 @@ export const App: React.FC = () => {
               }}
             />
           )}
-          {serialSheetOpen && (
+          {serialOn && serialSheetOpen && (
             <SerialSheet
               serial={serial}
               unreadNews={unreadNews}
@@ -2037,7 +2067,7 @@ export const App: React.FC = () => {
             />
           )}
 
-          {serialPlaying && (
+          {serialOn && serialPlaying && (
             <SerialPlayer
               ep={serialPlaying.ep}
               source={serialPlaying.source}

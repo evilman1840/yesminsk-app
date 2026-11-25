@@ -12,7 +12,7 @@ import { useOpenUser } from '../context/openUser';
 import type { MonthHost } from '../types';
 import { markHostDonateSeen, takeHostDonateTurn } from '../utils/hostDonate';
 import { formatEventDate } from './MapScreen';
-import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
+import { SwipeReel } from '../components/ui/SwipeReel';
 import { MapPicker } from '../components/common/MapPicker';
 import { EventDetails, plural } from '../components/common/EventDetails';
 import { JoinSheet } from '../components/common/JoinSheet';
@@ -2111,7 +2111,6 @@ export const EventReel: React.FC<{
           </div>
         )}
         {/* Подсказка про свайпы — только на первой карточке, внизу обложки */}
-        {isFirst && <SwipeHint className="top-1/2 -translate-y-1/2" left={isCreator || ev.isJoined ? undefined : 'неинтересно'} right="подробнее" />}
       </div>
 
       {/* Текст на сплошном фоне; нажатие мимо кнопок — подробности */}

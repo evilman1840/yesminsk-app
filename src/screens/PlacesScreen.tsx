@@ -8,7 +8,7 @@ import { MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet, eventsAtPlace, shortWhen } from '../components/places/PlaceSheet';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { FilterChip } from '../components/ui/FilterChip';
-import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
+import { SwipeReel } from '../components/ui/SwipeReel';
 import { UndoToast } from '../components/ui/UndoToast';
 import { SuggestPlaceSheet } from '../components/common/SuggestPlaceSheet';
 import { SUGGEST_TEXTS as SG } from '../texts/suggest';
@@ -382,7 +382,6 @@ const PlaceReel: React.FC<{
           </>
         )}
         {/* Подсказка про свайпы — только на первой карточке, внизу фото */}
-        {isFirst && <SwipeHint className="bottom-3" left={place.isSaved ? undefined : 'неинтересно'} right={place.isSaved ? undefined : 'сохранить'} />}
       </div>
 
       {/* Текст на сплошном фоне; нажатие мимо кнопок — карточка места */}

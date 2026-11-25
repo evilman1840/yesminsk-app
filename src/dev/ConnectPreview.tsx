@@ -10,6 +10,8 @@ import { ResultCard } from '../screens/GamesScreen';
 import { loadFilters } from '../components/people/PeopleFilters';
 import { GameView } from '../games/types';
 import { GoTogetherContext } from '../context/connect';
+import { SerialTvProvider } from '../serial/SerialBits';
+import { ActivityButton, ActivitySheet } from '../components/common/ActivityCenter';
 
 /**
  * Только для разработки: ?preview=connect&screen=… — новые экраны вокруг «На связи» на выдуманных данных.
@@ -87,13 +89,20 @@ const finishedGame = (winner: number): GameView => ({
 });
 
 export const ConnectPreview: React.FC = () => {
+  React.useEffect(() => {
+    const theme = new URLSearchParams(location.search).get('theme');
+    if (theme === 'light' || theme === 'dark') document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, []);
   const screen = new URLSearchParams(location.search).get('screen') || 'match-me';
+  const countPreview = new URLSearchParams(location.search).get('counts') === 'large';
   const coin = new URLSearchParams(location.search).get('coin') === 'them' ? 'them' : 'me';
   const [replay, setReplay] = useState(0);
+  const [activityOpen, setActivityOpen] = useState(false);
   const noop = () => {};
 
   return (
     <GoTogetherContext.Provider value={noop}>
+      <SerialTvProvider value={countPreview ? <ActivityButton avatarUrl={ME_AVATAR} name="Миша" unread={3} onClick={() => setActivityOpen(true)} /> : null}>
       <div className="min-h-screen bg-zine-paper" key={replay} onDoubleClick={() => setReplay((n) => n + 1)}>
         {screen === 'match' && <MatchModal user={friend} myAvatarUrl={ME_AVATAR} coin={coin} onClose={noop} onHello={noop} />}
         {screen === 'hello' && <HelloSheet friendId={2002 + replay} name="Аня" myAvatarUrl={ME_AVATAR} onClose={noop} />}
@@ -106,9 +115,11 @@ export const ConnectPreview: React.FC = () => {
         {screen === 'card' && (
           <div className="h-[100dvh] flex flex-col">
           <FeedScreen
-            users={[]}
-            matches={[friend]}
-            openTab={{ tab: 'matches', at: 1 }}
+            users={countPreview ? [friend] : []}
+            likedMe={countPreview ? Array.from({ length: 1234 }, (_, i) => ({ ...friend, id: `preview-like-${i}`, telegramId: 10000 + i })) : []}
+            matches={countPreview ? Array.from({ length: 987 }, (_, i) => ({ ...friend, id: `preview-match-${i}`, telegramId: 20000 + i })) : [friend]}
+            openTab={{ tab: countPreview ? 'all' : 'matches', at: 1 }}
+            wantNowSlot={countPreview ? <button type="button" aria-label="Хочу сейчас" className="w-11 h-11 shrink-0 rounded-full bg-zine-card text-[22px]">⚡</button> : undefined}
             onSelectUser={noop}
             onReact={noop}
             onUnmatch={async () => {}}
@@ -142,7 +153,11 @@ export const ConnectPreview: React.FC = () => {
             />
           </div>
         )}
+        {activityOpen && <ActivitySheet likes={1234} matches={987} meetups={5} unreadNews={1}
+          latestNews="Я обновил подсказки и сделал приглашения на сходки полезнее. Теперь здесь будут новости проекта. 🤗 Миша Спасатель"
+          onClose={() => setActivityOpen(false)} onLikes={noop} onMatches={noop} onMeetups={noop} onNews={noop} />}
       </div>
+      </SerialTvProvider>
     </GoTogetherContext.Provider>
   );
 };

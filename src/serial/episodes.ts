@@ -20,7 +20,8 @@ export interface SerialEpisode { n: number; title: string; releaseAt: string; co
 export const SERIAL_TOTAL = 20;
 
 // false — сериал и телевизор видят только админы (тест); true — все
-export const SERIAL_PUBLIC = true;
+// Сериал снят с интерфейса; серии и история сохранены в архиве.
+export const SERIAL_PUBLIC = false;
 export const EPISODES: SerialEpisode[] = [
  {
   "n": 1,

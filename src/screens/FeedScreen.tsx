@@ -1,12 +1,12 @@
 import { MeetupExperience } from '../components/common/MeetupExperience';
 import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { MapPin, SlidersHorizontal, ChevronUp, ChevronLeft, ChevronRight, Send, Loader2, X } from 'lucide-react';
+import { MapPin, SlidersHorizontal, ChevronLeft, ChevronRight, Send, Loader2, X } from 'lucide-react';
 import { AppEvent, JoinOptions, MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType, useWaveState, WavesLeftNote, WavesOutCard } from '../components/common/Reactions';
 import { goalFilterItems } from '../components/ui/GoalChips';
-import { SwipeReel, SwipeHint } from '../components/ui/SwipeReel';
+import { SwipeReel } from '../components/ui/SwipeReel';
 import { photoSrc } from '../components/common/PhotoPicker';
 import { USERNAME_TEXTS } from '../texts/profile';
 import { PHOTO_TEXTS } from '../texts/photos';
@@ -236,16 +236,19 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                   telegramService.haptic('selection');
                   setTab(t.id);
                 }}
-                className={`flex-auto min-w-0 h-[38px] px-0.5 rounded-full text-[14px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                aria-label={`${t.label}${t.count > 0 ? `: ${t.count}` : ''}`}
+                aria-pressed={tab === t.id}
+                style={{ flexGrow: t.id === 'matches' ? 1.4 : t.id === 'likes' ? 0.9 : 1 }}
+                className={`flex-1 basis-0 min-w-0 h-11 px-0.5 rounded-full text-[14px] font-bold flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
                   tab === t.id ? 'bg-zine-ink text-zine-paper' : 'text-zine-inkMuted'
                 }`}
               >
-                <span className="truncate">{t.label}</span>
-                {t.count > 0 && (
-                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center">
-                    {t.count}
-                  </span>
-                )}
+                <span className="shrink-0 whitespace-nowrap leading-[17px]">{t.label}</span>
+                <span className="h-4 flex items-center justify-center" aria-hidden="true">
+                  {t.count > 0 && <span className="min-w-[18px] h-4 px-1 rounded-full bg-zine-terracotta text-white text-[11px] leading-4 font-bold tabular-nums">
+                    {t.count > 999 ? '999+' : t.count}
+                  </span>}
+                </span>
               </button>
             ))}
           </div>
@@ -325,14 +328,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
                   </button>
                 </section>
               )}
-              {filteredUsers.length > 0 ? (
-                <div className="mt-auto flex flex-col items-center text-zine-inkMuted animate-bounce pointer-events-none">
-                  <ChevronUp size={22} />
-                  <span className="text-cap font-semibold">листай, там люди</span>
-                </div>
-              ) : (
-                <EmptyState tab={tab} />
-              )}
+              {filteredUsers.length === 0 && <EmptyState tab={tab} />}
             </section>
           )}
 
@@ -633,10 +629,6 @@ export const PersonReel: React.FC<{
         <div className="absolute bottom-3 inset-x-3 z-20 pointer-events-none">
           <MeetupExperience user={user} />
         </div>
-        {/* Подсказка про жесты — только на первой карточке, внизу фото */}
-        {isFirst && (
-          <SwipeHint className={user.attendedCount || user.hostedCount || user.isSupporter ? 'top-14' : 'bottom-3'} left={user.isMatch ? undefined : FEED_TEXTS.skipHint} right={canLike ? '👋' : undefined} extra={gallery.length > 1 ? PHOTO_TEXTS.tapHint : undefined} />
-        )}
       </div>
 
       {/* Анкета на сплошном фоне; нажатие мимо кнопок — открыть целиком */}
