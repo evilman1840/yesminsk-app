@@ -1057,8 +1057,7 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         <img src={avatarUrl} alt={name} className="w-full max-h-[50vh] object-contain rounded-zine bg-zine-card" />
         <h3 className="font-serif text-title font-bold mt-4">{name}, {age}</h3><p className="text-sm2 text-zine-inkMuted">{area}</p>
         {bio && <p className="mt-3 text-body whitespace-pre-line">{bio}</p>}
-        <p className="mt-3 text-sm2">{selectedGoals.map(g => GOALS_CONFIG[g]?.label).join(' · ')}</p>
-        <QuestionnaireSummary value={questionnaire} />
+        <QuestionnaireSummary value={questionnaire} fallbackActivities={selectedGoals.map(g => ({ ...GOALS_CONFIG[g], label: g === 'other' && customGoal ? customGoal : GOALS_CONFIG[g].label }))} />
         <p className="mt-4 text-sm2 text-zine-inkMuted">Предпросмотр твоих текущих ответов. Изменения появятся у других после сохранения.</p>
       </BottomSheet>}
       {/* Кнопка «Сохранить» всегда под рукой: в Telegram — нативная MainButton, в браузере — своя */}

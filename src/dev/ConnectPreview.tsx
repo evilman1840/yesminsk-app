@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
 import { UserProfile } from '../types';
+import { Questionnaire } from '../profile/questionnaire';
 import { MatchModal } from '../components/common/Reactions';
 import { HelloSheet, DuelSheet, UsernameSheet } from '../components/common/ConnectSheets';
 import { GenderPrompt } from '../components/common/GenderPrompt';
@@ -44,6 +45,17 @@ const friend: UserProfile = {
   iLiked: true,
   likedMe: true
 } as any;
+
+const questionnaire: Questionnaire = {
+  version: 1, intentions: ['Компанию для прогулок и сходок'],
+  activities: ['Кофе и разговоры', 'Кино', 'Кафе и рестораны', 'Настольные игры', 'Прогулки по городу'],
+  favouriteActivity: 'Прогулки по городу', companySizes: ['Втроём-вчетвером'],
+  restStyles: ['Каждый раз по-разному'], availability: ['В будни днём', 'У меня плавающий график'],
+  meetingAreas: ['Уручье', 'Немига / Центр'], budget: ['Больше 15, но не больше 35 BYN'],
+  topics: ['Увлечения и творчество', 'Путешествия и новые места'],
+  wants: ['Чаще выбираться из дома'], offers: ['Придумать маршрут прогулки'],
+  personal: { humour: { values: ['Добрый и лёгкий'], visible: true }, alcohol: { values: ['НЕ ПОКАЗЫВАТЬ'], visible: false } }
+};
 
 // Монетку в превью показываем каждый раз
 try {
@@ -98,12 +110,22 @@ export const ConnectPreview: React.FC = () => {
   const coin = new URLSearchParams(location.search).get('coin') === 'them' ? 'them' : 'me';
   const [replay, setReplay] = useState(0);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(true);
   const noop = () => {};
 
   return (
     <GoTogetherContext.Provider value={noop}>
       <SerialTvProvider value={countPreview ? <ActivityButton avatarUrl={ME_AVATAR} name="Миша" unread={3} onClick={() => setActivityOpen(true)} /> : null}>
       <div className="min-h-screen bg-zine-paper" key={replay} onDoubleClick={() => setReplay((n) => n + 1)}>
+        {screen === 'questionnaire' && <>
+          <button className="m-4 min-h-11 rounded-zine-sm bg-zine-terracotta text-zine-paper px-4" onClick={() => setProfileOpen(true)}>Открыть анкету</button>
+          {profileOpen && <UserBottomSheet user={{ ...friend,
+            firstName: new URLSearchParams(location.search).has('long') ? 'Александра-Екатерина 🌿' : 'Миша',
+            age: 43, areaName: 'Уручье', avatarUrl: ME_AVATAR,
+            bio: 'Люблю Раковское предместье, прогулки вокруг Немиги, парки. Смеяться. Эмпат!',
+            questionnaire: new URLSearchParams(location.search).has('legacy') ? undefined : questionnaire,
+          }} myGoals={[]} onClose={() => setProfileOpen(false)} onReact={noop} onReported={noop} />}
+        </>}
         {screen === 'match' && <MatchModal user={friend} myAvatarUrl={ME_AVATAR} coin={coin} onClose={noop} onHello={noop} />}
         {screen === 'hello' && <HelloSheet friendId={2002 + replay} name="Аня" myAvatarUrl={ME_AVATAR} onClose={noop} />}
         {screen === 'duel' && <DuelSheet friendId={2002} name="Аня" onClose={noop} onStarted={noop} />}

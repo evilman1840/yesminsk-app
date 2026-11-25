@@ -183,28 +183,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
       )}
 
       {goesWith && <p className="mt-4 text-body">{goesWith.emoji} Обычно хожу: <b>{goesWith.label.toLowerCase()}</b></p>}
-      <QuestionnaireSummary value={user.questionnaire} />
-      {!user.questionnaire?.activities?.length && (
-      <section className="mt-5">
-        <SectionTitle>Чем хочется заняться</SectionTitle>
-        <div className="flex flex-wrap gap-1.5">
-          {goals.map((goal) => (
-            <span
-              key={goal.id}
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm2 font-semibold border ${goal.badgeBg} ${goal.badgeBorder} ${goal.badgeText} ${
-                common.has(goal.id) ? 'ring-2 ring-zine-mustard/60' : ''
-              }`}
-            >
-              <span>{goal.emoji}</span>
-              <span>{goal.label}</span>
-              {common.has(goal.id) && <span aria-label="общее">✨</span>}
-            </span>
-          ))}
-        </div>
-
-      </section>
-
-      )}
+      <QuestionnaireSummary value={user.questionnaire} fallbackActivities={goals} />
 
       {user.isGuide && (
         <section className="mt-5 p-4 rounded-zine-sm bg-zine-sky/10 border border-zine-sky/25">
