@@ -89,6 +89,7 @@ interface ProfileFormScreenProps {
     coordinates?: [number, number];
   }) => Promise<void> | void;
   onBack?: () => void;
+  onOpenTips?: () => void;
   onSetVent?: (hours: number) => Promise<void>;
   onDeleteAccount?: () => Promise<void>; // «Удалить аккаунт» внизу анкеты
   onAddToHome?: () => void;              // совет «добавь на экран телефона» // «🫂 Хочется поныть» — включается сразу, без «Сохранить»
@@ -115,7 +116,8 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   onNearbyChange,
   onSetVent,
   onDeleteAccount,
-  onAddToHome
+  onAddToHome,
+  onOpenTips
 }) => {
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(initialData?.questionnaire || { version: 1 });
   const [savedQuestionnaire, setSavedQuestionnaire] = useState(JSON.stringify(initialData?.questionnaire || { version: 1 }));
@@ -533,6 +535,12 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
           </button>
         )}
         {isHelpOpen && <HelpSheet onClose={() => setIsHelpOpen(false)} />}
+        {!isFirstTime && onOpenTips && (
+          <button type="button" onClick={() => { telegramService.haptic('selection'); onOpenTips(); }}
+            className="mt-3 w-full min-h-11 px-4 py-3 rounded-zine bg-zine-card border border-zine-border text-left text-body font-semibold text-zine-ink">
+            💡 Подсказки
+          </button>
+        )}
 
         {/* Донат — сразу под «Как это работает»: сюда приходят те, кто уже решил поддержать */}
         {!isFirstTime && (

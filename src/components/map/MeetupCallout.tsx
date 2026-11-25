@@ -22,12 +22,14 @@ export function whenText(iso: string) {
 export interface MeetupCallout {
   key: string;
   text: string;
+  headline?: string;
+  detail?: string;
   action: string;
   event: AppEvent | null; // null — «собери свою»
 }
 
 // Очередь для строки подсказок: куда идут из «На связи» → самые подходящие мне (сервер уже отдаёт по порядку) → «собери свою».
-// Листаются карточками; сходок — не больше 4, чтобы строка не разрасталась
+// Внизу выбирается одна; остальные доступны в списке подсказок.
 export function pickMeetupCallouts(events: AppEvent[], myId: number | undefined, matchIds: number[]): MeetupCallout[] {
   // Куда можно пойти в ближайшую неделю: не свои, ещё не записан, есть места, с начала прошло меньше часа и ещё не закончились
   const now = Date.now();
@@ -50,6 +52,8 @@ export function pickMeetupCallouts(events: AppEvent[], myId: number | undefined,
     const friend = friendOf(e);
     return {
       key: String(e.id),
+      headline: `${eventCategoryOf(e).emoji} ${e.title}`,
+      detail: `${whenText(e.dateTime)}${friend ? ` · ${friend} идёт` : ''}`,
       text: friend ? T.friend(friend, e.title, whenText(e.dateTime)) : T.event(eventCategoryOf(e).emoji, e.title, whenText(e.dateTime)),
       action: T.go,
       event: e

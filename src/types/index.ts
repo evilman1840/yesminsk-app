@@ -204,6 +204,7 @@ export const EVENT_TAGS: Record<EventTag, { label: string; emoji: string }> = {
 export interface JoinOptions {
   guests: number;
   withKids: boolean;
+  entryPoint?: 'bottom_notice';
 }
 
 // «Эмпат»: значок и подпись — в одном месте, чтобы легко поменять

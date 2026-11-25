@@ -630,7 +630,7 @@ class ApiService {
   }
 
   // Записаться или поменять, с кем идёшь (повторный вызов обновляет запись)
-  async joinEvent(eventId: string, options: { guests: number; withKids: boolean } = { guests: 0, withKids: false }): Promise<{ success: boolean; event: AppEvent }> {
+  async joinEvent(eventId: string, options: { guests: number; withKids: boolean; entryPoint?: 'bottom_notice' } = { guests: 0, withKids: false }): Promise<{ success: boolean; event: AppEvent }> {
     return this.request<{ success: boolean; event: AppEvent }>(`/events/${eventId}/join`, {
       method: 'POST',
       body: JSON.stringify(options)

@@ -65,15 +65,16 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 export const EventDetails: React.FC<{
   event: AppEvent;
+  entryPoint?: 'bottom_notice';
   // options — с кем идёшь; null — «Не пойду»
   onJoin: (options: JoinOptions | null) => Promise<unknown> | void;
   onReported?: () => void;
   openBuddy?: boolean; // «Позвать ещё» от бота: сразу открыть «👯 Позвать с собой»
   openAttendance?: boolean; // «Нет, отмечу» от бота: сразу к списку «Кто пришёл»
-}> = ({ event: eventProp, onJoin, onReported, openBuddy, openAttendance }) => {
+}> = ({ event: eventProp, onJoin, onReported, openBuddy, openAttendance, entryPoint }) => {
   // «Точно приду» или отказ участнику нажали здесь: шторка на карте держит свою копию сходки, поэтому ответ сервера подмешиваем сами.
   // Пришла новая сходка сверху — своя копия больше не нужна
-  useAnalyticsView('gulyai_meetup_opened', eventProp.id);
+  useAnalyticsView('gulyai_meetup_opened', eventProp.id, { entry_point: entryPoint });
   const [localEvent, setLocalEvent] = useState<AppEvent | null>(null);
   useEffect(() => setLocalEvent(null), [eventProp]);
   const [isConfirming, setIsConfirming] = useState(false);

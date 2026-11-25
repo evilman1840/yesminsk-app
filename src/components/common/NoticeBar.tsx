@@ -1,167 +1,103 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { telegramService } from '../../services/telegram';
 import { NOTICE_TEXTS as T } from '../../texts/notices';
+import { AnalyticsNotice } from '../../analytics/contract';
+import { track, whenAnalyticsEnabled } from '../../analytics/runtime';
+import { dismissNotice, pickNotice, readNoticeState } from '../../utils/notices';
 
 export interface Notice {
-  id: string;
+  id: string; // UI/storage only, never sent to analytics
+  kind: AnalyticsNotice;
   text: string;
-  action?: string; // ярко справа от текста: «Пойдёшь? →»
-  onClick?: () => void; // нет — только прочитать (запись автора)
-  hideDays: number; // на сколько дней прячем по крестику
-  onDismiss?: () => void; // разовый совет: крестик = «сделано», насовсем (в «💡 Подсказки» не попадает)
-  group?: string; // закрыли вторую из группы (сходки) — спрашиваем «Скрыть все?»
+  headline?: string;
+  detail?: string;
+  action?: string;
+  onClick?: (fromBottom?: boolean) => void;
+  hideDays: number;
+  onDismiss?: () => void;
+  group?: string;
 }
 
-const KEY = 'yesminsk_notice_hidden';
+/** Count an actually visible, uncovered card, only after analytics consent. */
+function useNoticeExposure(notice: Notice | undefined, placement: 'bottom' | 'help') {
+  const ref = useRef<HTMLDivElement>(null);
+  const seen = useRef<string>();
+  useEffect(() => {
+    if (!notice) return;
+    const check = () => {
+      const el = ref.current;
+      if (!el || document.visibilityState !== 'visible' || seen.current === notice.id) return;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height || r.top < 0 || r.bottom > window.innerHeight) return;
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!top || !el.contains(top)) return;
+      if (track('gulyai_notice_seen', { notice_kind: notice.kind, notice_placement: placement })) seen.current = notice.id;
+    };
+    const off = whenAnalyticsEnabled(check);
+    const observer = new IntersectionObserver(check, { threshold: 1 });
+    if (ref.current) observer.observe(ref.current);
+    // Also catches uncovering after a sheet closes without moving the card.
+    const timer = window.setInterval(check, 1000);
+    document.addEventListener('visibilitychange', check);
+    return () => { off(); observer.disconnect(); window.clearInterval(timer); document.removeEventListener('visibilitychange', check); };
+  }, [notice?.id, notice?.kind, placement]);
+  return ref;
+}
 
-// Спрятанные крестиком: id → до какого времени. Истёкшие выбрасываем, чтобы список не рос (у сходок свои id)
-const loadHidden = (): Record<string, number> => {
-  try {
-    const all: Record<string, number> = JSON.parse(localStorage.getItem(KEY) || '{}');
-    return Object.fromEntries(Object.entries(all).filter(([, until]) => until > Date.now()));
-  } catch {
-    return {};
-  }
-};
-
-// Сколько карточек группы закрыли крестиком за этот запуск: на второй спрашиваем «Скрыть все?» (один раз)
-const closedInGroup: Record<string, number> = {};
-const askedGroups = new Set<string>();
-
-/**
- * Подсказки над нижним меню вместо рассылок бота: самые важные из ещё не сделанных, тёмными карточками.
- * Несколько — листаются вбок (справа виден край следующей, снизу точки). Нажатие — сделать,
- * крестик — спрятать эту подсказку на несколько дней. Закрыл вторую из группы (сходки) — предлагаем скрыть все сразу
- */
+/** One contextual suggestion. Closing frees the whole slot until tomorrow. */
 export const NoticeBar: React.FC<{ notices: Notice[] }> = ({ notices }) => {
-  const [hidden, setHidden] = useState(loadHidden);
-  const [active, setActive] = useState(0);
-  const [askAll, setAskAll] = useState<Notice | null>(null);
-  const left = notices.filter((n) => !(hidden[n.id] > Date.now()));
-  // Разовые советы (onDismiss) не возвращаем: закрыл — значит сделано
-  const hiddenNow = notices.filter((n) => hidden[n.id] > Date.now() && !n.onDismiss);
-
-  // Вернуть спрятанные (ещё актуальные) подсказки — с «ручки», когда открытых не осталось
-  const restore = () => {
-    telegramService.haptic('selection');
-    const next = { ...hidden };
-    for (const n of hiddenNow) delete next[n.id];
-    for (const g of Object.keys(closedInGroup)) delete closedInGroup[g];
-    askedGroups.clear();
-    setHidden(next);
-    try {
-      localStorage.setItem(KEY, JSON.stringify(next));
-    } catch {
-      // вернутся до следующего запуска
-    }
-  };
-
-  if (!left.length) {
-    if (!hiddenNow.length) return null;
-    // Узкая «ручка» над меню, с терракотовой обводкой. Своя строка высотой 32px, а не поверх экрана:
-    // иначе закрывала нижние кнопки и ссылки («Не пойду» в карточке сходки, карточку места на карте)
-    return (
-      <div className="shrink-0 h-8 flex items-center justify-center bg-zine-paper">
-        <button
-          onClick={restore}
-          className="h-6 pl-2 pr-2.5 rounded-full bg-[#2B2623] border-[1.5px] border-zine-terracotta text-[#FAF7F2] text-[12px] font-semibold flex items-center gap-1 shadow-zine-float cursor-pointer active:scale-95 transition-transform"
-        >
-          💡 {T.restore(hiddenNow.length)}
+  const [state, setState] = useState(readNoticeState);
+  const notice = pickNotice(notices, state);
+  const ref = useNoticeExposure(notice, 'bottom');
+  useEffect(() => {
+    if (state.snoozedUntil <= Date.now()) return;
+    const timer = window.setTimeout(() => setState(readNoticeState()), state.snoozedUntil - Date.now() + 50);
+    return () => window.clearTimeout(timer);
+  }, [state.snoozedUntil]);
+  if (!notice) return null;
+  const hide = () => setState(dismissNotice(notice.id, notice.hideDays));
+  return (
+    <div ref={ref} className="shrink-0 px-3 pt-1.5 pb-1 bg-zine-paper" aria-label="Подсказка">
+      <div className="flex items-center rounded-zine-sm bg-zine-card border border-zine-border">
+        <button type="button" aria-label={`${notice.text}${notice.action ? ` ${notice.action}` : ''}`} onClick={() => {
+          if (!notice.onClick) return;
+          track('gulyai_notice_clicked', { notice_kind: notice.kind, notice_placement: 'bottom' });
+          telegramService.haptic('selection'); hide(); notice.onClick(true);
+        }} disabled={!notice.onClick}
+          className="flex-1 min-w-0 min-h-11 pl-3.5 py-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left text-sm2 font-semibold text-zine-ink disabled:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-zine-terracotta">
+          {notice.headline ? <span className="flex-1 min-w-0">
+            <span className="block truncate">{notice.headline}</span>
+            <span className="block truncate text-cap font-normal text-zine-inkMuted">{notice.detail}</span>
+          </span> : <span className="flex-1 min-w-[150px] line-clamp-2">{notice.text}</span>}
+          {notice.action && <span aria-hidden="true" className="shrink-0 text-zine-terracotta whitespace-nowrap">{notice.headline ? '→' : notice.action}</span>}
+        </button>
+        <button type="button" onClick={() => {
+          track('gulyai_notice_dismissed', { notice_kind: notice.kind, notice_placement: 'bottom' });
+          telegramService.haptic('light'); hide(); notice.onDismiss?.();
+        }} aria-label={T.closeUntilTomorrow} className="w-11 h-11 shrink-0 flex items-center justify-center text-zine-inkMuted rounded-zine-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-zine-terracotta">
+          <X size={18} />
         </button>
       </div>
-    );
-  }
-  const many = left.length > 1;
-
-  const hide = (list: Notice[], days?: number) => {
-    telegramService.haptic('light');
-    const next = { ...hidden };
-    for (const n of list) next[n.id] = Date.now() + (days ?? n.hideDays) * 24 * 60 * 60 * 1000;
-    setHidden(next);
-    setAskAll(null);
-    try {
-      localStorage.setItem(KEY, JSON.stringify(next));
-    } catch {
-      // не страшно: спрячется до следующего запуска
-    }
-  };
-
-  const close = (notice: Notice) => {
-    if (notice.onDismiss) {
-      telegramService.haptic('light');
-      notice.onDismiss();
-      return;
-    }
-    const g = notice.group;
-    if (g) {
-      closedInGroup[g] = (closedInGroup[g] || 0) + 1;
-      const others = left.filter((n) => n.group === g && n.id !== notice.id);
-      if (closedInGroup[g] >= 2 && others.length && !askedGroups.has(g)) {
-        askedGroups.add(g);
-        telegramService.haptic('selection');
-        setAskAll(notice);
-        return;
-      }
-    }
-    hide([notice]);
-  };
-
-  return (
-    <div className="shrink-0 pt-1.5 pb-1 bg-zine-paper">
-      <div
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          const card = el.firstElementChild as HTMLElement | null;
-          if (card) setActive(Math.round(el.scrollLeft / (card.offsetWidth + 8)));
-        }}
-        className="flex gap-2 px-3 scroll-px-3 overflow-x-auto snap-x snap-mandatory no-scrollbar"
-      >
-        {left.map((notice) =>
-          askAll?.id === notice.id ? (
-            <div
-              key={notice.id}
-              className={`snap-start shrink-0 ${many ? 'w-[calc(100%-20px)]' : 'w-full'} min-h-[57px] pl-3.5 pr-2 py-2 flex items-center gap-2 rounded-zine-sm bg-[#2B2623] text-[#FAF7F2] border border-white/10 shadow-zine-sm`}
-            >
-              <span className="flex-1 min-w-0 text-[14px] leading-[19px] font-semibold">{T.hideAllQuestion}</span>
-              <button onClick={() => hide(left.filter((n) => n.group === notice.group), 1)} className="h-9 px-3 shrink-0 rounded-full bg-[#F0997B] text-[#2B2623] text-[14px] font-bold cursor-pointer">
-                {T.hideAll}
-              </button>
-              <button onClick={() => hide([notice])} className="h-9 px-3 shrink-0 rounded-full bg-white/10 text-[14px] font-semibold cursor-pointer">
-                {T.hideOne}
-              </button>
-            </div>
-          ) : (
-            <div
-              key={notice.id}
-              className={`snap-start shrink-0 ${many ? 'w-[calc(100%-20px)]' : 'w-full'} flex items-center rounded-zine-sm bg-[#2B2623] text-[#FAF7F2] border border-white/10 shadow-zine-sm`}
-            >
-              <button
-                onClick={() => {
-                  if (!notice.onClick) return;
-                  telegramService.haptic('selection');
-                  notice.onClick();
-                }}
-                className={`flex-1 min-w-0 min-h-[44px] pl-3.5 py-2 flex items-center gap-2 text-left text-[14px] leading-[19px] font-semibold ${notice.onClick ? 'cursor-pointer' : 'cursor-default'}`}
-              >
-                <span className="flex-1 min-w-0 line-clamp-2">{notice.text}</span>
-                {/* Действие — отдельно справа: длинный текст обрежется, а «Пойдёшь? →» видно всегда */}
-                {notice.action && <span className="shrink-0 font-bold text-[#F0997B] whitespace-nowrap">{notice.action}</span>}
-              </button>
-              <button onClick={() => close(notice)} aria-label={T.close} className="w-10 h-11 shrink-0 flex items-center justify-center text-[#B2A9A0] cursor-pointer">
-                <X size={16} />
-              </button>
-            </div>
-          )
-        )}
-      </div>
-      {many && (
-        <div className="mt-1 flex justify-center gap-1" aria-hidden>
-          {left.map((n, i) => (
-            <span key={n.id} className={`h-1 rounded-full transition-all ${i === Math.min(active, left.length - 1) ? 'w-3 bg-zine-terracotta' : 'w-1 bg-zine-border'}`} />
-          ))}
-        </div>
-      )}
     </div>
   );
 };
+
+const HelpNotice: React.FC<{ notice: Notice; onClose: () => void }> = ({ notice, onClose }) => {
+  const ref = useNoticeExposure(notice, 'help');
+  return <div ref={ref} className="rounded-zine-sm border border-zine-border bg-zine-card">
+    {notice.onClick ? <button type="button" className="w-full min-h-11 p-3 text-left text-body text-zine-ink rounded-zine-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-zine-terracotta" onClick={() => {
+      track('gulyai_notice_clicked', { notice_kind: notice.kind, notice_placement: 'help' });
+      telegramService.haptic('selection'); onClose(); notice.onClick?.();
+    }}>
+      {notice.text}{notice.action && <span className="block mt-1 font-semibold text-zine-terracotta">{notice.action}</span>}
+    </button> : <p className="p-3 text-body text-zine-ink">{notice.text}</p>}
+  </div>;
+};
+
+export const NoticeHelpList: React.FC<{ notices: Notice[]; onClose: () => void }> = ({ notices, onClose }) => (
+  <div className="space-y-3">
+    <p className="text-sm2 text-zine-inkMuted">{T.helpIntro}</p>
+    {notices.map(notice => <HelpNotice key={notice.id} notice={notice} onClose={onClose} />)}
+  </div>
+);

@@ -24,7 +24,7 @@ import { HelloSheet, DuelSheet, UsernameSheet, markCoinSeen } from './components
 import { askBotAccess, setBotAccessKnown, botAccessOk, onBotAccessChange } from './services/botAccess';
 import { PeopleFilters, loadFilters, saveFilters, filterQuery } from './components/people/PeopleFilters';
 import { WantNowButton } from './components/common/WantNowButton';
-import { NoticeBar, Notice } from './components/common/NoticeBar';
+import { NoticeBar, Notice, NoticeHelpList } from './components/common/NoticeBar';
 import { pickMeetupCallouts } from './components/map/MeetupCallout';
 import { NOTICE_TEXTS } from './texts/notices';
 import { NEARBY_TEXTS, NEARBY_DEFAULT, NearbySettings } from './texts/nearby';
@@ -241,6 +241,8 @@ export const App: React.FC = () => {
   };
   // Сходка, открытая по ссылке-приглашению или из уведомления бота
   const [sharedEvent, setSharedEvent] = useState<AppEvent | null>(null);
+  const [noticeEventId, setNoticeEventId] = useState<string | null>(null);
+  useEffect(() => { if (!sharedEvent) setNoticeEventId(null); }, [sharedEvent?.id]);
   const [sharedEventAttendance, setSharedEventAttendance] = useState(false); // «Нет, отмечу» от бота: сразу к «Кто пришёл»
   const [sharedEventBuddy, setSharedEventBuddy] = useState(false); // «Позвать ещё» от бота: открыть сходку сразу с «👯 Позвать с собой»
   const [goTogetherWith, setGoTogetherWith] = useState<UserProfile | null>(null); // «👯 Пойдём на сходку вместе» из «На связи»
@@ -348,7 +350,7 @@ export const App: React.FC = () => {
   useEffect(() => onBotAccessChange(() => setIsBotOk(botAccessOk())), []);
   // «👯 Пойдём вместе»: случайный вариант подсказки, один на запуск
   const [buddyTip] = useState(() => NOTICE_TEXTS.buddyVariants[Math.floor(Math.random() * NOTICE_TEXTS.buddyVariants.length)]);
-  const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | 'safety' | 'buddy' | null>(null);
+  const [noticeSheet, setNoticeSheet] = useState<'username' | 'pin' | 'safety' | 'buddy' | 'all' | null>(null);
   const [tip, setTip] = useState<{ id: string; text: string; first?: boolean } | null>(null); // запись автора (/tip, /tiptop в боте)
   const [poll, setPoll] = useState<PollData | null>(null); // опрос автора (/poll в боте)
   // «Закрепи чат»: Telegram не говорит, закреплён ли чат, — верим «Всё сделано» или крестику, больше не показываем
@@ -1284,15 +1286,16 @@ export const App: React.FC = () => {
     { id: 'hello', title: 'Нажми 👋 у того, с кем хочешь пообщаться', done: matches.length > 0 || users.some(u => u.iLiked) },
     { id: 'event', title: 'Запишись на сходку или собери свою', done: events.some(e => e.isJoined), onClick: () => handleNavigate('events') }
   ];
-  // Подсказки вместо рассылок бота — по важности, листаются карточками
+  // Все советы доступны в «Я → Подсказки»; снизу только одно предложение по ситуации.
   const hasOwnPhoto = isOwnPhoto(currentUser.avatarUrl);
   const meetupCallouts = pickMeetupCallouts(events, currentUser.telegramId, matches.map((m) => m.telegramId));
   // Запись автора: нажимать нечего, только прочитать или закрыть. /tiptop — первой, /tip — в конце
-  const tipNotice: Notice | null = tip ? { id: `tip:${tip.id}`, text: tip.text, hideDays: 1 } : null;
+  const tipNotice: Notice | null = tip ? { id: `tip:${tip.id}`, kind: 'author', text: tip.text, hideDays: 1 } : null;
   const notices: Notice[] = [
     // Опрос автора — первым, пока не проголосовал (после голоса строка с лидером остаётся в шапке карты)
     poll && !poll.myVote && {
       id: `poll:${poll.id}`,
+      kind: 'poll',
       text: poll.pill ? POLL_TEXTS.noticePlain(poll.question) : POLL_TEXTS.notice(poll.question),
       action: POLL_TEXTS.noticeAction,
       hideDays: 2,
@@ -1302,6 +1305,7 @@ export const App: React.FC = () => {
     // Сериал: плашку с новой серией закрыли крестиком, не посмотрев — напоминаем обычной подсказкой
     serialOn && serial.waiting && !serial.showStrip && {
       id: `serial:${serial.waiting.n}`,
+      kind: 'serial',
       text: `📺 «Не Одна Дома»: серия ${serial.waiting.n} ждёт тебя. Новая — каждый день в 10:00`,
       action: 'Смотреть →',
       hideDays: 1,
@@ -1309,6 +1313,7 @@ export const App: React.FC = () => {
     },
     (!isBotOk || isBotBlocked) && {
       id: 'bot',
+      kind: 'bot',
       text: isBotBlocked ? NOTICE_TEXTS.botBlocked : NOTICE_TEXTS.bot,
       hideDays: 3,
       onClick: async () => {
@@ -1316,18 +1321,23 @@ export const App: React.FC = () => {
         if (isBotBlocked || !(await askBotAccess(true))) telegramService.openBotChat();
       }
     },
-    // Сходки карточками: из «На связи», самые подходящие, потом «собери свою». Крестик прячет одну,
-    // на второй — «Скрыть все?». Во вкладке «Сходки» и так всё видно
+    // Сначала сходки из «На связи»; создание своей остаётся только в списке подсказок.
     ...(currentScreen === 'events'
       ? []
       : meetupCallouts.map((c) => ({
           id: `meetup:${c.key}`,
+          kind: c.event ? 'meetup' : 'create',
           group: 'meetup',
           text: c.text,
+          headline: c.headline,
+          detail: c.detail,
           action: c.action,
           hideDays: c.event ? 1 : 3,
-          onClick: () => {
-            if (c.event) setSharedEvent(c.event);
+          onClick: (fromBottom?: boolean) => {
+            if (c.event) {
+              setNoticeEventId(fromBottom === true ? c.event.id : null);
+              setSharedEvent(c.event);
+            }
             else {
               setPendingCreate({ source: 'map' });
               handleNavigate('events');
@@ -1337,6 +1347,7 @@ export const App: React.FC = () => {
     // «Хочу сходить»: в моих желаниях — сколько ещё хотят того же (до двух), иначе самое популярное. Нажал — список людей
     ...(currentScreen === 'events' ? [] : wishNotices(wishSummary)).map((w) => ({
       id: `wish:${w.kind}:${w.sport || ''}:${w.timeWindow}:${w.placeId || ''}`,
+      kind: 'wish',
       text: `🙋 ${wishCounter(w)}`,
       action: w.includesMe ? WISH_TEXTS.noticeWho : WISH_TEXTS.noticeMeToo,
       hideDays: 3,
@@ -1349,17 +1360,19 @@ export const App: React.FC = () => {
     })),
     // «👯 Пойдём вместе»: есть кто-то «На связи» — напоминаем, что на сходку можно позвать его.
     // В «Людях» не нужно: там кнопка прямо под анкетой
-    matches.length > 0 && currentScreen !== 'feed' && { id: 'buddy', text: buddyTip.card, hideDays: 7, onClick: () => setNoticeSheet('buddy') },
+    matches.length > 0 && currentScreen !== 'feed' && { id: 'buddy', kind: 'buddy', text: buddyTip.card, hideDays: 7, onClick: () => setNoticeSheet('buddy') },
     (!hasOwnPhoto || currentUser.bio.trim().length < 10) && {
       id: 'profile',
+      kind: 'profile',
       text: NOTICE_TEXTS.profile,
       hideDays: 7,
       onClick: () => handleNavigate('profile_edit')
     },
-    !currentUser.username && { id: 'username', text: NOTICE_TEXTS.username, hideDays: 7, onClick: () => setNoticeSheet('username') },
-    isBotOk && !isBotBlocked && !isPinDone && { id: 'pin', text: NOTICE_TEXTS.pin, hideDays: 365, onClick: () => setNoticeSheet('pin'), onDismiss: markPinDone },
+    !currentUser.username && { id: 'username', kind: 'username', text: NOTICE_TEXTS.username, hideDays: 7, onClick: () => setNoticeSheet('username') },
+    isBotOk && !isBotBlocked && !isPinDone && { id: 'pin', kind: 'pin', text: NOTICE_TEXTS.pin, hideDays: 365, onClick: () => setNoticeSheet('pin'), onDismiss: markPinDone },
     isBotOk && !isBotBlocked && !isNearbySeen && currentUser.nearby.on && {
       id: 'nearby',
+      kind: 'nearby',
       text: NEARBY_TEXTS.notice,
       action: NEARBY_TEXTS.noticeAction,
       hideDays: 365,
@@ -1370,9 +1383,17 @@ export const App: React.FC = () => {
       },
       onDismiss: markNearbySeen
     },
-    { id: 'safety', text: NOTICE_TEXTS.safety, hideDays: 30, onClick: () => setNoticeSheet('safety') },
+    { id: 'safety', kind: 'safety', text: NOTICE_TEXTS.safety, hideDays: 30, onClick: () => setNoticeSheet('safety') },
     !tip?.first && tipNotice
   ].filter(Boolean) as Notice[];
+  const hasContacts = matches.length > 0 || likedMe.length > 0 || events.some(e => e.isJoined);
+  const bottomNotices = notices.filter(n =>
+    (n.kind === 'bot' && hasContacts) || (n.kind === 'username' && matches.length > 0) ||
+    n.kind === 'meetup' || n.kind === 'wish' || n.kind === 'poll' || (n.kind === 'author' && tip?.first)
+  ).sort((a, b) => {
+    const priority = { bot: 0, username: 1, poll: 2, author: 3, meetup: 4, wish: 5 };
+    return priority[a.kind] - priority[b.kind];
+  });
 
   const hideFirstSteps = () => {
     setIsFirstStepsHidden(true);
@@ -1490,6 +1511,7 @@ export const App: React.FC = () => {
                   onSetVent={handleSetVent}
                   onDeleteAccount={handleDeleteAccount}
                   onAddToHome={() => setIsHomeTipOpen(true)}
+                  onOpenTips={() => setNoticeSheet('all')}
                 />
               ) : (
                 <ProfileLoading failed={meFailed} />
@@ -1655,7 +1677,7 @@ export const App: React.FC = () => {
           ) : stripOn ? (
             <SerialStrip serial={serial} onOpen={(ep) => setSerialPlaying({ ep, source: 'strip' })} />
           ) : (
-            isTab && isMeLoaded && currentScreen !== 'profile_edit' && currentScreen !== 'games' && <NoticeBar notices={notices} />
+            isTab && isMeLoaded && currentScreen !== 'profile_edit' && currentScreen !== 'games' && <NoticeBar notices={bottomNotices} />
           )}
 
           {isTab && (
@@ -1687,16 +1709,20 @@ export const App: React.FC = () => {
               title={sharedEvent.title}
               onClose={() => {
                 setSharedEvent(null);
+                setNoticeEventId(null);
                 setSharedEventBuddy(false);
                 setSharedEventAttendance(false);
               }}
             >
               <EventDetails
                 event={sharedEvent}
+                entryPoint={noticeEventId === sharedEvent.id ? 'bottom_notice' : undefined}
                 openBuddy={sharedEventBuddy}
                 openAttendance={sharedEventAttendance}
                 onJoin={async (options) => {
-                  const updated = await handleJoinEvent(sharedEvent, options);
+                  const updated = await handleJoinEvent(sharedEvent, options ? {
+                    ...options, entryPoint: noticeEventId === sharedEvent.id ? 'bottom_notice' : undefined
+                  } : null);
                   if (updated) setSharedEvent(updated);
                 }}
               />
@@ -1786,6 +1812,12 @@ export const App: React.FC = () => {
                 if (ev) setSharedEvent(ev);
               }}
             />
+          )}
+
+          {noticeSheet === 'all' && (
+            <BottomSheet title={NOTICE_TEXTS.helpTitle} onClose={() => setNoticeSheet(null)}>
+              <NoticeHelpList notices={notices} onClose={() => setNoticeSheet(null)} />
+            </BottomSheet>
           )}
 
           {noticeSheet === 'username' && (
