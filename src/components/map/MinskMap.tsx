@@ -6,6 +6,8 @@ import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CON
 import { serverUrl } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
 import { telegramService } from '../../services/telegram';
+import { currentLiveStatus } from '../common/LiveStatus';
+import { shortOffer, upperFirst } from '../../texts/liveStatus';
 
 export interface MinskMapProps {
   users: UserProfile[];
@@ -177,7 +179,7 @@ const MinskMapContent: React.FC<{
   // 1. Макет круглой аватарки других людей
   const avatarLayout = useMemo(() => {
     if (!ymaps) return null;
-    return (ymaps as any).templateLayoutFactory.createClass(
+    const layout = (ymaps as any).templateLayoutFactory.createClass(
       `<div class="ymaps-avatar-marker" style="position: relative; width: 46px; height: 52px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
         <div style="width: 46px; height: 46px; border-radius: 50%; padding: 2px; background-color: #FAF7F2; border: 2.5px solid $[properties.borderColor]; box-shadow: 0 4px 14px rgba(43, 38, 35, 0.22); position: relative; box-sizing: border-box;">
           <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='/no-photo.svg'" />
@@ -187,9 +189,29 @@ const MinskMapContent: React.FC<{
           <span style="position: absolute; top: -4px; left: -4px; background: #FFFFFF; font-size: 11px; border-radius: 50%; width: 19px; height: 19px; display: $[properties.empathDisplay]; align-items: center; justify-content: center; border: 1px solid #E8DFD5; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">🫶</span>
           <span style="position: absolute; top: -4px; right: -4px; background: #FBE3E6; font-size: 11px; border-radius: 50%; width: 19px; height: 19px; display: $[properties.ventDisplay]; align-items: center; justify-content: center; border: 1px solid #E8C4CA; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">🫂</span>
         </div>
+        <span data-live-status style="display:none; position:absolute; top:2px; left:48px; width:max-content; max-width:132px; pointer-events:none; border-radius:9px; padding:4px 7px; background:rgb(var(--c-card-elevated)); color:rgb(var(--c-ink)); font:600 12px/16px 'Plus Jakarta Sans',sans-serif; box-shadow:0 2px 7px #2223;">
+          <span data-want style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700;"></span>
+          <span data-offer style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+        </span>
         <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid $[properties.borderColor]; margin: -1px auto 0 auto; pointer-events: none;"></div>
-      </div>`
+      </div>`,
+      {
+        build: function () {
+          layout.superclass.build.call(this);
+          const badge = this.getParentElement()?.querySelector('[data-live-status]');
+          if (!badge) return;
+          const properties = this.getData().properties;
+          const want = properties.get('liveWant') || '';
+          const offer = properties.get('liveOffer') || '';
+          badge.style.display = want || offer ? 'block' : 'none';
+          badge.querySelector('[data-want]').textContent = want;
+          const offerLine = badge.querySelector('[data-offer]');
+          offerLine.textContent = offer;
+          if (want) offerLine.style.color = 'rgb(var(--c-ink-muted))';
+        },
+      }
     );
+    return layout;
   }, [ymaps]);
 
   // 2. Макет аватарки ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ ("⭐️ ТЫ")
@@ -333,6 +355,18 @@ const MinskMapContent: React.FC<{
     [currentUserLayout, currentUser?.avatarUrl, currentUser?.name, currentUser?.firstName, currentUser?.goal, currentUserCoords?.[0], currentUserCoords?.[1]]
   );
 
+  const [statusRevision, refreshStatuses] = useState(0);
+  useEffect(() => {
+    if (!isZoomedIn) return;
+    const nextExpiry = otherUsers.reduce((earliest, user) => {
+      const status = currentLiveStatus(user.liveStatus);
+      return status ? Math.min(earliest, Date.parse(status.expiresAt)) : earliest;
+    }, Infinity);
+    if (!Number.isFinite(nextExpiry)) return;
+    const timer = window.setTimeout(() => refreshStatuses(value => value + 1), Math.max(0, nextExpiry - Date.now()) + 20);
+    return () => window.clearTimeout(timer);
+  }, [otherUsers, statusRevision, isZoomedIn]);
+
   const selectedUserId = selectedUser?.id;
   const userMarks = useMemo(
     () => (
@@ -341,17 +375,20 @@ const MinskMapContent: React.FC<{
           const isSelected = selectedUserId === user.id;
           const goalInfo = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг' };
           const available = isAvailableNow(user);
+          const live = isZoomedIn ? currentLiveStatus(user.liveStatus) : null;
           const coords = ensureLatLng(user.displayCoords);
           const userIdStr = String(user.id || (user as any).telegramId || (user as any)._id || '');
 
           return (
             <Placemark
-              key={`user-${userIdStr || `idx-${idx}`}-${coords[0]}-${coords[1]}`}
+              key={`user-${userIdStr || `idx-${idx}`}-${coords[0]}-${coords[1]}-${live?.expiresAt || ''}`}
               geometry={coords}
               properties={{
                 userId: userIdStr,
                 avatarUrl: thumb(user.avatarUrl),
                 name: user.firstName,
+                liveWant: live ? upperFirst(live.want) : '',
+                liveOffer: live ? shortOffer(live.offer) : '',
                 // «⚡ Свободен сейчас» — зелёная обводка и молния вместо значка цели
                 goalEmoji: available ? '⚡' : user.isGuide ? '🧭' : goalInfo.emoji,
                 // Маленькие значки сверху: 🫶 эмпат, 🫂 «хочется поныть» (видят только эмпаты)
@@ -362,7 +399,7 @@ const MinskMapContent: React.FC<{
               options={{
                 iconLayout: avatarLayout,
                 iconOffset: [-23, -52],
-                iconShape: { type: 'Rectangle', coordinates: [[0, 0], [46, 58]] } as any,
+                iconShape: { type: 'Rectangle', coordinates: [[0, 0], [live ? 180 : 46, 58]] } as any,
                 interactivityModel: 'default#geoObject', // жесты с метки уходят карте: щипок по аватарке тоже приближает
                 cursor: 'pointer',
                 hasBalloon: false
@@ -378,7 +415,7 @@ const MinskMapContent: React.FC<{
       </>
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [avatarLayout, otherUsers, selectedUserId]
+    [avatarLayout, otherUsers, selectedUserId, isZoomedIn, statusRevision]
   );
 
   // Места и сходки — в той же группировке: близкие метки сливаются в кружок с числом

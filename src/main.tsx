@@ -47,6 +47,8 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') =
   import('./dev/NoticePreview').then(({ NoticePreview }) => root.render(<NoticePreview />));
 } else if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'connect') {
   import('./dev/ConnectPreview').then(({ ConnectPreview }) => root.render(<ConnectPreview />));
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'map-status') {
+  import('./dev/MapStatusPreview').then(({ MapStatusPreview }) => root.render(<MapStatusPreview />));
 } else if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'hosts') {
   // ?preview=hosts — значки организаторов, «Организаторы месяца» и «Повторить» на выдуманных данных
   import('./dev/HostsPreview').then(({ HostsPreview }) => root.render(<HostsPreview />));

@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { api } from '../services/api';
 import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Megaphone, Forward } from 'lucide-react';
-import { ActivityGoal, UserProfile, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood, PollData } from '../types';
+import { ActivityGoal, UserProfile, LiveStatus, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood, PollData } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
 import { PlaceTypeFilter } from '../components/places/PlaceTypeFilter';
@@ -17,9 +17,8 @@ import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
 import { pollLeaderText } from '../components/common/PollSheet';
 import { POLL_TEXTS } from '../texts/poll';
-import { WantNowButton } from '../components/common/WantNowButton';
+import { LiveStatusEditor, LiveStatusText, currentLiveStatus } from '../components/common/LiveStatus';
 import { MapEventsList } from '../components/map/MapEventsList';
-import { GamesMascot } from '../components/map/GamesMascot';
 import { MAP_EVENTS_TEXTS } from '../texts/meetups';
 
 export interface MapScreenProps {
@@ -36,7 +35,7 @@ export interface MapScreenProps {
     bio?: string;
     age?: string | number;
     isProfileActive?: boolean;
-    availableUntil?: string | null;
+    liveStatus?: LiveStatus | null;
     shownCoordinates?: [number, number] | null;
     locationManual?: boolean;
   } | null;
@@ -52,7 +51,7 @@ export interface MapScreenProps {
   peopleFilters: PeopleFilters; // общие с «Людьми», живут в App и уходят на сервер
   onChangePeopleFilters: (f: PeopleFilters) => void;
   peopleTotal?: number | null; // сколько подходит под фильтры на сервере
-  onSetAvailable: (hours: number) => Promise<void>;
+  onSaveLiveStatus: (want: string, offer: string, hours: number) => Promise<void>;
   onOpenNews: () => void;
   unreadNews?: number;
   fewPeople?: boolean; // рядом меньше 3 человек — предлагаем позвать друзей
@@ -66,7 +65,6 @@ export interface MapScreenProps {
   initialPlaceId?: string | null;
   poll?: PollData | null;               // опрос автора: пока не проголосовал, подпись в шапке зовёт голосовать
   onOpenPoll?: () => void;
-  onOpenGames?: () => void; // нет — игры пока закрыты, человечков не показываем
 }
 
 export type MapMode = 'all' | 'people' | 'events' | 'places';
@@ -111,7 +109,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   peopleFilters,
   onChangePeopleFilters: setPeopleFilters,
   peopleTotal,
-  onSetAvailable,
+  onSaveLiveStatus,
   onOpenNews,
   unreadNews = 0,
   fewPeople = false,
@@ -122,7 +120,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   initialPlaceId,
   poll,
   onOpenPoll,
-  onOpenGames,
   onOpenEvents,
   onToggleSavePlace,
 }) => {
@@ -197,6 +194,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [isFewHintClosed, setIsFewHintClosed] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
   const [isMySheetOpen, setIsMySheetOpen] = useState(false);
+  const [isStatusEditorOpen, setIsStatusEditorOpen] = useState(false);
+  const [statusPersonId, setStatusPersonId] = useState<number | null>(null);
+  const statusPerson = users.find(user => user.telegramId === statusPersonId);
   // «Сдвинуть метку»: человек сам выбирает, где его видят на карте
   const [isPicking, setIsPicking] = useState(false);
   const [pickBusy, setPickBusy] = useState(false);
@@ -262,22 +262,31 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         events={mapMode === 'events' ? filteredEvents : mapMode === 'all' ? upcomingEvents : NO_EVENTS}
         places={isPlaces ? filteredPlaces : mapMode === 'all' ? places : NO_PLACES}
         onSelectPlace={(p) => {
+          setStatusPersonId(null);
           setIsMoodPickerOpen(false);
           setSelectedPlace(p);
         }}
         currentUser={currentUser as any}
         selectedUser={selectedUser}
         onSelectUser={(u) => {
+          setStatusPersonId(null);
           setSelectedEvent(null);
           setIsMySheetOpen(false);
-          onSelectUser(u);
+          if (u && currentLiveStatus(u.liveStatus)) {
+            onSelectUser(null);
+            setStatusPersonId(u.telegramId);
+          } else {
+            onSelectUser(u);
+          }
         }}
         onSelectCurrentUser={() => {
+          setStatusPersonId(null);
           setSelectedEvent(null);
           onSelectUser(null);
           setIsMySheetOpen(true);
         }}
         onSelectEvent={(ev) => {
+          setStatusPersonId(null);
           onSelectUser(null);
           setIsMySheetOpen(false);
           setSelectedEvent(ev);
@@ -607,7 +616,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         />
       )}
 
-      {onOpenGames && !isPicking && !isEventsList && <GamesMascot onOpen={onOpenGames} />}
 
       {/* Донат: бьющееся сердце над ⚡, в общем стиле круглых кнопок карты; подпись снизу — как время у ⚡ */}
       <button
@@ -624,11 +632,25 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         </span>
       </button>
 
-      {/* «⚡ Хочу сейчас» — круглая кнопка над «Где я?»: сначала объясняет, потом включает */}
-      {(mapMode === 'people' || mapMode === 'all') && (
-        <div className="absolute right-4 bottom-[128px] z-20">
-          <WantNowButton availableUntil={currentUser?.availableUntil} isVisible={isVisible} onSet={onSetAvailable} onOpenProfile={onOpenProfile} look="map" />
-        </div>
+      {!isPicking && !isEventsList && (mapMode === 'people' || mapMode === 'all') && (
+        <button type="button" aria-label="Я сейчас: изменить статус"
+          onClick={() => { telegramService.haptic('selection'); setIsStatusEditorOpen(true); }}
+          className="absolute left-4 bottom-16 z-20 grid max-w-[155px] justify-items-center">
+          <img src={thumb(currentUser?.avatarUrl) || NO_PHOTO} alt="" className="h-[88px] w-[88px] rounded-full border-[3px] border-zine-cardElevated object-cover shadow-zine-float" />
+          <span className="-mt-2 flex items-center gap-1 rounded-lg bg-zine-ink px-2.5 py-1 text-cap font-bold text-zine-paper"><Pencil size={13} /> Я сейчас</span>
+          <span className="mt-1 max-w-full"><LiveStatusText compact status={currentUser?.liveStatus} /></span>
+        </button>
+      )}
+
+      {isStatusEditorOpen && <LiveStatusEditor status={currentUser?.liveStatus} visible={isVisible} onSave={onSaveLiveStatus} onClose={() => setIsStatusEditorOpen(false)} />}
+
+      {statusPerson && (
+        <BottomSheet title={statusPerson.firstName} onClose={() => setStatusPersonId(null)}>
+          {statusPerson.areaName && <p className="mb-2 text-sm2 text-zine-inkMuted">{statusPerson.areaName}</p>}
+          <LiveStatusText status={statusPerson.liveStatus} />
+          <button type="button" onClick={() => { setStatusPersonId(null); onSelectUser(statusPerson); }}
+            className="mt-3 min-h-11 w-full rounded-zine-sm bg-zine-terracotta px-3 font-bold text-white">Открыть анкету</button>
+        </BottomSheet>
       )}
 
       {/* Моя анкета на карте */}
@@ -670,6 +692,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               <span>Сдвинуть метку</span>
             </button>
           )}
+
+          <button type="button" onClick={() => { setIsMySheetOpen(false); setIsStatusEditorOpen(true); }} className="mt-3 min-h-11 w-full rounded-zine-sm bg-zine-card font-semibold">Я сейчас</button>
 
           <button
             onClick={() => {

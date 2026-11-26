@@ -1,3 +1,4 @@
+import { LiveStatusText } from '../components/common/LiveStatus';
 import { MeetupExperience } from '../components/common/MeetupExperience';
 import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -626,7 +627,8 @@ export const PersonReel: React.FC<{
           </>
         )}
         {statuses.length > 0 && <span className={`absolute top-3 left-3 z-20 max-w-[calc(100%-24px)] truncate h-8 px-3 rounded-full text-sm2 font-semibold flex items-center pointer-events-none ${statuses[0].cls}`}>{statuses[0].text}</span>}
-        <div className="absolute bottom-3 inset-x-3 z-20 pointer-events-none">
+        <div className="absolute bottom-3 inset-x-3 z-20 pointer-events-none grid justify-items-start gap-1.5">
+          <LiveStatusText status={user.liveStatus} compact />
           <MeetupExperience user={user} />
         </div>
       </div>

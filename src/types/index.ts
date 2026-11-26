@@ -104,6 +104,8 @@ export const eventCategoryOf = (ev: { category: EventCategory; customCategory?: 
   return ev.category === 'other' && ev.customCategory?.trim() ? { ...cfg, label: ev.customCategory.trim() } : cfg;
 };
 
+export type LiveStatus = { want: string; offer: string; expiresAt: string };
+
 export interface UserProfile {
   questionnaire?: Questionnaire;
   id: string;
@@ -133,6 +135,7 @@ export interface UserProfile {
   iLiked?: boolean;   // я нажал 👋 «Пообщаться»
   likedMe?: boolean;  // мне нажали 👋
   isMatch?: boolean;  // оба нажали 👋 — на связи, можно писать
+  liveStatus?: LiveStatus;
   availableUntil?: string; // «⚡ Хочу сейчас» — до этого времени
   isGuide?: boolean;       // «🧭 Покажу город» — местный гид-волонтёр
   isSupporter?: boolean;   // «🍩 Кормлю ГУЛЯЙ-Печку» — отметил после доната

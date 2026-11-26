@@ -64,7 +64,7 @@ import { LegalUpdateOverlay } from './components/common/Legal';
 import { LEGAL_VERSION } from './texts/legal';
 import { AdminContext, EVENT_DELETED } from './context/admin';
 import { EVENT_UPDATED, EVENT_EDIT } from './context/eventUpdates';
-import { UserProfile, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, WishSummaryItem, MeetupStats, placeForMeetup, PollData } from './types';
+import { UserProfile, LiveStatus, ActivityGoal, GoalFilter, AppEvent, PlaceItem, Gender, PreferredGender, AgeRange, EventCategory, JoinOptions, GoesWith, DigestFrequency, EventPayload, MeetupCreateRequest, WishWindow, WishSummaryItem, MeetupStats, placeForMeetup, PollData } from './types';
 import { WISH_TEXTS, wishCounter, wishNotices } from './texts/wishes';
 import { FEED_TEXTS } from './texts/feed';
 import { GoTogetherSheet } from './components/common/BuddySheets';
@@ -141,6 +141,7 @@ export const App: React.FC = () => {
     isGuide: false,
     guideAbout: '',
     photos: [] as string[],
+    liveStatus: null as LiveStatus | null,
     availableUntil: null as string | null,
     coordinates: getSavedCoordinates(),
     shownCoordinates: null as [number, number] | null, // где тебя видят другие (смещённая метка)
@@ -662,6 +663,7 @@ export const App: React.FC = () => {
             isGuide: Boolean(me.isGuide),
             guideAbout: me.guideAbout || '',
             photos: me.photos || [],
+            liveStatus: me.liveStatus || null,
             availableUntil: me.availableUntil || null,
             coordinates: userCoords,
             shownCoordinates: Array.isArray(me.shownCoordinates) ? me.shownCoordinates : null,
@@ -1559,7 +1561,10 @@ export const App: React.FC = () => {
                   const r = await api.setShownLocation(c);
                   setCurrentUser(prev => ({ ...prev, shownCoordinates: r.shownCoordinates, locationManual: r.locationManual }));
                 }}
-                onSetAvailable={handleSetAvailable}
+                onSaveLiveStatus={async (want, offer, hours) => {
+                  const { liveStatus } = await api.setLiveStatus(want, offer, hours);
+                  setCurrentUser(prev => ({ ...prev, liveStatus }));
+                }}
                 onOpenNews={() => handleNavigate('news')}
                 fewPeople={isUsersLoaded && !apiError && users.length < 3}
                 places={places}
@@ -1572,7 +1577,6 @@ export const App: React.FC = () => {
                 initialPlaceId={initialPlaceId}
                 poll={poll}
                 onOpenPoll={() => setIsPollOpen(true)}
-                onOpenGames={gamesOpen ? () => handleNavigate('games') : undefined}
                 onCreateEventAtPlace={createEventAtPlace}
               />
             )}

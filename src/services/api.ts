@@ -2,7 +2,7 @@ import type { ClientAnalyticsEvent } from '../analytics/contract';
 import type { Questionnaire } from '../profile/questionnaire';
 import { telegramService } from './telegram';
 import type { GameView, GameLobby, GameSummary, TractorMatchResult, SeaView, SeaLobby } from '../games/types';
-import { UserProfile, ActivityGoal, AppEvent, MonthHost, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData, MeetupStats } from '../types';
+import { UserProfile, LiveStatus, ActivityGoal, AppEvent, MonthHost, Gender, PreferredGender, PlaceItem, PlaceTipItem, EventPayload, EventTemplate, MeetupFormSource, WishItem, WishSummaryItem, WishWindow, PollData, MeetupStats } from '../types';
 
 /**
  * Нормализация базового URL бэкенда.
@@ -418,6 +418,10 @@ class ApiService {
   // «🫂 Хочется поныть» на несколько часов (0 — выключить)
   async setVent(hours: number): Promise<{ success: boolean; ventUntil: string | null }> {
     return this.request('/users/vent', { method: 'POST', body: JSON.stringify({ hours }) });
+  }
+
+  async setLiveStatus(want: string, offer: string, hours: number): Promise<{ liveStatus: LiveStatus | null }> {
+    return this.request('/users/live-status', { method: 'POST', body: JSON.stringify({ want, offer, hours }) });
   }
 
   async setAvailable(hours: number): Promise<{ success: boolean; availableUntil: string | null }> {

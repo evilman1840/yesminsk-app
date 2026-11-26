@@ -1,3 +1,4 @@
+import { LiveStatusText, useLiveStatus } from './LiveStatus';
 import { useAnalyticsView } from '../../analytics/hooks';
 import { QuestionnaireSummary } from '../../profile/QuestionnaireSummary';
 import { MeetupExperience } from './MeetupExperience';
@@ -39,6 +40,7 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => 
  */
 export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals, onClose, onReact, onReported, onGoTogether, onHello, onDuel }) => {
   useAnalyticsView('gulyai_person_opened', user.telegramId);
+  const liveStatus = useLiveStatus(user.liveStatus);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTipsOpen, setIsTipsOpen] = useState(false);
@@ -150,6 +152,8 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
           <MeetupExperience user={user} className="mt-2" />
         </div>
       </div>
+
+      {liveStatus && <div className="mt-3"><LiveStatusText status={liveStatus} /></div>}
 
       {/* Статусы «прямо сейчас» */}
       {isAvailableNow(user) && (
