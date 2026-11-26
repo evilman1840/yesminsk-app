@@ -2,7 +2,7 @@ import { MapStatusButton } from '../components/map/MapControls';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { api } from '../services/api';
-import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Bell, Forward } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Forward } from 'lucide-react';
 import { ActivityGoal, UserProfile, LiveStatus, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood, PollData } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
@@ -607,13 +607,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       {isStatusEditorOpen && (
         <LiveStatusEditor status={currentUser?.liveStatus} visible={isVisible} onSave={onSaveLiveStatus}
           onClose={() => setIsStatusEditorOpen(false)}
-          topAction={
-            <button type="button" onClick={() => { setIsStatusEditorOpen(false); onOpenActivity(); }}
-              className="mb-3 flex min-h-11 w-full items-center gap-2 rounded-zine-sm bg-zine-card px-3 text-sm2 font-semibold text-zine-ink">
-              <Bell size={17} aria-hidden /> Уведомления и новости
-              {activityUnread > 0 && <span className="ml-auto rounded-full bg-zine-terracotta px-2 text-white">{activityUnread}</span>}
-            </button>
-          }
+          activityUnread={activityUnread}
+          onOpenActivity={() => { setIsStatusEditorOpen(false); onOpenActivity(); }}
         />
       )}
 

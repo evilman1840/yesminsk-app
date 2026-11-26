@@ -1,3 +1,4 @@
+import { Toaster } from 'sonner';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Bell, Layers, MapPin, Pencil, Plus } from 'lucide-react';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -36,6 +37,14 @@ type Sheet = 'status' | 'person' | 'profile' | 'create' | 'plan' | 'invitePlan' 
 
 export function MapStatusPreview() {
   const headerControls = new URLSearchParams(location.search).has('controls');
+  useEffect(() => {
+    const theme = new URLSearchParams(location.search).get('theme');
+    if (theme !== 'light' && theme !== 'dark') return;
+    const root = document.documentElement;
+    const wasDark = root.classList.contains('dark');
+    root.classList.toggle('dark', theme === 'dark');
+    return () => { root.classList.toggle('dark', wasDark); };
+  }, []);
   const [statusOpened, setStatusOpened] = useState(false);
   const [located, setLocated] = useState(false);
   const [variant, setVariant] = useState(0);
@@ -85,6 +94,7 @@ export function MapStatusPreview() {
   const planTime = published ? when : '19:00';
 
   return <main className="mp-shell">
+    <Toaster position="top-center" />
     <header className="mp-head">
       <div><p className="mp-kicker">ГУЛЯЙ! · Прототип</p><h1>Карта живых планов</h1></div>
       {headerControls ? <MapStatusButton avatarUrl="/misha-questionnaire-v1.jpg" active={Boolean(expiresAt)}
@@ -136,8 +146,8 @@ export function MapStatusPreview() {
     {sheet === 'status' && <LiveStatusEditor
       status={expiresAt ? { want, offer, expiresAt: new Date(expiresAt).toISOString() } : null}
       onClose={close}
-      topAction={headerControls && <button type="button" className="mp-secondary mb-3 w-full"
-        onClick={() => { setNoticeRead(true); setSheet('invites'); }}>Уведомления и новости</button>}
+      activityUnread={noticeRead ? 0 : 2}
+      onOpenActivity={headerControls ? () => { setNoticeRead(true); setSheet('invites'); } : undefined}
       onSave={async (nextWant, nextOffer, hours) => {
         setWant(hours ? nextWant.trim() : '');
         setOffer(hours ? nextOffer.trim() : '');

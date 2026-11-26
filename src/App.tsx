@@ -3,6 +3,7 @@ import { ANALYTICS_PRIVACY_VERSION, AnalyticsScreen } from './analytics/contract
 import { ProfileInviteBanner } from './profile/ProfileInviteBanner';
 import { Questionnaire, questionnaireComplete, QUESTIONNAIRE_VERSION } from './profile/questionnaire';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Toaster } from 'sonner';
 import { YMaps } from '@pbe/react-yandex-maps';
 import { setWaveQuota, setOpenMeetups } from './utils/waves';
 import { WAVE_TEXTS } from './texts/waves';
@@ -1471,6 +1472,7 @@ export const App: React.FC = () => {
     >
       <div className="flex justify-center bg-zine-paper font-sans text-zine-ink">
         <div className="w-full max-w-[420px] h-[var(--tg-viewport-stable-height,100dvh)] bg-zine-paper overflow-hidden flex flex-col relative">
+          <Toaster position="top-center" />
           <ServerWakingBanner />
 
           {apiError && (
