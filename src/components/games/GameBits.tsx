@@ -100,18 +100,22 @@ export const DuelAfter: React.FC<{
   const phrase = quit || game.winner === -1 ? D.phraseDraw : game.winner === game.me ? D.phraseWin : D.phraseLose;
   return (
     <div className="mt-3 pt-3 border-t border-zine-border flex flex-col gap-2">
-      {opp.username && (
-        <button
-          onClick={() => {
-            telegramService.haptic('medium');
-            api.gameWrote(game.id, kind);
-            telegramService.openChat(opp.username, phrase);
+      <button
+          onClick={async () => {
+            try {
+              const profile = await api.getPublicUser(opp.telegramId!);
+              if (!profile.username) return telegramService.alert('Написать в Telegram можно, пока вы оба на связи и у человека есть @username');
+              telegramService.haptic('medium');
+              api.gameWrote(game.id, kind);
+              telegramService.openChat(profile.username, phrase);
+            } catch (err: any) {
+              telegramService.alert(err?.message || 'Не удалось открыть переписку');
+            }
           }}
           className="w-full h-12 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer active:scale-[0.98] transition-transform"
         >
           {D.write}
-        </button>
-      )}
+      </button>
       {goTogether && (
         <button
           onClick={() => {

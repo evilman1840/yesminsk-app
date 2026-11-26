@@ -101,7 +101,7 @@ export const EventDetails: React.FC<{
   const deleteOwn = async () => {
     if (isDeleting) return;
     const upcoming = new Date(event.dateTime).getTime() > Date.now();
-    const heir = upcoming ? others.find((p) => !event.byRequest || p.approved) : undefined;
+    const heir = upcoming ? others.find((p) => !(p.pending ?? (event.byRequest && !p.approved))) : undefined;
     if (heir) {
       telegramService.haptic('warning');
       const title = event.title.length > 60 ? `${event.title.slice(0, 59)}…` : event.title;
@@ -143,6 +143,7 @@ export const EventDetails: React.FC<{
   // Сходка началась: организатор отмечает, кто не пришёл; подтверждать и убирать уже незачем
   const isStarted = new Date(event.dateTime).getTime() <= Date.now();
   // «По записи»: подтверждённую запись меняет только организатор
+  const myPending = event.myPending ?? (event.isJoined && event.byRequest && !event.myApproved && !isCreator);
   const approvedLock = Boolean(event.byRequest && event.myApproved && !isCreator);
   // Ответ сервера после действий организатора: обновляем здесь и в остальных экранах
   const applyUpdate = (updated: AppEvent) => {
@@ -338,8 +339,8 @@ export const EventDetails: React.FC<{
                 <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{MEETUP_TEXTS.attendanceHint}</p>
               </div>
             )}
-            {!isStarted && event.byRequest && others.some((p) => !p.approved) && (
-              <p className="text-sm2 font-bold text-zine-terracotta">⏳ {MEETUP_TEXTS.pendingCount(others.filter((p) => !p.approved).length)}</p>
+            {!isStarted && others.some((p) => p.pending ?? (event.byRequest && !p.approved)) && (
+              <p className="text-sm2 font-bold text-zine-terracotta">⏳ {MEETUP_TEXTS.pendingCount(others.filter((p) => p.pending ?? (event.byRequest && !p.approved)).length)}</p>
             )}
             {others.map((p) => (
               <div key={p.telegramId}>
@@ -356,7 +357,7 @@ export const EventDetails: React.FC<{
                         {event.byRequest && <span className="font-semibold text-zine-ink">{MEETUP_TEXTS.peopleCount(1 + (p.guests || 0))} · </span>}
                         {p.confirmed && <span className="font-semibold text-zine-sage">✅ {MEETUP_TEXTS.confirmedOne} · </span>}
                         {p.buddy && <span className="font-semibold text-zine-terracotta">{BUDDY_TEXTS.goingTogether} · </span>}
-                        {p.username ? `@${p.username}` : EM.noUsername}
+                        {(p.pending ?? (event.byRequest && !p.approved)) && 'Ждёт подтверждения'}
                       </span>
                     </span>
                   </button>
@@ -380,23 +381,11 @@ export const EventDetails: React.FC<{
                       <UserMinus size={16} />
                     </button>
                   )}
-                  {p.username && (
-                    <button
-                      type="button"
-                      aria-label={EM.writeOne}
-                      onClick={() => {
-                        telegramService.haptic('medium');
-                        telegramService.openChat(p.username);
-                      }}
-                      className="w-10 h-10 shrink-0 rounded-full bg-zine-card text-zine-ink flex items-center justify-center cursor-pointer"
-                    >
-                      <Send size={16} />
-                    </button>
-                  )}
+
                 </div>
                 {/* «По записи»: заявка ждёт — подтвердить */}
                 {/* «Кто пришёл»: галочка стоит у всех, снять — «Не пришёл(ла)» */}
-                {isStarted && (
+                {isStarted && !(p.pending ?? (event.byRequest && !p.approved)) && (
                   <button
                     type="button"
                     role="checkbox"
@@ -426,7 +415,7 @@ export const EventDetails: React.FC<{
                     <span className={p.noShow ? 'text-zine-inkMuted line-through' : ''}>{MEETUP_TEXTS.attendanceCame(p.name)}</span>
                   </button>
                 )}
-                {!isStarted && event.byRequest && !p.approved && (
+                {!isStarted && (p.pending ?? (event.byRequest && !p.approved)) && (
                   <button
                     type="button"
                     disabled={approvingId === p.telegramId}
@@ -660,7 +649,7 @@ export const EventDetails: React.FC<{
             <span>Мест нет: все {event.maxParticipants} заняты</span>
           ) : notForMe ? (
             <span className="px-4 text-center text-body">{notForMe}</span>
-          ) : event.isJoined && event.byRequest ? (
+          ) : event.isJoined && (event.byRequest || myPending) ? (
             approvedLock ? (
               <>
                 <Check size={22} strokeWidth={3} />
@@ -683,7 +672,7 @@ export const EventDetails: React.FC<{
         </div>
         )}
         {/* «По записи»: заявка ждёт — можно отменить; подтверждена — только через организатора */}
-        {event.isJoined && !isCreator && event.byRequest && (
+        {event.isJoined && !isCreator && (event.byRequest || myPending) && (
           <div className="mt-2 flex items-center justify-between gap-3">
             <span className="min-w-0 text-sm2 text-zine-inkMuted">
               {approvedLock ? MEETUP_TEXTS.requestApprovedHint(event.creator?.username || '') : MEETUP_TEXTS.requestPendingHint}
@@ -710,7 +699,7 @@ export const EventDetails: React.FC<{
             )}
           </div>
         )}
-        {event.isJoined && !isCreator && !event.byRequest && (
+        {event.isJoined && !isCreator && !event.byRequest && !myPending && (
           <div className="mt-2 flex items-center justify-between gap-3">
             {event.myConfirmed ? (
               <span className="min-w-0 text-sm2 text-zine-inkMuted">{MEETUP_TEXTS.confirmedMine}</span>
@@ -856,6 +845,21 @@ const RemoveParticipantSheet: React.FC<{ eventId: string; person: { telegramId: 
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reporting, setReporting] = useState(false);
+  if (reporting) return (
+    <ReportSheet
+      targetType="user"
+      targetId={person.telegramId}
+      targetName={person.name}
+      actionLabel="Пожаловаться и убрать"
+      onClose={() => setReporting(false)}
+      onReported={onClose}
+      submit={async (reason, comment) => {
+        await api.report('user', person.telegramId, reason, comment);
+        onRemoved(await api.removeParticipant(eventId, person.telegramId, ''));
+      }}
+    />
+  );
   return (
     <BottomSheet title={EM.removeTitle(person.name)} onClose={onClose}>
       <p className="text-body text-zine-inkMuted">{EM.removeHint}</p>
@@ -880,6 +884,9 @@ const RemoveParticipantSheet: React.FC<{ eventId: string; person: { telegramId: 
         className="mt-4 w-full h-14 rounded-zine-sm bg-zine-danger text-white text-lead font-bold flex items-center justify-center cursor-pointer"
       >
         {busy ? <Loader2 size={22} className="animate-spin" /> : EM.removeSend}
+      </button>
+      <button type="button" disabled={busy} onClick={() => setReporting(true)} className="mt-2 min-h-[44px] w-full text-sm2 font-semibold text-zine-ink underline active:scale-[0.98] transition-transform">
+        Пожаловаться и убрать
       </button>
     </BottomSheet>
   );

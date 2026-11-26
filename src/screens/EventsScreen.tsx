@@ -2047,7 +2047,7 @@ export const EventReel: React.FC<{
   const goingNames = goingPeople.map((p) => p?.name).filter(Boolean) as string[];
   const goingTotal = ev.participantsCount || people.length;
 
-  const isPending = ev.isJoined && ev.byRequest && !ev.myApproved;
+  const isPending = ev.isJoined && (ev.myPending ?? (ev.byRequest && !ev.myApproved));
   const isStarted = new Date(ev.dateTime).getTime() <= Date.now();
 
   return (

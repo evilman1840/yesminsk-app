@@ -24,7 +24,9 @@ export const ReportSheet: React.FC<{
   targetName: string;
   onClose: () => void;
   onReported: () => void;
-}> = ({ targetType, targetId, targetName, onClose, onReported }) => {
+  actionLabel?: string;
+  submit?: (reason: string, comment: string) => Promise<void>;
+}> = ({ targetType, targetId, targetName, onClose, onReported, actionLabel, submit }) => {
   const [reason, setReason] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -39,7 +41,8 @@ export const ReportSheet: React.FC<{
     setIsSending(true);
     setError(null);
     try {
-      await api.report(targetType, targetId, reason, comment.trim());
+      if (submit) await submit(reason, comment.trim());
+      else await api.report(targetType, targetId, reason, comment.trim());
       telegramService.haptic('success');
       setIsSent(true);
     } catch (err: any) {
@@ -60,7 +63,7 @@ export const ReportSheet: React.FC<{
       >
         <p className="text-body text-zine-ink">
           {targetType === 'user'
-            ? 'Мы проверим анкету. Этот человек больше не будет тебе показываться.'
+            ? (submit ? 'Участника убрали со сходки. Мы проверим жалобу.' : 'Мы проверим анкету. Этот человек больше не будет тебе показываться.')
             : 'Мы проверим сходку и примем меры, если нужно.'}
         </p>
         <p className="mt-3 text-sm2 text-zine-inkMuted">Если тебе угрожает опасность, звони 102 (милиция).</p>
@@ -115,7 +118,7 @@ export const ReportSheet: React.FC<{
         disabled={isSending}
         className="mt-4 w-full h-12 rounded-zine-sm bg-zine-danger text-white text-body font-bold flex items-center justify-center cursor-pointer"
       >
-        {isSending ? <Loader2 size={20} className="animate-spin" /> : 'Отправить жалобу'}
+        {isSending ? <Loader2 size={20} className="animate-spin" /> : (actionLabel || 'Отправить жалобу')}
       </button>
     </BottomSheet>
   );

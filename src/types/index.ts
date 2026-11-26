@@ -272,6 +272,7 @@ export interface AppEvent {
   myWithKids?: boolean;
   myConfirmed?: boolean; // нажал(а) «Точно приду»
   byRequest?: boolean;   // «По записи»: организатор подтверждает каждого
+  myPending?: boolean;   // заявка ждёт подтверждения организатора
   myApproved?: boolean;  // «По записи»: мою запись подтвердили — отменить можно только через организатора
   isOfficial?: boolean; // «⭐ От ГУЛЯЙ!» — сходка автора проекта
   placeId?: string;     // сходка в месте из «Мест»
@@ -297,6 +298,7 @@ export interface AppEvent {
     guests?: number;
     withKids?: boolean;
     confirmed?: boolean; // «✅ Точно приду» — значок у аватарки
+    pending?: boolean;  // только организатору: заявка ждёт подтверждения
     approved?: boolean;  // «По записи»: организатор подтвердил
     noShow?: boolean;    // организатор отметил «Не пришёл(ла)» (приходит только организатору)
     buddy?: boolean;     // «👯 идут вместе»: пришёл по приглашению знакомого или позвал сам
@@ -460,7 +462,7 @@ export interface MeetupCreateRequest {
 // Сколько ещё можно взять с собой: свободные места минус я сам (моя прошлая запись не в счёт)
 export const maxGuestsFor = (ev: AppEvent) => {
   if (!ev.maxParticipants) return Infinity;
-  const mySeats = ev.isJoined ? 1 + (ev.myGuests || 0) : 0;
+  const mySeats = ev.isJoined && !(ev.myPending && !ev.byRequest) ? 1 + (ev.myGuests || 0) : 0;
   return Math.max(0, ev.maxParticipants - (ev.participantsCount - mySeats) - 1);
 };
 

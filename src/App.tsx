@@ -1142,7 +1142,8 @@ export const App: React.FC = () => {
     // Записался — пусть бот сможет прислать напоминание
     if (options) askBotAccess();
     try {
-      const mySeats = event.isJoined ? 1 + (event.myGuests || 0) : 0;
+      const reservedPlace = event.isJoined && !(event.myPending && !event.byRequest);
+      const mySeats = reservedPlace ? 1 + (event.myGuests || 0) : 0;
       let updated: AppEvent;
       if (options) {
         const res = await api.joinEvent(event.id, options);
@@ -1163,10 +1164,11 @@ export const App: React.FC = () => {
           ...event,
           isJoined: false,
           myConfirmed: false,
+          myPending: false,
           participants: (event.participants || []).filter((p) => Number(p.telegramId) !== myId),
           participantsCount: Math.max(0, event.participantsCount - mySeats),
-          groupsCount: Math.max(0, (event.groupsCount ?? event.participantsCount) - 1),
-          withKidsCount: Math.max(0, (event.withKidsCount || 0) - (event.myWithKids ? 1 : 0)),
+          groupsCount: Math.max(0, (event.groupsCount ?? event.participantsCount) - (reservedPlace ? 1 : 0)),
+          withKidsCount: Math.max(0, (event.withKidsCount || 0) - (reservedPlace && event.myWithKids ? 1 : 0)),
           myGuests: 0,
           myWithKids: false
         };
