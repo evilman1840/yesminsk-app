@@ -4,6 +4,7 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import './mapStatusPreview.css';
 import { shortOffer, upperFirst } from '../texts/liveStatus';
 import { LiveStatusEditor } from '../components/common/LiveStatus';
+import { MapQuickControls, MapStatusButton } from '../components/map/MapControls';
 
 const variants = [
   { name: 'Две строки', hint: 'Хочу и Могу видны вместе.' },
@@ -31,9 +32,12 @@ function MapStatusLines({ want, offer }: { want?: string; offer?: string }) {
 }
 
 type Person = typeof people[number];
-type Sheet = 'status' | 'person' | 'profile' | 'create' | 'plan' | 'invitePlan' | 'invites' | null;
+type Sheet = 'status' | 'person' | 'profile' | 'create' | 'plan' | 'invitePlan' | 'invites' | 'donate' | null;
 
 export function MapStatusPreview() {
+  const headerControls = new URLSearchParams(location.search).has('controls');
+  const [statusOpened, setStatusOpened] = useState(false);
+  const [located, setLocated] = useState(false);
   const [variant, setVariant] = useState(0);
   const [tab, setTab] = useState<'map' | 'people' | 'events'>('map');
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -73,7 +77,7 @@ export function MapStatusPreview() {
     return () => window.clearInterval(timer);
   }, [variant, paused, sheet, tab, reducedMotion]);
 
-  const openStatus = () => setSheet('status');
+  const openStatus = () => { setStatusOpened(true); setSheet('status'); };
   const openPerson = (p: Person) => { setPerson(p); setSheet('person'); };
   const close = () => setSheet(null);
   const ownPlan = published && sheet === 'plan';
@@ -83,7 +87,8 @@ export function MapStatusPreview() {
   return <main className="mp-shell">
     <header className="mp-head">
       <div><p className="mp-kicker">ГУЛЯЙ! · Прототип</p><h1>Карта живых планов</h1></div>
-      <button className="mp-icon mp-bell" aria-label="Приглашения" onClick={() => { setNoticeRead(true); setSheet('invites'); }}><Bell size={21} />{!noticeRead && <i />}</button>
+      {headerControls ? <MapStatusButton avatarUrl="/misha-questionnaire-v1.jpg" active={Boolean(expiresAt)}
+        unread={noticeRead ? 0 : 2} pulse={!statusOpened} onOpen={openStatus} /> : <button className="mp-icon mp-bell" aria-label="Приглашения" onClick={() => { setNoticeRead(true); setSheet('invites'); }}><Bell size={21} />{!noticeRead && <i />}</button>}
     </header>
     <div className="mp-variants" aria-label="Варианты карты">
       {variants.map((v, i) => <button key={v.name} aria-pressed={variant === i} onClick={() => { setVariant(i); setShowCan(false); setPaused(false); setTab('map'); }}>{v.name}</button>)}
@@ -105,16 +110,18 @@ export function MapStatusPreview() {
         <MapStatusLines want={variant === 0 || !showCan ? p.label : undefined} offer={variant === 0 || showCan ? p.can : undefined} />
       </button>)}
       <button className="mp-plan-pin" onClick={() => setSheet('plan')}><b>{planTime}</b> · {planName}</button>
-      <button className="mp-me" onClick={openStatus}>
+      {!headerControls && <button className="mp-me" onClick={openStatus}>
         <img src="/misha-questionnaire-v1.jpg" alt="" />
         <span className="mp-me-label"><Pencil size={13}/> Я сейчас</span>
         <MapStatusLines
           want={variant === 0 || !showCan || !offer ? upperFirst(want) : undefined}
           offer={variant === 0 || showCan || !want ? shortOffer(offer) : undefined}
         />
-      </button>
-      <div className="mp-map-actions"><button className="mp-icon" aria-label={dense ? 'Показать меньше меток' : 'Показать больше меток'} onClick={() => setDense(!dense)}><Layers size={20}/></button>
-      <button className="mp-primary" onClick={() => setSheet('create')}><Plus size={18}/> Найти компанию</button></div>
+      </button>}
+      {headerControls && <MapQuickControls onDonate={() => setSheet('donate')} onLocate={() => setLocated(true)} locating={false} />}
+      {headerControls && located && <span className="absolute bottom-5 left-4 text-cap font-bold">Ты здесь</span>}
+      {!headerControls && <div className="mp-map-actions"><button className="mp-icon" aria-label={dense ? 'Показать меньше меток' : 'Показать больше меток'} onClick={() => setDense(!dense)}><Layers size={20}/></button>
+      <button className="mp-primary" onClick={() => setSheet('create')}><Plus size={18}/> Найти компанию</button></div>}
     </div>}
     {tab === 'people' && <div className="mp-content"><button className="mp-own-row" onClick={openStatus}><Pencil size={17}/> Я сейчас · {want || offer || 'Добавить статус'}</button>
       {people.map(p => <button className={'mp-person-card mp-pin-'+p.tone} key={p.name} onClick={() => openPerson(p)}><span className="mp-avatar">{p.name[0]}</span><b>{p.name}</b><span>Хочу {p.want}</span><span>Могу {p.offer}</span></button>)}
@@ -129,6 +136,8 @@ export function MapStatusPreview() {
     {sheet === 'status' && <LiveStatusEditor
       status={expiresAt ? { want, offer, expiresAt: new Date(expiresAt).toISOString() } : null}
       onClose={close}
+      topAction={headerControls && <button type="button" className="mp-secondary mb-3 w-full"
+        onClick={() => { setNoticeRead(true); setSheet('invites'); }}>Уведомления и новости</button>}
       onSave={async (nextWant, nextOffer, hours) => {
         setWant(hours ? nextWant.trim() : '');
         setOffer(hours ? nextOffer.trim() : '');
@@ -154,6 +163,7 @@ export function MapStatusPreview() {
       {ownPlan ? <><p>План появился на карте и в «Сходках».</p>{(personal || nearby) && <p>Приглашения: {personal ? person.name : ''}{personal && nearby ? ', ' : ''}{nearby ? 'люди поблизости' : ''}</p>}</>
       : response ? <p role="status">{response}</p> : <><button className="mp-primary" onClick={() => setResponse('Ты в компании!')}>Я иду</button><button className="mp-secondary" onClick={() => setResponse('Приглашение скрыто')}>Не сегодня</button></>}
     </div></BottomSheet>}
+    {sheet === 'donate' && <BottomSheet title="Донат проекту" onClose={close}><p>Так открывается окно поддержки ГУЛЯЙ!.</p></BottomSheet>}
     {sheet === 'invites' && <BottomSheet title="Приглашения" onClose={close}><button className="mp-event-card" onClick={() => setSheet('invitePlan')}><small>Личное приглашение</small><b>Лена зовёт на кофе</b><span>Сегодня в 19:00 · Боровляны</span></button><div className="mp-regular mt-2"><small>Предложение поблизости</small><b>Рядом ищут компанию на прогулку</b><span>Сегодня в 20:00 · Боровляны</span></div></BottomSheet>}
   </main>;
 }

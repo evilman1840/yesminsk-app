@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import { thumb, NO_PHOTO } from '../../utils/thumb';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
-import { LocateFixed } from 'lucide-react';
+import { MapQuickControls } from './MapControls';
 import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, eventCategoryOf, isAvailableNow, isVentingNow, PlaceItem, PLACE_MOODS } from '../../types';
 import { serverUrl } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
@@ -27,6 +27,7 @@ export interface MinskMapProps {
   selectedUser: UserProfile | null;
   onSelectUser: (user: UserProfile) => void;
   onSelectCurrentUser?: () => void;
+  onOpenDonate?: () => void;
   onSelectEvent?: (event: AppEvent) => void;
   onToggleJoinEvent?: (event: AppEvent) => void;
   places?: PlaceItem[];
@@ -619,6 +620,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   selectedUser,
   onSelectUser,
   onSelectCurrentUser,
+  onOpenDonate,
   onSelectEvent,
   onToggleJoinEvent,
   onUpdateLocation,
@@ -843,16 +845,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
         </>
       )}
 
-      {/* Кнопка "Где я?" (GPS) */}
-      {!picking && <button
-        onClick={handleLocateGPS}
-        disabled={isGpsLoading}
-        className="absolute right-4 bottom-14 w-14 h-14 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine-float dark:bg-[#433C36] dark:border-white/25 flex items-center justify-center text-zine-terracotta z-20 active:scale-90 transition-transform cursor-pointer"
-        title="Где я?"
-        aria-label="Показать, где я"
-      >
-        <LocateFixed size={26} className={isGpsLoading ? 'animate-spin' : ''} />
-      </button>}
+      {!picking && <MapQuickControls onDonate={onOpenDonate} onLocate={handleLocateGPS} locating={isGpsLoading} />}
     </div>
   );
 };

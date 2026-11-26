@@ -1573,7 +1573,8 @@ export const App: React.FC = () => {
                 onOpenEvents={() => handleNavigate('events')}
                 onOpenPeople={() => handleNavigate('feed')}
                 onToggleSavePlace={toggleSavePlace}
-                unreadNews={unreadNews}
+                activityUnread={unseenActivity}
+                onOpenActivity={openActivity}
                 initialPlaceId={initialPlaceId}
                 poll={poll}
                 onOpenPoll={() => setIsPollOpen(true)}

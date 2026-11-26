@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { durationOptions, offerPhrases, shortOffer, upperFirst, wantPhrases } from '../../texts/liveStatus';
+import type { ReactNode } from 'react';
 import type { LiveStatus } from '../../types';
 import { BottomSheet } from '../ui/BottomSheet';
 
@@ -27,9 +28,10 @@ export function LiveStatusText({ status, compact = false }: { status?: LiveStatu
 }
 
 const hourMs = 3600000;
-export function LiveStatusEditor({ status, visible = true, onClose, onSave }: {
+export function LiveStatusEditor({ status, visible = true, onClose, onSave, topAction }: {
   status?: LiveStatus | null;
   visible?: boolean;
+  topAction?: ReactNode;
   onClose: () => void;
   onSave: (want: string, offer: string, hours: number) => Promise<void>;
 }) {
@@ -57,6 +59,7 @@ export function LiveStatusEditor({ status, visible = true, onClose, onSave }: {
   };
 
   return <BottomSheet title="Я сейчас" onClose={onClose}>
+    {topAction}
     <form className="space-y-3" onSubmit={event => { event.preventDefault(); void save(Number(hours)); }}>
       <p className="text-sm2 text-zine-inkMuted">{visible ? 'Этот статус видно на карте и в анкете. Можно заполнить одну строку или обе.' : 'Сейчас тебя не видно. Статус появится вместе с анкетой, если ты выйдешь из режима невидимки.'}</p>
       {([

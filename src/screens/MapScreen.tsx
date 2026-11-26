@@ -1,8 +1,8 @@
-import { SerialTvSlot } from '../serial/SerialBits';
+import { MapStatusButton } from '../components/map/MapControls';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { api } from '../services/api';
-import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Megaphone, Forward } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Bell, Forward } from 'lucide-react';
 import { ActivityGoal, UserProfile, LiveStatus, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood, PollData } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
@@ -17,7 +17,7 @@ import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
 import { pollLeaderText } from '../components/common/PollSheet';
 import { POLL_TEXTS } from '../texts/poll';
-import { LiveStatusEditor, LiveStatusText, currentLiveStatus } from '../components/common/LiveStatus';
+import { LiveStatusEditor, LiveStatusText, currentLiveStatus, useLiveStatus } from '../components/common/LiveStatus';
 import { MapEventsList } from '../components/map/MapEventsList';
 import { MAP_EVENTS_TEXTS } from '../texts/meetups';
 
@@ -53,7 +53,8 @@ export interface MapScreenProps {
   peopleTotal?: number | null; // сколько подходит под фильтры на сервере
   onSaveLiveStatus: (want: string, offer: string, hours: number) => Promise<void>;
   onOpenNews: () => void;
-  unreadNews?: number;
+  activityUnread: number;
+  onOpenActivity: () => void;
   fewPeople?: boolean; // рядом меньше 3 человек — предлагаем позвать друзей
   places: PlaceItem[];
   mapMode: MapMode;
@@ -111,7 +112,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   peopleTotal,
   onSaveLiveStatus,
   onOpenNews,
-  unreadNews = 0,
+  activityUnread,
+  onOpenActivity,
   fewPeople = false,
   places,
   mapMode,
@@ -195,6 +197,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
   const [isMySheetOpen, setIsMySheetOpen] = useState(false);
   const [isStatusEditorOpen, setIsStatusEditorOpen] = useState(false);
+  const [statusOpened, setStatusOpened] = useState(false);
+  const activeStatus = useLiveStatus(currentUser?.liveStatus);
   const [statusPersonId, setStatusPersonId] = useState<number | null>(null);
   const statusPerson = users.find(user => user.telegramId === statusPersonId);
   // «Сдвинуть метку»: человек сам выбирает, где его видят на карте
@@ -266,6 +270,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           setIsMoodPickerOpen(false);
           setSelectedPlace(p);
         }}
+        onOpenDonate={() => { telegramService.haptic('selection'); setIsDonateOpen(true); }}
         currentUser={currentUser as any}
         selectedUser={selectedUser}
         onSelectUser={(u) => {
@@ -410,27 +415,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               </button>
             )}
 
-            {/* Сериал «Не Одна Дома» и новости проекта — телевизор, такой же на всех вкладках */}
-            <SerialTvSlot
-              size={56}
-              fallback={
-                // Пока сериал не для всех — прежний рупор новостей. Новые — оранжевая обводка и счётчик
-                <button
-                  onClick={() => {
-                    telegramService.haptic('selection');
-                    onOpenNews();
-                  }}
-                  aria-label="Новости проекта"
-                  className={`relative w-14 h-14 shrink-0 rounded-[18px] flex items-center justify-center active:scale-95 transition-transform cursor-pointer bg-zine-card text-zine-ink ${unreadNews > 0 ? 'ring-2 ring-inset ring-zine-terracotta' : ''}`}
-                >
-                  <Megaphone className="w-[22px] h-[22px] -rotate-12" strokeWidth={2} />
-                  {unreadNews > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center border-2 border-zine-paper">
-                      {unreadNews}
-                    </span>
-                  )}
-                </button>
-              }
+            <MapStatusButton avatarUrl={currentUser?.avatarUrl} active={Boolean(activeStatus)} unread={activityUnread}
+              pulse={!activeStatus && !statusOpened}
+              onOpen={() => { telegramService.haptic('selection'); setStatusOpened(true); setIsStatusEditorOpen(true); }}
             />
           </div>
 
@@ -617,32 +604,18 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       )}
 
 
-      {/* Донат: бьющееся сердце над ⚡, в общем стиле круглых кнопок карты; подпись снизу — как время у ⚡ */}
-      <button
-        onClick={() => {
-          telegramService.haptic('selection');
-          setIsDonateOpen(true);
-        }}
-        aria-label="Донат проекту"
-        className="absolute right-4 bottom-[204px] z-20 w-14 h-14 rounded-full bg-zine-cardElevated border border-zine-border shadow-zine-float dark:bg-[#433C36] dark:border-white/25 flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
-      >
-        <span className="heartbeat block text-[26px] leading-none">❤️</span>
-        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-5 px-1.5 rounded-full bg-zine-ink text-zine-paper text-[11px] font-bold leading-5 whitespace-nowrap shadow-zine-sm">
-          донат
-        </span>
-      </button>
-
-      {!isPicking && !isEventsList && (mapMode === 'people' || mapMode === 'all') && (
-        <button type="button" aria-label="Я сейчас: изменить статус"
-          onClick={() => { telegramService.haptic('selection'); setIsStatusEditorOpen(true); }}
-          className="absolute left-4 bottom-16 z-20 grid max-w-[155px] justify-items-center">
-          <img src={thumb(currentUser?.avatarUrl) || NO_PHOTO} alt="" className="h-[88px] w-[88px] rounded-full border-[3px] border-zine-cardElevated object-cover shadow-zine-float" />
-          <span className="-mt-2 flex items-center gap-1 rounded-lg bg-zine-ink px-2.5 py-1 text-cap font-bold text-zine-paper"><Pencil size={13} /> Я сейчас</span>
-          <span className="mt-1 max-w-full"><LiveStatusText compact status={currentUser?.liveStatus} /></span>
-        </button>
+      {isStatusEditorOpen && (
+        <LiveStatusEditor status={currentUser?.liveStatus} visible={isVisible} onSave={onSaveLiveStatus}
+          onClose={() => setIsStatusEditorOpen(false)}
+          topAction={
+            <button type="button" onClick={() => { setIsStatusEditorOpen(false); onOpenActivity(); }}
+              className="mb-3 flex min-h-11 w-full items-center gap-2 rounded-zine-sm bg-zine-card px-3 text-sm2 font-semibold text-zine-ink">
+              <Bell size={17} aria-hidden /> Уведомления и новости
+              {activityUnread > 0 && <span className="ml-auto rounded-full bg-zine-terracotta px-2 text-white">{activityUnread}</span>}
+            </button>
+          }
+        />
       )}
-
-      {isStatusEditorOpen && <LiveStatusEditor status={currentUser?.liveStatus} visible={isVisible} onSave={onSaveLiveStatus} onClose={() => setIsStatusEditorOpen(false)} />}
 
       {statusPerson && (
         <BottomSheet title={statusPerson.firstName} onClose={() => setStatusPersonId(null)}>
