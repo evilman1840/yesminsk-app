@@ -5,7 +5,7 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import './mapStatusPreview.css';
 import { shortOffer, upperFirst } from '../texts/liveStatus';
 import { LiveStatusEditor } from '../components/common/LiveStatus';
-import { MapFiltersBar, MapQuickControls, MapStatusButton } from '../components/map/MapControls';
+import { MapFiltersBar, MapNotificationsButton, MapQuickControls, MapStatusButton } from '../components/map/MapControls';
 import { MinskMap } from '../components/map/MinskMap';
 import { YMaps } from '@pbe/react-yandex-maps';
 import type { MapMode } from '../screens/MapScreen';
@@ -103,8 +103,10 @@ export function MapStatusPreview() {
     <Toaster position="top-center" />
     <header className="mp-head">
       <div><p className="mp-kicker">ГУЛЯЙ! · Прототип</p><h1>Карта живых планов</h1></div>
-      {headerControls ? <MapStatusButton avatarUrl="/misha-questionnaire-v1.jpg" active={Boolean(expiresAt)}
-        unread={noticeRead ? 0 : 2} pulse={!statusOpened} onOpen={openStatus} /> : <button className="mp-icon mp-bell" aria-label="Приглашения" onClick={() => { setNoticeRead(true); setSheet('invites'); }}><Bell size={21} />{!noticeRead && <i />}</button>}
+      {headerControls ? <div className="flex shrink-0 items-center">
+        <MapStatusButton avatarUrl="/misha-questionnaire-v1.jpg" active={Boolean(expiresAt)} pulse={!statusOpened} onOpen={openStatus} />
+        <MapNotificationsButton unread={noticeRead ? 0 : 2} onOpen={() => { setNoticeRead(true); setSheet('invites'); }} />
+      </div> : <button className="mp-icon mp-bell" aria-label="Приглашения" onClick={() => { setNoticeRead(true); setSheet('invites'); }}><Bell size={21} />{!noticeRead && <i />}</button>}
     </header>
     <div className="mp-variants" aria-label="Варианты карты">
       {variants.map((v, i) => <button key={v.name} aria-pressed={variant === i} onClick={() => { setVariant(i); setShowCan(false); setPaused(false); setTab('map'); }}>{v.name}</button>)}

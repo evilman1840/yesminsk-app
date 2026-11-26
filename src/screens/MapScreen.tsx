@@ -1,4 +1,4 @@
-import { MapFiltersBar, MapStatusButton } from '../components/map/MapControls';
+import { MapFiltersBar, MapNotificationsButton, MapStatusButton } from '../components/map/MapControls';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { api } from '../services/api';
@@ -317,11 +317,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       {/* Сообщество и статус сверху, фильтры поверх карты */}
       <div className="absolute top-0 inset-x-0 z-20 space-y-2 pointer-events-none">
         <div className="pointer-events-auto px-3 pt-2 pb-2 bg-zine-paper border-b border-zine-border">
-          <div className="h-12 flex items-center gap-2">
+          <div className="flex min-h-12 items-center gap-2">
             {isVisible ? (
               users.length > 0 ? (
                 // Кто с нами: лица и сколько их — сразу видно, что тут живые люди. Пока идёт опрос, вторая строка зовёт голосовать
-                <div className="flex-1 min-w-0 h-12 flex items-center gap-2.5">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
                   <span className="flex shrink-0 items-center">
                     {nearbyFaces.length > 0 && (
                       <button
@@ -355,7 +355,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                         telegramService.haptic('selection');
                         onOpenPeople();
                       }}
-                      className="block max-w-full truncate text-sm2 font-bold text-zine-ink cursor-pointer"
+                      className="block max-w-full text-left text-sm2 font-bold text-zine-ink cursor-pointer"
                     >
                       {peopleCount.toLocaleString('ru-RU')} с нами
                     </button>
@@ -378,7 +378,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                           telegramService.haptic('selection');
                           onOpenPoll?.();
                         }}
-                        className="fade-swap block max-w-full text-cap text-zine-inkMuted whitespace-nowrap truncate cursor-pointer"
+                        className="fade-swap block max-w-full break-words text-left text-cap text-zine-inkMuted cursor-pointer"
                       >
                         {pollLeader}
                       </button>
@@ -407,10 +407,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               </button>
             )}
 
-            <MapStatusButton avatarUrl={currentUser?.avatarUrl} active={Boolean(activeStatus)} unread={activityUnread}
-              pulse={!activeStatus && !statusOpened}
-              onOpen={() => { setStatusOpened(true); setIsStatusEditorOpen(true); }}
-            />
+            <div className="flex shrink-0 items-center">
+              <MapStatusButton avatarUrl={currentUser?.avatarUrl} active={Boolean(activeStatus)}
+                pulse={!activeStatus && !statusOpened}
+                onOpen={() => { setStatusOpened(true); setIsStatusEditorOpen(true); }}
+              />
+              <MapNotificationsButton unread={activityUnread} onOpen={onOpenActivity} />
+            </div>
           </div>
         </div>
 

@@ -4,24 +4,30 @@ import { telegramService } from '../../services/telegram';
 import type { MapMode } from '../../screens/MapScreen';
 import { thumb, NO_PHOTO } from '../../utils/thumb';
 
-export function MapStatusButton({ avatarUrl, active, unread, pulse, onOpen }: {
+const headerControl = 'grid h-11 w-11 shrink-0 place-items-center rounded-full transition-transform active:scale-[0.98] motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-zine-terracotta';
+
+export function MapStatusButton({ avatarUrl, active, pulse, onOpen }: {
   avatarUrl?: string;
   active: boolean;
-  unread: number;
   pulse: boolean;
   onOpen: () => void;
 }) {
   return <button type="button" onClick={() => { telegramService.haptic('light'); onOpen(); }}
-    aria-label={unread ? `Я сейчас и уведомления, новых: ${unread}` : 'Я сейчас: изменить статус'}
-    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-zine-border bg-zine-cardElevated px-2 text-cap font-bold text-zine-ink shadow-zine-sm transition-transform active:scale-[0.97] motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zine-terracotta">
-    <span className="relative shrink-0">
+    aria-label={active ? 'Я сейчас: изменить активный статус' : 'Я сейчас: добавить статус'} className={headerControl}>
+    <span className="relative h-[38px] w-[38px] shrink-0">
       {pulse && <span aria-hidden className="pointer-events-none absolute -inset-0.5 rounded-full border border-zine-terracotta motion-safe:animate-ping [animation-duration:1.7s] [animation-iteration-count:3]" />}
-      <img src={thumb(avatarUrl) || NO_PHOTO} alt="" className={`h-7 w-7 rounded-full border object-cover ${active ? 'border-zine-terracotta' : 'border-zine-border'}`} />
+      <img src={thumb(avatarUrl) || NO_PHOTO} alt="" className="h-full w-full rounded-full border border-zine-border bg-zine-card object-cover" />
+      {active && <span aria-hidden className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-zine-terracotta ring-2 ring-zine-paper" />}
     </span>
-    <span>Я сейчас</span>
-    <span aria-hidden className="relative shrink-0 text-zine-inkMuted">
-      <Bell size={15} />
-      {unread > 0 && <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-zine-terracotta ring-1 ring-zine-cardElevated" />}
+  </button>;
+}
+
+export function MapNotificationsButton({ unread, onOpen }: { unread: number; onOpen: () => void }) {
+  return <button type="button" onClick={() => { telegramService.haptic('light'); onOpen(); }}
+    aria-label={unread > 0 ? `Уведомления и новости, новых: ${unread}` : 'Уведомления и новости'} className={headerControl}>
+    <span aria-hidden className="relative grid h-9 w-9 place-items-center rounded-full border border-zine-border bg-zine-cardElevated text-zine-inkMuted">
+      <Bell size={17} />
+      {unread > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-zine-terracotta ring-1 ring-zine-cardElevated" />}
     </span>
   </button>;
 }
