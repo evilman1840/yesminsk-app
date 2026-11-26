@@ -5,7 +5,10 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import './mapStatusPreview.css';
 import { shortOffer, upperFirst } from '../texts/liveStatus';
 import { LiveStatusEditor } from '../components/common/LiveStatus';
-import { MapQuickControls, MapStatusButton } from '../components/map/MapControls';
+import { MapFiltersBar, MapQuickControls, MapStatusButton } from '../components/map/MapControls';
+import { MinskMap } from '../components/map/MinskMap';
+import { YMaps } from '@pbe/react-yandex-maps';
+import type { MapMode } from '../screens/MapScreen';
 
 const variants = [
   { name: 'Две строки', hint: 'Хочу и Могу видны вместе.' },
@@ -33,10 +36,13 @@ function MapStatusLines({ want, offer }: { want?: string; offer?: string }) {
 }
 
 type Person = typeof people[number];
-type Sheet = 'status' | 'person' | 'profile' | 'create' | 'plan' | 'invitePlan' | 'invites' | 'donate' | null;
+type Sheet = 'status' | 'person' | 'profile' | 'create' | 'plan' | 'invitePlan' | 'invites' | 'donate' | 'filters' | null;
 
 export function MapStatusPreview() {
-  const headerControls = new URLSearchParams(location.search).has('controls');
+  const params = new URLSearchParams(location.search);
+  const headerControls = params.has('controls');
+  const realTiles = headerControls && params.has('tiles');
+  const [mapMode, setMapMode] = useState<MapMode>('all');
   useEffect(() => {
     const theme = new URLSearchParams(location.search).get('theme');
     if (theme !== 'light' && theme !== 'dark') return;
@@ -109,7 +115,18 @@ export function MapStatusPreview() {
       <button aria-pressed={showCan} onClick={() => { setShowCan(true); setPaused(true); }}>Могу</button>
       {variant === 2 && !reducedMotion && <button onClick={() => setPaused(!paused)}>{paused ? 'Продолжить' : 'Пауза'}</button>}
     </div>}
-    {tab === 'map' && <div className="mp-map" aria-label="Схема карты Боровлян">
+    {tab === 'map' && headerControls && <div className="z-30 -mb-5 px-3">
+      <MapFiltersBar value={mapMode} activeFilters={1} onChange={setMapMode} onOpenFilters={() => setSheet('filters')} />
+    </div>}
+    {tab === 'map' && realTiles && <div className="relative h-[65dvh]">
+      <YMaps query={{ apikey: import.meta.env.VITE_YANDEX_MAPS_KEY || '', lang: 'ru_RU', load: 'Map,Placemark,Clusterer,templateLayoutFactory,geocode' }}>
+        <MinskMap users={[]} selectedUser={null} onSelectUser={() => {}}
+          currentUser={{name: 'Миша', avatarUrl: '/misha-questionnaire-v1.jpg', coordinates: [53.919, 27.62],
+            liveStatus: expiresAt ? { want, offer, expiresAt: new Date(expiresAt).toISOString() } : null}}
+          shownCoords={[53.919, 27.62]} onSelectCurrentUser={openStatus} onOpenDonate={() => setSheet('donate')} />
+      </YMaps>
+    </div>}
+    {tab === 'map' && !realTiles && <div className="mp-map" aria-label="Схема карты Боровлян">
       <div className="mp-park" /><div className="mp-lake" />
       {[[-10,22,17],[8,51,-23],[-15,74,12],[5,33,68],[42,66,-53]].map(([x,y,a], i) =>
         <span className="mp-road" key={i} style={{left: x+'%',top:y+'%',transform:'rotate('+a+'deg)'}} />)}
@@ -173,6 +190,7 @@ export function MapStatusPreview() {
       {ownPlan ? <><p>План появился на карте и в «Сходках».</p>{(personal || nearby) && <p>Приглашения: {personal ? person.name : ''}{personal && nearby ? ', ' : ''}{nearby ? 'люди поблизости' : ''}</p>}</>
       : response ? <p role="status">{response}</p> : <><button className="mp-primary" onClick={() => setResponse('Ты в компании!')}>Я иду</button><button className="mp-secondary" onClick={() => setResponse('Приглашение скрыто')}>Не сегодня</button></>}
     </div></BottomSheet>}
+    {sheet === 'filters' && <BottomSheet title="Фильтры" onClose={close}><p>Выбор настроек карты.</p></BottomSheet>}
     {sheet === 'donate' && <BottomSheet title="Донат проекту" onClose={close}><p>Так открывается окно поддержки ГУЛЯЙ!.</p></BottomSheet>}
     {sheet === 'invites' && <BottomSheet title="Приглашения" onClose={close}><button className="mp-event-card" onClick={() => setSheet('invitePlan')}><small>Личное приглашение</small><b>Лена зовёт на кофе</b><span>Сегодня в 19:00 · Боровляны</span></button><div className="mp-regular mt-2"><small>Предложение поблизости</small><b>Рядом ищут компанию на прогулку</b><span>Сегодня в 20:00 · Боровляны</span></div></BottomSheet>}
   </main>;

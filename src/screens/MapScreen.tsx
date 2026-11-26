@@ -1,8 +1,8 @@
-import { MapStatusButton } from '../components/map/MapControls';
+import { MapFiltersBar, MapStatusButton } from '../components/map/MapControls';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { api } from '../services/api';
-import { Pencil, Eye, EyeOff, Loader2, X, Layers, Users, CalendarDays, MapPin, Map as MapIcon, List, Forward } from 'lucide-react';
+import { Pencil, Eye, EyeOff, Loader2, X, MapPin, Map as MapIcon, List, Forward } from 'lucide-react';
 import { ActivityGoal, UserProfile, LiveStatus, AppEvent, JoinOptions, placesForKids, EventWhen, EVENT_WHEN, matchesWhen, isAvailableNow, GoalFilter, matchesGoalFilter, PlaceItem, PlaceMood, PollData } from '../types';
 import { MoodChips, MoodPicker, MoodFilter } from '../components/places/MoodPicker';
 import { PlaceSheet } from '../components/places/PlaceSheet';
@@ -11,7 +11,6 @@ import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
-import { SlidersHorizontal } from 'lucide-react';
 import { PeopleFiltersSheet, PeopleFilters, MyPrefs, applyPeopleFilters, countActiveFilters } from '../components/people/PeopleFilters';
 import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
@@ -69,13 +68,6 @@ export interface MapScreenProps {
 }
 
 export type MapMode = 'all' | 'people' | 'events' | 'places';
-
-const MAP_TABS: [MapMode, React.FC<any>, string][] = [
-  ['all', Layers, 'Всё'],
-  ['people', Users, 'Люди'],
-  ['events', CalendarDays, 'Сходки'],
-  ['places', MapPin, 'Места']
-];
 
 export const formatEventDate = (isoString: string) => {
   try {
@@ -139,7 +131,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     }
   });
   const changeEventsView = (view: 'map' | 'list') => {
-    telegramService.haptic('selection');
+    telegramService.haptic('light');
     setEventsView(view);
     try {
       localStorage.setItem('yesminsk_map_events_view', view);
@@ -164,7 +156,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
   const isPlaces = mapMode === 'places';
   // Подсказки и списки — под шапкой и строкой фильтров вкладки
-  const overlayTop = 'top-[208px]';
+  const overlayTop = 'top-[184px]';
   const filteredPlaces = useMemo(
     () =>
       (mood === 'all'
@@ -270,8 +262,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           setIsMoodPickerOpen(false);
           setSelectedPlace(p);
         }}
-        onOpenDonate={() => { telegramService.haptic('selection'); setIsDonateOpen(true); }}
-        currentUser={currentUser as any}
+        onOpenDonate={() => setIsDonateOpen(true)}
+        currentUser={currentUser}
         selectedUser={selectedUser}
         onSelectUser={(u) => {
           setStatusPersonId(null);
@@ -322,14 +314,14 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         }
       />
 
-      {/* Шапка на однотонном фоне, как в «Людях», «Сходках» и «Местах»: кто с нами, новости и донат (название и так пишет Telegram сверху); под ней вкладки карты */}
+      {/* Сообщество и статус сверху, фильтры поверх карты */}
       <div className="absolute top-0 inset-x-0 z-20 space-y-2 pointer-events-none">
-        <div className="pointer-events-auto px-3 pt-3 pb-2.5 bg-zine-paper border-b border-zine-border space-y-2.5">
-          <div className="h-14 flex items-center gap-2">
+        <div className="pointer-events-auto px-3 pt-2 pb-2 bg-zine-paper border-b border-zine-border">
+          <div className="h-12 flex items-center gap-2">
             {isVisible ? (
               users.length > 0 ? (
                 // Кто с нами: лица и сколько их — сразу видно, что тут живые люди. Пока идёт опрос, вторая строка зовёт голосовать
-                <div className="flex-1 min-w-0 h-14 flex items-center gap-2.5">
+                <div className="flex-1 min-w-0 h-12 flex items-center gap-2.5">
                   <span className="flex shrink-0 items-center">
                     {nearbyFaces.length > 0 && (
                       <button
@@ -417,56 +409,20 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 
             <MapStatusButton avatarUrl={currentUser?.avatarUrl} active={Boolean(activeStatus)} unread={activityUnread}
               pulse={!activeStatus && !statusOpened}
-              onOpen={() => { telegramService.haptic('selection'); setStatusOpened(true); setIsStatusEditorOpen(true); }}
+              onOpen={() => { setStatusOpened(true); setIsStatusEditorOpen(true); }}
             />
           </div>
+        </div>
 
-          {/* Вкладки карты: Всё / Люди / Сходки / Места; у «Всё» и «Люди» рядом фильтры людей */}
-          <div className="flex gap-2">
-            <div className="flex-1 min-w-0 p-1 rounded-[18px] bg-zine-card grid grid-cols-4 gap-1">
-              {MAP_TABS.map(([id, Icon, label]) => {
-                const isActive = mapMode === id;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => {
-                      if (isActive) return;
-                      telegramService.haptic('selection');
-                      onSelectUser(null);
-                      setSelectedEvent(null);
-                      onChangeMapMode(id);
-                    }}
-                    aria-pressed={isActive}
-                    className={`h-12 rounded-[14px] flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
-                      isActive ? 'bg-zine-terracotta text-white shadow-zine-sm' : 'text-zine-inkMuted active:bg-zine-cardElevated'
-                    }`}
-                  >
-                    <Icon size={19} strokeWidth={isActive ? 2.4 : 2} />
-                    <span className={`text-cap ${isActive ? 'font-bold' : 'font-semibold'}`}>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {(mapMode === 'people' || mapMode === 'all') && (
-              <button
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setIsFiltersOpen(true);
-                }}
-                aria-label={activeFilters > 0 ? `Фильтры: ${activeFilters}` : 'Фильтры'}
-                className={`relative w-14 shrink-0 rounded-[18px] flex items-center justify-center transition-colors cursor-pointer ${
-                  activeFilters > 0 ? 'bg-zine-ink text-zine-paper' : 'bg-zine-card text-zine-ink'
-                }`}
-              >
-                <SlidersHorizontal size={21} />
-                {activeFilters > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center border-2 border-zine-paper">
-                    {activeFilters}
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
+        <div className="pointer-events-auto px-3">
+          <MapFiltersBar value={mapMode} activeFilters={activeFilters}
+            onChange={mode => {
+              onSelectUser(null);
+              setStatusPersonId(null);
+              setSelectedEvent(null);
+              onChangeMapMode(mode);
+            }}
+            onOpenFilters={() => setIsFiltersOpen(true)} />
         </div>
 
         {/* Фильтры выбранной вкладки */}
@@ -484,7 +440,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                     key={view}
                     onClick={() => eventsView !== view && changeEventsView(view)}
                     aria-pressed={eventsView === view}
-                    className={`h-full px-3 rounded-full text-sm2 font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    className={`h-full px-3 rounded-full text-sm2 font-semibold whitespace-nowrap flex items-center gap-1.5 transition-transform active:scale-[0.97] cursor-pointer ${
                       eventsView === view ? 'bg-zine-terracotta text-white' : 'text-zine-inkMuted'
                     }`}
                   >
@@ -497,10 +453,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                 <button
                   key={id}
                   onClick={() => {
-                    telegramService.haptic('selection');
+                    telegramService.haptic('light');
                     setEventWhen(id);
                   }}
-                  className={`h-11 px-4 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap border transition-colors cursor-pointer ${
+                  className={`h-11 px-4 shrink-0 rounded-full text-sm2 font-semibold whitespace-nowrap border transition-transform active:scale-[0.97] cursor-pointer ${
                     eventWhen === id ? 'bg-zine-ink text-zine-paper border-zine-ink' : 'bg-zine-cardElevated text-zine-ink border-zine-border shadow-zine'
                   }`}
                 >
@@ -555,7 +511,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
       )}
 
       {/* Сходки списком вместо кружочков */}
-      {isEventsList && <MapEventsList events={filteredEvents} topClass="top-[204px]" onOpen={(ev) => setSelectedEvent(ev)} empty={noEventsCard} />}
+      {isEventsList && <MapEventsList events={filteredEvents} topClass={overlayTop} onOpen={(ev) => setSelectedEvent(ev)} empty={noEventsCard} />}
 
       {selectedPlace && (
         <PlaceSheet
@@ -635,6 +591,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               <p className="text-sm2 text-zine-inkMuted truncate">{currentUser.area}</p>
             </div>
           </div>
+
+          {activeStatus && <div className="mt-3"><LiveStatusText status={activeStatus} /></div>}
 
           <div className={`mt-4 p-3.5 rounded-zine-sm flex items-center gap-3 text-sm2 ${isVisible ? 'bg-zine-sage/15 text-zine-ink' : 'bg-zine-plum/10 text-zine-ink'}`}>
             {isVisible ? <Eye size={22} className="text-zine-sage shrink-0" /> : <EyeOff size={22} className="text-zine-plum shrink-0" />}

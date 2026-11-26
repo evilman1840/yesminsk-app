@@ -2,11 +2,11 @@ import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react'
 import { thumb, NO_PHOTO } from '../../utils/thumb';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 import { MapQuickControls } from './MapControls';
-import { UserProfile, AppEvent, ActivityGoal, GOALS_CONFIG, EVENT_CATEGORIES_CONFIG, eventCategoryOf, isAvailableNow, isVentingNow, PlaceItem, PLACE_MOODS } from '../../types';
+import { UserProfile, AppEvent, LiveStatus, EVENT_CATEGORIES_CONFIG, eventCategoryOf, isAvailableNow, PlaceItem, PLACE_MOODS } from '../../types';
 import { serverUrl } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
 import { telegramService } from '../../services/telegram';
-import { currentLiveStatus } from '../common/LiveStatus';
+import { currentLiveStatus, useLiveStatus } from '../common/LiveStatus';
 import { shortOffer, upperFirst } from '../../texts/liveStatus';
 
 export interface MinskMapProps {
@@ -18,7 +18,7 @@ export interface MinskMapProps {
     firstName?: string;
     username?: string;
     avatarUrl?: string;
-    goal?: ActivityGoal;
+    liveStatus?: LiveStatus | null;
     area?: string;
     coordinates?: [number, number];
     bio?: string;
@@ -142,6 +142,23 @@ const placePlaceholder = (emoji: string) =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#F4EFEA"/><text x="32" y="44" font-size="30" text-anchor="middle">${emoji}</text></svg>`
   )}`;
 
+const statusBadgeMarkup = `<span data-live-status class="absolute hidden max-w-[132px] w-max rounded-xl bg-zine-cardElevated px-2 py-1 text-xs font-semibold leading-4 text-zine-ink shadow-zine-sm pointer-events-none">
+  <span data-want class="block truncate font-bold"></span>
+  <span data-offer class="block truncate"></span>
+</span>`;
+
+function fillStatusBadge(root: HTMLElement | null, want: string, offer: string) {
+  const badge = root?.querySelector<HTMLElement>('[data-live-status]');
+  if (!badge || (!want && !offer)) return null;
+  badge.style.display = 'block';
+  // User phrases are text, including when the map template is rebuilt.
+  badge.querySelector('[data-want]')!.textContent = want;
+  const offerLine = badge.querySelector<HTMLElement>('[data-offer]')!;
+  offerLine.textContent = offer;
+  offerLine.classList.toggle('text-zine-inkMuted', Boolean(want));
+  return badge;
+}
+
 // Что лежит в группе меток, которые стоят почти в одной точке
 type ClusterItem = { kind: 'user'; user: UserProfile } | { kind: 'event'; event: AppEvent } | { kind: 'place'; place: PlaceItem };
 
@@ -184,55 +201,76 @@ const MinskMapContent: React.FC<{
       `<div class="ymaps-avatar-marker" style="position: relative; width: 46px; height: 52px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
         <div style="width: 46px; height: 46px; border-radius: 50%; padding: 2px; background-color: #FAF7F2; border: 2.5px solid $[properties.borderColor]; box-shadow: 0 4px 14px rgba(43, 38, 35, 0.22); position: relative; box-sizing: border-box;">
           <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='/no-photo.svg'" />
-          <span style="position: absolute; bottom: -3px; right: -3px; background: #FFFFFF; font-size: 13px; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 1px solid #E8DFD5; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">
-            $[properties.goalEmoji]
-          </span>
-          <span style="position: absolute; top: -4px; left: -4px; background: #FFFFFF; font-size: 11px; border-radius: 50%; width: 19px; height: 19px; display: $[properties.empathDisplay]; align-items: center; justify-content: center; border: 1px solid #E8DFD5; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">🫶</span>
-          <span style="position: absolute; top: -4px; right: -4px; background: #FBE3E6; font-size: 11px; border-radius: 50%; width: 19px; height: 19px; display: $[properties.ventDisplay]; align-items: center; justify-content: center; border: 1px solid #E8C4CA; box-shadow: 0 1px 3px rgba(0,0,0,0.12); pointer-events: none;">🫂</span>
         </div>
-        <span data-live-status style="display:none; position:absolute; top:2px; left:48px; width:max-content; max-width:132px; pointer-events:none; border-radius:9px; padding:4px 7px; background:rgb(var(--c-card-elevated)); color:rgb(var(--c-ink)); font:600 12px/16px 'Plus Jakarta Sans',sans-serif; box-shadow:0 2px 7px #2223;">
-          <span data-want style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700;"></span>
-          <span data-offer style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
-        </span>
+        ${statusBadgeMarkup}
         <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid $[properties.borderColor]; margin: -1px auto 0 auto; pointer-events: none;"></div>
       </div>`,
       {
         build: function () {
           layout.superclass.build.call(this);
-          const badge = this.getParentElement()?.querySelector('[data-live-status]');
-          if (!badge) return;
           const properties = this.getData().properties;
-          const want = properties.get('liveWant') || '';
-          const offer = properties.get('liveOffer') || '';
-          badge.style.display = want || offer ? 'block' : 'none';
-          badge.querySelector('[data-want]').textContent = want;
-          const offerLine = badge.querySelector('[data-offer]');
-          offerLine.textContent = offer;
-          if (want) offerLine.style.color = 'rgb(var(--c-ink-muted))';
+          const badge = fillStatusBadge(this.getParentElement(), properties.get('liveWant'), properties.get('liveOffer'));
+          if (badge) {
+            badge.style.top = '2px';
+            badge.style.left = '48px';
+          }
         },
       }
     );
     return layout;
   }, [ymaps]);
 
-  // 2. Макет аватарки ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ ("⭐️ ТЫ")
+  // «Ты» остаётся подписанным и на общем виде карты.
   const currentUserLayout = useMemo(() => {
     if (!ymaps) return null;
-    return (ymaps as any).templateLayoutFactory.createClass(
-      `<div class="ymaps-current-user-marker" style="position: relative; width: 54px; height: 76px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
-        <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); background: #D95C3C; color: #FAF7F2; font-size: 13px; font-weight: 800; padding: 2px 10px; border-radius: 12px; border: 2px solid #FFFDF9; box-shadow: 0 2px 6px rgba(0,0,0,0.3); white-space: nowrap; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; z-index: 10; pointer-events: none;">
-          Ты
+    const layout = (ymaps as any).templateLayoutFactory.createClass(
+      `<div class="ymaps-current-user-marker relative h-[76px] w-[54px] cursor-pointer select-none font-sans">
+        <span class="pointer-events-none absolute left-1/2 top-0 z-10 -translate-x-1/2 rounded-full border-2 border-zine-cardElevated bg-zine-terracotta px-2 text-cap font-bold text-white shadow-zine-sm">Ты</span>
+        <div class="pointer-events-none absolute top-4 h-[52px] w-[52px] rounded-full border-[3px] border-zine-terracotta bg-zine-cardElevated p-0.5 shadow-zine">
+          <img src="$[properties.avatarUrl]" alt="$[properties.name]" class="h-full w-full rounded-full object-cover" onerror="this.src='/no-photo.svg'" />
         </div>
-        <div style="margin-top: 16px; width: 52px; height: 52px; border-radius: 50%; padding: 2.5px; background-color: #FAF7F2; border: 3.5px solid #D95C3C; box-shadow: 0 0 0 3px rgba(217, 92, 60, 0.4), 0 8px 22px rgba(43, 38, 35, 0.35); position: relative; box-sizing: border-box;">
-          <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='/no-photo.svg'" />
-          <span style="position: absolute; bottom: -3px; right: -3px; background: #FAF7F2; font-size: 12px; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border: 1.5px solid #D95C3C; box-shadow: 0 1px 4px rgba(0,0,0,0.15); pointer-events: none;">
-            $[properties.goalEmoji]
-          </span>
-        </div>
-        <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid #D95C3C; margin: -1px auto 0 auto; pointer-events: none;"></div>
-      </div>`
+        <span class="pointer-events-none absolute left-5 top-[67px] border-x-[6px] border-x-transparent border-t-[7px] border-t-zine-terracotta"></span>
+        ${statusBadgeMarkup}
+      </div>`,
+      {
+        build: function () {
+          layout.superclass.build.call(this);
+          const marker = this.getParentElement()?.querySelector('.ymaps-current-user-marker') as HTMLElement | null;
+          const properties = this.getData().properties;
+          const badge = fillStatusBadge(marker, properties.get('liveWant'), properties.get('liveOffer'));
+          if (!marker || !badge) return;
+          badge.style.top = '22px';
+          const reposition = () => {
+            const frame = marker.closest('[data-gulyai-map]')?.getBoundingClientRect();
+            const pin = marker.getBoundingClientRect();
+            if (!frame || !pin.width) return;
+            const rightSpace = frame.right - pin.right;
+            const leftSpace = pin.left - frame.left;
+            const showOnRight = rightSpace >= 168 || rightSpace > leftSpace;
+            const space = showOnRight ? rightSpace : leftSpace;
+            badge.style.maxWidth = `${Math.max(0, Math.min(160, space - 8))}px`;
+            badge.style.left = showOnRight ? 'calc(100% + 3px)' : 'auto';
+            badge.style.right = showOnRight ? 'auto' : 'calc(100% + 3px)';
+          };
+          this.repositionStatus = reposition;
+          reposition();
+          this.statusFrame = requestAnimationFrame(reposition);
+          mapInstance?.events.add('boundschange', reposition);
+          mapInstance?.events.add('actionend', reposition);
+        },
+        clear: function () {
+          if (this.repositionStatus) {
+            cancelAnimationFrame(this.statusFrame);
+            mapInstance?.events.remove('boundschange', this.repositionStatus);
+            mapInstance?.events.remove('actionend', this.repositionStatus);
+            this.repositionStatus = undefined;
+          }
+          layout.superclass.clear.call(this);
+        },
+      }
     );
-  }, [ymaps]);
+    return layout;
+  }, [ymaps, mapInstance]);
 
   // 3. Макет маркера СХОДКИ: крупное название и время, «хвостик» указывает на место встречи
   const eventLayout = useMemo(() => {
@@ -322,17 +360,19 @@ const MinskMapContent: React.FC<{
   // Без flying: «перелёт» отдаляет и снова приближает карту, и детальные тайлы не успевают прогрузиться
   const panTo = (coords: [number, number]) => latest.current.mapInstance?.panTo(coords, { duration: 300 });
 
+  const ownLiveStatus = useLiveStatus(currentUser?.liveStatus);
   const currentMark = useMemo(
     () => (
       <>
         {currentUser && currentUserCoords && (
           <Placemark
-            key={`current-user-${currentUserCoords[0]}-${currentUserCoords[1]}`}
+            key={`current-user-${currentUserCoords[0]}-${currentUserCoords[1]}-${ownLiveStatus?.expiresAt || ''}`}
             geometry={currentUserCoords}
             properties={{
               avatarUrl: thumb(currentUser.avatarUrl) || NO_PHOTO,
               name: currentUser.name || currentUser.firstName || 'Ты',
-              goalEmoji: (GOALS_CONFIG[currentUser.goal || 'walk'] || { emoji: '☕️' }).emoji
+              liveWant: upperFirst(ownLiveStatus?.want || ''),
+              liveOffer: shortOffer(ownLiveStatus?.offer || '')
             }}
             options={{
               iconLayout: currentUserLayout,
@@ -353,7 +393,7 @@ const MinskMapContent: React.FC<{
       </>
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentUserLayout, currentUser?.avatarUrl, currentUser?.name, currentUser?.firstName, currentUser?.goal, currentUserCoords?.[0], currentUserCoords?.[1]]
+    [currentUserLayout, currentUser?.avatarUrl, currentUser?.name, currentUser?.firstName, ownLiveStatus, currentUserCoords?.[0], currentUserCoords?.[1]]
   );
 
   const [statusRevision, refreshStatuses] = useState(0);
@@ -374,7 +414,6 @@ const MinskMapContent: React.FC<{
       <>
         {otherUsers.map((user: UserProfile & { displayCoords: [number, number] }, idx: number) => {
           const isSelected = selectedUserId === user.id;
-          const goalInfo = GOALS_CONFIG[user.goal] || { emoji: '☕️', label: 'Досуг' };
           const available = isAvailableNow(user);
           const live = isZoomedIn ? currentLiveStatus(user.liveStatus) : null;
           const coords = ensureLatLng(user.displayCoords);
@@ -390,11 +429,6 @@ const MinskMapContent: React.FC<{
                 name: user.firstName,
                 liveWant: live ? upperFirst(live.want) : '',
                 liveOffer: live ? shortOffer(live.offer) : '',
-                // «⚡ Свободен сейчас» — зелёная обводка и молния вместо значка цели
-                goalEmoji: available ? '⚡' : user.isGuide ? '🧭' : goalInfo.emoji,
-                // Маленькие значки сверху: 🫶 эмпат, 🫂 «хочется поныть» (видят только эмпаты)
-                empathDisplay: user.isEmpath ? 'flex' : 'none',
-                ventDisplay: isVentingNow(user) ? 'flex' : 'none',
                 borderColor: isSelected ? '#D95C3C' : available ? '#2FA36B' : '#FAF7F2'
               }}
               options={{
@@ -750,7 +784,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   };
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-zine-paper">
+    <div data-gulyai-map className="w-full h-full relative overflow-hidden bg-zine-paper">
       <style>{`
         .ymaps-2-1-79-ground-pane,
         [class*="ground-pane"] { filter: sepia(20%) brightness(99%) contrast(94%) hue-rotate(-8deg) !important; }
@@ -772,7 +806,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
             mapRef.current = ref;
             // Сразу весь Минск (в пределах МКАД) — чтобы была видна активность по всему городу.
             // Отступы — под шапку сверху и кнопки снизу
-            ref.setBounds(MINSK_BOUNDS, { checkZoomRange: true, preciseZoom: true, zoomMargin: [170, 0, 110, 0] }).catch?.(() => {});
+            ref.setBounds(MINSK_BOUNDS, { checkZoomRange: true, preciseZoom: true, zoomMargin: [140, 0, 110, 0] }).catch?.(() => {});
             setMapInstance(ref);
             setIsZoomedIn(ref.getZoom() >= 15);
             ref.events.add('boundschange', (e: any) => setIsZoomedIn(e.get('newZoom') >= 15));
