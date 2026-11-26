@@ -253,6 +253,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   return (
     <div className="relative h-full w-full overflow-hidden bg-zine-paper">
       <MinskMap
+        statusTopInset={mapMode === 'people' ? 176 : 124}
         users={mapMode === 'people' ? filteredUsers : mapMode === 'all' ? usersForMe : NO_USERS}
         events={mapMode === 'events' ? filteredEvents : mapMode === 'all' ? upcomingEvents : NO_EVENTS}
         places={isPlaces ? filteredPlaces : mapMode === 'all' ? places : NO_PLACES}

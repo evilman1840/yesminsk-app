@@ -1,6 +1,7 @@
 import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import { thumb, NO_PHOTO } from '../../utils/thumb';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
+import type { IProjection, Map as YandexMap } from 'yandex-maps';
 import { MapQuickControls } from './MapControls';
 import { UserProfile, AppEvent, LiveStatus, EVENT_CATEGORIES_CONFIG, eventCategoryOf, isAvailableNow, PlaceItem, PLACE_MOODS } from '../../types';
 import { serverUrl } from '../../services/api';
@@ -8,6 +9,10 @@ import { BottomSheet } from '../ui/BottomSheet';
 import { telegramService } from '../../services/telegram';
 import { currentLiveStatus, useLiveStatus, useLiveStatusExpiry } from '../common/LiveStatus';
 import { shortOffer, upperFirst } from '../../texts/liveStatus';
+import { STATUS_NOTE_REACH, STATUS_NOTE_WIDTH, visibleStatusPins, type StatusSide } from './visibleStatusPins';
+
+const NO_FEATURED_PINS: ReadonlyMap<string, StatusSide> = new globalThis.Map();
+const mapUserId = (user: UserProfile) => String(user.id || user.telegramId || (user as any)._id || '');
 
 export interface MinskMapProps {
   users: UserProfile[];
@@ -38,6 +43,7 @@ export interface MinskMapProps {
   apiKey?: string;
   applyFuzzyOffset?: boolean;
   shownCoords?: [number, number] | null; // где тебя видят другие: «Ты» стоит там же
+  statusTopInset?: number;
   picking?: boolean;                     // режим «Сдвинуть метку»: булавка в центре карты
   pickHint?: React.ReactNode;            // панель снизу в этом режиме, получает центр карты
   onPickCenter?: (getCenter: () => [number, number] | null) => void;
@@ -172,7 +178,9 @@ const MinskMapContent: React.FC<{
   onSelectUser: (user: UserProfile) => void;
   onSelectCurrentUser?: () => void;
   onSelectEvent?: (event: AppEvent) => void;
-  mapInstance: any;
+  mapInstance: YandexMap | null;
+  picking: boolean;
+  statusTopInset: number;
   currentUserCoords: [number, number] | null;
   isZoomedIn: boolean;
   onClusterItems?: (items: ClusterItem[]) => void;
@@ -191,6 +199,8 @@ const MinskMapContent: React.FC<{
   onSelectCurrentUser,
   onSelectEvent,
   mapInstance,
+  picking,
+  statusTopInset,
   currentUserCoords
 }) => {
   const ymapsHook = useYMaps(['templateLayoutFactory']);
@@ -200,14 +210,14 @@ const MinskMapContent: React.FC<{
   const avatarLayout = useMemo(() => {
     if (!ymaps) return null;
     const layout = (ymaps as any).templateLayoutFactory.createClass(
-      `<div class="ymaps-avatar-marker" style="position: relative; width: 46px; height: 52px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
+      `<div style="position: relative;"><div class="ymaps-avatar-marker" style="position: absolute; left: -23px; top: -52px; width: 46px; height: 52px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
         <div data-avatar-face class="rounded-full" style="width: 46px; height: 46px; border-radius: 50%; padding: 2px; background-color: #FAF7F2; border: 2.5px solid $[properties.borderColor]; box-shadow: 0 4px 14px rgba(43, 38, 35, 0.22); position: relative; box-sizing: border-box;">
           <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='/no-photo.svg'" />
           <span data-avatar-status aria-hidden="true" class="pointer-events-none absolute -bottom-0.5 -right-0.5 hidden h-2.5 w-2.5 rounded-full bg-zine-sage ring-1 ring-zine-paper"></span>
         </div>
         ${statusBadgeMarkup}
         <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid $[properties.borderColor]; margin: -1px auto 0 auto; pointer-events: none;"></div>
-      </div>`,
+      </div></div>`,
       {
         build: function () {
           layout.superclass.build.call(this);
@@ -219,8 +229,12 @@ const MinskMapContent: React.FC<{
           }
           const badge = fillStatusBadge(parent, properties.get('liveWant'), properties.get('liveOffer'));
           if (badge) {
-            badge.style.top = '2px';
-            badge.style.left = '50px';
+            const side = properties.get('statusSide');
+            badge.dataset.side = side;
+            badge.style.top = '1px';
+            badge.style.maxWidth = `${STATUS_NOTE_WIDTH}px`;
+            badge.style[side === 'left' ? 'right' : 'left'] = '50px';
+            badge.classList.add('border-zine-sage/60');
           }
         },
       }
@@ -406,54 +420,99 @@ const MinskMapContent: React.FC<{
   );
 
   const statusRevision = useLiveStatusExpiry(otherUsers);
+  const statusCandidates = useMemo(() => otherUsers.flatMap(user => {
+    const status = currentLiveStatus(user.liveStatus);
+    return status && (status.want || status.offer) ? [{ id: mapUserId(user), coords: user.displayCoords }] : [];
+  }), [otherUsers, statusRevision]);
+
+  const [featuredPins, setFeaturedPins] = useState(NO_FEATURED_PINS);
+  const hasOwnNote = Boolean(ownLiveStatus?.want || ownLiveStatus?.offer);
+  useEffect(() => {
+    if (!mapInstance || picking || !statusCandidates.length) {
+      setFeaturedPins(NO_FEATURED_PINS);
+      return;
+    }
+    const map = mapInstance;
+    let timer: number | undefined;
+    const refresh = () => {
+      const [width, height] = map.container.getSize();
+      const [centerX, centerY] = map.getGlobalPixelCenter();
+      const zoom = map.getZoom();
+      const projection = map.options.get('projection', null) as IProjection | null;
+      if (!projection || !width || !height) return;
+      const toScreen = (coords: [number, number]): [number, number] => {
+        const [x, y] = projection.toGlobalPixels(ensureLatLng(coords), zoom);
+        return [x - centerX + width / 2, y - centerY + height / 2];
+      };
+      const candidates = statusCandidates.map(({ id, coords }) => ({ id, point: toScreen(coords) }));
+      const next = visibleStatusPins(candidates, width, height, statusTopInset,
+        currentUserCoords ? toScreen(currentUserCoords) : null, hasOwnNote);
+      setFeaturedPins(previous => previous.size === next.size &&
+        Array.from(next).every(([id, side]) => previous.get(id) === side) ? previous : next);
+    };
+    // Keep the same faces during a map gesture and choose new ones once the view settles.
+    const schedule = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(refresh, 120);
+    };
+    refresh();
+    map.events.add(['boundschange', 'sizechange', 'actionend'], schedule);
+    return () => {
+      window.clearTimeout(timer);
+      map.events.remove(['boundschange', 'sizechange', 'actionend'], schedule);
+    };
+  }, [mapInstance, statusCandidates, currentUserCoords, hasOwnNote, picking, statusTopInset]);
 
   const selectedUserId = selectedUser?.id;
-  const userMarks = useMemo(
-    () => (
-      <>
-        {otherUsers.map((user: UserProfile & { displayCoords: [number, number] }, idx: number) => {
-          const isSelected = selectedUserId === user.id;
-          const available = isAvailableNow(user);
-          const activeStatus = currentLiveStatus(user.liveStatus);
-          const live = isZoomedIn ? activeStatus : null;
-          const coords = ensureLatLng(user.displayCoords);
-          const userIdStr = String(user.id || (user as any).telegramId || (user as any)._id || '');
+  const { userMarks, featuredMarks } = useMemo(() => {
+    const userMarks: React.ReactElement[] = [];
+    const featuredMarks: React.ReactElement[] = [];
+    otherUsers.forEach((user, idx) => {
+      const isSelected = selectedUserId === user.id;
+      const available = isAvailableNow(user);
+      const activeStatus = currentLiveStatus(user.liveStatus);
+      const coords = ensureLatLng(user.displayCoords);
+      const userIdStr = mapUserId(user);
+      const side = !picking && activeStatus ? featuredPins.get(userIdStr) : undefined;
+      const live = side ? activeStatus : null;
 
-          return (
-            <Placemark
-              key={`user-${userIdStr || `idx-${idx}`}-${coords[0]}-${coords[1]}-${activeStatus?.expiresAt || ''}-${live ? 'note' : ''}`}
-              geometry={coords}
-              properties={{
-                userId: userIdStr,
-                avatarUrl: thumb(user.avatarUrl),
-                name: user.firstName,
-                liveWant: live ? upperFirst(live.want) : '',
-                liveOffer: live ? shortOffer(live.offer) : '',
-                hasLiveStatus: Boolean(activeStatus),
-                borderColor: isSelected ? 'rgb(var(--c-terracotta))' : activeStatus || available ? 'rgb(var(--c-sage))' : 'rgb(var(--c-paper))'
-              }}
-              options={{
-                iconLayout: avatarLayout,
-                iconOffset: [-23, -52],
-                iconShape: { type: 'Rectangle', coordinates: [[0, 0], [live ? 180 : 46, 58]] } as any,
-                interactivityModel: 'default#geoObject', // жесты с метки уходят карте: щипок по аватарке тоже приближает
-                cursor: 'pointer',
-                zIndex: isSelected ? 300 : activeStatus ? 200 : 100,
-                hasBalloon: false
-              } as any}
-              onClick={() => {
-                telegramService.haptic('selection');
-                latest.current.onSelectUser(user);
-                panTo(coords);
-              }}
-            />
-          );
-        })}
-      </>
-    ),
+      const mark = (
+        <Placemark
+          key={`user-${userIdStr || `idx-${idx}`}-${coords[0]}-${coords[1]}-${activeStatus?.expiresAt || ''}-${side || ''}`}
+          geometry={coords}
+          properties={{
+            userId: userIdStr,
+            avatarUrl: thumb(user.avatarUrl),
+            name: user.firstName,
+            liveWant: live ? upperFirst(live.want) : '',
+            liveOffer: live ? shortOffer(live.offer) : '',
+            statusSide: side,
+            hasLiveStatus: Boolean(activeStatus),
+            borderColor: isSelected ? 'rgb(var(--c-terracotta))' : activeStatus || available ? 'rgb(var(--c-sage))' : 'rgb(var(--c-paper))'
+          }}
+          options={{
+            iconLayout: avatarLayout,
+            iconShape: { type: 'Rectangle', coordinates: [
+              [side === 'left' ? -STATUS_NOTE_REACH : -23, -52],
+              [side === 'right' ? STATUS_NOTE_REACH : 23, 0]
+            ] },
+            interactivityModel: 'default#geoObject', // жесты с метки уходят карте: щипок по аватарке тоже приближает
+            cursor: 'pointer',
+            zIndex: side ? 950 : isSelected ? 300 : activeStatus ? 200 : 100,
+            hasBalloon: false
+          } as any}
+          onClick={() => {
+            telegramService.haptic('selection');
+            latest.current.onSelectUser(user);
+            panTo(coords);
+          }}
+        />
+      );
+      (side ? featuredMarks : userMarks).push(mark);
+    });
+    return { userMarks, featuredMarks };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [avatarLayout, otherUsers, selectedUserId, isZoomedIn, statusRevision]
-  );
+  }, [avatarLayout, otherUsers, selectedUserId, featuredPins, statusRevision, picking]);
 
   // Места и сходки — в той же группировке: близкие метки сливаются в кружок с числом
   const placeMarks = useMemo(
@@ -588,7 +647,7 @@ const MinskMapContent: React.FC<{
           return;
         }
         if (map) {
-          map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 90, duration: 300 }).then(() => {
+          map.setBounds(bounds, { checkZoomRange: true, zoomMargin: [90, 90, 90, 90], duration: 300 }).then(() => {
             if (map.getZoom() > 17) map.setZoom(17, { duration: 200 });
           });
         }
@@ -645,6 +704,7 @@ const MinskMapContent: React.FC<{
         {placeMarks}
         {eventMarks}
       </Clusterer>
+      {featuredMarks}
     </>
   );
 };
@@ -666,6 +726,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   places = [],
   onSelectPlace,
   shownCoords,
+  statusTopInset = 124,
   picking = false,
   pickHint,
   onPickCenter
@@ -674,7 +735,7 @@ export const MinskMap: React.FC<MinskMapProps> = ({
   // Приближена ли карта — от этого зависит размер меток сходок
   const [isZoomedIn, setIsZoomedIn] = useState(false);
   // Экземпляр карты в состоянии — чтобы метки получили его после загрузки и могли приближать карту
-  const [mapInstance, setMapInstance] = useState<any>(null);
+  const [mapInstance, setMapInstance] = useState<YandexMap | null>(null);
   // Список «Здесь несколько» для меток в одной точке
   const [clusterItems, setClusterItems] = useState<ClusterItem[] | null>(null);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
@@ -825,6 +886,8 @@ export const MinskMap: React.FC<MinskMapProps> = ({
           onSelectCurrentUser={onSelectCurrentUser}
           onSelectEvent={handleEventClick}
           mapInstance={mapInstance}
+          picking={picking}
+          statusTopInset={statusTopInset}
           places={places}
           onSelectPlace={onSelectPlace}
           isZoomedIn={isZoomedIn}
