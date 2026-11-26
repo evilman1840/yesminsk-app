@@ -1,4 +1,4 @@
-import { LiveStatusText } from '../components/common/LiveStatus';
+import { LiveStatusText, useLiveStatusExpiry } from '../components/common/LiveStatus';
 import { MeetupExperience } from '../components/common/MeetupExperience';
 import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -168,6 +168,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   const [scrollToUser, setScrollToUser] = useState<number | null>(null);
 
   // Фильтры действуют на «Рядом»; тех, кто уже хочет пообщаться или на связи, не прячем
+  useLiveStatusExpiry(users, filters.liveStatusOnly);
   const nearbyFiltered = applyPeopleFilters(users, filters, myPrefs);
   const tabUsers = tab === 'likes' ? likedMe : tab === 'matches' ? matches : nearbyFiltered;
   const filteredUsers = tabUsers.filter((u) => matchesGoalFilter(u, selectedGoal));

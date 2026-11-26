@@ -6,7 +6,7 @@ import { UserProfile, AppEvent, LiveStatus, EVENT_CATEGORIES_CONFIG, eventCatego
 import { serverUrl } from '../../services/api';
 import { BottomSheet } from '../ui/BottomSheet';
 import { telegramService } from '../../services/telegram';
-import { currentLiveStatus, useLiveStatus } from '../common/LiveStatus';
+import { currentLiveStatus, useLiveStatus, useLiveStatusExpiry } from '../common/LiveStatus';
 import { shortOffer, upperFirst } from '../../texts/liveStatus';
 
 export interface MinskMapProps {
@@ -201,8 +201,9 @@ const MinskMapContent: React.FC<{
     if (!ymaps) return null;
     const layout = (ymaps as any).templateLayoutFactory.createClass(
       `<div class="ymaps-avatar-marker" style="position: relative; width: 46px; height: 52px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;">
-        <div style="width: 46px; height: 46px; border-radius: 50%; padding: 2px; background-color: #FAF7F2; border: 2.5px solid $[properties.borderColor]; box-shadow: 0 4px 14px rgba(43, 38, 35, 0.22); position: relative; box-sizing: border-box;">
+        <div data-avatar-face class="rounded-full" style="width: 46px; height: 46px; border-radius: 50%; padding: 2px; background-color: #FAF7F2; border: 2.5px solid $[properties.borderColor]; box-shadow: 0 4px 14px rgba(43, 38, 35, 0.22); position: relative; box-sizing: border-box;">
           <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='/no-photo.svg'" />
+          <span data-avatar-status aria-hidden="true" class="pointer-events-none absolute -bottom-0.5 -right-0.5 hidden h-2.5 w-2.5 rounded-full bg-zine-sage ring-1 ring-zine-paper"></span>
         </div>
         ${statusBadgeMarkup}
         <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid $[properties.borderColor]; margin: -1px auto 0 auto; pointer-events: none;"></div>
@@ -211,7 +212,12 @@ const MinskMapContent: React.FC<{
         build: function () {
           layout.superclass.build.call(this);
           const properties = this.getData().properties;
-          const badge = fillStatusBadge(this.getParentElement(), properties.get('liveWant'), properties.get('liveOffer'));
+          const parent = this.getParentElement();
+          if (properties.get('hasLiveStatus')) {
+            parent?.querySelector('[data-avatar-face]')?.classList.add('ring-2', 'ring-zine-sage', 'ring-offset-1', 'ring-offset-zine-paper');
+            parent?.querySelector('[data-avatar-status]')?.classList.remove('hidden');
+          }
+          const badge = fillStatusBadge(parent, properties.get('liveWant'), properties.get('liveOffer'));
           if (badge) {
             badge.style.top = '2px';
             badge.style.left = '50px';
@@ -399,17 +405,7 @@ const MinskMapContent: React.FC<{
     [currentUserLayout, currentUser?.avatarUrl, currentUser?.name, currentUser?.firstName, ownLiveStatus, currentUserCoords?.[0], currentUserCoords?.[1]]
   );
 
-  const [statusRevision, refreshStatuses] = useState(0);
-  useEffect(() => {
-    if (!isZoomedIn) return;
-    const nextExpiry = otherUsers.reduce((earliest, user) => {
-      const status = currentLiveStatus(user.liveStatus);
-      return status ? Math.min(earliest, Date.parse(status.expiresAt)) : earliest;
-    }, Infinity);
-    if (!Number.isFinite(nextExpiry)) return;
-    const timer = window.setTimeout(() => refreshStatuses(value => value + 1), Math.max(0, nextExpiry - Date.now()) + 20);
-    return () => window.clearTimeout(timer);
-  }, [otherUsers, statusRevision, isZoomedIn]);
+  const statusRevision = useLiveStatusExpiry(otherUsers);
 
   const selectedUserId = selectedUser?.id;
   const userMarks = useMemo(
@@ -418,13 +414,14 @@ const MinskMapContent: React.FC<{
         {otherUsers.map((user: UserProfile & { displayCoords: [number, number] }, idx: number) => {
           const isSelected = selectedUserId === user.id;
           const available = isAvailableNow(user);
-          const live = isZoomedIn ? currentLiveStatus(user.liveStatus) : null;
+          const activeStatus = currentLiveStatus(user.liveStatus);
+          const live = isZoomedIn ? activeStatus : null;
           const coords = ensureLatLng(user.displayCoords);
           const userIdStr = String(user.id || (user as any).telegramId || (user as any)._id || '');
 
           return (
             <Placemark
-              key={`user-${userIdStr || `idx-${idx}`}-${coords[0]}-${coords[1]}-${live?.expiresAt || ''}`}
+              key={`user-${userIdStr || `idx-${idx}`}-${coords[0]}-${coords[1]}-${activeStatus?.expiresAt || ''}-${live ? 'note' : ''}`}
               geometry={coords}
               properties={{
                 userId: userIdStr,
@@ -432,7 +429,8 @@ const MinskMapContent: React.FC<{
                 name: user.firstName,
                 liveWant: live ? upperFirst(live.want) : '',
                 liveOffer: live ? shortOffer(live.offer) : '',
-                borderColor: isSelected ? '#D95C3C' : available ? '#2FA36B' : '#FAF7F2'
+                hasLiveStatus: Boolean(activeStatus),
+                borderColor: isSelected ? 'rgb(var(--c-terracotta))' : activeStatus || available ? 'rgb(var(--c-sage))' : 'rgb(var(--c-paper))'
               }}
               options={{
                 iconLayout: avatarLayout,
@@ -440,6 +438,7 @@ const MinskMapContent: React.FC<{
                 iconShape: { type: 'Rectangle', coordinates: [[0, 0], [live ? 180 : 46, 58]] } as any,
                 interactivityModel: 'default#geoObject', // жесты с метки уходят карте: щипок по аватарке тоже приближает
                 cursor: 'pointer',
+                zIndex: isSelected ? 300 : activeStatus ? 200 : 100,
                 hasBalloon: false
               } as any}
               onClick={() => {

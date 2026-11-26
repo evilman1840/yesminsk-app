@@ -16,7 +16,7 @@ import { EventDetails } from '../components/common/EventDetails';
 import { DonateSheet } from '../components/common/DonateSheet';
 import { pollLeaderText } from '../components/common/PollSheet';
 import { POLL_TEXTS } from '../texts/poll';
-import { LiveStatusEditor, LiveStatusText, currentLiveStatus, useLiveStatus } from '../components/common/LiveStatus';
+import { LiveStatusEditor, LiveStatusText, useLiveStatus, useLiveStatusExpiry } from '../components/common/LiveStatus';
 import { MapEventsList } from '../components/map/MapEventsList';
 import { MAP_EVENTS_TEXTS } from '../texts/meetups';
 
@@ -191,8 +191,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [isStatusEditorOpen, setIsStatusEditorOpen] = useState(false);
   const [statusOpened, setStatusOpened] = useState(false);
   const activeStatus = useLiveStatus(currentUser?.liveStatus);
-  const [statusPersonId, setStatusPersonId] = useState<number | null>(null);
-  const statusPerson = users.find(user => user.telegramId === statusPersonId);
   // «Сдвинуть метку»: человек сам выбирает, где его видят на карте
   const [isPicking, setIsPicking] = useState(false);
   const [pickBusy, setPickBusy] = useState(false);
@@ -228,9 +226,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   // Фильтры людей — общие с «Людьми» (App хранит их на устройстве и отбирает по ним на сервере)
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const activeFilters = countActiveFilters(peopleFilters);
+  const statusRevision = useLiveStatusExpiry(users, peopleFilters.liveStatusOnly);
   const prefsKey = JSON.stringify(myPrefs); // myPrefs приходит новым объектом на каждый рендер App
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const usersForMe = useMemo(() => applyPeopleFilters(users, peopleFilters, myPrefs), [users, peopleFilters, prefsKey]);
+  const usersForMe = useMemo(() => applyPeopleFilters(users, peopleFilters, myPrefs), [users, peopleFilters, prefsKey, statusRevision]);
   const filteredUsers = useMemo(() => usersForMe.filter((u) => matchesGoalFilter(u, selectedGoal)), [usersForMe, selectedGoal]);
   // Сколько всего анкет: на карте только самые активные, а в шапке — все
   // В шапке — сколько всего людей в приложении (видно, что тут живое сообщество)
@@ -258,7 +257,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         events={mapMode === 'events' ? filteredEvents : mapMode === 'all' ? upcomingEvents : NO_EVENTS}
         places={isPlaces ? filteredPlaces : mapMode === 'all' ? places : NO_PLACES}
         onSelectPlace={(p) => {
-          setStatusPersonId(null);
           setIsMoodPickerOpen(false);
           setSelectedPlace(p);
         }}
@@ -266,24 +264,16 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         currentUser={currentUser}
         selectedUser={selectedUser}
         onSelectUser={(u) => {
-          setStatusPersonId(null);
           setSelectedEvent(null);
           setIsMySheetOpen(false);
-          if (u && currentLiveStatus(u.liveStatus)) {
-            onSelectUser(null);
-            setStatusPersonId(u.telegramId);
-          } else {
-            onSelectUser(u);
-          }
+          onSelectUser(u);
         }}
         onSelectCurrentUser={() => {
-          setStatusPersonId(null);
           setSelectedEvent(null);
           onSelectUser(null);
           setIsMySheetOpen(true);
         }}
         onSelectEvent={(ev) => {
-          setStatusPersonId(null);
           onSelectUser(null);
           setIsMySheetOpen(false);
           setSelectedEvent(ev);
@@ -421,7 +411,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           <MapFiltersBar value={mapMode} activeFilters={activeFilters}
             onChange={mode => {
               onSelectUser(null);
-              setStatusPersonId(null);
               setSelectedEvent(null);
               onChangeMapMode(mode);
             }}
@@ -569,15 +558,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({
           activityUnread={activityUnread}
           onOpenActivity={() => { setIsStatusEditorOpen(false); onOpenActivity(); }}
         />
-      )}
-
-      {statusPerson && (
-        <BottomSheet title={statusPerson.firstName} onClose={() => setStatusPersonId(null)}>
-          {statusPerson.areaName && <p className="mb-2 text-sm2 text-zine-inkMuted">{statusPerson.areaName}</p>}
-          <LiveStatusText status={statusPerson.liveStatus} />
-          <button type="button" onClick={() => { setStatusPersonId(null); onSelectUser(statusPerson); }}
-            className="mt-3 min-h-11 w-full rounded-zine-sm bg-zine-terracotta px-3 font-bold text-white">Открыть анкету</button>
-        </BottomSheet>
       )}
 
       {/* Моя анкета на карте */}

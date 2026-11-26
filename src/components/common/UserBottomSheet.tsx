@@ -138,6 +138,7 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
           <button type="button" onClick={() => setPhotoOpen(true)} aria-label="Рассмотреть фото без подписей" className="w-11 h-11 shrink-0 rounded-full bg-black/40 text-white text-title">↗</button>
         </div>
         <div className="absolute inset-x-0 bottom-0 px-4 pt-16 pb-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white pointer-events-none">
+          {liveStatus && <div className="mb-2.5"><LiveStatusText status={liveStatus} onPhoto /></div>}
           <h3 className="font-serif font-bold text-display leading-tight">
             {user.firstName}
             {user.age ? <span className="font-sans font-medium text-white/85">, {user.age}</span> : null}
@@ -152,8 +153,6 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
           <MeetupExperience user={user} className="mt-2" />
         </div>
       </div>
-
-      {liveStatus && <div className="mt-3"><LiveStatusText status={liveStatus} /></div>}
 
       {/* Статусы «прямо сейчас» */}
       {isAvailableNow(user) && (

@@ -15,9 +15,11 @@ export function MapStatusButton({ avatarUrl, active, pulse, onOpen }: {
   return <button type="button" onClick={() => { telegramService.haptic('light'); onOpen(); }}
     aria-label={active ? 'Я сейчас: изменить активный статус' : 'Я сейчас: добавить статус'} className={headerControl}>
     <span className="relative h-[38px] w-[38px] shrink-0">
-      {pulse && <span aria-hidden className="pointer-events-none absolute -inset-0.5 rounded-full border border-zine-terracotta motion-safe:animate-ping [animation-duration:1.7s] [animation-iteration-count:3]" />}
       <img src={thumb(avatarUrl) || NO_PHOTO} alt="" className="h-full w-full rounded-full border border-zine-border bg-zine-card object-cover" />
-      {active && <span aria-hidden className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-zine-terracotta ring-2 ring-zine-paper" />}
+      <span aria-hidden className={`absolute bottom-0 right-0 grid place-items-center rounded-full ring-2 ring-zine-paper ${active ? 'h-2.5 w-2.5 bg-zine-sage' : 'h-4 w-4 bg-zine-terracotta text-xs font-bold leading-none text-white'}`}>
+        {(active || pulse) && <span className={`pointer-events-none absolute inset-0 rounded-full motion-safe:animate-ping [animation-duration:2.4s] ${active ? 'bg-zine-sage/70' : 'bg-zine-terracotta/75 [animation-iteration-count:3]'}`} />}
+        {!active && <span className="relative">?</span>}
+      </span>
     </span>
   </button>;
 }
@@ -41,7 +43,7 @@ export function MapQuickControls({ onDonate, onLocate, locating }: {
   return <>
     {onDonate && <button type="button"
       onClick={() => { telegramService.haptic('light'); onDonate(); }} aria-label="Донат проекту"
-      className="absolute bottom-14 left-4 z-20 isolate flex min-h-12 items-center gap-2 overflow-hidden rounded-full border border-zine-paper/20 bg-zine-ink px-4 text-sm2 font-bold text-white shadow-lg shadow-zine-ink/25 dark:border-zine-border dark:bg-zine-card dark:shadow-zine-paper/45 transition-transform active:scale-[0.95] motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zine-ink">
+      className="absolute bottom-14 left-4 z-20 isolate flex min-h-12 items-center gap-2 overflow-hidden rounded-full border border-zine-paper/20 bg-zine-ink px-4 text-sm2 font-bold text-white shadow-lg shadow-zine-ink/25 dark:border-zine-blush/60 dark:bg-zine-cardElevated dark:shadow-zine-blush/20 dark:ring-1 dark:ring-zine-ink/15 transition-transform active:scale-[0.95] motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zine-ink">
       {!reducedMotion && <motion.span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-full"
         initial={{ x: '-100%' }} animate={{ x: '200%' }}
         transition={{ duration: 0.85, delay: 4, ease: 'easeInOut', repeat: Infinity, repeatDelay: 6.65 }}>

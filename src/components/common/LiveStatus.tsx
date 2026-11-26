@@ -22,9 +22,29 @@ export function useLiveStatus(status?: LiveStatus | null) {
   return currentLiveStatus(status);
 }
 
-export function LiveStatusText({ status, compact = false }: { status?: LiveStatus | null; compact?: boolean }) {
+export function useLiveStatusExpiry(users: { liveStatus?: LiveStatus | null }[], enabled = true) {
+  const [revision, refresh] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    const next = users.reduce((time, user) => {
+      const active = currentLiveStatus(user.liveStatus);
+      return active ? Math.min(time, Date.parse(active.expiresAt)) : time;
+    }, Infinity);
+    if (!Number.isFinite(next)) return;
+    const timer = window.setTimeout(() => refresh(value => value + 1), Math.max(0, next - Date.now()) + 20);
+    return () => window.clearTimeout(timer);
+  }, [users, enabled, revision]);
+  return revision;
+}
+
+export function LiveStatusText({ status, compact = false, onPhoto = false }: { status?: LiveStatus | null; compact?: boolean; onPhoto?: boolean }) {
   const active = useLiveStatus(status);
   if (!active) return null;
+  if (onPhoto) return <span className="relative inline-grid w-fit max-w-[min(100%,240px)] gap-1 rounded-2xl border border-zine-border bg-zine-cardElevated px-3 py-2 text-left text-cap leading-tight text-zine-ink shadow-zine">
+    <span aria-hidden className="absolute -bottom-1 left-4 h-2 w-2 rotate-45 border-b border-r border-zine-border bg-zine-cardElevated" />
+    {active.want && <span className="relative min-w-0 [overflow-wrap:anywhere]"><b className="mr-1 font-semibold text-zine-inkMuted">Хочу:</b>{active.want}</span>}
+    {active.offer && <span className="relative min-w-0 [overflow-wrap:anywhere]"><b className="mr-1 font-semibold text-zine-inkMuted">Могу:</b>{active.offer}</span>}
+  </span>;
   return <span className={compact ? 'grid max-w-full rounded-xl bg-zine-cardElevated px-2.5 py-1.5 text-cap text-zine-ink shadow-zine-sm' : 'block rounded-zine-sm bg-zine-card p-3 text-sm2 text-zine-ink break-words'}>
     {active.want && <span className={compact ? 'truncate font-bold' : 'block'}>{compact ? upperFirst(active.want) : <><b>Хочу</b> {active.want}</>}</span>}
     {active.offer && <span className={compact ? 'truncate text-zine-inkMuted' : 'block'}>{compact ? shortOffer(active.offer) : <><b>Могу</b> {active.offer}</>}</span>}

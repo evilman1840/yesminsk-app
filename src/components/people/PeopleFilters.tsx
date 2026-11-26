@@ -5,6 +5,7 @@ import { UserProfile, PreferredGender, AgeRange, isAvailableNow, GoesWith, GOES_
 import { telegramService } from '../../services/telegram';
 import { BottomSheet } from '../ui/BottomSheet';
 import { GoalChips } from '../ui/GoalChips';
+import { currentLiveStatus } from '../common/LiveStatus';
 
 /**
  * Фильтры в «Людях»: цель встречи, пол, возраст, расстояние, «Могу сейчас», местные/туристы, «были недавно»
@@ -18,6 +19,7 @@ export interface PeopleFilters {
   ages: AgeBucket[];          // пусто — любой возраст
   maxKm: 0 | 1 | 3 | 10;      // 0 — весь Минск
   availableOnly: boolean;
+  liveStatusOnly: boolean;
   who: 'all' | 'locals' | 'tourists';
   recentOnly: boolean;
   goesWith: GoesWith[];       // «Обычно ходит»; пусто — любые
@@ -29,6 +31,7 @@ export const DEFAULT_FILTERS: PeopleFilters = {
   ages: [],
   maxKm: 0,
   availableOnly: false,
+  liveStatusOnly: false,
   who: 'all',
   recentOnly: false,
   goesWith: [],
@@ -54,6 +57,7 @@ export const filterQuery = (f: PeopleFilters): Record<string, string> => {
   if (f.maxKm) q.maxKm = String(f.maxKm);
   if (f.who !== 'all') q.who = f.who;
   if (f.availableOnly) q.available = '1';
+  if (f.liveStatusOnly) q.liveStatus = '1';
   if (f.recentOnly) q.recent = '1';
   if (f.goesWith.length) q.goesWith = f.goesWith.join(',');
   if (f.useMyPrefs) q.myPrefs = '1';
@@ -74,6 +78,7 @@ export const countActiveFilters = (f: PeopleFilters) =>
   Number(f.ages.length > 0) +
   Number(f.maxKm !== 0) +
   Number(f.availableOnly) +
+  Number(f.liveStatusOnly) +
   Number(f.who !== 'all') +
   Number(f.recentOnly) +
   Number(f.goesWith.length > 0) +
@@ -103,6 +108,7 @@ export const applyPeopleFilters = (users: UserProfile[], f: PeopleFilters, my: M
     }
     if (f.maxKm && (u.distanceMeters ?? Infinity) > f.maxKm * 1000) return false;
     if (f.availableOnly && !isAvailableNow(u)) return false;
+    if (f.liveStatusOnly && !currentLiveStatus(u.liveStatus)) return false;
     if (f.who === 'locals' && u.isTourist) return false;
     if (f.who === 'tourists' && !u.isTourist) return false;
     if (f.recentOnly && !u.activeRecently) return false;
@@ -223,6 +229,7 @@ export const PeopleFiltersSheet: React.FC<{
         </Section>
 
         <div className="py-1">
+          <Toggle title="Со статусом «Я сейчас»" hint="У кого сейчас есть «Хочу» или «Могу»" value={f.liveStatusOnly} onChange={v => set({ liveStatusOnly: v })} />
           <Toggle title="⚡ Только «Могу сейчас»" hint="Кому удобно встретиться в ближайшие часы" value={f.availableOnly} onChange={(v) => set({ availableOnly: v })} />
           <Toggle title="Были недавно" hint="Заходили в приложение за последние 3 дня" value={f.recentOnly} onChange={(v) => set({ recentOnly: v })} />
           <Toggle
