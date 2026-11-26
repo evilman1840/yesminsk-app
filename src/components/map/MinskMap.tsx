@@ -142,9 +142,10 @@ const placePlaceholder = (emoji: string) =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#F4EFEA"/><text x="32" y="44" font-size="30" text-anchor="middle">${emoji}</text></svg>`
   )}`;
 
-const statusBadgeMarkup = `<span data-live-status class="absolute hidden max-w-[132px] w-max rounded-xl bg-zine-cardElevated px-2 py-1 text-xs font-semibold leading-4 text-zine-ink shadow-zine-sm pointer-events-none">
-  <span data-want class="block truncate font-bold"></span>
-  <span data-offer class="block truncate"></span>
+const statusBadgeMarkup = `<span data-live-status data-side="right" class="group/status pointer-events-none absolute hidden w-max max-w-[132px] rounded-xl border border-zine-border bg-zine-cardElevated px-2 py-1.5 text-xs leading-4 text-zine-ink shadow-zine-sm">
+  <span aria-hidden="true" class="absolute top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 bg-zine-cardElevated group-data-[side=right]/status:-left-1 group-data-[side=right]/status:border-b group-data-[side=right]/status:border-l group-data-[side=left]/status:-right-1 group-data-[side=left]/status:border-r group-data-[side=left]/status:border-t border-zine-border"></span>
+  <span data-want-row class="relative hidden items-baseline gap-1"><span class="shrink-0 font-medium text-zine-inkMuted">Хочу:</span><span data-want class="min-w-0 truncate font-bold"></span></span>
+  <span data-offer-row class="relative hidden items-baseline gap-1"><span class="shrink-0 font-medium text-zine-inkMuted">Могу:</span><span data-offer class="min-w-0 truncate font-semibold"></span></span>
 </span>`;
 
 function fillStatusBadge(root: HTMLElement | null, want: string, offer: string) {
@@ -152,10 +153,11 @@ function fillStatusBadge(root: HTMLElement | null, want: string, offer: string) 
   if (!badge || (!want && !offer)) return null;
   badge.style.display = 'block';
   // User phrases are text, including when the map template is rebuilt.
-  badge.querySelector('[data-want]')!.textContent = want;
-  const offerLine = badge.querySelector<HTMLElement>('[data-offer]')!;
-  offerLine.textContent = offer;
-  offerLine.classList.toggle('text-zine-inkMuted', Boolean(want));
+  for (const [key, phrase] of [['want', want], ['offer', offer]] as const) {
+    const row = badge.querySelector<HTMLElement>(`[data-${key}-row]`)!;
+    row.style.display = phrase ? 'flex' : 'none';
+    row.querySelector(`[data-${key}]`)!.textContent = phrase;
+  }
   return badge;
 }
 
@@ -212,7 +214,7 @@ const MinskMapContent: React.FC<{
           const badge = fillStatusBadge(this.getParentElement(), properties.get('liveWant'), properties.get('liveOffer'));
           if (badge) {
             badge.style.top = '2px';
-            badge.style.left = '48px';
+            badge.style.left = '50px';
           }
         },
       }
@@ -248,9 +250,10 @@ const MinskMapContent: React.FC<{
             const leftSpace = pin.left - frame.left;
             const showOnRight = rightSpace >= 168 || rightSpace > leftSpace;
             const space = showOnRight ? rightSpace : leftSpace;
+            badge.dataset.side = showOnRight ? 'right' : 'left';
             badge.style.maxWidth = `${Math.max(0, Math.min(160, space - 8))}px`;
-            badge.style.left = showOnRight ? 'calc(100% + 3px)' : 'auto';
-            badge.style.right = showOnRight ? 'auto' : 'calc(100% + 3px)';
+            badge.style.left = showOnRight ? 'calc(100% + 5px)' : 'auto';
+            badge.style.right = showOnRight ? 'auto' : 'calc(100% + 5px)';
           };
           this.repositionStatus = reposition;
           reposition();

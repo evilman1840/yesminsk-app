@@ -333,7 +333,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                         className="flex shrink-0 rounded-full active:opacity-80 cursor-pointer"
                       >
                         {nearbyFaces.map((u) => (
-                          <img key={u.id} src={thumb(u.avatarUrl)} alt="" className="-ml-2.5 first:ml-0 w-9 h-9 rounded-full object-cover border-2 border-zine-paper bg-zine-card" />
+                          <img key={u.id} src={thumb(u.avatarUrl)} alt="" className="-ml-2.5 first:ml-0 w-7 h-7 rounded-full object-cover border-2 border-zine-paper bg-zine-card" />
                         ))}
                       </button>
                     )}
@@ -355,7 +355,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                         telegramService.haptic('selection');
                         onOpenPeople();
                       }}
-                      className="block text-body font-bold text-zine-ink whitespace-nowrap cursor-pointer"
+                      className="block max-w-full truncate text-sm2 font-bold text-zine-ink cursor-pointer"
                     >
                       {peopleCount.toLocaleString('ru-RU')} с нами
                     </button>
