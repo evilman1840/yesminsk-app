@@ -32,6 +32,7 @@ export const HOST_CARD_URL_BY_RUB: Record<number, string> = {
 
 // «Другие способы»: реквизиты, копируются одним нажатием
 export interface DonateCopy {
+  method: 'erip' | 'phone';
   emoji: string;
   title: string;  // «ЕРИП (Альфа-Банк), счёт»
   shown: string;  // как показываем
@@ -39,6 +40,6 @@ export interface DonateCopy {
 }
 
 export const DONATE_COPY: DonateCopy[] = [
-  { emoji: '🏦', title: 'ЕРИП (Альфа-Банк), счёт', shown: 'BY81ALFA301432X3X40010270000', copy: 'BY81ALFA301432X3X40010270000' },
-  { emoji: '📱', title: 'Перевод по номеру телефона', shown: '+375 29 588-14-72', copy: '+375295881472' }
+  { method: 'erip', emoji: '🏦', title: 'ЕРИП (Альфа-Банк), счёт', shown: 'BY81ALFA301432X3X40010270000', copy: 'BY81ALFA301432X3X40010270000' },
+  { method: 'phone', emoji: '📱', title: 'Перевод по номеру телефона', shown: '+375 29 588-14-72', copy: '+375295881472' }
 ];

@@ -66,7 +66,7 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
   };
 
   const donateStars = async (stars: number) => {
-    track('gulyai_donation_checkout');
+    track('gulyai_donation_checkout', { donation_method: 'stars' });
     setError(null);
     setBusyStars(stars);
     try {
@@ -146,7 +146,10 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
         ))}
       </div>
       <button
-        data-analytics="donation_checkout" onClick={() => { track('gulyai_donation_checkout'); telegramService.openLink(CARD_URL_BY_RUB[TIERS[tier].rub] || CARD_URL); }}
+        data-analytics="donation_checkout" onClick={() => {
+          track('gulyai_donation_checkout', { donation_method: 'card' });
+          telegramService.openLink(CARD_URL_BY_RUB[TIERS[tier].rub] || CARD_URL);
+        }}
         className="mt-3 w-full min-h-14 py-2 rounded-zine-sm bg-zine-terracotta text-white cursor-pointer active:scale-[0.99] transition-transform"
       >
         <span className="block text-lead font-bold">Накормить донатом · {TIERS[tier].rub} р.</span>
@@ -155,7 +158,10 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
       <p className="mt-1.5 text-cap text-zine-inkMuted text-center">
         <b className="text-zine-ink">1 пончик = 1 рубль.</b> Другая сумма?{' '}
         <button
-          data-analytics="donation_checkout" onClick={() => { track('gulyai_donation_checkout'); telegramService.openLink(CARD_URL); }}
+          data-analytics="donation_checkout" onClick={() => {
+            track('gulyai_donation_checkout', { donation_method: 'card' });
+            telegramService.openLink(CARD_URL);
+          }}
           className="font-semibold text-zine-terracotta underline underline-offset-2 cursor-pointer"
         >
           Ввести свою
@@ -163,7 +169,10 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
       </p>
 
       <button
-        onClick={() => setShowOther((v) => !v)}
+        onClick={() => {
+          if (!showOther) track('gulyai_donation_methods_opened');
+          setShowOther(!showOther);
+        }}
         aria-expanded={showOther}
         className="mt-1 w-full h-11 flex items-center justify-center gap-1 text-sm2 font-semibold text-zine-inkMuted cursor-pointer"
       >
@@ -178,7 +187,10 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
             return (
               <button
                 key={item.title}
-                onClick={() => copyValue(item.copy)}
+                onClick={() => {
+                  track('gulyai_donation_details_clicked', { donation_method: item.method });
+                  void copyValue(item.copy);
+                }}
                 className="w-full p-3 rounded-zine-sm bg-zine-card flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform"
               >
                 <span className="text-[24px] leading-none">{item.emoji}</span>
@@ -230,7 +242,10 @@ export const DonateSheet: React.FC<{ onClose: () => void; onOpenNews?: () => voi
 
       {/* 5. После перевода */}
       <button
-        onClick={() => setThanks(true)}
+        onClick={() => {
+          track('gulyai_donation_self_reported');
+          setThanks(true);
+        }}
         className="mt-3 mx-auto block px-3 h-10 text-cap font-semibold text-zine-inkMuted underline underline-offset-2 cursor-pointer"
       >
         Готово, Печка накормлена ✓

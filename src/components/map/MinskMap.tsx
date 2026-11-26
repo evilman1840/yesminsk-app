@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import { thumb, NO_PHOTO } from '../../utils/thumb';
 import { Map, Clusterer, Placemark, useYMaps } from '@pbe/react-yandex-maps';
-import type { IProjection, Map as YandexMap } from 'yandex-maps';
+import type { IProjection, MapEvent, Map as YandexMap } from 'yandex-maps';
 import { MapQuickControls } from './MapControls';
 import { UserProfile, AppEvent, LiveStatus, EVENT_CATEGORIES_CONFIG, eventCategoryOf, isAvailableNow, PlaceItem, PLACE_MOODS } from '../../types';
 import { serverUrl } from '../../services/api';
@@ -10,6 +10,7 @@ import { telegramService } from '../../services/telegram';
 import { currentLiveStatus, useLiveStatus, useLiveStatusExpiry } from '../common/LiveStatus';
 import { shortOffer, upperFirst } from '../../texts/liveStatus';
 import { STATUS_NOTE_REACH, STATUS_NOTE_WIDTH, visibleStatusPins, type StatusSide } from './visibleStatusPins';
+import { track } from '../../analytics/runtime';
 
 const NO_FEATURED_PINS: ReadonlyMap<string, StatusSide> = new globalThis.Map();
 const mapUserId = (user: UserProfile) => String(user.id || user.telegramId || (user as any)._id || '');
@@ -205,6 +206,7 @@ const MinskMapContent: React.FC<{
 }) => {
   const ymapsHook = useYMaps(['templateLayoutFactory']);
   const ymaps = ymapsHook || (typeof window !== 'undefined' ? (window as any).ymaps : null);
+  const statusBubbles = useRef(new globalThis.Map<string, HTMLElement>());
 
   // 1. Макет круглой аватарки других людей
   const avatarLayout = useMemo(() => {
@@ -235,7 +237,17 @@ const MinskMapContent: React.FC<{
             badge.style.maxWidth = `${STATUS_NOTE_WIDTH}px`;
             badge.style[side === 'left' ? 'right' : 'left'] = '50px';
             badge.classList.add('border-zine-sage/60');
+            const userId = properties.get('userId');
+            statusBubbles.current.set(userId, badge);
+            this.statusBubble = badge;
+            this.statusUserId = userId;
           }
+        },
+        clear: function () {
+          if (statusBubbles.current.get(this.statusUserId) === this.statusBubble) {
+            statusBubbles.current.delete(this.statusUserId);
+          }
+          layout.superclass.clear.call(this);
         },
       }
     );
@@ -501,7 +513,17 @@ const MinskMapContent: React.FC<{
             zIndex: side ? 950 : isSelected ? 300 : activeStatus ? 200 : 100,
             hasBalloon: false
           } as any}
-          onClick={() => {
+          onClick={(event: MapEvent) => {
+            const point = side && event.get('clientPixels');
+            const bubble = statusBubbles.current.get(userIdStr);
+            if (point && bubble?.isConnected) {
+              const [x, y] = point;
+              const rect = bubble.getBoundingClientRect();
+              // The clickable area around the pin is wider than the rendered bubble.
+              if (rect.width > 0 && rect.height > 0 && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                track('gulyai_map_live_status_clicked', { screen: 'map' });
+              }
+            }
             telegramService.haptic('selection');
             latest.current.onSelectUser(user);
             panTo(coords);

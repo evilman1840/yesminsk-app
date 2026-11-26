@@ -42,6 +42,7 @@ export function MapQuickControls({ onDonate, onLocate, locating }: {
   const reducedMotion = useReducedMotion();
   return <>
     {onDonate && <button type="button"
+      data-analytics="map_donate"
       onClick={() => { telegramService.haptic('light'); onDonate(); }} aria-label="Донат проекту"
       className="absolute bottom-14 left-4 z-20 isolate flex min-h-12 items-center gap-2 overflow-hidden rounded-full border border-zine-paper/20 bg-zine-ink px-4 text-sm2 font-bold text-white shadow-lg shadow-zine-ink/25 dark:border-zine-blush/60 dark:bg-zine-cardElevated dark:shadow-zine-blush/20 dark:ring-1 dark:ring-zine-ink/15 transition-transform active:scale-[0.95] motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zine-ink">
       {!reducedMotion && <motion.span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-full"
