@@ -2,6 +2,7 @@ import { LiveStatusText, useLiveStatusExpiry } from '../components/common/LiveSt
 import { MeetupExperience } from '../components/common/MeetupExperience';
 import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { MapPin, SlidersHorizontal, ChevronLeft, ChevronRight, Send, Loader2, X } from 'lucide-react';
 import { AppEvent, JoinOptions, MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
@@ -77,6 +78,7 @@ export interface FeedScreenProps {
 }
 
 type FeedTab = 'all' | 'likes' | 'matches';
+const press = 'transition-transform active:scale-[0.97] motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-zine-terracotta';
 
 export const FeedScreen: React.FC<FeedScreenProps> = ({
   users,
@@ -209,6 +211,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
 
   const showGuidesBanner = isTourist && tab === 'all' && selectedGoal !== 'guides' && guidesCount > 0;
   const hasIntro = tab === 'all' && (Boolean(topSlot) || showGuidesBanner);
+  const isEmpty = filteredUsers.length === 0 && !hasIntro;
   const hasIntroRef = useRef(hasIntro);
   hasIntroRef.current = hasIntro;
   const hint =
@@ -225,50 +228,52 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   return (
     <div className="h-full w-full bg-zine-paper flex flex-col overflow-hidden">
       {/* Шапка на однотонном фоне, чтобы фото было чистым. Название экрана уже есть в нижнем меню */}
-      <div className="shrink-0 px-3 pt-3 pb-3">
-        <div className="flex items-center gap-1.5">
+      <div className="shrink-0 px-1.5 py-2.5 min-[375px]:px-2">
+        <div className="flex items-center gap-[2px] max-[350px]:flex-wrap min-[375px]:gap-1">
           {wantNowSlot}
 
           {/* Вкладки: рядом / хотят пообщаться / на связи */}
-          <div className="flex-1 min-w-0 flex gap-0.5 p-[3px] rounded-full bg-zine-card">
+          <div className="flex h-[44px] min-w-0 flex-1 items-center overflow-x-auto rounded-full border border-zine-border bg-zine-cardElevated p-px shadow-zine-sm no-scrollbar max-[350px]:order-1 max-[350px]:basis-full">
             {tabs.map((t) => (
               <button
                 key={t.id}
+                type="button"
                 onClick={() => {
-                  telegramService.haptic('selection');
+                  if (tab === t.id) return;
+                  telegramService.haptic('light');
                   setTab(t.id);
                 }}
                 aria-label={`${t.label}${t.count > 0 ? `: ${t.count}` : ''}`}
                 aria-pressed={tab === t.id}
-                style={{ flexGrow: t.id === 'matches' ? 1.4 : t.id === 'likes' ? 0.9 : 1 }}
-                className={`flex-1 basis-0 min-w-0 h-11 px-0.5 rounded-full text-[14px] font-bold flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
-                  tab === t.id ? 'bg-zine-ink text-zine-paper' : 'text-zine-inkMuted'
-                }`}
+                className={`flex h-full min-w-max flex-[1_0_auto] items-center justify-center gap-[2px] rounded-full px-px text-[12px] font-bold leading-none whitespace-nowrap focus-visible:-outline-offset-2 min-[375px]:px-0.5 ${
+                  tab === t.id ? 'bg-zine-terracotta/15 text-zine-ink' : 'text-zine-inkMuted'
+                } ${press}`}
               >
-                <span className="shrink-0 whitespace-nowrap leading-[17px]">{t.label}</span>
-                <span className="h-4 flex items-center justify-center" aria-hidden="true">
-                  {t.count > 0 && <span className="min-w-[18px] h-4 px-1 rounded-full bg-zine-terracotta text-white text-[11px] leading-4 font-bold tabular-nums">
-                    {t.count > 999 ? '999+' : t.count}
-                  </span>}
-                </span>
+                <span>{t.label}</span>
+                {t.count > 0 && (
+                  <span aria-hidden="true" className="min-w-4 rounded-full bg-zine-terracotta/15 px-px py-0.5 text-center font-bold tabular-nums text-zine-ink min-[375px]:px-0.5">
+                    {t.count > 99 ? '99+' : t.count}
+                  </span>
+                )}
               </button>
             ))}
           </div>
 
           <button
+            type="button"
             data-analytics="people_filters"
             onClick={() => {
-              telegramService.haptic('selection');
+              telegramService.haptic('light');
               setIsFiltersOpen(true);
             }}
             aria-label={activeFilters > 0 ? `Фильтры: ${activeFilters}` : 'Фильтры'}
-            className={`relative w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-              activeFilters > 0 ? 'bg-zine-ink text-zine-paper' : 'bg-zine-card text-zine-ink'
-            }`}
+            className={`relative grid size-[44px] shrink-0 place-items-center rounded-full border border-zine-border bg-zine-cardElevated text-zine-ink shadow-zine-sm ${press}`}
           >
-            <SlidersHorizontal size={20} />
+            <span className={`grid size-8 place-items-center rounded-full ${activeFilters > 0 ? 'bg-zine-terracotta/15' : 'bg-zine-card'}`}>
+              <SlidersHorizontal size={18} aria-hidden />
+            </span>
             {activeFilters > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center">
+              <span aria-hidden="true" className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-zine-paper bg-zine-terracotta px-1 text-xs font-bold leading-none text-white">
                 {activeFilters}
               </span>
             )}
@@ -294,8 +299,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       </div>
 
       <div className="relative flex-1 min-h-0">
-      {filteredUsers.length === 0 && !hasIntro ? (
-        <div className="h-full flex flex-col items-center justify-center px-6">
+      {isEmpty && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
           {tab === 'all' && activeFilters > 0 && users.length > 0 ? (
             <div className="w-full p-8 rounded-zine bg-zine-card text-center">
               <div className="text-[44px] mb-3">🔍</div>
@@ -309,8 +314,8 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
             <EmptyState tab={tab} />
           )}
         </div>
-      ) : (
-        <div key={`${tab}-${selectedGoal}`} ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
+      )}
+        <div key={`${tab}-${selectedGoal}`} ref={listRef} className={`relative h-full overflow-y-auto snap-y snap-mandatory no-scrollbar ${isEmpty ? 'pointer-events-none' : ''}`}>
           {/* Вступление: «Первые шаги» и подсказка туристам */}
           {hasIntro && (
             <section className="relative h-full w-full snap-start snap-always overflow-y-auto no-scrollbar bg-zine-paper px-4 pt-4 pb-6 flex flex-col gap-4">
@@ -334,6 +339,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
             </section>
           )}
 
+          <AnimatePresence>
           {filteredUsers.map((user, index) => {
             // После 4-й и 10-й анкеты — «Хочу сходить» (только во «Все»: в «👋» и «На связи» свои люди)
             const slot = wishSlotAt(index);
@@ -396,9 +402,9 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
             </React.Fragment>
             );
           })}
-          {tab === 'all' && hasMorePeople && onLoadMorePeople && <LoadMoreSentinel onVisible={onLoadMorePeople} />}
+          </AnimatePresence>
+          {!isEmpty && tab === 'all' && hasMorePeople && onLoadMorePeople && <LoadMoreSentinel onVisible={onLoadMorePeople} />}
         </div>
-      )}
 
       {justSkipped && (
         <UndoToast
@@ -548,11 +554,11 @@ export const PersonReel: React.FC<{
   const react = async (type: ReactionType) => {
     if (busy) return;
     if (type === 'dislike' && !isConfirmingHide) {
-      telegramService.haptic('warning');
+      telegramService.haptic('light');
       setIsConfirmingHide(true);
       return;
     }
-    telegramService.haptic(type === 'like' ? 'success' : 'medium');
+    telegramService.haptic(type === 'like' ? 'light' : 'medium');
     setBusy(type);
     try {
       await onReact(user, type);
@@ -593,6 +599,7 @@ export const PersonReel: React.FC<{
 
   return (
     <SwipeReel
+      animateCard
       className="flex flex-col"
       rightLabel={canLike ? '👋 Привет' : undefined}
       leftLabel={user.isMatch ? undefined : FEED_TEXTS.skipStamp}
@@ -628,9 +635,9 @@ export const PersonReel: React.FC<{
           </>
         )}
         {statuses.length > 0 && <span className={`absolute top-3 left-3 z-20 max-w-[calc(100%-24px)] truncate h-8 px-3 rounded-full text-sm2 font-semibold flex items-center pointer-events-none ${statuses[0].cls}`}>{statuses[0].text}</span>}
-        <div className="absolute bottom-3 inset-x-3 z-20 pointer-events-none grid justify-items-start gap-1.5">
+        <div className="absolute bottom-2.5 inset-x-3 z-20 pointer-events-none grid justify-items-start">
           <LiveStatusText status={user.liveStatus} compact />
-          <MeetupExperience user={user} />
+          <MeetupExperience user={user} onPhoto />
         </div>
       </div>
 
@@ -800,7 +807,7 @@ export const PersonReel: React.FC<{
             <WavesOutCard
               rounded="rounded-full"
               hideButton={
-                <button onClick={() => react('dislike')} className="flex-1 h-12 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer">
+                <button onClick={() => react('dislike')} className={`flex-1 h-12 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer ${press}`}>
                   <span className="text-[20px] leading-none">🙈</span>
                   Скрыть
                 </button>
@@ -809,14 +816,14 @@ export const PersonReel: React.FC<{
           ) : (
           <div>
           <div className="flex gap-2">
-            <button onClick={() => react('dislike')} className="flex-1 h-12 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer">
+            <button onClick={() => react('dislike')} className={`flex-1 h-12 rounded-full border border-zine-border text-body font-semibold flex items-center justify-center gap-2 cursor-pointer ${press}`}>
               <span className="text-[20px] leading-none">🙈</span>
               Скрыть
             </button>
             <button
               data-analytics="person_wave" onClick={() => react('like')}
               disabled={user.iLiked}
-              className={`flex-[1.6] h-12 rounded-full text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer ${user.iLiked ? 'bg-zine-sage' : 'bg-zine-terracotta'}`}
+              className={`flex-[1.6] h-12 rounded-full text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer ${press} ${user.iLiked ? 'bg-zine-sage' : 'bg-zine-terracotta'}`}
             >
               {busy === 'like' ? <Loader2 size={20} className="animate-spin" /> : <span className="text-[20px] leading-none">👋</span>}
               {user.iLiked ? 'Привет отправлен' : 'Пообщаться'}

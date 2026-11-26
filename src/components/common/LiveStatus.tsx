@@ -45,9 +45,20 @@ export function LiveStatusText({ status, compact = false, onPhoto = false }: { s
     {active.want && <span className="relative min-w-0 [overflow-wrap:anywhere]"><b className="mr-1 font-semibold text-zine-inkMuted">Хочу:</b>{active.want}</span>}
     {active.offer && <span className="relative min-w-0 [overflow-wrap:anywhere]"><b className="mr-1 font-semibold text-zine-inkMuted">Могу:</b>{active.offer}</span>}
   </span>;
-  return <span className={compact ? 'grid max-w-full rounded-xl bg-zine-cardElevated px-2.5 py-1.5 text-cap text-zine-ink shadow-zine-sm' : 'block rounded-zine-sm bg-zine-card p-3 text-sm2 text-zine-ink break-words'}>
-    {active.want && <span className={compact ? 'truncate font-bold' : 'block'}>{compact ? upperFirst(active.want) : <><b>Хочу</b> {active.want}</>}</span>}
-    {active.offer && <span className={compact ? 'truncate text-zine-inkMuted' : 'block'}>{compact ? shortOffer(active.offer) : <><b>Могу</b> {active.offer}</>}</span>}
+  if (compact) return <span className="relative grid max-w-[min(100%,17rem)] grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2 gap-y-1 rounded-2xl border border-zine-border bg-zine-cardElevated px-2.5 py-1.5 text-cap leading-tight text-zine-ink shadow-zine-sm">
+    <span aria-hidden className="absolute -left-1 top-2.5 size-2 rotate-45 border-b border-l border-zine-border bg-zine-cardElevated" />
+    {active.want && <>
+      <span className="relative rounded-full bg-zine-terracotta/10 px-1.5 text-xs font-semibold">Хочу</span>
+      <span className="relative truncate font-bold">{upperFirst(active.want)}</span>
+    </>}
+    {active.offer && <>
+      <span className="relative rounded-full bg-zine-sage/15 px-1.5 text-xs font-semibold">Могу</span>
+      <span className="relative truncate text-zine-inkMuted">{shortOffer(active.offer)}</span>
+    </>}
+  </span>;
+  return <span className="block rounded-zine-sm bg-zine-card p-3 text-sm2 text-zine-ink break-words">
+    {active.want && <span className="block"><b>Хочу</b> {active.want}</span>}
+    {active.offer && <span className="block"><b>Могу</b> {active.offer}</span>}
   </span>;
 }
 

@@ -9,7 +9,7 @@ type Experience = Pick<UserProfile, 'attendedCount' | 'hostedCount' | 'hostActiv
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
 /** Одна область нажатия от 44 px; цифры и подписи читаются на любом фото и в обеих темах. */
-export const MeetupExperience: React.FC<{ user: Experience; className?: string }> = ({ user, className = '' }) => {
+export const MeetupExperience: React.FC<{ user: Experience; className?: string; onPhoto?: boolean }> = ({ user, className = '', onPhoto = false }) => {
   const [open, setOpen] = useState(false);
   const attended = user.attendedCount || 0;
   const hosted = user.hostedCount || 0;
@@ -23,11 +23,13 @@ export const MeetupExperience: React.FC<{ user: Experience; className?: string }
       data-no-swipe
       aria-label={`${label}. Подробнее о Сходках и значках`}
       onClick={(e) => { stop(e); telegramService.haptic('selection'); setOpen(true); }}
-      className={`pointer-events-auto min-h-11 max-w-full flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-zine-border/60 bg-zine-cardElevated/80 backdrop-blur-sm px-3 py-2 text-cap font-bold leading-snug text-zine-ink shadow-sm cursor-pointer active:scale-[0.98] transition-transform ${className}`}
+      className={`pointer-events-auto flex min-h-11 max-w-full text-left text-zine-ink cursor-pointer active:scale-[0.98] transition-transform ${onPhoto ? 'items-end rounded-full' : 'items-center rounded-2xl border border-zine-border/60 bg-zine-cardElevated/80 px-3 py-2 shadow-sm backdrop-blur-sm'} ${className}`}
     >
-      {attended > 0 && <span className="whitespace-nowrap"><span aria-hidden>{badge.emoji} </span>{attendedLabel(attended)}</span>}
-      {hosted > 0 && <span className="whitespace-nowrap"><span aria-hidden>{hostEmoji} </span>{T.hosted(hosted)}</span>}
-      {user.isSupporter && <span aria-hidden>🍩</span>}
+      <span className={`flex flex-wrap items-center gap-y-1 leading-snug ${onPhoto ? 'gap-x-2 rounded-full border border-white/70 bg-white/80 px-2 py-0.5 text-[12px] font-semibold shadow-sm backdrop-blur-md dark:border-zine-border dark:bg-zine-cardElevated/85' : 'gap-x-3 text-cap font-bold'}`}>
+        {attended > 0 && <span className="whitespace-nowrap"><span aria-hidden>{badge.emoji} </span>{attendedLabel(attended)}</span>}
+        {hosted > 0 && <span className="whitespace-nowrap"><span aria-hidden>{hostEmoji} </span>{T.hosted(hosted)}</span>}
+        {user.isSupporter && <span aria-hidden>🍩</span>}
+      </span>
     </button>
     {open && <div onClick={stop} onPointerDown={stop} onPointerMove={stop} onPointerUp={stop}>
       <BottomSheet title={T.title} onClose={() => setOpen(false)}>

@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { motion, useIsPresent, useReducedMotion } from 'framer-motion';
 import { telegramService } from '../../services/telegram';
 
 export type SwipeDirection = 'left' | 'right';
@@ -8,6 +9,11 @@ export type SwipeDirection = 'left' | 'right';
 export type SwipeBehavior = 'next' | 'remove' | 'stay';
 
 const THRESHOLD = 90; // насколько протянуть пальцем, чтобы свайп сработал
+const cardMotion = {
+  before: { opacity: 0.55, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 350, damping: 30 } },
+  removed: { opacity: 0, x: -16, transition: { duration: 0.18 } }
+};
 
 /**
  * Карточка-Reels со свайпами, как в приложениях знакомств.
@@ -22,7 +28,12 @@ export const SwipeReel: React.FC<{
   leftBehavior?: SwipeBehavior;
   onSwipe?: (direction: SwipeDirection) => void;
   className?: string;
-}> = ({ children, rightLabel, leftLabel, rightBehavior = 'next', leftBehavior = 'next', onSwipe, className = '' }) => {
+  animateCard?: boolean;
+}> = ({ children, rightLabel, leftLabel, rightBehavior = 'next', leftBehavior = 'next', onSwipe, className = '', animateCard = false }) => {
+  const isPresent = useIsPresent();
+  const reducedMotion = useReducedMotion();
+  const animate = animateCard && !reducedMotion;
+  const Section = animate ? motion.section : 'section';
   const ref = useRef<HTMLElement>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const isDragging = useRef(false);
@@ -40,6 +51,16 @@ export const SwipeReel: React.FC<{
     },
     []
   );
+
+  useLayoutEffect(() => {
+    if (isPresent || removal.current) return;
+    const card = ref.current;
+    const list = card?.closest<HTMLElement>('.snap-y');
+    if (!card || !list) return;
+    if (Math.abs(card.getBoundingClientRect().top - list.getBoundingClientRect().top) < list.clientHeight / 2) {
+      removal.current = { list, top: list.scrollTop };
+    }
+  }, [isPresent]);
 
   const canSwipe = (dir: SwipeDirection) => (dir === 'right' ? Boolean(rightLabel) : Boolean(leftLabel));
 
@@ -143,7 +164,16 @@ export const SwipeReel: React.FC<{
   const progress = Math.min(Math.abs(dx) / THRESHOLD, 1);
 
   return (
-    <section ref={ref} className="relative h-full w-full snap-start snap-always overflow-hidden bg-zine-paper">
+    <Section ref={ref} aria-hidden={isPresent ? undefined : true}
+      className={`relative h-full w-full snap-start snap-always overflow-hidden bg-zine-paper ${isPresent ? '' : 'pointer-events-none'}`}
+      {...(animate && {
+        variants: cardMotion,
+        initial: 'before',
+        animate: 'before',
+        whileInView: 'visible',
+        exit: 'removed',
+        viewport: { amount: 0.5 }
+      })}>
       <div
         className={`absolute inset-0 touch-pan-y select-none ${className}`}
         style={{
@@ -183,7 +213,7 @@ export const SwipeReel: React.FC<{
           </div>
         )}
       </div>
-    </section>
+    </Section>
   );
 };
 
