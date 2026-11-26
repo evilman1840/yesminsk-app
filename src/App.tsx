@@ -1567,6 +1567,10 @@ export const App: React.FC = () => {
                   const { liveStatus } = await api.setLiveStatus(want, offer, hours);
                   setCurrentUser(prev => ({ ...prev, liveStatus }));
                 }}
+                showLiveStatusAnnouncement={isMeLoaded && currentUser.profileCompleted && currentUser.ageConfirmed &&
+                  currentUser.legalVersion === LEGAL_VERSION && !invitePending && !inviteDeepLink &&
+                  !sharedEvent && !matchPopupUser && !isActivityOpen && !isPollOpen && !isHomeTipOpen &&
+                  !isDonateOpen && !isHostDonateOpen && !noticeSheet}
                 onOpenNews={() => handleNavigate('news')}
                 fewPeople={isUsersLoaded && !apiError && users.length < 3}
                 places={places}

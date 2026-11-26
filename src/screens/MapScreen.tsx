@@ -9,6 +9,7 @@ import { PlaceSheet } from '../components/places/PlaceSheet';
 import { PlaceTypeFilter } from '../components/places/PlaceTypeFilter';
 import { telegramService } from '../services/telegram';
 import { MinskMap } from '../components/map/MinskMap';
+import { LiveStatusAnnouncement } from '../components/map/LiveStatusAnnouncement';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { GoalChips } from '../components/ui/GoalChips';
 import { PeopleFiltersSheet, PeopleFilters, MyPrefs, applyPeopleFilters, countActiveFilters } from '../components/people/PeopleFilters';
@@ -51,6 +52,7 @@ export interface MapScreenProps {
   onChangePeopleFilters: (f: PeopleFilters) => void;
   peopleTotal?: number | null; // сколько подходит под фильтры на сервере
   onSaveLiveStatus: (want: string, offer: string, hours: number) => Promise<void>;
+  showLiveStatusAnnouncement?: boolean;
   onOpenNews: () => void;
   activityUnread: number;
   onOpenActivity: () => void;
@@ -103,6 +105,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   onChangePeopleFilters: setPeopleFilters,
   peopleTotal,
   onSaveLiveStatus,
+  showLiveStatusAnnouncement,
   onOpenNews,
   activityUnread,
   onOpenActivity,
@@ -190,6 +193,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [isMySheetOpen, setIsMySheetOpen] = useState(false);
   const [isStatusEditorOpen, setIsStatusEditorOpen] = useState(false);
   const [statusOpened, setStatusOpened] = useState(false);
+  const openStatusEditor = () => {
+    setStatusOpened(true);
+    setIsStatusEditorOpen(true);
+  };
   const activeStatus = useLiveStatus(currentUser?.liveStatus);
   // «Сдвинуть метку»: человек сам выбирает, где его видят на карте
   const [isPicking, setIsPicking] = useState(false);
@@ -401,7 +408,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
             <div className="flex shrink-0 items-center">
               <MapStatusButton avatarUrl={currentUser?.avatarUrl} active={Boolean(activeStatus)}
                 pulse={!activeStatus && !statusOpened}
-                onOpen={() => { setStatusOpened(true); setIsStatusEditorOpen(true); }}
+                onOpen={openStatusEditor}
               />
               <MapNotificationsButton unread={activityUnread} onOpen={onOpenActivity} />
             </div>
@@ -552,6 +559,10 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         />
       )}
 
+
+      {showLiveStatusAnnouncement && isVisible && currentUser?.telegramId && !activeStatus && !statusOpened &&
+        !initialPlaceId && !selectedUser && !selectedEvent && !isMySheetOpen && !isStatusEditorOpen && !isPicking &&
+        <LiveStatusAnnouncement key={currentUser.telegramId} userId={currentUser.telegramId} onTry={openStatusEditor} />}
 
       {isStatusEditorOpen && (
         <LiveStatusEditor status={currentUser?.liveStatus} visible={isVisible} onSave={onSaveLiveStatus}
