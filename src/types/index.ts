@@ -257,6 +257,7 @@ export interface AppEvent {
   locationName: string;
   coordinates: [number, number]; // [lat, lng]
   dateTime: string;
+  chatExpiresAt?: string;
   creator: {
     telegramId: number;
     name: string;
@@ -602,3 +603,41 @@ export interface PollData {
   myVote: { options: string[]; custom: string } | null; // можно отметить несколько вариантов
   results: { key: string; percent: number }[] | null;
 }
+
+export type MeetupChatKind = 'group' | 'question';
+
+export interface MeetupChatReply {
+  id: string;
+  senderName: string;
+  text: string;
+}
+
+export interface MeetupChatReaction {
+  emoji: string;
+  count: number;
+  mine: boolean;
+}
+
+export interface MeetupChatMessage {
+  id: string;
+  mine: boolean;
+  senderId: number;
+  name: string;
+  avatarUrl?: string;
+  text: string;
+  replyTo?: MeetupChatReply;
+  reactions?: MeetupChatReaction[];
+  createdAt: string;
+}
+
+export interface MeetupChatThread {
+  askerId: number;
+  name: string;
+  avatarUrl?: string;
+  updatedAt: string;
+}
+
+export type MeetupChatData = { title: string; expiresAt: string; chatPaused?: boolean } & (
+  { threads: MeetupChatThread[] } |
+  { messages: MeetupChatMessage[]; canSend: boolean; peerName?: string; peerAvatarUrl?: string; peerId?: number; before: string | null }
+);

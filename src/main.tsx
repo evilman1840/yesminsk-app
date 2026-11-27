@@ -52,6 +52,9 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') =
 } else if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'hosts') {
   // ?preview=hosts — значки организаторов, «Организаторы месяца» и «Повторить» на выдуманных данных
   import('./dev/HostsPreview').then(({ HostsPreview }) => root.render(<HostsPreview />));
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'meetup-chat') {
+  // ?preview=meetup-chat — чаты сходки на тестовых данных
+  import('./dev/MeetupChatPreview').then(({ MeetupChatPreview }) => root.render(<MeetupChatPreview />));
 } else {
   root.render(
     <React.StrictMode>

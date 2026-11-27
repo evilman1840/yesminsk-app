@@ -39,6 +39,7 @@ import { ServerWakingBanner } from './components/common/ServerWakingBanner';
 import { TabBar, TabId } from './components/ui/TabBar';
 import { BottomSheet } from './components/ui/BottomSheet';
 import { EventDetails } from './components/common/EventDetails';
+import { MeetupChatSheet } from './components/common/MeetupChatSheet';
 import { DonateSheet } from './components/common/DonateSheet';
 import { HostDonateSheet } from './components/common/HostDonateSheet';
 import { markHostDonateSeen, takeHostDonateTurn, unseenHostEvents } from './utils/hostDonate';
@@ -247,6 +248,7 @@ export const App: React.FC = () => {
   };
   // Сходка, открытая по ссылке-приглашению или из уведомления бота
   const [sharedEvent, setSharedEvent] = useState<AppEvent | null>(null);
+  const [linkedMeetupQuestion, setLinkedMeetupQuestion] = useState<{ eventId: string; askerId?: number } | null>(null);
   const [noticeEventId, setNoticeEventId] = useState<string | null>(null);
   useEffect(() => { if (!sharedEvent) setNoticeEventId(null); }, [sharedEvent?.id]);
   const [sharedEventAttendance, setSharedEventAttendance] = useState(false); // «Нет, отмечу» от бота: сразу к «Кто пришёл»
@@ -797,7 +799,9 @@ export const App: React.FC = () => {
         });
         setCurrentScreen((prev) => (prev === 'main' ? 'events' : prev));
       }
-      if (target.eventId) {
+      if (target.eventId && target.meetupQuestion) {
+        setLinkedMeetupQuestion({ eventId: target.eventId, askerId: target.meetupQuestion.askerId });
+      } else if (target.eventId) {
         const found = loadedEvents.find(e => String(e.id) === target.eventId);
         if (found) {
           setSharedEvent(found);
@@ -1760,6 +1764,10 @@ export const App: React.FC = () => {
                 }}
               />
             </BottomSheet>
+          )}
+
+          {linkedMeetupQuestion && isTab && (
+            <MeetupChatSheet {...linkedMeetupQuestion} kind="question" onClose={() => setLinkedMeetupQuestion(null)} />
           )}
 
           {goTogetherWith && (

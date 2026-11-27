@@ -26,7 +26,8 @@ export const ReportSheet: React.FC<{
   onReported: () => void;
   actionLabel?: string;
   submit?: (reason: string, comment: string) => Promise<void>;
-}> = ({ targetType, targetId, targetName, onClose, onReported, actionLabel, submit }) => {
+  successText?: string;
+}> = ({ targetType, targetId, targetName, onClose, onReported, actionLabel, submit, successText }) => {
   const [reason, setReason] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -62,9 +63,9 @@ export const ReportSheet: React.FC<{
         }}
       >
         <p className="text-body text-zine-ink">
-          {targetType === 'user'
+          {successText || (targetType === 'user'
             ? (submit ? 'Участника убрали со сходки. Мы проверим жалобу.' : 'Мы проверим анкету. Этот человек больше не будет тебе показываться.')
-            : 'Мы проверим сходку и примем меры, если нужно.'}
+            : 'Мы проверим сходку и примем меры, если нужно.')}
         </p>
         <p className="mt-3 text-sm2 text-zine-inkMuted">Если тебе угрожает опасность, звони 102 (милиция).</p>
         <button

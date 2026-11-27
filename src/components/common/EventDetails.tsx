@@ -1,13 +1,14 @@
 import { useAnalyticsView } from '../../analytics/hooks';
 import React, { useEffect, useRef, useState } from 'react';
 import { thumb } from '../../utils/thumb';
-import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus, Edit2, Trash2, Repeat2 } from 'lucide-react';
-import { AppEvent, JoinOptions, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES, audienceLabel, isGathering } from '../../types';
+import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus, Edit2, Trash2, Repeat2, MessageCircle, MessagesSquare } from 'lucide-react';
+import { AppEvent, JoinOptions, MeetupChatKind, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES, audienceLabel, isGathering } from '../../types';
 import { HelpLine } from './HelpLine';
 import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
 import { ReportSheet } from './ReportSheet';
 import { JoinSheet } from './JoinSheet';
+import { MeetupChatSheet } from './MeetupChatSheet';
 import { MEETUP_TEXTS, priceLabel } from '../../texts/meetups';
 import { photoSrc } from './PhotoPicker';
 import { useOpenUser } from '../../context/openUser';
@@ -90,6 +91,8 @@ export const EventDetails: React.FC<{
   const cat = eventCategoryOf(event);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
+  const [chatKind, setChatKind] = useState<MeetupChatKind | null>(null);
+  useEffect(() => setChatKind(null), [event.id]);
   const openUser = useOpenUser();
   const isAdmin = useIsAdmin();
   const [isAdminDeleteOpen, setIsAdminDeleteOpen] = useState(false);
@@ -145,6 +148,16 @@ export const EventDetails: React.FC<{
   // «По записи»: подтверждённую запись меняет только организатор
   const myPending = event.myPending ?? (event.isJoined && event.byRequest && !event.myApproved && !isCreator);
   const approvedLock = Boolean(event.byRequest && event.myApproved && !isCreator);
+  const chatExpiresAt = event.chatExpiresAt
+    ? new Date(event.chatExpiresAt).getTime()
+    : new Date(event.dateTime).getTime() + ((event.durationMinutes || 120) + 48 * 60) * 60_000;
+  const chatOpen = Number.isFinite(chatExpiresAt) && chatExpiresAt > Date.now();
+  const canUseGroupChat = chatOpen && (isCreator || (Boolean(event.isJoined) && !myPending));
+  const canAskHost = chatOpen && !isCreator && !notForMe && (!event.isJoined || myPending);
+  const openChat = (kind: MeetupChatKind) => {
+    telegramService.haptic('light');
+    setChatKind(kind);
+  };
   // Ответ сервера после действий организатора: обновляем здесь и в остальных экранах
   const applyUpdate = (updated: AppEvent) => {
     const merged = { ...event, ...updated, id: event.id };
@@ -318,8 +331,27 @@ export const EventDetails: React.FC<{
           )}
         </div>
 
-        {/* Организатору — совет про свой чат (по желанию) */}
-        {isCreator && new Date(event.dateTime).getTime() > Date.now() && <p className="mt-3 p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink">{EM.chatTip}</p>}
+        {/* Организатору — чат сходки и вопросы по сходке */}
+        {isCreator && chatOpen && (
+          <div className="mt-3 space-y-2">
+            <button
+              type="button"
+              onClick={() => openChat('group')}
+              className="w-full min-h-[48px] px-4 rounded-zine-sm border border-zine-sage/30 bg-zine-sage/15 text-zine-ink text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+            >
+              <MessageCircle size={19} className="shrink-0 text-zine-sage" />
+              <span>Чат сходки</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openChat('question')}
+              className="w-full min-h-[48px] px-4 rounded-zine-sm border border-zine-border bg-zine-card text-zine-ink text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+            >
+              <MessagesSquare size={19} className="shrink-0 text-zine-terracotta" />
+              <span>Вопросы по сходке</span>
+            </button>
+          </div>
+        )}
 
         {/* Организатору — список с Telegram участников и «Написать участникам» */}
         {isCreator && others.length > 0 && (
@@ -522,6 +554,32 @@ export const EventDetails: React.FC<{
             </p>
           </div>
         ) : null}
+
+        {!isCreator && (canUseGroupChat || canAskHost) && (
+          <div className="mt-4 space-y-2">
+            {canUseGroupChat && (
+              <button
+                type="button"
+                onClick={() => openChat('group')}
+                className="w-full min-h-[48px] px-4 rounded-zine-sm border border-zine-sage/30 bg-zine-sage/15 text-zine-ink text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+              >
+                <MessageCircle size={19} className="shrink-0 text-zine-sage" />
+                <span>Чат сходки</span>
+              </button>
+            )}
+            {canAskHost && (
+              <button
+                type="button"
+                onClick={() => openChat('question')}
+                className="w-full min-h-[48px] px-4 rounded-zine-sm border border-zine-border bg-zine-card text-zine-ink text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+              >
+                <MessageCircle size={19} className="shrink-0 text-zine-terracotta" />
+                <span>Спросить организатора</span>
+              </button>
+            )}
+            {myPending && <p className="text-sm2 text-zine-inkMuted">Чат сходки откроется после одобрения заявки.</p>}
+          </div>
+        )}
       </section>
 
       {/* «Стесняешься идти?» — тем, кто ещё не был на сходках: ты не один такой, часть идёт впервые, можно зайти ненадолго */}
@@ -754,6 +812,18 @@ export const EventDetails: React.FC<{
         />
       )}
       {isMessageOpen && <MessageParticipantsSheet eventId={String(event.id)} onClose={() => setIsMessageOpen(false)} />}
+      {chatKind && (
+        <MeetupChatSheet
+          eventId={String(event.id)}
+          eventTitle={event.title}
+          kind={chatKind}
+          avatars={Object.fromEntries([
+            ...(event.creator?.avatarUrl ? [[Number(event.creator.telegramId), event.creator.avatarUrl]] : []),
+            ...(event.participants || []).filter((p) => p.avatarUrl).map((p) => [Number(p.telegramId), p.avatarUrl!])
+          ])}
+          onClose={() => setChatKind(null)}
+        />
+      )}
 
       {isBuddyOpen && <BringBuddySheet event={event} onClose={() => setIsBuddyOpen(false)} />}
       {isJoinOpen && <JoinSheet event={event} onConfirm={async (o) => onJoin(o)} onLeave={async () => onJoin(null)} onClose={() => setIsJoinOpen(false)} />}

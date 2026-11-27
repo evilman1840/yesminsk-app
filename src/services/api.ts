@@ -1,4 +1,5 @@
 import type { ClientAnalyticsEvent } from '../analytics/contract';
+import type { MeetupChatData, MeetupChatKind } from '../types';
 import type { Questionnaire } from '../profile/questionnaire';
 import { telegramService } from './telegram';
 import type { GameView, GameLobby, GameSummary, TractorMatchResult, SeaView, SeaLobby } from '../games/types';
@@ -464,6 +465,27 @@ class ApiService {
     error?: string;
   }) {
     this.request('/metrics/meetup-form', { method: 'POST', body: JSON.stringify(data) }).catch(() => {});
+  }
+
+  async getMeetupChat(eventId: string, kind: MeetupChatKind, askerId?: number, before?: string, quiet = false): Promise<MeetupChatData> {
+    const params = new URLSearchParams({ kind });
+    if (askerId !== undefined) params.set('askerId', String(askerId));
+    if (before) params.set('before', before);
+    return this.request(`/events/${encodeURIComponent(eventId)}/chat?${params}`, {}, quiet);
+  }
+
+  async sendMeetupChatMessage(eventId: string, kind: MeetupChatKind, text: string, clientId: string, askerId?: number, replyToId?: string): Promise<void> {
+    return this.request(`/events/${encodeURIComponent(eventId)}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ kind, text, clientId, askerId, ...(replyToId ? { replyToId } : {}) })
+    });
+  }
+
+  async toggleMeetupChatReaction(eventId: string, messageId: string, kind: MeetupChatKind, emoji: string, askerId?: number): Promise<{ reactions: { emoji: string; count: number; mine: boolean }[] }> {
+    return this.request(`/events/${encodeURIComponent(eventId)}/chat/messages/${encodeURIComponent(messageId)}/react`, {
+      method: 'POST',
+      body: JSON.stringify({ kind, emoji, askerId })
+    });
   }
 
   // «Написать участникам»: бот перешлёт сообщение организатора всем, кто записан
