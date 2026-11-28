@@ -437,10 +437,12 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; meetupQuestion?: { askerId?: number }; nearPing?: string; settings?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; together?: boolean; chat?: boolean; hello?: boolean; duel?: boolean; wishGroupId?: string; serial?: number; game?: { id?: string; code?: string; tractor?: boolean; sea?: { id?: string; code?: string } } } {
+  getLaunchTarget(): { eventId?: string; claim?: boolean; meetupQuestion?: { askerId?: number }; nearPing?: string; settings?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; together?: boolean; chat?: boolean; hello?: boolean; duel?: boolean; wishGroupId?: string; serial?: number; game?: { id?: string; code?: string; tractor?: boolean; sea?: { id?: string; code?: string } } } {
     const params = new URLSearchParams(window.location.search);
     const startParam = tg()?.initDataUnsafe?.start_param || '';
-    const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
+    const claimFromStart = startParam.startsWith('claim_') ? startParam.slice(6) : '';
+    const eventId = params.get('event') || claimFromStart || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
+    const claim = Boolean(claimFromStart || params.get('claim') === '1');
     // Собрать сходку: ?create=coffee&when=weekend&place=<id> (кнопки бота) или startapp=create_coffee_weekend_<id> (ссылки в постах)
     const create = params.has('create')
       ? {
@@ -458,6 +460,7 @@ export const telegramService = {
     const asker = Number(params.get('asker'));
     return {
       eventId,
+      claim,
       meetupQuestion: params.get('meetupChat') === 'question' ? { askerId: Number.isSafeInteger(asker) && asker > 0 ? asker : undefined } : undefined,
       rsvp: rsvp === 'yes' || rsvp === 'no' ? rsvp : undefined,
       buddy: params.get('buddy') === '1', // «Позвать ещё» от бота: сразу шторка «👯 Позвать с собой»

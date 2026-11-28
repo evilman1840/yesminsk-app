@@ -257,6 +257,7 @@ export const App: React.FC = () => {
   useEffect(() => { if (!sharedEvent) setNoticeEventId(null); }, [sharedEvent?.id]);
   const [sharedEventAttendance, setSharedEventAttendance] = useState(false); // «Нет, отмечу» от бота: сразу к «Кто пришёл»
   const [sharedEventBuddy, setSharedEventBuddy] = useState(false); // «Позвать ещё» от бота: открыть сходку сразу с «👯 Позвать с собой»
+  const [sharedEventClaim, setSharedEventClaim] = useState(false); // startapp=claim_<id>: сразу открыть «Забрать встречу себе»
   const [goTogetherWith, setGoTogetherWith] = useState<UserProfile | null>(null); // «👯 Пойдём на сходку вместе» из «На связи»
   const [goTogetherFromBot, setGoTogetherFromBot] = useState(false); // шторку открыли кнопкой из «Вы на связи!»
   // Личный чат 1 на 1 и «🎲 Сыграть» с человеком «На связи»
@@ -912,6 +913,7 @@ export const App: React.FC = () => {
           setSharedEvent(found);
           if (target.buddy) setSharedEventBuddy(true);
           if (target.attendance) setSharedEventAttendance(true);
+          if (target.claim) setSharedEventClaim(true);
           // «✅ Точно приду» / «❌ Отменить» из напоминания или сообщения организатора
           if (found.isJoined && target.rsvp === 'yes' && !found.myConfirmed) {
             api.confirmEvent(found.id)
@@ -1857,6 +1859,7 @@ export const App: React.FC = () => {
                 setNoticeEventId(null);
                 setSharedEventBuddy(false);
                 setSharedEventAttendance(false);
+                setSharedEventClaim(false);
               }}
             >
               <EventDetails
@@ -1864,6 +1867,7 @@ export const App: React.FC = () => {
                 entryPoint={noticeEventId === sharedEvent.id ? 'bottom_notice' : undefined}
                 openBuddy={sharedEventBuddy}
                 openAttendance={sharedEventAttendance}
+                openClaim={sharedEventClaim}
                 onJoin={async (options) => {
                   const updated = await handleJoinEvent(sharedEvent, options ? {
                     ...options, entryPoint: noticeEventId === sharedEvent.id ? 'bottom_notice' : undefined

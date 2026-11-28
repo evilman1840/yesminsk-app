@@ -217,24 +217,49 @@ export const MEETUP_TEXTS = {
 
   // Пустая лента
   emptyTitle: 'Тут пока пусто',
-  emptyText: 'Собери первую сходку, это займёт минуту.'
+  emptyText: 'Собери первую сходку, это займёт минуту.',
+
+  // Находки из Threads (пока сам автор не забрал встречу в своё управление)
+  externalSource: (handle?: string, name?: string) => (handle ? `🌐 Из Threads · @${handle}` : `🌐 Из Threads · ${name || 'автор'}`),
+  externalShortBadge: '🌐 Threads',
+  externalOpenShort: 'Пост в Threads ↗',
+  externalOpenPost: 'Открыть пост в Threads ↗',
+  externalGoShort: '🙋 Пойти туда за компанию',
+  externalGoBtn: '🙋 За компанию',
+  externalBannerTitle: (handle?: string, name?: string) => (handle ? `🌐 Найдено в Threads у @${handle}` : `🌐 Найдено в Threads (${name || 'автор'})`),
+  externalBannerText: 'Запись на саму встречу ведёт автор в Threads. А здесь можно сохранить идею, найти попутчиков из ГУЛЯЙ! и договориться в чате зайти вместе.',
+  externalCompanionsTitle: 'Попутчики из ГУЛЯЙ!',
+  externalCompanionsEmpty: 'Пока никто не отметился. Нажми «За компанию», чтобы другим было смелее присоединиться!',
+  externalCompanionsCount: (n: number) => `Идут за компанию из ГУЛЯЙ: ${n}`,
+  externalChatBtn: 'Чат тех, кто идёт',
+  externalClaimTitle: 'Ты проводишь эту встречу?',
+  externalClaimText: 'Забери карточку в своё управление бесплатно: сможешь менять описание, видеть участников и общаться с ними во встроенном чате.',
+  externalClaimBtn: '🙋 Это моя встреча - забрать себе',
+  externalClaimPending: '⏳ Запрос отправлен Мише - скоро передадим встречу в твоё управление',
+  externalClaimSheetTitle: 'Забрать встречу себе',
+  externalClaimSheetHint: 'Если это твой анонс из Threads, укажи свой @ник (по желанию) и отправь запрос. Миша подтвердит передачу в один клик, и бот сразу напишет тебе.',
+  externalClaimHandlePlaceholder: 'Твой @ник в Threads (необязательно)',
+  externalClaimSubmit: 'Отправить запрос',
+  externalClaimDone: 'Запрос отправлен! Как только Миша подтвердит, бот пришлёт уведомление.'
 };
 
 // Пометка цены сходки: «💚 Бесплатно», «🎟 Билет или чек на месте, ~15 BYN», «🙋 Организатору 10 BYN», «🙋 Донат организатору»
-type PriceEv = { isPaid?: boolean; price?: number; payTo?: string; donation?: boolean; payFor?: string };
+type PriceEv = { isPaid?: boolean; price?: number; payTo?: string; donation?: boolean; payFor?: string; external?: { priceNote?: string; claimed?: boolean } };
 const byn = (n: number) => `${String(n).replace('.', ',')} BYN`;
 // withFor — с «за что» в скобках (в подробной карточке; в ленте строка короткая)
 export const priceLabel = (ev: PriceEv, withFor = false) => {
+  if (!ev.isPaid && ev.external?.priceNote && !ev.external.claimed) return `💬 ${ev.external.priceNote}`;
   if (!ev.isPaid) return MEETUP_TEXTS.priceFree;
   const base =
     ev.payTo !== 'host'
       ? ev.price ? `🎟 Билет или чек на месте, ~${byn(ev.price)}` : '🎟 Билет или чек на месте'
       : ev.donation
         ? ev.price ? `🙋 Донат организатору, обычно ${byn(ev.price)}` : '🙋 Донат организатору'
-        : ev.price ? `🙋 Организатору ${byn(ev.price)}` : '🙋 Платят организатору';
+        : ev.price ? `🙋 Организатору ${byn(ev.price)}` : ev.external?.priceNote ? `🎟 ${ev.external.priceNote}` : '🙋 Платят организатору';
   return withFor && ev.payTo === 'host' && ev.payFor ? `${base} (${ev.payFor})` : base;
 };
 export const priceShort = (ev: PriceEv) => {
+  if (!ev.isPaid && ev.external?.priceNote && !ev.external.claimed) return 'условия в посте';
   if (!ev.isPaid) return 'бесплатно';
   const kind = ev.payTo !== 'host' ? 'на месте' : ev.donation ? 'донат' : 'организатору';
   return ev.price ? `${kind} ~${byn(ev.price)}` : kind;

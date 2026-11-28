@@ -1,8 +1,8 @@
 import { useAnalyticsView } from '../../analytics/hooks';
 import React, { useEffect, useRef, useState } from 'react';
 import { thumb } from '../../utils/thumb';
-import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus, Edit2, Trash2, Repeat2, MessageCircle, MessagesSquare } from 'lucide-react';
-import { AppEvent, JoinOptions, MeetupChatKind, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES, audienceLabel, isGathering } from '../../types';
+import { Check, Clock, MapPin, Users, Send, Share2, Navigation, Loader2, UserMinus, Pencil, Minus, Plus, Edit2, Trash2, Repeat2, MessageCircle, MessagesSquare, ExternalLink } from 'lucide-react';
+import { AppEvent, JoinOptions, MeetupChatKind, eventCategoryOf, EVENT_TAGS, companyNote, SUPPORT_RULES, audienceLabel, isGathering, isUnclaimedExternal } from '../../types';
 import { HelpLine } from './HelpLine';
 import { telegramService } from '../../services/telegram';
 import { formatEventDate } from '../../screens/MapScreen';
@@ -73,7 +73,8 @@ export const EventDetails: React.FC<{
   onReported?: () => void;
   openBuddy?: boolean; // «Позвать ещё» от бота: сразу открыть «👯 Позвать с собой»
   openAttendance?: boolean; // «Нет, отмечу» от бота: сразу к списку «Кто пришёл»
-}> = ({ event: eventProp, onJoin, onReported, openBuddy, openAttendance, entryPoint }) => {
+  openClaim?: boolean; // startapp=claim_<id>: сразу открыть окно «Забрать встречу себе»
+}> = ({ event: eventProp, onJoin, onReported, openBuddy, openAttendance, openClaim, entryPoint }) => {
   // «Точно приду» или отказ участнику нажали здесь: шторка на карте держит свою копию сходки, поэтому ответ сервера подмешиваем сами.
   // Пришла новая сходка сверху — своя копия больше не нужна
   useAnalyticsView('gulyai_meetup_opened', eventProp.id, { entry_point: entryPoint });
@@ -87,8 +88,14 @@ export const EventDetails: React.FC<{
   const [isAttendanceSaving, setIsAttendanceSaving] = useState(false);
   const attendanceRef = useRef<HTMLDivElement>(null);
   const event = localEvent && localEvent.id === eventProp.id ? { ...eventProp, ...localEvent } : eventProp;
+  const unclaimedExt = isUnclaimedExternal(event);
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [isBuddyOpen, setIsBuddyOpen] = useState(false);
+  const [isClaimOpen, setIsClaimOpen] = useState(false);
+  useEffect(() => {
+    if (openClaim && unclaimedExt && !event.external?.myClaimPending) setIsClaimOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openClaim, event.id]);
   const cat = eventCategoryOf(event);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
@@ -154,7 +161,7 @@ export const EventDetails: React.FC<{
     : new Date(event.dateTime).getTime() + ((event.durationMinutes || 120) + 48 * 60) * 60_000;
   const chatOpen = Number.isFinite(chatExpiresAt) && chatExpiresAt > Date.now();
   const canUseGroupChat = chatOpen && (isCreator || (Boolean(event.isJoined) && !myPending));
-  const canAskHost = chatOpen && !isCreator && !notForMe && (!event.isJoined || myPending);
+  const canAskHost = chatOpen && !unclaimedExt && !isCreator && !notForMe && (!event.isJoined || myPending);
   const openChat = (kind: MeetupChatKind) => {
     telegramService.haptic('light');
     setChatKind(kind);
@@ -289,6 +296,24 @@ export const EventDetails: React.FC<{
         </div>
       )}
 
+      {unclaimedExt && event.external?.url && (
+        <div className="mt-4 p-4 rounded-zine border border-zine-mustard/35 bg-zine-mustard/15">
+          <p className="text-body font-bold text-zine-ink">{MEETUP_TEXTS.externalBannerTitle(event.external.authorHandle, event.external.authorName)}</p>
+          <p className="mt-1 text-sm2 text-zine-inkMuted">{MEETUP_TEXTS.externalBannerText}</p>
+          <button
+            type="button"
+            onClick={() => {
+              telegramService.haptic('medium');
+              telegramService.openLink(event.external!.url);
+            }}
+            className="mt-3 w-full min-h-[48px] px-4 rounded-zine-sm bg-zine-cardElevated border border-zine-border text-zine-ink text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+          >
+            <ExternalLink size={18} className="shrink-0 text-zine-terracotta" />
+            <span>{MEETUP_TEXTS.externalOpenPost}</span>
+          </button>
+        </div>
+      )}
+
       {event.description && (
         <section className="mt-5">
           <SectionTitle>О сходке</SectionTitle>
@@ -298,7 +323,12 @@ export const EventDetails: React.FC<{
 
       {/* Кто идёт: организатор, участники и свободные места */}
       <section className="mt-5">
-        <SectionTitle>Кто идёт</SectionTitle>
+        <SectionTitle>{unclaimedExt ? MEETUP_TEXTS.externalCompanionsTitle : 'Кто идёт'}</SectionTitle>
+        {unclaimedExt ? (
+          others.length === 0 ? (
+            <p className="text-sm2 text-zine-inkMuted">{MEETUP_TEXTS.externalCompanionsEmpty}</p>
+          ) : null
+        ) : (
         <div className="flex items-center gap-3">
           {/* Нажать на организатора — его анкета. Значки — рядом с именем, чтобы «организатор · провёл N сходок» не обрезалось;
               строка под именем переносится, а не режется. div, а не button: внутри кнопка значков */}
@@ -335,6 +365,7 @@ export const EventDetails: React.FC<{
             </button>
           )}
         </div>
+        )}
 
         {/* Организатору — чат сходки и вопросы по сходке */}
         {isCreator && chatOpen && (
@@ -545,10 +576,12 @@ export const EventDetails: React.FC<{
         )}
 
         {!isCreator && buddyNames.length > 1 && <p className="mt-2 text-sm2 font-semibold text-zine-terracotta">{BUDDY_TEXTS.together(buddyNames.join(', '))}</p>}
-        <div className="mt-3 flex items-center gap-2 text-sm2 text-zine-inkMuted">
-          <Users size={17} className="shrink-0 text-zine-terracotta" />
-          <span>{eventPeopleLine(event)}</span>
-        </div>
+        {(!unclaimedExt || (event.participantsCount || 0) > 0) && (
+          <div className="mt-3 flex items-center gap-2 text-sm2 text-zine-inkMuted">
+            <Users size={17} className="shrink-0 text-zine-terracotta" />
+            <span>{unclaimedExt ? MEETUP_TEXTS.externalCompanionsCount(event.participantsCount || others.length) : eventPeopleLine(event)}</span>
+          </div>
+        )}
         {event.maxParticipants ? (
           <div className="mt-2">
             <div className="h-2 rounded-full bg-zine-card overflow-hidden">
@@ -569,7 +602,7 @@ export const EventDetails: React.FC<{
                 className="w-full min-h-[48px] px-4 rounded-zine-sm border border-zine-sage/30 bg-zine-sage/15 text-zine-ink text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
               >
                 <MessageCircle size={19} className="shrink-0 text-zine-sage" />
-                <span>Чат сходки</span>
+                <span>{unclaimedExt ? MEETUP_TEXTS.externalChatBtn : 'Чат сходки'}</span>
               </button>
             )}
             {canAskHost && (
@@ -629,6 +662,28 @@ export const EventDetails: React.FC<{
         />
         <SmallAction onClick={() => telegramService.openLink(routeUrl)} icon={<Navigation size={20} />} label="Маршрут" />
       </div>
+
+      {/* Для автора встречи из Threads: забрать карточку в своё управление */}
+      {unclaimedExt && (
+        <div className="mt-4 p-4 rounded-zine bg-zine-card border border-zine-border">
+          <p className="text-body font-bold text-zine-ink">{MEETUP_TEXTS.externalClaimTitle}</p>
+          <p className="mt-1 text-sm2 text-zine-inkMuted">{MEETUP_TEXTS.externalClaimText}</p>
+          {event.external?.myClaimPending ? (
+            <p className="mt-3 text-sm2 font-semibold text-zine-sage">{MEETUP_TEXTS.externalClaimPending}</p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                telegramService.haptic('selection');
+                setIsClaimOpen(true);
+              }}
+              className="mt-3 w-full min-h-[48px] px-4 rounded-zine-sm border-2 border-zine-terracotta text-zine-terracotta text-sm2 font-bold flex items-center justify-center active:scale-[0.98] transition-transform cursor-pointer"
+            >
+              {MEETUP_TEXTS.externalClaimBtn}
+            </button>
+          )}
+        </div>
+      )}
 
       {!isCreator && (
         <button onClick={() => setIsReportOpen(true)} className="mt-3 w-full h-10 text-sm2 text-zine-inkMuted cursor-pointer">
@@ -693,6 +748,39 @@ export const EventDetails: React.FC<{
               className="w-14 h-14 shrink-0 rounded-zine-sm border border-zine-border text-zine-ink flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
             >
               {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
+            </button>
+          </div>
+        ) : unclaimedExt && event.external?.url ? (
+          <div className="flex gap-2">
+            <button
+              data-analytics="meetup_join"
+              onClick={() => {
+                telegramService.haptic('medium');
+                setIsJoinOpen(true);
+              }}
+              disabled={Boolean(notForMe)}
+              className={`h-14 px-3.5 shrink-0 rounded-zine-sm text-body font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer ${
+                event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : notForMe ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'border-2 border-zine-terracotta text-zine-terracotta'
+              }`}
+            >
+              {event.isJoined ? (
+                <>
+                  <Check size={19} strokeWidth={3} className="shrink-0" />
+                  <span>Я иду{myNote ? ` (${myNote})` : ''}</span>
+                </>
+              ) : (
+                <span>{MEETUP_TEXTS.externalGoBtn}</span>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                telegramService.haptic('medium');
+                telegramService.openLink(event.external!.url);
+              }}
+              className="flex-1 min-w-0 h-14 px-3 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer"
+            >
+              <ExternalLink size={18} className="shrink-0" />
+              <span className="truncate">{MEETUP_TEXTS.externalOpenShort}</span>
             </button>
           </div>
         ) : (
@@ -763,22 +851,24 @@ export const EventDetails: React.FC<{
           </div>
         )}
         {event.isJoined && !isCreator && !event.byRequest && !myPending && (
-          <div className="mt-2 flex items-center justify-between gap-3">
-            {event.myConfirmed ? (
-              <span className="min-w-0 text-sm2 text-zine-inkMuted">{MEETUP_TEXTS.confirmedMine}</span>
-            ) : (
-              <button
-                onClick={async () => {
-                  setIsConfirming(true);
-                  const updated = await confirmAttendance(event);
-                  if (updated) setLocalEvent(updated);
-                  setIsConfirming(false);
-                }}
-                disabled={isConfirming}
-                className="h-10 px-4 rounded-full bg-zine-sage text-white text-body font-bold flex items-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
-              >
-                {isConfirming ? <Loader2 size={18} className="animate-spin" /> : MEETUP_TEXTS.confirmGo}
-              </button>
+          <div className={`mt-2 flex items-center ${unclaimedExt ? 'justify-end' : 'justify-between'} gap-3`}>
+            {!unclaimedExt && (
+              event.myConfirmed ? (
+                <span className="min-w-0 text-sm2 text-zine-inkMuted">{MEETUP_TEXTS.confirmedMine}</span>
+              ) : (
+                <button
+                  onClick={async () => {
+                    setIsConfirming(true);
+                    const updated = await confirmAttendance(event);
+                    if (updated) setLocalEvent(updated);
+                    setIsConfirming(false);
+                  }}
+                  disabled={isConfirming}
+                  className="h-10 px-4 rounded-full bg-zine-sage text-white text-body font-bold flex items-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+                >
+                  {isConfirming ? <Loader2 size={18} className="animate-spin" /> : MEETUP_TEXTS.confirmGo}
+                </button>
+              )
             )}
             <button
               onClick={async () => {
@@ -831,9 +921,64 @@ export const EventDetails: React.FC<{
       )}
 
       {isBuddyOpen && <BringBuddySheet event={event} onClose={() => setIsBuddyOpen(false)} />}
+      {isClaimOpen && (
+        <ClaimEventSheet
+          event={event}
+          onClose={() => setIsClaimOpen(false)}
+          onClaimed={(updated) => {
+            applyUpdate(updated);
+            setIsClaimOpen(false);
+          }}
+        />
+      )}
       {isJoinOpen && <JoinSheet event={event} onConfirm={async (o) => onJoin(o)} onLeave={async () => onJoin(null)} onClose={() => setIsJoinOpen(false)} />}
       {isReportOpen && <ReportSheet targetType="event" targetId={event.id} targetName={event.title} onClose={() => setIsReportOpen(false)} onReported={() => onReported?.()} />}
     </div>
+  );
+};
+
+const ClaimEventSheet: React.FC<{
+  event: AppEvent;
+  onClose: () => void;
+  onClaimed: (updated: AppEvent) => void;
+}> = ({ event, onClose, onClaimed }) => {
+  const [handle, setHandle] = useState(event.external?.authorHandle || '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <BottomSheet title={MEETUP_TEXTS.externalClaimSheetTitle} onClose={onClose}>
+      <p className="text-body text-zine-inkMuted">{MEETUP_TEXTS.externalClaimSheetHint}</p>
+      <input
+        type="text"
+        value={handle}
+        onChange={(e) => setHandle(e.target.value.slice(0, 60))}
+        placeholder={MEETUP_TEXTS.externalClaimHandlePlaceholder}
+        className="field mt-4"
+      />
+      {error && <p className="mt-2 text-sm2 font-semibold text-zine-danger">{error}</p>}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            const res = await api.claimExternalEvent(String(event.id), handle.trim());
+            telegramService.haptic('success');
+            onClaimed(res.event);
+            telegramService.alert(MEETUP_TEXTS.externalClaimDone, 'info');
+          } catch (err: any) {
+            telegramService.haptic('error');
+            setError(err?.message || 'Не получилось отправить запрос, попробуй ещё раз');
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="mt-4 w-full h-14 rounded-zine-sm bg-zine-terracotta text-white text-lead font-bold flex items-center justify-center active:scale-[0.98] transition-transform cursor-pointer"
+      >
+        {busy ? <Loader2 size={22} className="animate-spin" /> : MEETUP_TEXTS.externalClaimSubmit}
+      </button>
+    </BottomSheet>
   );
 };
 

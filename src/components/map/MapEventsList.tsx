@@ -1,6 +1,6 @@
 import React from 'react';
 import { MapPin, Check } from 'lucide-react';
-import { AppEvent, eventCategoryOf, isGathering } from '../../types';
+import { AppEvent, eventCategoryOf, isGathering, isUnclaimedExternal } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { thumb } from '../../utils/thumb';
 import { formatDistance } from '../common/UserBottomSheet';
@@ -23,7 +23,8 @@ export const MapEventsList: React.FC<{
         ? empty
         : events.map((ev) => {
             const cat = eventCategoryOf(ev);
-            const people = (ev.participants?.length ? ev.participants : [ev.creator]).slice(0, 4);
+            const unclaimedExt = isUnclaimedExternal(ev);
+            const people = (ev.participants?.length ? ev.participants : unclaimedExt ? [] : [ev.creator]).slice(0, 4);
             const distance = formatDistance(ev.distanceMeters);
             return (
               <button
@@ -46,13 +47,21 @@ export const MapEventsList: React.FC<{
                     {distance && <span className="shrink-0">· {distance}</span>}
                   </span>
                   <span className="mt-2 flex items-center gap-2">
-                    <span className="flex -space-x-2 shrink-0">
-                      {people.map((p, i) => (
-                        <img key={`${p?.telegramId}-${i}`} src={thumb(p?.avatarUrl)} alt="" loading="lazy" className="w-6 h-6 rounded-full object-cover border-2 border-zine-cardElevated" />
-                      ))}
-                    </span>
-                    <span className="text-cap text-zine-inkMuted whitespace-nowrap">
-                      {isGathering(ev) ? M.gathering(ev.participantsCount || 1) : T.going(ev.participantsCount || 1, ev.maxParticipants)}
+                    {people.length > 0 && (
+                      <span className="flex -space-x-2 shrink-0">
+                        {people.map((p, i) => (
+                          <img key={`${p?.telegramId}-${i}`} src={thumb(p?.avatarUrl)} alt="" loading="lazy" className="w-6 h-6 rounded-full object-cover border-2 border-zine-cardElevated" />
+                        ))}
+                      </span>
+                    )}
+                    <span className="text-cap text-zine-inkMuted truncate">
+                      {unclaimedExt
+                        ? ev.participantsCount
+                          ? `${M.externalSource(ev.external?.authorHandle, ev.external?.authorName)} · идут ${ev.participantsCount}`
+                          : M.externalSource(ev.external?.authorHandle, ev.external?.authorName)
+                        : isGathering(ev)
+                          ? M.gathering(ev.participantsCount || 1)
+                          : T.going(ev.participantsCount || 1, ev.maxParticipants)}
                     </span>
                     {ev.isJoined && (
                       <span className="ml-auto h-6 px-2 rounded-full bg-zine-sage text-white text-cap font-bold flex items-center gap-1 whitespace-nowrap">

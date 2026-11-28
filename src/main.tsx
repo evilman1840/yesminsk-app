@@ -60,6 +60,9 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') =
 } else if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'direct-chat') {
   // ?preview=direct-chat — личный чат 1 на 1 на тестовых данных
   import('./dev/DirectChatPreview').then(({ DirectChatPreview }) => root.render(<DirectChatPreview />));
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'threads') {
+  // ?preview=threads — карточки внешних встреч из Threads и «Забрать встречу себе»
+  import('./dev/ThreadsEventPreview').then(({ ThreadsEventPreview }) => root.render(<ThreadsEventPreview />));
 } else {
   root.render(
     <React.StrictMode>

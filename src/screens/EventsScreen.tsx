@@ -2,7 +2,7 @@ import { SerialTvSlot, useSerialTv } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { thumb, NO_PHOTO } from '../utils/thumb';
 import { Plus, Check, Loader2, Edit2, Trash2, Repeat2, Navigation, MapPinned, Share2, ChevronRight, EyeOff, SlidersHorizontal, X, MapPin } from 'lucide-react';
-import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, EVENT_CATEGORY_ROWS, LEGACY_CATEGORIES, isLegacyCategory, eventCategoryOf, isGathering, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats, PayTo } from '../types';
+import { AppEvent, AudienceGender, audienceLabel, EventCategory, EVENT_CATEGORIES_CONFIG, EVENT_CATEGORY_ROWS, LEGACY_CATEGORIES, isLegacyCategory, eventCategoryOf, isGathering, isUnclaimedExternal, EventTag, EVENT_TAGS, JoinOptions, EventWhen, EVENT_WHEN, matchesWhen, EventPayload, EventTemplate, TemplateField, CUSTOM_TEMPLATE, SUPPORT_RULES, MeetupCreateRequest, MeetupPlace, MeetupFormSource, PlaceItem, WishSummaryItem, WishWindow, MeetupStats, PayTo } from '../types';
 import { telegramService } from '../services/telegram';
 import { api } from '../services/api';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -2108,10 +2108,11 @@ export const EventReel: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const cat = eventCategoryOf(ev);
+  const unclaimedExt = isUnclaimedExternal(ev);
   const isFull = !ev.isJoined && Boolean(ev.maxParticipants) && (ev.participantsCount || 1) >= ev.maxParticipants;
   const notForMe = !ev.isJoined ? ev.notForMe : undefined;
-  // Все, кто идёт; если сервер ещё старый и прислал не всех — хотя бы организатор
-  const people = ev.participants?.length ? ev.participants : [ev.creator];
+  // Все, кто идёт; у внешней находки из Threads без записавшихся заглушку автора не рисуем
+  const people = ev.participants?.length ? ev.participants : unclaimedExt ? [] : [ev.creator];
   // «Аня, Дима +3 идут»: сначала знакомые (на связи, кому передал 👋), потом остальные
   const isFriend = (p: (typeof people)[number]) => Boolean(p && spotlight?.friendIds.has(Number(p.telegramId)));
   const goingPeople = spotlight ? [...people.filter(isFriend), ...people.filter((p) => p && !isFriend(p))] : [];
@@ -2154,20 +2155,26 @@ export const EventReel: React.FC<{
           {ev.durationMinutes ? <span className="ml-1 font-normal text-white/75">· {M.duration(ev.durationMinutes)}</span> : null}
         </span>
         {!spotlight && (
-          <span className="absolute right-3 top-3 h-9 pl-1 pr-3 rounded-full bg-black/65 backdrop-blur-sm text-white text-sm2 font-bold flex items-center gap-2 whitespace-nowrap pointer-events-none">
-            <span className="flex -space-x-2">
-              {people.slice(0, 3).map((p, i) => (
-                <img
-                  key={`${p?.telegramId}-${i}`}
-                  src={thumb(p?.avatarUrl) || NO_PHOTO}
-                  alt=""
-                  loading="lazy"
-                  className={`w-7 h-7 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-black/40'}`}
-                />
-              ))}
+          people.length > 0 ? (
+            <span className="absolute right-3 top-3 h-9 pl-1 pr-3 rounded-full bg-black/65 backdrop-blur-sm text-white text-sm2 font-bold flex items-center gap-2 whitespace-nowrap pointer-events-none">
+              <span className="flex -space-x-2">
+                {people.slice(0, 3).map((p, i) => (
+                  <img
+                    key={`${p?.telegramId}-${i}`}
+                    src={thumb(p?.avatarUrl) || NO_PHOTO}
+                    alt=""
+                    loading="lazy"
+                    className={`w-7 h-7 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-black/40'}`}
+                  />
+                ))}
+              </span>
+              {ev.maxParticipants ? `${ev.participantsCount || 1} из ${ev.maxParticipants}` : `${ev.participantsCount || people.length}`}
             </span>
-            {ev.maxParticipants ? `${ev.participantsCount || 1} из ${ev.maxParticipants}` : `${ev.participantsCount || 1}`}
-          </span>
+          ) : (
+            <span className="absolute right-3 top-3 h-9 px-3 rounded-full bg-black/65 backdrop-blur-sm text-white text-sm2 font-bold flex items-center whitespace-nowrap pointer-events-none">
+              {M.externalShortBadge}
+            </span>
+          )
         )}
         {spotlight && goingNames.length > 0 && (
           <div className="absolute left-3 bottom-3 max-w-[calc(100%-24px)] pl-2 pr-3 py-1.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-cap font-semibold flex items-center gap-2 pointer-events-none">
@@ -2215,10 +2222,16 @@ export const EventReel: React.FC<{
             «Стесняешься?» — в подробностях сходки */}
         <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm2 text-zine-inkMuted">
           <span className="min-w-0">
-            <span className="font-semibold text-zine-ink">{isCreator ? M.hostMine : M.hostLine(ev.creator?.name || '')}</span>
-            {ev.host && ev.host.held > 0 && ` · ${M.hostedCount(ev.host.held)}`}
+            <span className="font-semibold text-zine-ink">
+              {unclaimedExt
+                ? M.externalSource(ev.external?.authorHandle, ev.external?.authorName)
+                : isCreator
+                  ? M.hostMine
+                  : M.hostLine(ev.creator?.name || '')}
+            </span>
+            {!unclaimedExt && ev.host && ev.host.held > 0 && ` · ${M.hostedCount(ev.host.held)}`}
           </span>
-          {ev.host && <HostBadges host={ev.host} />}
+          {!unclaimedExt && ev.host && <HostBadges host={ev.host} />}
         </p>
       </div>
 
@@ -2252,6 +2265,30 @@ export const EventReel: React.FC<{
                 className="w-12 h-12 shrink-0 rounded-full border border-zine-border flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
               >
                 {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
+              </button>
+            </>
+          ) : unclaimedExt && ev.external?.url ? (
+            <>
+              {!ev.isJoined && (
+                <button
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    onNotInterested();
+                  }}
+                  aria-label="Скрыть"
+                  className="w-12 h-12 shrink-0 rounded-full border border-zine-border flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+                >
+                  <EyeOff size={20} />
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  telegramService.haptic('medium');
+                  telegramService.openLink(ev.external!.url);
+                }}
+                className="flex-1 min-w-0 h-12 px-4 rounded-full bg-zine-terracotta text-white text-body font-bold flex items-center justify-center whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                <span className="truncate">{M.externalOpenShort}</span>
               </button>
             </>
           ) : (
@@ -2297,10 +2334,29 @@ export const EventReel: React.FC<{
             </>
           )}
         </div>
+        {/* Внешняя встреча из Threads: спокойная кнопка «Пойти туда за компанию» под главной кнопкой */}
+        {unclaimedExt && !ev.isJoined && !isCreator && !notForMe && (
+          <div className="mt-1.5 flex items-center justify-center">
+            <button
+              type="button"
+              data-analytics="meetup_join"
+              onClick={onJoin}
+              disabled={isJoining}
+              className="min-h-[40px] px-3 text-sm2 font-bold text-zine-terracotta flex items-center gap-1.5 active:scale-[0.98] transition-transform cursor-pointer"
+            >
+              {isJoining ? <Loader2 size={16} className="animate-spin" /> : M.externalGoShort}
+            </button>
+          </div>
+        )}
         {/* Записан(а) — «Точно приду» и заметная отмена прямо на карточке */}
         {ev.isJoined && !isCreator && (
           <div className="mt-2 flex items-center justify-center gap-5">
-            {!ev.myConfirmed && (
+            {unclaimedExt && (
+              <span className="text-sm2 font-bold text-zine-sage flex items-center gap-1">
+                <Check size={16} strokeWidth={3} /> Я иду за компанию{ev.myGuests ? ` +${ev.myGuests}` : ''}
+              </span>
+            )}
+            {!ev.myConfirmed && !unclaimedExt && (
               <button
                 onClick={async () => {
                   setIsConfirming(true);

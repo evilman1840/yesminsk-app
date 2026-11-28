@@ -681,6 +681,14 @@ class ApiService {
     return this.request(`/events/${eventId}/handover`, { method: 'POST' });
   }
 
+  // Настоящий автор из Threads просит передать внешнюю карточку встречи в своё управление
+  async claimExternalEvent(eventId: string, handle?: string): Promise<{ ok: boolean; event: AppEvent }> {
+    return this.request(`/events/${encodeURIComponent(eventId)}/claim`, {
+      method: 'POST',
+      body: JSON.stringify({ ...(handle ? { handle } : {}) })
+    });
+  }
+
   // Модератор удаляет чужую сходку; reason — его текст организатору
   async adminDeleteEvent(eventId: string, reason: string): Promise<{ success: boolean }> {
     return this.request(`/events/${eventId}/delete`, { method: 'POST', body: JSON.stringify({ reason }) });

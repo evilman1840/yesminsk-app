@@ -269,8 +269,22 @@ export const GOES_WITH: Record<GoesWith, { label: string; emoji: string }> = {
   kids: { label: 'С детьми', emoji: '👨‍👩‍👧' }
 };
 
+export interface EventExternal {
+  platform: 'threads' | 'telegram' | 'web';
+  url: string;
+  authorName: string;
+  authorHandle?: string;
+  priceNote?: string;
+  claimed?: boolean;
+  myClaimPending?: boolean;
+}
+
+export const isUnclaimedExternal = (ev?: { external?: EventExternal } | null): boolean =>
+  Boolean(ev?.external && !ev.external.claimed);
+
 export interface AppEvent {
   id: string;
+  external?: EventExternal;
   likesCount?: number;
   isLiked?: boolean;
   distanceMeters?: number; // от моего места из анкеты (сервер считает)
