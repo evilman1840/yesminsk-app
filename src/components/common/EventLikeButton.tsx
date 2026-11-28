@@ -46,7 +46,7 @@ export const EventLikeButton: React.FC<{ event: AppEvent }> = ({ event }) => {
   };
   return <button type="button" onClick={toggle} disabled={busy} aria-busy={busy} aria-pressed={Boolean(state.isLiked)}
     aria-label={`${state.isLiked ? 'Убрать лайк' : 'Нравится'}. Лайков: ${state.likesCount || 0}`}
-    className={`relative shrink-0 w-14 min-h-[64px] rounded-full flex flex-col items-center justify-center gap-0.5 border shadow-sm active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-zine-terracotta ${state.isLiked ? 'bg-zine-terracotta text-zine-paper border-zine-terracotta' : 'bg-zine-paper text-zine-terracotta border-zine-border'} ${busy ? 'opacity-60' : ''}`}>
+    className={`relative shrink-0 w-14 min-h-[64px] rounded-full flex flex-col items-center justify-center gap-0.5 border shadow-sm active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-zine-terracotta ${state.isLiked ? 'bg-zine-terracotta text-white border-zine-terracotta' : 'bg-zine-paper text-zine-terracotta border-zine-border'} ${busy ? 'opacity-60' : ''}`}>
     <span key={burst} className={`relative flex items-center justify-center ${burst ? 'event-like-pop' : ''}`}>
       <Heart size={27} strokeWidth={2.3} fill={state.isLiked ? 'currentColor' : 'none'} />
       {burst > 0 && Array.from({ length: 6 }, (_, i) => <i key={i} aria-hidden className="event-like-spark" style={{ '--spark-x': `${Math.cos(i * Math.PI / 3) * 33}px`, '--spark-y': `${Math.sin(i * Math.PI / 3) * 33}px` } as React.CSSProperties} />)}

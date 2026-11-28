@@ -1036,43 +1036,46 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       <div className="shrink-0 px-3 pt-3 pb-3 text-zine-ink">
         <div className="relative flex items-center gap-1.5">
           {/* ⭐ мои (собираю или иду), затем когда: все / сегодня / завтра / выходные — как на карте */}
-          <div className="flex-1 min-w-0 flex p-[3px] rounded-full bg-zine-card overflow-x-auto no-scrollbar">
-            <button
-              onClick={openMine}
-              aria-label={M.mineFilter}
-              className={`relative shrink-0 w-11 h-11 px-0.5 rounded-full text-[16px] leading-none flex items-center justify-center transition-all cursor-pointer ${
-                onlyMine || mineHint ? 'bg-white' : 'bg-zine-mustard/20'
-              } ${mineHint ? 'mine-pulse' : ''}`}
-            >
-              ⭐
-              {/* Есть свои впереди — цифра, как на вкладках: звезда сразу выглядит нажимаемой */}
-              {!onlyMine && upcomingMineCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center ring-2 ring-zine-card">
-                  {upcomingMineCount}
-                </span>
-              )}
-            </button>
-            <button aria-label="Понравившиеся сходки" aria-pressed={onlyLiked}
-              onClick={() => { telegramService.haptic('selection'); setOnlyLiked(true); setOnlyMine(false); setMineHint(false); setEventWhen('all'); setSelectedCategory('all'); }}
-              className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center active:scale-[0.98] transition-transform ${onlyLiked ? 'bg-zine-terracotta text-zine-paper' : 'text-zine-terracotta'}`}>
-              <Heart size={21} fill={onlyLiked ? 'currentColor' : 'none'} />
-            </button>
-            {EVENT_WHEN.map(([id, label]) => (
+          <div className="relative flex-1 min-w-0 rounded-full bg-zine-card overflow-hidden">
+            <div className="flex p-[3px] pr-6 overflow-x-auto no-scrollbar">
               <button
-                key={id}
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setOnlyMine(false);
-                  setOnlyLiked(false);
-                  setEventWhen(id);
-                }}
-                className={`shrink-0 min-w-11 h-11 px-2 rounded-full text-[14px] font-bold flex items-center justify-center transition-all cursor-pointer ${
-                  !onlyMine && !onlyLiked && eventWhen === id ? 'bg-zine-ink text-zine-paper' : 'text-zine-inkMuted'
-                }`}
+                onClick={openMine}
+                aria-label={M.mineFilter}
+                className={`relative shrink-0 w-11 h-11 px-0.5 rounded-full text-[16px] leading-none flex items-center justify-center transition-all cursor-pointer ${
+                  onlyMine || mineHint ? 'bg-white' : 'bg-zine-mustard/20'
+                } ${mineHint ? 'mine-pulse' : ''}`}
               >
-                <span className="truncate">{label}</span>
+                ⭐
+                {/* Есть свои впереди — цифра, как на вкладках: звезда сразу выглядит нажимаемой */}
+                {!onlyMine && upcomingMineCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-zine-terracotta text-white text-[11px] font-bold flex items-center justify-center ring-2 ring-zine-card">
+                    {upcomingMineCount}
+                  </span>
+                )}
               </button>
-            ))}
+              <button aria-label="Понравившиеся сходки" aria-pressed={onlyLiked}
+                onClick={() => { telegramService.haptic('selection'); setOnlyLiked(true); setOnlyMine(false); setMineHint(false); setEventWhen('all'); setSelectedCategory('all'); }}
+                className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center active:scale-[0.98] transition-transform ${onlyLiked ? 'bg-zine-terracotta text-white' : 'text-zine-terracotta'}`}>
+                <Heart size={21} fill={onlyLiked ? 'currentColor' : 'none'} />
+              </button>
+              {EVENT_WHEN.map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setOnlyMine(false);
+                    setOnlyLiked(false);
+                    setEventWhen(id);
+                  }}
+                  className={`shrink-0 min-w-11 h-11 px-2 rounded-full text-[14px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                    !onlyMine && !onlyLiked && eventWhen === id ? 'bg-zine-ink text-zine-paper' : 'text-zine-inkMuted'
+                  }`}
+                >
+                  <span className="truncate">{label}</span>
+                </button>
+              ))}
+            </div>
+            <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-7 bg-gradient-to-l from-zine-card via-zine-card/85 to-transparent" />
           </div>
 
           {tv ? <SerialTvSlot /> : filterButton('rounded-full')}
@@ -1118,7 +1121,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
             <span className={`w-7 h-7 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center text-[15px] leading-none ${tv ? 'max-[369px]:hidden' : ''}`} aria-hidden>🙋</span>
             <span className="min-w-0 text-body font-bold text-zine-ink truncate">{WISH_TEXTS.barTitle}</span>
             {totalWishes !== null && (
-              <span className="min-w-[24px] h-6 px-2 shrink-0 rounded-full bg-zine-terracotta text-zine-paper text-cap font-bold tabular-nums flex items-center justify-center">{totalWishes.toLocaleString('ru-RU')}</span>
+              <span className="min-w-[24px] h-6 px-2 shrink-0 rounded-full bg-zine-terracotta text-white text-cap font-bold tabular-nums flex items-center justify-center">{totalWishes.toLocaleString('ru-RU')}</span>
             )}
             {/* Рядом фильтры — стрелку убираем, чтобы «Хочу сходить» не обрезалось */}
             {!tv && <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />}
@@ -1213,7 +1216,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       ) : onlyLiked && likesError ? (
         <div className="h-full flex flex-col items-center justify-center gap-4 px-6 text-center text-zine-ink">
           <p>Не удалось загрузить понравившиеся сходки</p>
-          <button className="min-h-12 px-5 rounded-full bg-zine-terracotta text-zine-paper font-bold" onClick={() => setLikesRetry(n => n + 1)}>Попробовать ещё раз</button>
+          <button className="min-h-12 px-5 rounded-full bg-zine-terracotta text-white font-bold cursor-pointer" onClick={() => setLikesRetry(n => n + 1)}>Попробовать ещё раз</button>
         </div>
       ) : feedItems.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-center px-8 text-zine-ink">
