@@ -221,14 +221,13 @@ export const MEETUP_TEXTS = {
 
   // Находки из Threads (пока сам автор не забрал встречу в своё управление)
   externalRibbon: 'Находка в Threads',
-  externalHandNote: 'за компанию!',
   externalSource: (handle?: string, name?: string) => (handle ? `Автор в Threads · @${handle}` : `Автор в Threads · ${name || 'автор'}`),
   externalShortBadge: '@ Threads',
   externalOpenShort: 'В Threads ↗',
   externalOpenBtn: 'В Threads',
   externalOpenPost: 'Открыть пост в Threads',
-  externalGoShort: '🙋 Пойти туда за компанию',
-  externalGoBtn: '🙋 За компанию',
+  externalGoShort: '🙋 Пойти за компанию',
+  externalGoBtn: '🙋 Пойти за компанию',
   externalFilterTitle: 'Откуда встреча',
   externalFilterAll: 'Все встречи',
   externalFilterChip: 'Из Threads',

@@ -1156,110 +1156,54 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </div>
         )}
 
-        {/* «Хочу сходить» в одну строку высотой с «Собрать»: шторка желаний (выбрать, куда хочется).
-            Кто уже хочет — первой пилюлей в ряду ниже, она ведёт на список этих людей */}
-        <div className="mt-3 flex items-center gap-2 min-h-12">
+        {/* «Хочу сходить» в одну строку с кубком «Организаторы месяца» и «Собрать» */}
+        <div className="mt-2.5 flex items-center gap-1.5 min-h-12">
           <button
             onClick={() => openWish()}
             aria-label={totalWishes === null ? 'Хочу: выбрать желание и посмотреть желания людей' : `Хочу: всего активных хотелок ${totalWishes}. Выбрать желание и посмотреть желания людей`}
-            className="min-w-0 h-12 flex-none pl-2 pr-3 rounded-full bg-zine-card border border-zine-border flex items-center gap-2 text-left active:scale-[0.98] transition-transform cursor-pointer"
+            className="min-w-0 h-11 flex-none pl-2 pr-2.5 rounded-full bg-zine-card border border-zine-border flex items-center gap-1.5 text-left active:scale-[0.98] transition-transform cursor-pointer"
           >
-            <span className={`w-7 h-7 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center text-[15px] leading-none ${tv ? 'max-[369px]:hidden' : ''}`} aria-hidden>🙋</span>
+            <span className={`w-7 h-7 shrink-0 rounded-full bg-zine-terracotta text-white flex items-center justify-center text-[15px] leading-none ${tv ? 'max-[379px]:hidden' : ''}`} aria-hidden>🙋</span>
             <span className="min-w-0 text-body font-bold text-zine-ink truncate">{WISH_TEXTS.barTitle}</span>
             {totalWishes !== null && (
               <span className="min-w-[24px] h-6 px-2 shrink-0 rounded-full bg-zine-terracotta text-white text-cap font-bold tabular-nums flex items-center justify-center">{totalWishes.toLocaleString('ru-RU')}</span>
             )}
-            {/* Рядом фильтры — стрелку убираем, чтобы «Хочу сходить» не обрезалось */}
-            {!tv && <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />}
+            {!tv && monthHosts.length === 0 && <ChevronRight size={18} className="shrink-0 text-zine-inkMuted" />}
           </button>
           <span className="flex-1" aria-hidden />
+          {/* 🏆 «Организаторы месяца» — компактной круглой кнопкой рядом с фильтрами/«Собрать», без отдельного третьего ряда */}
+          {monthHosts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                telegramService.haptic('selection');
+                setIsHostsOpen(true);
+                if (!hostsSeen) {
+                  setHostsSeen(true);
+                  try {
+                    localStorage.setItem(HOSTS_SEEN_KEY, '1');
+                  } catch {}
+                }
+              }}
+              aria-label={M.hostsTitle}
+              className={`w-11 h-11 shrink-0 rounded-full bg-zine-card border border-zine-border text-[18px] leading-none flex items-center justify-center active:scale-95 transition-transform cursor-pointer ${
+                hostsSeen ? '' : 'mine-pulse border-zine-mustard'
+              }`}
+            >
+              🏆
+            </button>
+          )}
           {/* С телевизором сериала в шапке фильтры переезжают сюда */}
           {tv && filterButton('rounded-full')}
           {/* Не нашлось подходящей — собрать свою */}
           <button
             data-analytics="meetup_create" onClick={() => handleOpenCreateModal(undefined, undefined, 'feed')}
-            className="h-12 px-4 shrink-0 rounded-full bg-zine-terracotta active:bg-zine-terracottaHover text-white text-sm2 font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform cursor-pointer"
+            className="h-11 px-3.5 shrink-0 rounded-full bg-zine-terracotta active:bg-zine-terracottaHover text-white text-sm2 font-bold flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer"
           >
-            <Plus size={20} strokeWidth={2.5} />
+            <Plus size={19} strokeWidth={2.5} />
             <span>{M.createButtonShort}</span>
           </button>
         </div>
-        {/* Быстрые желания: вид в одно нажатие, дальше только «когда» */}
-        {(wishKinds.length > 0 || topWish || monthHosts.length > 0 || myWishCount > 0) && (
-          <div className="mt-2 -mx-3 px-3 flex gap-1.5 overflow-x-auto no-scrollbar">
-            {/* 🏆 «Организаторы месяца» — тот же список, что карточкой в ленте. Первым в ряду чипов: в ряду с «Хочу сходить» он обрезал надпись; организаторов нет — кнопки нет */}
-            {monthHosts.length > 0 && (
-              <button
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  setIsHostsOpen(true);
-                  if (!hostsSeen) {
-                    setHostsSeen(true);
-                    try {
-                      localStorage.setItem(HOSTS_SEEN_KEY, '1');
-                    } catch {}
-                  }
-                }}
-                aria-label={M.hostsTitle}
-                className={`w-9 h-9 shrink-0 rounded-full bg-zine-card border border-zine-border text-[17px] leading-none flex items-center justify-center active:scale-95 transition-transform cursor-pointer ${hostsSeen ? '' : 'mine-pulse border-zine-mustard'}`}
-              >
-                🏆
-              </button>
-            )}
-            {/* Свои активные желания: сразу открывает шторку на списке «Мои желания» */}
-            {myWishCount > 0 && (
-              <button
-                onClick={() => openWish(undefined, true)}
-                className="h-9 pl-2.5 pr-2 shrink-0 rounded-full bg-zine-card border border-zine-terracotta/40 text-sm2 font-semibold text-zine-terracotta flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
-              >
-                <span className="whitespace-nowrap">{WISH_TEXTS.myWishesChip}</span>
-                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-zine-terracotta text-white text-cap font-bold tabular-nums flex items-center justify-center">{myWishCount}</span>
-              </button>
-            )}
-            {/* «2 человека хотят на выставку на неделе» — список этих людей: 👋, позвать в компанию, «Я тоже хочу» */}
-            {topWish && (
-              <button
-                onClick={() => {
-                  telegramService.haptic('selection');
-                  if (onOpenWishPeople) onOpenWishPeople(topWish);
-                  else openWish();
-                }}
-                className="h-9 pl-2.5 pr-3 shrink-0 rounded-full bg-zine-terracotta/15 border border-zine-terracotta/30 text-sm2 font-semibold text-zine-terracotta flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
-              >
-                <span aria-hidden>🙋</span>
-                <span className="whitespace-nowrap">{wishCounter(topWish)}</span>
-                <span aria-hidden className="font-bold">→</span>
-              </button>
-            )}
-            {wishKinds.map((t) => {
-              const n = wishKindCount(t.key);
-              return (
-                <button
-                  key={t.key}
-                  // Кто-то уже хочет — список людей (👋, позвать в компанию, «Я тоже хочу»); никого — сразу форма желания
-                  onClick={() => {
-                    if (n > 0 && onOpenWishKind) {
-                      telegramService.haptic('selection');
-                      onOpenWishKind(t.key, wishSummary.some((s) => s.kind === t.key && s.includesMe));
-                    } else openWish({ kind: t.key });
-                  }}
-                  className="h-9 pl-2.5 pr-3 shrink-0 rounded-full bg-zine-card border border-zine-border text-sm2 font-semibold text-zine-ink flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
-                >
-                  <span aria-hidden>{t.emoji}</span>
-                  <span className="whitespace-nowrap">{t.name}</span>
-                  {n > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-zine-terracotta/15 text-zine-terracotta text-cap font-bold flex items-center justify-center">{n}</span>}
-                </button>
-              );
-            })}
-            <button
-              onClick={() => openWish({ kind: CUSTOM_TEMPLATE })}
-              className="h-9 px-3 shrink-0 rounded-full bg-zine-card border border-zine-border text-sm2 font-semibold text-zine-ink flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
-            >
-              <span aria-hidden>✍️</span>
-              <span className="whitespace-nowrap">{WISH_TEXTS.quickOther}</span>
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="relative flex-1 min-h-0">
@@ -1403,12 +1347,26 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </div>
           <p className="mb-2.5 text-body font-bold text-zine-ink">Что за сходка</p>
           <div className="flex flex-wrap gap-2">
-            {categoryItems.map(([id, label, emoji]) => (
-              <FilterChip key={id} active={selectedCategory === id} onClick={() => setSelectedCategory(id)}>
-                {emoji && <span className="text-[18px] leading-none">{emoji}</span>}
-                <span>{label}</span>
-              </FilterChip>
-            ))}
+            {categoryItems.map(([id, label, emoji]) => {
+              const catCount =
+                id === 'all'
+                  ? 0
+                  : events.filter(
+                      (e) =>
+                        !notInterestedEvents.has(String(e.id)) &&
+                        (!onlyThreads || Boolean(e.external)) &&
+                        matchesWhen(e.dateTime, eventWhen) &&
+                        Number(e.creator?.telegramId) !== Number(currentUserId) &&
+                        new Date(e.dateTime).getTime() > Date.now() - 30 * 60 * 1000 &&
+                        (id === 'kids' ? e.tags?.includes('kids') : e.category === id)
+                    ).length;
+              return (
+                <FilterChip key={id} active={selectedCategory === id} onClick={() => setSelectedCategory(id)}>
+                  {emoji && <span className="text-[18px] leading-none">{emoji}</span>}
+                  <span>{label}{catCount > 0 ? ` (${catCount})` : ''}</span>
+                </FilterChip>
+              );
+            })}
           </div>
           <div className="mt-6 grid grid-cols-[auto_1fr] gap-2">
             <button
@@ -2193,7 +2151,7 @@ export const EventReel: React.FC<{
         spotlight
           ? 'flex flex-col reel-night top-2 bottom-2 left-2 right-2 rounded-zine bg-zine-paper text-zine-ink shadow-zine-float'
           : unclaimedExt
-            ? 'flex flex-col top-1 bottom-2 left-2.5 right-2.5 rounded-zine border-2 border-dashed border-zine-mustard/80 bg-zine-cardElevated text-zine-ink shadow-zine overflow-hidden'
+            ? 'flex flex-col top-0.5 bottom-1.5 left-2.5 right-2.5 rounded-zine border-2 border-dashed border-zine-mustard/80 bg-zine-cardElevated text-zine-ink shadow-zine overflow-hidden'
             : 'flex flex-col'
       }
       rightLabel="Подробнее"
@@ -2205,8 +2163,10 @@ export const EventReel: React.FC<{
       {spotlight && <p className="shrink-0 px-4 pt-3 pb-2 text-sm2 font-bold text-zine-terracotta">✨ {spotlight.label}</p>}
       {!spotlight && unclaimedExt && (
         <div
-          onClick={onOpenDetails}
-          className="shrink-0 px-3.5 py-2 bg-zine-mustard/15 border-b border-dashed border-zine-mustard/50 flex items-center justify-between gap-2 cursor-pointer"
+          onClick={(e) => {
+            if (!(e.target as HTMLElement).closest('button')) onOpenDetails();
+          }}
+          className="shrink-0 pl-3 pr-2 py-1 bg-zine-mustard/15 border-b border-dashed border-zine-mustard/50 flex items-center justify-between gap-2 cursor-pointer"
         >
           <span className="inline-flex items-center gap-1.5 min-w-0">
             <span className="w-5 h-5 shrink-0 rounded-full bg-zine-ink text-zine-paper text-[12px] font-extrabold leading-none flex items-center justify-center" aria-hidden>
@@ -2214,16 +2174,40 @@ export const EventReel: React.FC<{
             </span>
             <span className="text-cap font-extrabold tracking-tight text-zine-ink truncate">{M.externalRibbon}</span>
           </span>
-          <span className="shrink-0 font-hand text-[20px] font-bold leading-none text-zine-mustardInk">{M.externalHandNote}</span>
+          <span className="shrink-0 flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                telegramService.haptic('selection');
+                telegramService.shareEvent(ev);
+              }}
+              aria-label="Позвать друзей"
+              className="w-8 h-8 rounded-full text-zine-inkMuted hover:bg-zine-ink/10 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+            >
+              <Share2 size={16} />
+            </button>
+            {!ev.isJoined && (
+              <button
+                type="button"
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  onNotInterested();
+                }}
+                aria-label="Скрыть"
+                className="w-8 h-8 rounded-full text-zine-inkMuted hover:bg-zine-ink/10 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+              >
+                <EyeOff size={16} />
+              </button>
+            )}
+          </span>
         </div>
       )}
-      {/* Обложка: первое фото сходки, без фото — цвет категории и крупный значок (а у находок из Threads — журнальная обложка со знаком @).
-          Поверх — главное, что читается за секунду: категория и кто идёт — сверху, когда — снизу */}
+      {/* Обложка: первое фото сходки, без фото — цвет категории и крупный значок (а у находок из Threads — широкая обложка с разведёнными по углам плашками) */}
       <div
         ref={reelRef}
         onClick={onOpenDetails}
-        className={`relative ${unclaimedExt ? 'mx-2.5 mt-2.5 rounded-zine-sm' : 'mx-3 rounded-zine'} flex-1 min-h-[26%] overflow-hidden bg-gradient-to-br cursor-pointer ${
-          unclaimedExt ? 'from-[#3D2E1E] via-[#2A221B] to-[#171412]' : REEL_BG[ev.category] || REEL_BG.walk
+        className={`relative ${unclaimedExt ? 'mx-2 mt-1.5 rounded-zine-sm min-h-[104px]' : 'mx-3 rounded-zine min-h-[30%]'} flex-1 overflow-hidden bg-gradient-to-br cursor-pointer ${
+          unclaimedExt ? 'from-[#433220] via-[#2B221A] to-[#1A1512]' : REEL_BG[ev.category] || REEL_BG.walk
         }`}
       >
         {ev.photos?.length ? (
@@ -2233,55 +2217,79 @@ export const EventReel: React.FC<{
             <div
               aria-hidden
               className="absolute inset-0 pointer-events-none"
-              style={{ background: 'radial-gradient(circle at 50% 45%, rgba(226, 160, 63, 0.30), transparent 68%)' }}
+              style={{ background: 'radial-gradient(circle at 65% 50%, rgba(226, 160, 63, 0.28), transparent 65%)' }}
             />
-            <span aria-hidden className="absolute -right-3 -bottom-8 text-[144px] font-sans font-black leading-none text-white/[0.07] select-none pointer-events-none">
+            <span aria-hidden className="absolute -right-2 -bottom-7 text-[116px] font-sans font-black leading-none text-white/[0.07] select-none pointer-events-none">
               @
             </span>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-24 h-24 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[56px] leading-none select-none shadow-zine">
-                {emoji || cat.emoji}
-              </div>
-            </div>
+            <span aria-hidden className="absolute right-[78px] top-1/2 -translate-y-1/2 text-[52px] leading-none opacity-35 select-none pointer-events-none">
+              {emoji || cat.emoji}
+            </span>
           </>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-[88px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>
         )}
-        <div className="absolute right-3 top-16 z-10"><EventLikeButton event={ev} /></div>
-        <span className="absolute left-3 top-3 max-w-[calc(100%-148px)] h-9 px-3 rounded-full bg-black/55 backdrop-blur-sm text-white text-sm2 font-semibold flex items-center gap-1.5 pointer-events-none truncate">
-          {ev.isOfficial && <span className="text-zine-mustard">⭐</span>}
-          <span aria-hidden>{cat.emoji}</span>
-          <span className="truncate">{cat.label}</span>
-        </span>
-        <span className={`absolute left-3 ${spotlight ? 'top-14' : 'bottom-3'} max-w-[calc(100%-24px)] h-10 px-3.5 rounded-full bg-black/65 backdrop-blur-sm text-white text-body font-bold flex items-center whitespace-nowrap pointer-events-none`}>
-          {coverDate(ev.dateTime)}
-          {ev.durationMinutes ? <span className="ml-1 font-normal text-white/75">· {M.duration(ev.durationMinutes)}</span> : null}
-        </span>
-        {!spotlight && (
-          people.length > 0 ? (
-            <span
-              className={`absolute right-3 top-3 h-9 pl-1 pr-3 rounded-full backdrop-blur-sm text-white text-sm2 font-bold flex items-center gap-2 whitespace-nowrap pointer-events-none ${
-                unclaimedExt ? 'bg-black/75 border border-zine-mustard/60' : 'bg-black/65'
-              }`}
-            >
-              <span className="flex -space-x-2">
-                {people.slice(0, 3).map((p, i) => (
-                  <img
-                    key={`${p?.telegramId}-${i}`}
-                    src={thumb(p?.avatarUrl) || NO_PHOTO}
-                    alt=""
-                    loading="lazy"
-                    className={`w-7 h-7 rounded-full object-cover border-2 ${p && 'confirmed' in p && p.confirmed ? 'border-zine-sage' : 'border-black/40'}`}
-                  />
-                ))}
+        {/* У находок из Threads правая колонка целиком отдана сердечку по центру — ничто сверху и снизу с ним не пересекается */}
+        <div className={`absolute z-10 ${unclaimedExt ? 'right-2.5 top-1/2 -translate-y-1/2' : 'right-3 top-16'}`}>
+          <EventLikeButton event={ev} />
+        </div>
+        {unclaimedExt ? (
+          <div className="absolute left-2.5 top-2.5 right-[76px] flex items-center gap-1.5 pointer-events-none">
+            <span className="h-8 px-2.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-cap font-semibold flex items-center gap-1.5 min-w-0 truncate">
+              <span aria-hidden>{cat.emoji}</span>
+              <span className="truncate">{cat.label}</span>
+            </span>
+            {!spotlight && people.length > 0 && (
+              <span className="shrink-0 h-8 pl-1 pr-2.5 rounded-full bg-zine-mustard text-[#2B2623] text-cap font-extrabold flex items-center gap-1.5 whitespace-nowrap shadow-zine-sm">
+                <span className="flex -space-x-1.5">
+                  {people.slice(0, 3).map((p, i) => (
+                    <img
+                      key={`${p?.telegramId}-${i}`}
+                      src={thumb(p?.avatarUrl) || NO_PHOTO}
+                      alt=""
+                      loading="lazy"
+                      className="w-5 h-5 rounded-full object-cover border border-[#2B2623]/30"
+                    />
+                  ))}
+                </span>
+                <span>🙋 {ev.participantsCount || people.length}</span>
               </span>
-              {ev.maxParticipants ? `${ev.participantsCount || 1} из ${ev.maxParticipants}` : `${ev.participantsCount || people.length}`}
+            )}
+          </div>
+        ) : (
+          <span className="absolute left-3 top-3 max-w-[calc(100%-148px)] h-9 px-3 rounded-full bg-black/55 backdrop-blur-sm text-white text-sm2 font-semibold flex items-center gap-1.5 pointer-events-none truncate">
+            {ev.isOfficial && <span className="text-zine-mustard">⭐</span>}
+            <span aria-hidden>{cat.emoji}</span>
+            <span className="truncate">{cat.label}</span>
+          </span>
+        )}
+        <span
+          className={`absolute ${
+            spotlight
+              ? 'left-3 top-14 max-w-[calc(100%-24px)] h-10 px-3.5 text-body'
+              : unclaimedExt
+                ? 'left-2.5 bottom-2.5 max-w-[calc(100%-82px)] h-8 px-3 text-sm2'
+                : 'left-3 bottom-3 max-w-[calc(100%-24px)] h-10 px-3.5 text-body'
+          } rounded-full bg-black/65 backdrop-blur-sm text-white font-bold flex items-center whitespace-nowrap pointer-events-none truncate`}
+        >
+          <span className="truncate">{coverDate(ev.dateTime)}</span>
+          {ev.durationMinutes ? <span className="ml-1 font-normal text-white/75 shrink-0">· {M.duration(ev.durationMinutes)}</span> : null}
+        </span>
+        {!spotlight && !unclaimedExt && (
+          <span className="absolute right-3 top-3 h-9 pl-1 pr-3 text-sm2 bg-black/65 rounded-full backdrop-blur-sm text-white font-bold flex items-center gap-1.5 whitespace-nowrap pointer-events-none">
+            <span className="flex -space-x-2">
+              {people.slice(0, 3).map((p, i) => (
+                <img
+                  key={`${p?.telegramId}-${i}`}
+                  src={thumb(p?.avatarUrl) || NO_PHOTO}
+                  alt=""
+                  loading="lazy"
+                  className="w-7 h-7 rounded-full object-cover border-2 border-black/40"
+                />
+              ))}
             </span>
-          ) : (
-            <span className="absolute right-3 top-3 max-w-[132px] h-9 px-3 rounded-full bg-zine-mustard text-[#2B2623] text-cap font-extrabold flex items-center gap-1 whitespace-nowrap pointer-events-none shadow-zine-sm">
-              <span className="truncate">{ev.external?.authorHandle ? `@${ev.external.authorHandle}` : M.externalShortBadge}</span>
-            </span>
-          )
+            {ev.maxParticipants ? `${ev.participantsCount || 1} из ${ev.maxParticipants}` : `${ev.participantsCount || people.length}`}
+          </span>
         )}
         {spotlight && goingNames.length > 0 && (
           <div className="absolute left-3 bottom-3 max-w-[calc(100%-24px)] pl-2 pr-3 py-1.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-cap font-semibold flex items-center gap-2 pointer-events-none">
@@ -2304,7 +2312,7 @@ export const EventReel: React.FC<{
         onClick={(e) => {
           if (!(e.target as HTMLElement).closest('button')) onOpenDetails();
         }}
-        className="shrink-0 px-4 pt-3 text-zine-ink cursor-pointer"
+        className={`shrink-0 ${unclaimedExt ? 'px-3.5 pt-2' : 'px-4 pt-3'} text-zine-ink cursor-pointer`}
       >
         {/* Одна строка: пометки значками, цена и метки шаблона («💸 Платно»); категория — на обложке. Не влезает — листается */}
         <div data-no-swipe className="-mx-4 px-4 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right text-sm2 font-semibold text-zine-inkMuted whitespace-nowrap empty:hidden">
@@ -2342,8 +2350,51 @@ export const EventReel: React.FC<{
         </p>
       </div>
 
-      {/* Кнопки под большим пальцем: «Позвать», «Неинтересно» и главное действие */}
-      <div className="shrink-0 px-4 pt-3 pb-3 text-zine-ink">
+      {/* Кнопки под большим пальцем: у находок из Threads — «Позвать» и «Скрыть» уже в верхней плашке, а здесь «🙋 Пойти за компанию» и «@ В Threads ↗» */}
+      <div className={`shrink-0 ${unclaimedExt ? 'px-2.5 pt-2 pb-2.5' : 'px-4 pt-3 pb-3'} text-zine-ink`}>
+        {unclaimedExt && ev.external?.url && !isCreator ? (
+          <>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                data-analytics="meetup_join"
+                onClick={ev.isJoined ? onLeave : onJoin}
+                disabled={isJoining || Boolean(notForMe)}
+                className={`flex-1 min-w-0 h-11 px-2.5 rounded-full text-[14px] font-bold flex items-center justify-center gap-1 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer ${
+                  ev.isJoined
+                    ? 'bg-zine-sage/20 border border-zine-sage/50 text-zine-sage'
+                    : notForMe
+                      ? 'bg-zine-card text-zine-inkMuted cursor-default'
+                      : 'bg-zine-terracotta/12 border border-zine-terracotta/45 text-zine-terracotta'
+                }`}
+              >
+                {isJoining ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : ev.isJoined ? (
+                  <>
+                    <Check size={16} strokeWidth={3} className="shrink-0" />
+                    <span className="truncate">Я иду{ev.myGuests ? ` +${ev.myGuests}` : ' за компанию'}</span>
+                  </>
+                ) : (
+                  <span className="truncate">{M.externalGoBtn}</span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  telegramService.haptic('medium');
+                  telegramService.openLink(ev.external!.url);
+                }}
+                className="shrink-0 h-11 px-3 rounded-full bg-zine-ink text-zine-paper text-[14px] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                <span className="w-4 h-4 shrink-0 rounded-full bg-zine-paper/15 text-[10px] font-extrabold leading-none flex items-center justify-center" aria-hidden>
+                  @
+                </span>
+                <span>{M.externalOpenShort}</span>
+              </button>
+            </div>
+          </>
+        ) : (
         <div className="flex gap-2">
           <button
             onClick={() => {
@@ -2372,31 +2423,6 @@ export const EventReel: React.FC<{
                 className="w-12 h-12 shrink-0 rounded-full border border-zine-border flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
               >
                 {isDeleting ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
-              </button>
-            </>
-          ) : unclaimedExt && ev.external?.url ? (
-            <>
-              {!ev.isJoined && (
-                <button
-                  onClick={() => {
-                    telegramService.haptic('selection');
-                    onNotInterested();
-                  }}
-                  aria-label="Скрыть"
-                  className="w-12 h-12 shrink-0 rounded-full border border-zine-border flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
-                >
-                  <EyeOff size={20} />
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  telegramService.haptic('medium');
-                  telegramService.openLink(ev.external!.url);
-                }}
-                className="flex-1 min-w-0 h-12 px-4 rounded-full bg-zine-ink text-zine-paper text-body font-bold flex items-center justify-center gap-2 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer"
-              >
-                <span className="w-5 h-5 shrink-0 rounded-full bg-zine-paper/15 text-[12px] font-extrabold leading-none flex items-center justify-center" aria-hidden>@</span>
-                <span className="truncate">{M.externalOpenShort}</span>
               </button>
             </>
           ) : (
@@ -2442,29 +2468,11 @@ export const EventReel: React.FC<{
             </>
           )}
         </div>
-        {/* Внешняя встреча из Threads: заметная тёплая пилюля «Пойти туда за компанию» под главной кнопкой */}
-        {unclaimedExt && !ev.isJoined && !isCreator && !notForMe && (
-          <div className="mt-2">
-            <button
-              type="button"
-              data-analytics="meetup_join"
-              onClick={onJoin}
-              disabled={isJoining}
-              className="w-full min-h-[44px] px-4 rounded-full bg-zine-terracotta/12 border border-zine-terracotta/35 text-sm2 font-bold text-zine-terracotta flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform cursor-pointer"
-            >
-              {isJoining ? <Loader2 size={16} className="animate-spin" /> : M.externalGoShort}
-            </button>
-          </div>
         )}
         {/* Записан(а) — «Точно приду» и заметная отмена прямо на карточке */}
-        {ev.isJoined && !isCreator && (
+        {ev.isJoined && !isCreator && !unclaimedExt && (
           <div className="mt-2 flex items-center justify-center gap-5">
-            {unclaimedExt && (
-              <span className="text-sm2 font-bold text-zine-sage flex items-center gap-1">
-                <Check size={16} strokeWidth={3} /> Я иду за компанию{ev.myGuests ? ` +${ev.myGuests}` : ''}
-              </span>
-            )}
-            {!ev.myConfirmed && !unclaimedExt && (
+            {!ev.myConfirmed && (
               <button
                 onClick={async () => {
                   setIsConfirming(true);

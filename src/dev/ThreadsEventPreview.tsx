@@ -92,10 +92,16 @@ const initialEvents: AppEvent[] = [
 ];
 
 Object.assign(api, {
-  getMonthHosts: async () => [],
+  getMonthHosts: async () => [{ telegramId: 501, firstName: 'Назар', avatarUrl: '', held: 3, went: 8 }],
   getPastMine: async () => [],
   getEventTemplates: async () => [],
-  getWishes: async () => ({ mine: [], summary: [], kindCounts: {}, totalActive: 96, maxActive: 5 }),
+  getWishes: async () => ({
+    mine: [{ id: 'w1', kind: 'coffee', timeWindow: 'week', createdAt: new Date().toISOString() }],
+    summary: [{ kind: 'boardgames', timeWindow: 'weekend', count: 10, includesMe: true }],
+    kindCounts: { boardgames: 9 },
+    totalActive: 26,
+    maxActive: 5
+  }),
   getLikedEvents: async () => initialEvents.filter((e) => e.isLiked),
   setEventLike: async (_id: string, liked: boolean) => ({ isLiked: liked, likesCount: liked ? 5 : 4 }),
   claimExternalEvent: async (eventId: string, handle?: string) => {
@@ -169,7 +175,8 @@ export function ThreadsEventPreview() {
           ))}
         </select>
       </div>
-      <div style={{ width, maxWidth: '100%', height: 760 }} className="mx-auto border border-zine-border overflow-hidden">
+      {/* Высота 565px точно повторяет рабочую область EventsScreen внутри Telegram (за вычетом шапки TG и нижнего меню вкладок) */}
+      <div style={{ width, maxWidth: '100%', height: 565 }} className="mx-auto border border-zine-border overflow-hidden">
         <EventsScreen events={events} currentUserId={999001} onJoin={handleJoin} />
       </div>
       <Toaster />

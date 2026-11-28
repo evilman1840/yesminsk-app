@@ -764,14 +764,14 @@ export const EventDetails: React.FC<{
                 setIsJoinOpen(true);
               }}
               disabled={Boolean(notForMe)}
-              className={`flex-1 min-w-0 h-14 px-3 rounded-zine-sm text-body font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer ${
+              className={`flex-1 min-w-0 h-14 px-2.5 rounded-zine-sm text-[15px] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer ${
                 event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : notForMe ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'border-2 border-zine-terracotta text-zine-terracotta'
               }`}
             >
               {event.isJoined ? (
                 <>
                   <Check size={18} strokeWidth={3} className="shrink-0" />
-                  <span className="truncate">Я иду{myNote ? ` (${myNote})` : ''}</span>
+                  <span className="truncate">Я иду{myNote ? ` (${myNote})` : ' за компанию'}</span>
                 </>
               ) : (
                 <span className="truncate">{MEETUP_TEXTS.externalGoBtn}</span>
@@ -782,7 +782,7 @@ export const EventDetails: React.FC<{
                 telegramService.haptic('medium');
                 telegramService.openLink(event.external!.url);
               }}
-              className="flex-1 min-w-0 h-14 px-3 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer"
+              className="shrink-0 h-14 px-3.5 rounded-zine-sm bg-zine-terracotta text-white text-[15px] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer"
             >
               <ExternalLink size={17} className="shrink-0" />
               <span>{MEETUP_TEXTS.externalOpenBtn}</span>
