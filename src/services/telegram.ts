@@ -437,7 +437,7 @@ export const telegramService = {
   /**
    * Что открыть при запуске: сходку по ссылке (?event=<id>) или вкладку (?tab=events)
    */
-  getLaunchTarget(): { eventId?: string; meetupQuestion?: { askerId?: number }; nearPing?: string; settings?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; together?: boolean; hello?: boolean; duel?: boolean; wishGroupId?: string; serial?: number; game?: { id?: string; code?: string; tractor?: boolean; sea?: { id?: string; code?: string } } } {
+  getLaunchTarget(): { eventId?: string; meetupQuestion?: { askerId?: number }; nearPing?: string; settings?: string; rsvp?: 'yes' | 'no'; buddy?: boolean; attendance?: boolean; tab?: string; placeId?: string; create?: CreateMeetupLink; want?: { placeId?: string }; userId?: string; together?: boolean; chat?: boolean; hello?: boolean; duel?: boolean; wishGroupId?: string; serial?: number; game?: { id?: string; code?: string; tractor?: boolean; sea?: { id?: string; code?: string } } } {
     const params = new URLSearchParams(window.location.search);
     const startParam = tg()?.initDataUnsafe?.start_param || '';
     const eventId = params.get('event') || (startParam.startsWith('event_') ? startParam.slice(6) : '') || undefined;
@@ -470,7 +470,8 @@ export const telegramService = {
       want,
       userId: params.get('user') || undefined, // «Посмотреть анкету» из «хочет пообщаться»
       together: params.get('together') === '1', // «👯 Пойдём вместе» из «Вы на связи!»: сразу шторка выбора сходки
-      hello: params.get('hello') === '1', // «✍️ Что написать» после жребия: шторка с готовыми фразами
+      chat: params.get('chat') === '1', // личный чат 1 на 1 внутри ГУЛЯЙ!
+      hello: params.get('hello') === '1', // старая ссылка «Что написать»: тоже открывает личный чат
       duel: params.get('duel') === '1', // «🎲 Сыграть» из «Вы на связи!»: выбор игры
       wishGroupId: params.get('wishGroup') || undefined, // «Кто ещё хочет» из «Хочу сходить»
       // Сериал из Инстаграма и постов: startapp=serial_2 (?serial=2) — эта серия, startapp=serial (?serial=0) — свежая вышедшая

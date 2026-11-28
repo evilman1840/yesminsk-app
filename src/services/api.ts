@@ -214,6 +214,9 @@ class ApiService {
     gender?: Gender;
     preferredGender?: PreferredGender;
     preferredAgeRange?: { min: number; max: number };
+    openToSerious?: boolean;
+    openToCasual?: boolean;
+    casualPace?: import('../types').CasualPace;
     photoOnly?: boolean;
     bio?: string;
     goal?: ActivityGoal;
@@ -485,6 +488,40 @@ class ApiService {
     return this.request(`/events/${encodeURIComponent(eventId)}/chat/messages/${encodeURIComponent(messageId)}/react`, {
       method: 'POST',
       body: JSON.stringify({ kind, emoji, askerId })
+    });
+  }
+
+  // Личный чат 1 на 1 внутри ГУЛЯЙ!
+  async getDirectChatsSummary(quiet = false): Promise<import('../types').DirectChatsSummary> {
+    return this.request('/chats/summary', {}, quiet);
+  }
+
+  async getDirectChat(peerId: number, before?: string, quiet = false): Promise<import('../types').DirectChatData> {
+    const params = new URLSearchParams();
+    if (before) params.set('before', before);
+    if (quiet) params.set('quiet', '1');
+    const qs = params.toString();
+    return this.request(`/chats/${peerId}${qs ? `?${qs}` : ''}`, {}, quiet);
+  }
+
+  async sendDirectChatMessage(peerId: number, text: string, clientId: string, replyToId?: string): Promise<{ message: import('../types').DirectChatMessage | null }> {
+    return this.request(`/chats/${peerId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ text, clientId, ...(replyToId ? { replyToId } : {}) })
+    });
+  }
+
+  async toggleDirectChatReaction(peerId: number, messageId: string, emoji: string): Promise<{ reactions: { emoji: string; count: number; mine: boolean }[] }> {
+    return this.request(`/chats/${peerId}/messages/${encodeURIComponent(messageId)}/reactions`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji })
+    });
+  }
+
+  async reportDirectChat(peerId: number, reason: string, comment: string): Promise<{ success: boolean }> {
+    return this.request(`/chats/${peerId}/report`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, comment })
     });
   }
 

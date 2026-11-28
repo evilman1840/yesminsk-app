@@ -5,6 +5,7 @@ import { api } from '../../services/api';
 import { telegramService } from '../../services/telegram';
 
 const REASONS = [
+  { id: 'boundary', label: '🛑 Нарушает границы, давит в общении' },
   { id: 'photo', label: '📷 Неприличное фото' },
   { id: 'flirt', label: '💋 Флирт, намёки на свидания' },
   { id: 'rude', label: '😠 Грубость, оскорбления' },
@@ -27,7 +28,8 @@ export const ReportSheet: React.FC<{
   actionLabel?: string;
   submit?: (reason: string, comment: string) => Promise<void>;
   successText?: string;
-}> = ({ targetType, targetId, targetName, onClose, onReported, actionLabel, submit, successText }) => {
+  contextNote?: string;
+}> = ({ targetType, targetId, targetName, onClose, onReported, actionLabel, submit, successText, contextNote }) => {
   const [reason, setReason] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -84,6 +86,11 @@ export const ReportSheet: React.FC<{
   return (
     <BottomSheet title={targetType === 'user' ? `Жалоба: ${targetName}` : 'Жалоба на сходку'} onClose={onClose}>
       <p className="text-body text-zine-inkMuted">Что случилось? Жалоба анонимна: человек не узнает, кто её отправил.</p>
+      {contextNote && (
+        <p className="mt-2.5 rounded-zine-sm border border-zine-border/70 bg-zine-card px-3.5 py-2.5 text-sm2 text-zine-ink leading-snug">
+          {contextNote}
+        </p>
+      )}
 
       <div className="mt-4 space-y-2">
         {REASONS.map((r) => (

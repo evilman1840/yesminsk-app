@@ -4,7 +4,7 @@ import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { MapPin, SlidersHorizontal, ChevronLeft, ChevronRight, Send, Loader2, X } from 'lucide-react';
-import { AppEvent, JoinOptions, MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
+import { AppEvent, DirectChatsSummary, DirectChatThreadSummary, JoinOptions, MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType, useWaveState, WavesLeftNote, WavesOutCard } from '../components/common/Reactions';
 import { goalFilterItems } from '../components/ui/GoalChips';
@@ -42,8 +42,9 @@ export interface FeedScreenProps {
   onReact: (user: UserProfile, type: ReactionType) => Promise<unknown> | void;
   onUnmatch?: (user: UserProfile) => Promise<void>;        // «Отменить» в «На связи»
   onGoTogether?: (user: UserProfile) => void;              // «👯 Пойдём на сходку вместе» в «На связи»
-  onHello?: (user: UserProfile) => void;                   // «✍️ Что написать»: готовые фразы
+  onHello?: (user: UserProfile) => void;                   // открыть личный чат 1 на 1
   onDuel?: (user: UserProfile) => void;                    // «🎲 Сыграть»: позвать в игру
+  directChats?: DirectChatsSummary;                        // непрочитанные и свежие сообщения для «На связи»
   onSkip?: (user: UserProfile) => void;                    // свайп влево: пропустить на 3 дня
   onUnskip?: (user: UserProfile, index: number) => void;   // «Вернуть»
   onOpenWishKind?: (kind: string, sport?: string) => void; // нажали «Тоже хочет: …» — кто ещё хочет и «Собрать сходку»
@@ -90,6 +91,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   onGoTogether,
   onHello,
   onDuel,
+  directChats,
   onSkip,
   onUnskip,
   isTourist = false,
@@ -169,10 +171,26 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollToUser, setScrollToUser] = useState<number | null>(null);
 
-  // Фильтры действуют на «Рядом»; тех, кто уже хочет пообщаться или на связи, не прячем
+  // Фильтры действуют на «Рядом»; тех, кто уже хочет пообщаться или на связи, не прячем.
+  // В «На связи» поднимаем наверх пары с непрочитанными и свежими сообщениями.
   useLiveStatusExpiry(users, filters.liveStatusOnly);
   const nearbyFiltered = applyPeopleFilters(users, filters, myPrefs);
-  const tabUsers = tab === 'likes' ? likedMe : tab === 'matches' ? matches : nearbyFiltered;
+  const sortedMatches = (() => {
+    const threads = directChats?.threads;
+    if (!threads || !Object.keys(threads).length) return matches;
+    return [...matches].sort((a, b) => {
+      const ta = threads[String(a.telegramId)];
+      const tb = threads[String(b.telegramId)];
+      const ua = ta?.unreadCount || 0;
+      const ub = tb?.unreadCount || 0;
+      if ((ua > 0) !== (ub > 0)) return ua > 0 ? -1 : 1;
+      const timeA = ta?.lastMessageAt ? new Date(ta.lastMessageAt).getTime() : 0;
+      const timeB = tb?.lastMessageAt ? new Date(tb.lastMessageAt).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return 0;
+    });
+  })();
+  const tabUsers = tab === 'likes' ? likedMe : tab === 'matches' ? sortedMatches : nearbyFiltered;
   const filteredUsers = tabUsers.filter((u) => matchesGoalFilter(u, selectedGoal));
   // «Сыграем?» после 7-й анкеты, потом через 10, потом через 15, и хватит
   const gameSlots = (() => {
@@ -190,10 +208,11 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
   })();
   const guidesCount = users.filter((u) => u.isGuide).length;
 
-  const tabs: { id: FeedTab; label: string; count: number }[] = [
+  const totalUnreadChats = directChats?.totalUnread || 0;
+  const tabs: { id: FeedTab; label: string; count: number; highlight?: boolean }[] = [
     { id: 'all', label: 'Рядом', count: 0 },
     { id: 'likes', label: 'Хотят', count: likedMe.length },
-    { id: 'matches', label: 'На связи', count: matches.length }
+    { id: 'matches', label: 'На связи', count: totalUnreadChats > 0 ? totalUnreadChats : matches.length, highlight: totalUnreadChats > 0 }
   ];
 
   useLayoutEffect(() => {
@@ -221,8 +240,6 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
       ? '🫶 Те, кто отметил: умею слушать и поддерживать.'
       : selectedGoal === 'venting'
       ? FEED_TEXTS.ventingHint
-      : (tab === 'likes' || tab === 'matches') && !myUsername
-      ? USERNAME_TEXTS.feedHint
       : '';
 
   return (
@@ -251,7 +268,12 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               >
                 <span>{t.label}</span>
                 {t.count > 0 && (
-                  <span aria-hidden="true" className="min-w-4 rounded-full bg-zine-terracotta/15 px-px py-0.5 text-center font-bold tabular-nums text-zine-ink min-[375px]:px-0.5">
+                  <span
+                    aria-hidden="true"
+                    className={`min-w-4 rounded-full px-1 py-0.5 text-center font-bold tabular-nums ${
+                      t.highlight ? 'bg-zine-terracotta text-white' : 'bg-zine-terracotta/15 text-zine-ink'
+                    }`}
+                  >
                     {t.count > 99 ? '99+' : t.count}
                   </span>
                 )}
@@ -358,8 +380,9 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
               onReact={onReact}
               onUnmatch={onUnmatch ? () => onUnmatch(user) : undefined}
               onGoTogether={onGoTogether ? () => onGoTogether(user) : undefined}
-              onHello={onHello && user.username ? () => onHello(user) : undefined}
+              onHello={onHello ? () => onHello(user) : undefined}
               onDuel={onDuel ? () => onDuel(user) : undefined}
+              chatThread={directChats?.threads[String(user.telegramId)]}
               onOpenWishKind={onOpenWishKind}
               onSkip={() => {
                 setJustSkipped({ user, index: users.findIndex((u) => u.telegramId === user.telegramId) });
@@ -448,6 +471,7 @@ export const FeedScreen: React.FC<FeedScreenProps> = ({
           onChange={setFilters}
           goal={selectedGoal}
           onGoalChange={onSelectGoal}
+          openToSerious={myPrefs.openToSerious}
           // На сервере подходит больше, чем уже загружено; «Покажут город» и «Эмпаты» — только на месте
           resultCount={
             selectedGoal === 'guides' || selectedGoal === 'empaths' || selectedGoal === 'venting' || peopleTotal == null
@@ -491,8 +515,9 @@ export const PersonReel: React.FC<{
   onGoTogether?: () => void;
   onHello?: () => void;
   onDuel?: () => void;
+  chatThread?: DirectChatThreadSummary;
   onOpenWishKind?: (kind: string, sport?: string) => void;
-}> = ({ user, tab, isFirst, myGoals, onOpen, onReact, onSkip, onUnmatch, onGoTogether, onHello, onDuel, onOpenWishKind }) => {
+}> = ({ user, tab, isFirst, myGoals, onOpen, onReact, onSkip, onUnmatch, onGoTogether, onHello, onDuel, chatThread, onOpenWishKind }) => {
   const [busy, setBusy] = useState<ReactionType | 'unmatch' | null>(null);
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
   const [isConfirmingUnmatch, setIsConfirmingUnmatch] = useState(false);
@@ -541,6 +566,7 @@ export const PersonReel: React.FC<{
   // «🍩 Кормлю ГУЛЯЙ-Печку» — плашкой на фото, чтобы не занимать место под ним
   // На своей вкладке «На связи» и «Хочет пообщаться» не повторяем; «Эмпат» — в анкете
   const statuses = [
+    user.mutualSerious && { text: '❤️ Оба ищете серьёзные отношения', cls: 'bg-[#C77D86] text-white' },
     user.isMatch && tab !== 'matches' && { text: '🤝 На связи', cls: 'bg-zine-sage text-white' },
     user.likedMe && !user.isMatch && tab !== 'likes' && { text: '👋 Хочет пообщаться', cls: 'bg-zine-ink text-zine-paper' },
     isAvailableNow(user) && { text: `⚡ Могу сейчас · до ${formatTime(user.availableUntil)}`, cls: 'bg-[#2FA36B] text-white' },
@@ -612,7 +638,12 @@ export const PersonReel: React.FC<{
     >
       {/* Фото: статусы сверху, компактный опыт Сходок снизу.
           Сжимается первым (до 26%), чтобы кнопки внизу не срезались — в «На связи» их больше */}
-      <div ref={seenRef} className="relative mx-3 flex-1 min-h-[26%] rounded-zine overflow-hidden bg-zine-card">
+      <div
+        ref={seenRef}
+        className={`relative mx-3 flex-1 min-h-[26%] rounded-zine overflow-hidden bg-zine-card ${
+          user.mutualSerious ? 'ring-2 ring-[#C77D86]' : ''
+        }`}
+      >
         <img src={gallery[photoIndex] || user.avatarUrl} alt={user.firstName} draggable={false} onClick={onOpen} onLoad={preloadNext} className="absolute inset-0 h-full w-full object-cover cursor-pointer" loading="lazy" />
         {/* Несколько фото: тап слева и справа листает, как в сторис; по центру — анкета */}
         {gallery.length > 1 && (
@@ -737,7 +768,12 @@ export const PersonReel: React.FC<{
           </div>
         )}
         {user.bio && <p className={`mt-2 text-sm2 text-zine-inkMuted ${user.isMatch ? 'line-clamp-1' : 'line-clamp-2'}`}>{user.bio}</p>}
-        {user.isMatch && !user.username && <p className="mt-2 text-cap text-zine-inkMuted/70">🤝 У человека нет @username, ссылку прислал бот в чате.</p>}
+        {user.isMatch && chatThread?.lastMessagePreview && (
+          <p className="mt-1.5 truncate text-cap font-semibold text-zine-ink">
+            💬 {chatThread.lastMessageMine ? 'Ты: ' : ''}
+            {chatThread.lastMessagePreview}
+          </p>
+        )}
       </div>
 
       {/* Кнопки под большим пальцем; подтверждения — на их месте */}
@@ -748,59 +784,49 @@ export const PersonReel: React.FC<{
           confirmBox('🙈 Скрыть навсегда? Вы больше не увидите друг друга.', busy ? <Loader2 size={20} className="animate-spin" /> : 'Да, скрыть', () => react('dislike'), 'Нет', () => setIsConfirmingHide(false))
         ) : user.isMatch ? (
           <div>
-          {/* Позвать на сходку компанией (не вдвоём): ближайшие сходки, общие желания или своя */}
-          {onGoTogether && (
-            <button
-              onClick={() => {
-                telegramService.haptic('selection');
-                onGoTogether();
-              }}
-              className="mb-2 w-full h-12 rounded-full border-2 border-zine-terracotta text-zine-terracotta text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform"
-            >
-              {BUDDY_TEXTS.goTogether}
-            </button>
-          )}
-          {/* С чего начать разговор: готовые фразы или партия в игру */}
-          {(onHello || onDuel) && (
-            <div className="mb-2 flex gap-2">
-              {onHello && (
-                <button
-                  onClick={() => {
-                    telegramService.haptic('selection');
-                    onHello();
-                  }}
-                  className="flex-1 h-11 rounded-full bg-zine-mustard/20 text-zine-ink text-sm2 font-bold flex items-center justify-center cursor-pointer active:scale-[0.99] transition-transform"
-                >
-                  {HELLO_TEXTS.btn}
-                </button>
-              )}
-              {onDuel && (
-                <button
-                  onClick={() => {
-                    telegramService.haptic('selection');
-                    onDuel();
-                  }}
-                  className="flex-1 h-11 rounded-full bg-zine-mustard/20 text-zine-ink text-sm2 font-bold flex items-center justify-center cursor-pointer active:scale-[0.99] transition-transform"
-                >
-                  {DUEL_TEXTS.btn}
-                </button>
-              )}
-            </div>
-          )}
-          <div className="flex gap-2">
-            {user.username && (
-              <button
-                onClick={() => {
-                  telegramService.haptic('medium');
-                  telegramService.openChat(user.username);
-                }}
-                className="flex-1 h-12 rounded-full bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Send size={20} />
-                Написать
-              </button>
+            {(onGoTogether || onDuel) && (
+              <div className="mb-2 flex gap-2">
+                {onGoTogether && (
+                  <button
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      onGoTogether();
+                    }}
+                    className="flex-1 min-h-[44px] rounded-full border-2 border-zine-terracotta text-zine-terracotta text-sm2 font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition-transform"
+                  >
+                    {BUDDY_TEXTS.goTogether}
+                  </button>
+                )}
+                {onDuel && (
+                  <button
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      onDuel();
+                    }}
+                    className="flex-1 min-h-[44px] rounded-full bg-zine-mustard/20 text-zine-ink text-sm2 font-bold flex items-center justify-center cursor-pointer active:scale-[0.98] transition-transform"
+                  >
+                    {DUEL_TEXTS.btn}
+                  </button>
+                )}
+              </div>
             )}
-          </div>
+            <button
+              data-analytics="chat_open"
+              onClick={() => {
+                telegramService.haptic('medium');
+                if (onHello) onHello();
+                else if (user.username) telegramService.openChat(user.username);
+              }}
+              className="w-full min-h-[48px] rounded-full bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+            >
+              <Send size={19} />
+              <span>💬 Написать</span>
+              {Boolean(chatThread?.unreadCount) && (
+                <span className="min-w-5 rounded-full bg-white px-1.5 py-0.5 text-center text-cap font-bold leading-none text-zine-terracotta tabular-nums">
+                  {chatThread!.unreadCount > 99 ? '99+' : chatThread!.unreadCount}
+                </span>
+              )}
+            </button>
           </div>
         ) : (
           waves === 'out' ? (

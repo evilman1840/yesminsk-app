@@ -9,7 +9,7 @@ import { AREA_GROUPS, RENAMED_AREAS } from '../config/areas';
 import { LegalSheet, LegalKind } from '../components/common/Legal';
 import { UsernameBanner } from '../components/common/UsernameBanner';
 import { LEGAL_UI, PRIVACY } from '../texts/legal';
-import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea, EMPATH, formatTime } from '../types';
+import { GOALS_CONFIG, ActivityGoal, Gender, PreferredGender, CasualPace, CASUAL_PACE_INFO, GoesWith, GOES_WITH, DigestFrequency, DIGEST_OPTIONS, TOURIST_AREA, isTouristArea, EMPATH, formatTime } from '../types';
 import { HelpLine } from '../components/common/HelpLine';
 import { telegramService, ThemePreference } from '../services/telegram';
 import { compressImage, dataUrlBytes } from '../utils/compressImage';
@@ -40,6 +40,9 @@ interface ProfileFormScreenProps {
     genderConfirmed?: boolean;
     preferredGender?: PreferredGender;
     preferredAgeRange?: { min: number; max: number };
+    openToSerious?: boolean;
+    openToCasual?: boolean;
+    casualPace?: CasualPace;
     photoOnly?: boolean;
     faceStatus?: 'ok' | 'no' | 'pending';
     bio?: string;
@@ -71,6 +74,9 @@ interface ProfileFormScreenProps {
     genderConfirmed?: boolean;
     preferredGender: PreferredGender;
     preferredAgeRange: { min: number; max: number };
+    openToSerious: boolean;
+    openToCasual: boolean;
+    casualPace: CasualPace;
     photoOnly: boolean;
     bio: string;
     goals: ActivityGoal[];
@@ -140,6 +146,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
   const [preferredGender, setPreferredGender] = useState<PreferredGender>(
     initialData?.preferredGender || 'all'
   );
+  const [openToSerious, setOpenToSerious] = useState<boolean>(Boolean(initialData?.openToSerious));
+  const [openToCasual, setOpenToCasual] = useState<boolean>(Boolean(initialData?.openToCasual));
+  const [casualPace, setCasualPace] = useState<CasualPace>(initialData?.casualPace || 'chat_first');
   // Строкой: поле можно очистить и вписать «25»; в 18–99 приводим, когда уходим с поля и при сохранении
   const [minAge, setMinAge] = useState<string>(String(initialData?.preferredAgeRange?.min || 18));
   const [maxAge, setMaxAge] = useState<string>(String(initialData?.preferredAgeRange?.max || 99));
@@ -385,6 +394,9 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
         gender: gender as Gender,
         genderConfirmed: true,
         preferredGender,
+        openToSerious,
+        openToCasual,
+        casualPace,
         photoOnly,
         preferredAgeRange: {
           min: Math.min(clampAge(minAge, 18), clampAge(maxAge, 99)),
@@ -512,6 +524,105 @@ export const ProfileFormScreen: React.FC<ProfileFormScreenProps> = ({
                 </span>
               </button>
               {photoOnly && showNoFace && <p className="-mt-1 text-sm2 font-semibold text-zine-terracotta">{FACE_TEXTS.myPhotoNoFace}</p>}
+
+              {/* Приватные форматы общения и границы: видны только тем, кто выбрал то же самое */}
+              <div className="pt-4 border-t border-zine-border/70 space-y-3">
+                <div>
+                  <span className="block text-body font-bold text-zine-ink">Формат общения и границы</span>
+                  <p className="mt-1 p-3 rounded-zine-sm bg-zine-card text-sm2 text-zine-ink leading-snug">
+                    🔒 Эти отметки приватные: их видят только те, кто выбрал то же самое. Если человек ищет только дружбу, он не увидит твои пометки про отношения или близость.
+                  </p>
+                </div>
+
+                {/* Дружба включена у всех по умолчанию */}
+                <div className="p-3.5 rounded-zine-sm border border-zine-border bg-zine-card/60 flex items-start justify-between gap-3">
+                  <div>
+                    <span className="block text-body font-bold text-zine-ink">🤝 Дружба и компании</span>
+                    <span className="block text-sm2 text-zine-inkMuted">Прогулки, кофе, сходки и живое общение без романтики</span>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-zine-sage/20 px-2.5 py-1 text-cap font-bold text-zine-sage">
+                    Всегда
+                  </span>
+                </div>
+
+                {/* Серьёзные отношения: свои видят своих в ленте, на карте и в чате */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setOpenToSerious((v) => !v);
+                  }}
+                  className={`w-full p-3.5 rounded-zine-sm border-2 flex items-start justify-between gap-3 text-left transition-colors active:scale-[0.99] cursor-pointer ${
+                    openToSerious ? 'border-[#C77D86] bg-[#C77D86]/10' : 'border-zine-border bg-zine-cardElevated'
+                  }`}
+                >
+                  <div>
+                    <span className="block text-body font-bold text-zine-ink">❤️ Серьёзные отношения</span>
+                    <span className="block text-sm2 text-zine-inkMuted leading-snug">
+                      Ищу своего человека для серьёзных отношений. Такие анкеты выделятся в ленте и на карте - это увидят только те, кто тоже выбрал этот пункт.
+                    </span>
+                  </div>
+                  <span className={`mt-0.5 w-14 h-8 rounded-full p-1 transition-colors shrink-0 ${openToSerious ? 'bg-[#C77D86]' : 'bg-zine-border'}`}>
+                    <span className={`block w-6 h-6 rounded-full bg-white shadow transition-transform ${openToSerious ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </span>
+                </button>
+
+                {/* Близость без обязательств: 100% скрыто в ленте и на карте, раскрывается только в чате при совпадении */}
+                <div
+                  className={`p-3.5 rounded-zine-sm border-2 transition-colors ${
+                    openToCasual ? 'border-zine-terracotta/60 bg-zine-terracotta/5' : 'border-zine-border bg-zine-cardElevated'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      telegramService.haptic('selection');
+                      setOpenToCasual((v) => !v);
+                    }}
+                    className="w-full flex items-start justify-between gap-3 text-left cursor-pointer"
+                  >
+                    <div>
+                      <span className="block text-body font-bold text-zine-ink">🔥 Близость без обязательств</span>
+                      <span className="block text-sm2 text-zine-inkMuted leading-snug">
+                        Только 18+, без коммерции и без давления. В ленте и на карте не показывается - раскроется только в чате после взаимного 👋, если совпало у обоих.
+                      </span>
+                    </div>
+                    <span className={`mt-0.5 w-14 h-8 rounded-full p-1 transition-colors shrink-0 ${openToCasual ? 'bg-zine-terracotta' : 'bg-zine-border'}`}>
+                      <span className={`block w-6 h-6 rounded-full bg-white shadow transition-transform ${openToCasual ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </span>
+                  </button>
+
+                  {openToCasual && (
+                    <div className="mt-3 pt-3 border-t border-zine-border/70 space-y-2">
+                      <p className="text-cap font-bold text-zine-ink">Какой темп тебе комфортен?</p>
+                      {(['chat_first', 'coffee_first', 'direct'] as CasualPace[]).map((pace) => {
+                        const info = CASUAL_PACE_INFO[pace];
+                        const active = casualPace === pace;
+                        return (
+                          <button
+                            key={pace}
+                            type="button"
+                            onClick={() => {
+                              telegramService.haptic('selection');
+                              setCasualPace(pace);
+                            }}
+                            className={`w-full min-h-[48px] px-3 py-2.5 rounded-zine-sm border text-left transition-transform active:scale-[0.99] cursor-pointer ${
+                              active
+                                ? 'border-zine-terracotta bg-zine-terracotta/15 text-zine-ink'
+                                : 'border-zine-border bg-zine-cardElevated text-zine-ink'
+                            }`}
+                          >
+                            <span className="block text-sm2 font-bold">
+                              {info.emoji} {info.label}
+                            </span>
+                            <span className="block text-cap text-zine-inkMuted leading-snug">{info.hint}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </Section>
 

@@ -216,6 +216,7 @@ const MinskMapContent: React.FC<{
         <div data-avatar-face class="rounded-full" style="width: 46px; height: 46px; border-radius: 50%; padding: 2px; background-color: #FAF7F2; border: 2.5px solid $[properties.borderColor]; box-shadow: 0 4px 14px rgba(43, 38, 35, 0.22); position: relative; box-sizing: border-box;">
           <img src="$[properties.avatarUrl]" alt="$[properties.name]" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; pointer-events: none;" onerror="this.src='/no-photo.svg'" />
           <span data-avatar-status aria-hidden="true" class="pointer-events-none absolute -bottom-0.5 -right-0.5 hidden h-2.5 w-2.5 rounded-full bg-zine-sage ring-1 ring-zine-paper"></span>
+          <span data-avatar-serious aria-hidden="true" class="pointer-events-none absolute -top-1 -right-1 hidden h-4 w-4 items-center justify-center rounded-full bg-[#C77D86] text-[10px] leading-none text-white ring-1 ring-zine-paper">♥</span>
         </div>
         ${statusBadgeMarkup}
         <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid $[properties.borderColor]; margin: -1px auto 0 auto; pointer-events: none;"></div>
@@ -228,6 +229,13 @@ const MinskMapContent: React.FC<{
           if (properties.get('hasLiveStatus')) {
             parent?.querySelector('[data-avatar-face]')?.classList.add('ring-2', 'ring-zine-sage', 'ring-offset-1', 'ring-offset-zine-paper');
             parent?.querySelector('[data-avatar-status]')?.classList.remove('hidden');
+          }
+          if (properties.get('mutualSerious')) {
+            const heart = parent?.querySelector('[data-avatar-serious]');
+            if (heart) {
+              heart.classList.remove('hidden');
+              heart.classList.add('flex');
+            }
           }
           const badge = fillStatusBadge(parent, properties.get('liveWant'), properties.get('liveOffer'));
           if (badge) {
@@ -500,7 +508,8 @@ const MinskMapContent: React.FC<{
             liveOffer: live ? shortOffer(live.offer) : '',
             statusSide: side,
             hasLiveStatus: Boolean(activeStatus),
-            borderColor: isSelected ? 'rgb(var(--c-terracotta))' : activeStatus || available ? 'rgb(var(--c-sage))' : 'rgb(var(--c-paper))'
+            mutualSerious: Boolean(user.mutualSerious),
+            borderColor: isSelected ? 'rgb(var(--c-terracotta))' : user.mutualSerious ? '#C77D86' : activeStatus || available ? 'rgb(var(--c-sage))' : 'rgb(var(--c-paper))'
           }}
           options={{
             iconLayout: avatarLayout,

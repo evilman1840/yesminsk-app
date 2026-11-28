@@ -77,32 +77,27 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
   const goTogether = then(onGoTogether);
   const hello = then(onHello);
   const duel = then(onDuel);
-  // Как на карточке «На связи»: сходка вместе, «Что написать» и «Сыграть», под ними «Написать»
+  // Как на карточке «На связи»: главная кнопка «Написать» в чат + сходка и игра
   const matchButtons = (
     <div>
-      {goTogether && (
-        <button
-          onClick={goTogether}
-          className="mb-2 w-full h-12 rounded-full border-2 border-zine-terracotta text-zine-terracotta text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-transform"
-        >
-          {BUDDY_TEXTS.goTogether}
-        </button>
-      )}
-      {(hello || duel) && (
+      {(goTogether || duel) && (
         <div className="mb-2 flex gap-2">
-          {hello && (
-            <button onClick={hello} className="flex-1 h-11 rounded-full bg-zine-mustard/20 text-zine-ink text-sm2 font-bold flex items-center justify-center cursor-pointer active:scale-[0.99] transition-transform">
-              {HELLO_TEXTS.btn}
+          {goTogether && (
+            <button
+              onClick={goTogether}
+              className="flex-1 h-11 rounded-full border-2 border-zine-terracotta text-zine-terracotta text-sm2 font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition-transform"
+            >
+              {BUDDY_TEXTS.goTogether}
             </button>
           )}
           {duel && (
-            <button onClick={duel} className="flex-1 h-11 rounded-full bg-zine-mustard/20 text-zine-ink text-sm2 font-bold flex items-center justify-center cursor-pointer active:scale-[0.99] transition-transform">
+            <button onClick={duel} className="flex-1 h-11 rounded-full bg-zine-mustard/20 text-zine-ink text-sm2 font-bold flex items-center justify-center cursor-pointer active:scale-[0.98] transition-transform">
               {DUEL_TEXTS.btn}
             </button>
           )}
         </div>
       )}
-      <ChatButton user={user} className="w-full" />
+      <ChatButton user={user} onOpenChat={hello} className="w-full" />
     </div>
   );
 
@@ -171,6 +166,12 @@ export const UserBottomSheet: React.FC<UserBottomSheetProps> = ({ user, myGoals,
         {user.isEmpath && <span className="text-sm2 rounded-full bg-zine-card px-3 py-2">🫶 Эмпат</span>}
         {user.activeRecently && <span className="w-full text-cap text-zine-inkMuted">Недавно в приложении</span>}
       </div>}
+
+      {user.mutualSerious && (
+        <p className="mt-3 p-3 rounded-zine-sm bg-[#C77D86]/15 border border-[#C77D86]/35 text-body text-zine-ink">
+          <b>❤️ Вы оба открыты к серьёзным отношениям</b> - это видите только вы вдвоём.
+        </p>
+      )}
 
       {commonGoals.length > 0 && (
         <p className="mt-3 p-3 rounded-zine-sm bg-zine-mustard/15 text-body text-zine-ink">

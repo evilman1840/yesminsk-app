@@ -633,6 +633,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
         <PeopleFiltersSheet
           value={peopleFilters}
           onChange={setPeopleFilters}
+          openToSerious={myPrefs.openToSerious}
           // На сервере подходит больше, чем пришло на карту (там только 300 лучших); «Покажут город» и «Эмпаты» — только на месте
           resultCount={selectedGoal === 'guides' || selectedGoal === 'empaths' || selectedGoal === 'venting' || peopleTotal == null ? (mapMode === 'people' ? filteredUsers : usersForMe).length : peopleTotal}
           onClose={() => setIsFiltersOpen(false)}

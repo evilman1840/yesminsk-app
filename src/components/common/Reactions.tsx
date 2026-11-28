@@ -142,8 +142,13 @@ export const ReactionButtons: React.FC<{
 /**
  * Кнопка «Написать». Доступна, только когда оба нажали 👋 (на связи).
  */
-export const ChatButton: React.FC<{ user: UserProfile; className?: string }> = ({ user, className = '' }) => {
-  if (user.isMatch && user.username) {
+export const ChatButton: React.FC<{
+  user: UserProfile;
+  className?: string;
+  onOpenChat?: () => void;
+  unreadCount?: number;
+}> = ({ user, className = '', onOpenChat, unreadCount = 0 }) => {
+  if (user.isMatch) {
     return (
       <button
         data-analytics="chat_open"
@@ -151,21 +156,19 @@ export const ChatButton: React.FC<{ user: UserProfile; className?: string }> = (
           e.stopPropagation();
           telegramService.haptic('medium');
           track('gulyai_chat_opened');
-          telegramService.openChat(user.username);
+          if (onOpenChat) onOpenChat();
+          else if (user.username) telegramService.openChat(user.username);
         }}
         className={`h-12 px-4 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-body font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.98] transition-all cursor-pointer ${className}`}
       >
-        <Send size={20} />
-        <span className="truncate">Написать в Telegram</span>
+        <Send size={19} />
+        <span className="truncate">💬 Написать</span>
+        {unreadCount > 0 && (
+          <span className="min-w-5 rounded-full bg-white px-1.5 py-0.5 text-center text-cap font-bold leading-none text-zine-terracotta tabular-nums">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
       </button>
-    );
-  }
-
-  if (user.isMatch) {
-    return (
-      <div className={`p-3 rounded-zine-sm bg-zine-sage/15 text-zine-ink text-sm2 text-center ${className}`}>
-        🤝 Вы на связи! У человека нет @username, ссылку на него прислал бот в чате.
-      </div>
     );
   }
 
@@ -209,7 +212,7 @@ export const MatchModal: React.FC<{
       )}
       <h2 className="font-serif font-bold text-display text-zine-ink mb-2">Вы на связи!</h2>
       <p className="text-body text-zine-inkMuted mb-6">
-        Вы и {user.firstName} оба хотите пообщаться. Теперь можно написать в Telegram.
+        Вы и {user.firstName} оба хотите пообщаться. Можно сразу написать прямо в чате ГУЛЯЙ!
       </p>
 
       {coin && (
@@ -224,18 +227,19 @@ export const MatchModal: React.FC<{
         </div>
       )}
 
-      {coin === 'me' && onHello ? null : <ChatButton user={user} className="w-full mb-2" />}
-      {onHello && (
+      {onHello ? (
         <button
           onClick={() => {
-            telegramService.haptic('selection');
+            telegramService.haptic('medium');
             onClose();
             onHello();
           }}
-          className={`w-full h-12 mb-2 rounded-zine-sm text-body font-bold cursor-pointer ${coin === 'me' ? 'bg-zine-terracotta text-white shadow-zine-sm' : 'bg-zine-mustard/20 text-zine-ink'}`}
+          className="w-full h-12 mb-2 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold shadow-zine-sm active:scale-[0.98] transition-transform cursor-pointer"
         >
-          {HELLO_TEXTS.btn}
+          💬 Открыть чат
         </button>
+      ) : (
+        <ChatButton user={user} className="w-full mb-2" />
       )}
       <button onClick={onClose} className="w-full h-12 text-body font-semibold text-zine-inkMuted cursor-pointer">
         Позже

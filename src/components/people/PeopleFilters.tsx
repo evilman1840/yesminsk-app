@@ -20,6 +20,7 @@ export interface PeopleFilters {
   maxKm: 0 | 1 | 3 | 10;      // 0 — весь Минск
   availableOnly: boolean;
   liveStatusOnly: boolean;
+  seriousOnly: boolean;
   who: 'all' | 'locals' | 'tourists';
   recentOnly: boolean;
   goesWith: GoesWith[];       // «Обычно ходит»; пусто — любые
@@ -32,6 +33,7 @@ export const DEFAULT_FILTERS: PeopleFilters = {
   maxKm: 0,
   availableOnly: false,
   liveStatusOnly: false,
+  seriousOnly: false,
   who: 'all',
   recentOnly: false,
   goesWith: [],
@@ -58,6 +60,7 @@ export const filterQuery = (f: PeopleFilters): Record<string, string> => {
   if (f.who !== 'all') q.who = f.who;
   if (f.availableOnly) q.available = '1';
   if (f.liveStatusOnly) q.liveStatus = '1';
+  if (f.seriousOnly) q.serious = '1';
   if (f.recentOnly) q.recent = '1';
   if (f.goesWith.length) q.goesWith = f.goesWith.join(',');
   if (f.useMyPrefs) q.myPrefs = '1';
@@ -79,6 +82,7 @@ export const countActiveFilters = (f: PeopleFilters) =>
   Number(f.maxKm !== 0) +
   Number(f.availableOnly) +
   Number(f.liveStatusOnly) +
+  Number(f.seriousOnly) +
   Number(f.who !== 'all') +
   Number(f.recentOnly) +
   Number(f.goesWith.length > 0) +
@@ -97,6 +101,7 @@ const isLegacyAgeRange = (r?: AgeRange) => !r || (r.min === 18 && r.max === 45);
 export interface MyPrefs {
   preferredGender?: PreferredGender;
   preferredAgeRange?: AgeRange;
+  openToSerious?: boolean;
 }
 
 export const applyPeopleFilters = (users: UserProfile[], f: PeopleFilters, my: MyPrefs) =>
@@ -109,6 +114,7 @@ export const applyPeopleFilters = (users: UserProfile[], f: PeopleFilters, my: M
     if (f.maxKm && (u.distanceMeters ?? Infinity) > f.maxKm * 1000) return false;
     if (f.availableOnly && !isAvailableNow(u)) return false;
     if (f.liveStatusOnly && !currentLiveStatus(u.liveStatus)) return false;
+    if (f.seriousOnly && my.openToSerious && !u.mutualSerious) return false;
     if (f.who === 'locals' && u.isTourist) return false;
     if (f.who === 'tourists' && !u.isTourist) return false;
     if (f.recentOnly && !u.activeRecently) return false;
@@ -169,9 +175,10 @@ export const PeopleFiltersSheet: React.FC<{
   onChange: (f: PeopleFilters) => void;
   goal?: GoalFilter;           // цель встречи хранится в App; на карте у неё свои чипы — там не передают
   onGoalChange?: (goal: GoalFilter) => void;
+  openToSerious?: boolean;     // фильтр «Только серьёзные отношения» виден только тем, у кого это включено
   resultCount: number;
   onClose: () => void;
-}> = ({ value: f, onChange, goal, onGoalChange, resultCount, onClose }) => {
+}> = ({ value: f, onChange, goal, onGoalChange, openToSerious, resultCount, onClose }) => {
   useAnalyticsView('gulyai_filters_opened', undefined);
   const set = (patch: Partial<PeopleFilters>) => onChange({ ...f, ...patch });
   const toggleAge = (id: AgeBucket) => set({ ages: f.ages.includes(id) ? f.ages.filter((a) => a !== id) : [...f.ages, id] });
@@ -229,6 +236,14 @@ export const PeopleFiltersSheet: React.FC<{
         </Section>
 
         <div className="py-1">
+          {openToSerious && (
+            <Toggle
+              title="❤️ Только серьёзные отношения"
+              hint="Показать тех, кто тоже ищет серьёзные отношения"
+              value={f.seriousOnly}
+              onChange={(v) => set({ seriousOnly: v })}
+            />
+          )}
           <Toggle title="Со статусом «Я сейчас»" hint="У кого сейчас есть «Хочу» или «Могу»" value={f.liveStatusOnly} onChange={v => set({ liveStatusOnly: v })} />
           <Toggle title="⚡ Только «Могу сейчас»" hint="Кому удобно встретиться в ближайшие часы" value={f.availableOnly} onChange={(v) => set({ availableOnly: v })} />
           <Toggle title="Были недавно" hint="Заходили в приложение за последние 3 дня" value={f.recentOnly} onChange={(v) => set({ recentOnly: v })} />

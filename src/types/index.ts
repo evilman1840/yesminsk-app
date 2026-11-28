@@ -2,6 +2,25 @@ import type { Questionnaire } from '../profile/questionnaire';
 export type ActivityGoal = 'walk' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'other';
 export type Gender = 'male' | 'female' | 'not_specified';
 export type PreferredGender = 'all' | 'male' | 'female';
+export type CasualPace = 'chat_first' | 'coffee_first' | 'direct';
+
+export const CASUAL_PACE_INFO: Record<CasualPace, { emoji: string; label: string; hint: string }> = {
+  chat_first: {
+    emoji: '💬',
+    label: 'Сначала пообщаться в чате',
+    hint: 'Немного узнать друг друга в переписке, прежде чем куда-то идти'
+  },
+  coffee_first: {
+    emoji: '☕',
+    label: 'Сначала кофе в людном месте',
+    hint: 'Встретиться вживую в спокойном месте и проверить симпатию'
+  },
+  direct: {
+    emoji: '⚡',
+    label: 'Без долгих переписок',
+    hint: 'Сразу к делу, если обоим всё подходит'
+  }
+};
 // cafe_bar («Кофе, бар») и expo_cinema («Арт, кино») — прежние общие типы: их разделили на кафе, бар, ресторан
 // и выставку, музей, кино, остались для старых сходок
 export type EventCategory = 'walk' | 'cafe' | 'bar' | 'restaurant' | 'exhibition' | 'museum' | 'cinema' | 'cafe_bar' | 'expo_cinema' | 'trip_outdoors' | 'boardgames' | 'sport' | 'relax' | 'learn' | 'support' | 'other';
@@ -125,6 +144,10 @@ export interface UserProfile {
   gender: Gender;
   preferredGender: PreferredGender;
   preferredAgeRange: AgeRange;
+  openToSerious?: boolean;   // приватная отметка в своей анкете: «❤️ Серьёзные отношения»
+  openToCasual?: boolean;    // приватная отметка в своей анкете: «🔥 Близость без обязательств»
+  casualPace?: CasualPace;   // выбранный темп близости в своей анкете
+  mutualSerious?: boolean;   // приходит с сервера только когда «❤️ Серьёзные отношения» отмечено у обоих
   coordinates: [number, number]; // [lat, lng]
   areaName?: string;
   isTourist?: boolean;
@@ -641,3 +664,44 @@ export type MeetupChatData = { title: string; expiresAt: string; chatPaused?: bo
   { threads: MeetupChatThread[] } |
   { messages: MeetupChatMessage[]; canSend: boolean; peerName?: string; peerAvatarUrl?: string; peerId?: number; before: string | null }
 );
+
+export type DirectChatMessage = MeetupChatMessage;
+
+export interface DirectChatPeer {
+  telegramId: number;
+  firstName: string;
+  age?: number;
+  avatarUrl?: string;
+}
+
+export interface DirectChatComfort {
+  mutualSerious: boolean;
+  mutualCasual: boolean;
+  myCasualPace?: CasualPace;
+  peerCasualPace?: CasualPace;
+}
+
+export interface DirectChatData {
+  peer: DirectChatPeer;
+  firstMove: 'me' | 'them' | null;
+  firstMoveAt: string | null;
+  phrases: string[];
+  messages: DirectChatMessage[];
+  before: string | null;
+  canSend: boolean;
+  expiresInDays?: number;
+  canPlay?: boolean;
+  comfort?: DirectChatComfort;
+}
+
+export interface DirectChatThreadSummary {
+  unreadCount: number;
+  lastMessageAt: string;
+  lastMessagePreview: string;
+  lastMessageMine: boolean;
+}
+
+export interface DirectChatsSummary {
+  totalUnread: number;
+  threads: Record<string, DirectChatThreadSummary>;
+}

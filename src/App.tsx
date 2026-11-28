@@ -21,7 +21,8 @@ import { ACCOUNT_TEXTS } from './texts/account';
 import { AddToHomeSheet } from './components/common/AddToHomeSheet';
 import { OpenUserContext } from './context/openUser';
 import { GoTogetherContext } from './context/connect';
-import { HelloSheet, DuelSheet, UsernameSheet, markCoinSeen } from './components/common/ConnectSheets';
+import { DuelSheet, markCoinSeen } from './components/common/ConnectSheets';
+import { DirectChatSheet } from './components/common/DirectChatSheet';
 import { askBotAccess, setBotAccessKnown, botAccessOk, onBotAccessChange } from './services/botAccess';
 import { PeopleFilters, loadFilters, saveFilters, filterQuery } from './components/people/PeopleFilters';
 import { WantNowButton } from './components/common/WantNowButton';
@@ -127,6 +128,9 @@ export const App: React.FC = () => {
     gender: 'not_specified' as Gender,
     preferredGender: 'all' as PreferredGender,
     preferredAgeRange: { min: 18, max: 99 } as AgeRange,
+    openToSerious: false,
+    openToCasual: false,
+    casualPace: 'chat_first' as import('./types').CasualPace,
     photoOnly: false, // «Только с теми, у кого есть фото»
     faceStatus: 'pending' as 'ok' | 'no' | 'pending', // видно ли лицо на главном фото (проверяет сервер)
     goals: ['walk'] as ActivityGoal[],
@@ -255,11 +259,12 @@ export const App: React.FC = () => {
   const [sharedEventBuddy, setSharedEventBuddy] = useState(false); // «Позвать ещё» от бота: открыть сходку сразу с «👯 Позвать с собой»
   const [goTogetherWith, setGoTogetherWith] = useState<UserProfile | null>(null); // «👯 Пойдём на сходку вместе» из «На связи»
   const [goTogetherFromBot, setGoTogetherFromBot] = useState(false); // шторку открыли кнопкой из «Вы на связи!»
-  // «✍️ Что написать» и «🎲 Сыграть» с человеком «На связи»
-  const [helloWith, setHelloWith] = useState<{ id: number; name: string } | null>(null);
+  // Личный чат 1 на 1 и «🎲 Сыграть» с человеком «На связи»
+  const [directChatWith, setDirectChatWith] = useState<{ id: number; name: string; avatarUrl?: string } | null>(null);
+  const [directChatsSummary, setDirectChatsSummary] = useState<import('./types').DirectChatsSummary>({ totalUnread: 0, threads: {} });
   const [duelWith, setDuelWith] = useState<{ id: number; name: string } | null>(null);
-  // Перед первым 👋: пол, потом @username. 👋 уйдёт сам, когда всё есть; «Потом» — без 👋
-  const [waveGate, setWaveGate] = useState<{ user: UserProfile; step: 'gender' | 'username' } | null>(null);
+  // Перед первым 👋: только пол (можно «не указывать»)
+  const [waveGate, setWaveGate] = useState<{ user: UserProfile; step: 'gender' } | null>(null);
   const waveGateResolve = useRef<((ok: boolean) => void) | null>(null);
 
   // Новости проекта и счётчик непрочитанных
@@ -570,9 +575,13 @@ export const App: React.FC = () => {
   // «Хотят пообщаться» и «На связи». Если кто-то ответил 👋, пока нас не было, показываем окно
   const fetchInbox = useCallback(async (showNewMatch = false) => {
     try {
-      const data = await api.getInbox();
+      const [data, summary] = await Promise.all([
+        api.getInbox(),
+        api.getDirectChatsSummary(true).catch(() => null)
+      ]);
       setLikedMe(data.likedMe || []);
       setMatches(data.matches || []);
+      if (summary) setDirectChatsSummary(summary);
 
       if (showNewMatch && data.matches?.length) {
         let seen: number[] = [];
@@ -648,6 +657,9 @@ export const App: React.FC = () => {
             gender: me.gender || prev.gender,
             preferredGender: me.preferredGender || prev.preferredGender,
             preferredAgeRange: me.preferredAgeRange || prev.preferredAgeRange,
+            openToSerious: Boolean(me.openToSerious),
+            openToCasual: Boolean(me.openToCasual),
+            casualPace: me.casualPace || prev.casualPace,
             photoOnly: Boolean(me.photoOnly),
             faceStatus: me.faceStatus || 'pending',
             // Пока анкета не заполнена, интересы не подставляем (иначе стоял бы «Погулять» по умолчанию)
@@ -773,7 +785,7 @@ export const App: React.FC = () => {
             if (target.together && u.isMatch) {
               setGoTogetherFromBot(true);
               setGoTogetherWith(u);
-            } else if (target.hello && u.isMatch && u.username) setHelloWith({ id: u.telegramId, name: u.firstName });
+            } else if ((target.chat || target.hello) && u.isMatch) setDirectChatWith({ id: u.telegramId, name: u.firstName, avatarUrl: u.avatarUrl });
             else if (target.duel && u.isMatch && gamesOpenRef.current) setDuelWith({ id: u.telegramId, name: u.firstName });
             else setSelectedUser(u);
           })
@@ -847,6 +859,9 @@ export const App: React.FC = () => {
     gender?: Gender;
     preferredGender?: PreferredGender;
     preferredAgeRange?: AgeRange;
+    openToSerious?: boolean;
+    openToCasual?: boolean;
+    casualPace?: import('./types').CasualPace;
     photoOnly?: boolean;
     goals: ActivityGoal[];
     goal: ActivityGoal;
@@ -885,6 +900,9 @@ export const App: React.FC = () => {
       genderConfirmed: formData.genderConfirmed,
       preferredGender: formData.preferredGender || 'all',
       preferredAgeRange: formData.preferredAgeRange || { min: 18, max: 99 },
+      openToSerious: Boolean(formData.openToSerious),
+      openToCasual: Boolean(formData.openToCasual),
+      casualPace: formData.casualPace || 'chat_first',
       photoOnly: formData.photoOnly,
       goal: formData.goal,
       goals: formData.goals,
@@ -937,11 +955,22 @@ export const App: React.FC = () => {
   };
 
   // Пожаловались на человека — убираем его отовсюду у того, кто пожаловался
-  const handleUserReported = (user: UserProfile) => {
-    const id = user.telegramId;
+  const handleUserReported = (userOrId: UserProfile | number) => {
+    const id = typeof userOrId === 'number' ? userOrId : userOrId.telegramId;
     setUsers(prev => prev.filter(u => u.telegramId !== id));
     setLikedMe(prev => prev.filter(u => u.telegramId !== id));
     setMatches(prev => prev.filter(u => u.telegramId !== id));
+    setDirectChatsSummary((prev) => {
+      const key = String(id);
+      const removed = prev.threads[key];
+      if (!removed) return prev;
+      const nextThreads = { ...prev.threads };
+      delete nextThreads[key];
+      return {
+        totalUnread: Math.max(0, prev.totalUnread - (removed.unreadCount || 0)),
+        threads: nextThreads
+      };
+    });
     setSelectedUser(null);
   };
 
@@ -991,12 +1020,12 @@ export const App: React.FC = () => {
     api.skipUser(user.telegramId, true).catch(() => {});
   };
 
-  // Шторки перед 👋: ждём, пока человек ответит. true — 👋 ушёл
-  const openWaveGate = (user: UserProfile, step: 'gender' | 'username') =>
+  // Шторка перед первым 👋 (только пол, @username больше не нужен)
+  const openWaveGate = (user: UserProfile, step: 'gender') =>
     new Promise<boolean>((resolve) => {
       waveGateResolve.current?.(false);
       waveGateResolve.current = resolve;
-      if (step === 'gender') api.waveGateEvent('gender_shown'); // username_shown отмечает сама шторка
+      if (step === 'gender') api.waveGateEvent('gender_shown');
       setWaveGate({ user, step });
     });
   const finishWaveGate = () => {
@@ -1017,7 +1046,6 @@ export const App: React.FC = () => {
   const handleReact = async (user: UserProfile, type: ReactionType): Promise<boolean> => {
     if (type === 'like') {
       if (!currentUser.genderConfirmed) return openWaveGate(user, 'gender');
-      if (!currentUser.username) return openWaveGate(user, 'username');
     }
     return sendReaction(user, type);
   };
@@ -1058,11 +1086,10 @@ export const App: React.FC = () => {
       }
       return true;
     } catch (err: any) {
-      // Сервер не видит пола или @username (например, анкету меняли с другого устройства) — те же шторки
-      if (err?.data?.code === 'NEED_GENDER' || err?.data?.code === 'NEED_USERNAME') {
-        const step = err.data.code === 'NEED_GENDER' ? 'gender' : 'username';
-        setCurrentUser((prev) => (step === 'gender' ? { ...prev, genderConfirmed: false } : { ...prev, username: undefined }));
-        return openWaveGate(user, step);
+      // Сервер не видит пола (например, анкету меняли с другого устройства) — открываем шторку выбора пола
+      if (err?.data?.code === 'NEED_GENDER') {
+        setCurrentUser((prev) => ({ ...prev, genderConfirmed: false }));
+        return openWaveGate(user, 'gender');
       }
       // Дневной лимит 👋: в анкете вместо кнопки появится карточка, здесь — то же предложение заглянуть в сходки
       if (err?.data?.code === 'DAILY_WAVE_LIMIT') {
@@ -1561,7 +1588,7 @@ export const App: React.FC = () => {
                 onOpenProfile={() => handleNavigate('profile_edit')}
                 onJoinEvent={handleJoinEvent}
                 onUpdateLocation={handleUpdateLocation}
-                myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange }}
+                myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange, openToSerious: currentUser.openToSerious }}
                 peopleFilters={peopleFilters}
                 onChangePeopleFilters={setPeopleFilters}
                 peopleTotal={peopleTotal}
@@ -1603,7 +1630,7 @@ export const App: React.FC = () => {
                 matches={matches}
                 isTourist={currentUser.isTourist}
                 myGoals={currentUser.goals}
-                myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange }}
+                myPrefs={{ preferredGender: currentUser.preferredGender, preferredAgeRange: currentUser.preferredAgeRange, openToSerious: currentUser.openToSerious }}
                 peopleFilters={peopleFilters}
                 onChangePeopleFilters={setPeopleFilters}
                 peopleTotal={peopleTotal}
@@ -1617,8 +1644,9 @@ export const App: React.FC = () => {
                 onReact={handleReact}
                 onUnmatch={handleUnmatch}
                 onGoTogether={(u) => setGoTogetherWith(u)}
-                onHello={(u) => setHelloWith({ id: u.telegramId, name: u.firstName })}
+                onHello={(u) => setDirectChatWith({ id: u.telegramId, name: u.firstName, avatarUrl: u.avatarUrl })}
                 onDuel={gamesOpen ? (u) => setDuelWith({ id: u.telegramId, name: u.firstName }) : undefined}
+                directChats={directChatsSummary}
                 onSkip={handleSkip}
                 onUnskip={handleUnskip}
                 onOpenWishKind={(kind, sport) => setWishKind({ kind, sport })}
@@ -1736,7 +1764,10 @@ export const App: React.FC = () => {
               onReact={handleReact}
               onReported={handleUserReported}
               onGoTogether={(u) => setGoTogetherWith(u)}
-              onHello={(u) => setHelloWith({ id: u.telegramId, name: u.firstName })}
+              onHello={(u) => {
+                setSelectedUser(null);
+                setDirectChatWith({ id: u.telegramId, name: u.firstName, avatarUrl: u.avatarUrl });
+              }}
               onDuel={gamesOpen ? (u) => setDuelWith({ id: u.telegramId, name: u.firstName }) : undefined}
             />
           )}
@@ -1787,7 +1818,59 @@ export const App: React.FC = () => {
             />
           )}
 
-          {helloWith && <HelloSheet friendId={helloWith.id} name={helloWith.name} myAvatarUrl={currentUser.avatarUrl} onClose={() => setHelloWith(null)} />}
+          {directChatWith && (
+            <DirectChatSheet
+              peerId={directChatWith.id}
+              peerName={directChatWith.name}
+              peerAvatarUrl={directChatWith.avatarUrl}
+              myAvatarUrl={currentUser.avatarUrl}
+              onClose={() => setDirectChatWith(null)}
+              onRead={(peerId) => {
+                setDirectChatsSummary((prev) => {
+                  const key = String(peerId);
+                  const prevThread = prev.threads[key];
+                  if (!prevThread || !prevThread.unreadCount) return prev;
+                  return {
+                    totalUnread: Math.max(0, prev.totalUnread - prevThread.unreadCount),
+                    threads: {
+                      ...prev.threads,
+                      [key]: { ...prevThread, unreadCount: 0 }
+                    }
+                  };
+                });
+              }}
+              onMessageSent={(peerId, text) => {
+                setDirectChatsSummary((prev) => ({
+                  ...prev,
+                  threads: {
+                    ...prev.threads,
+                    [String(peerId)]: {
+                      unreadCount: 0,
+                      lastMessageAt: new Date().toISOString(),
+                      lastMessagePreview: text.slice(0, 80),
+                      lastMessageMine: true
+                    }
+                  }
+                }));
+              }}
+              onGoTogether={(peerId) => {
+                setDirectChatWith(null);
+                goTogetherById(peerId);
+              }}
+              onDuel={
+                gamesOpen
+                  ? (peerId, name) => {
+                      setDirectChatWith(null);
+                      setDuelWith({ id: peerId, name });
+                    }
+                  : undefined
+              }
+              onBlockedOrReported={(peerId) => {
+                setDirectChatWith(null);
+                handleUserReported(peerId);
+              }}
+            />
+          )}
           {duelWith && (
             <DuelSheet
               friendId={duelWith.id}
@@ -1955,7 +2038,7 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* Перед первым 👋: пол (можно «не указывать»), потом @username — иначе ответить будет некуда */}
+          {/* Перед первым 👋: пол (можно «не указывать») */}
           {waveGate?.step === 'gender' && (
             <GenderPrompt
               myAge={Number(currentUser.age) || 25}
@@ -1966,19 +2049,9 @@ export const App: React.FC = () => {
               onChosen={(gender) => {
                 api.waveGateEvent('gender_done');
                 setCurrentUser((prev) => ({ ...prev, gender, genderConfirmed: true }));
-                if (currentUser.username) finishWaveGate();
-                else setWaveGate((g) => (g ? { ...g, step: 'username' } : g));
-              }}
-              onClose={leaveWaveGate}
-            />
-          )}
-          {waveGate?.step === 'username' && (
-            <UsernameSheet
-              onDone={(username) => {
-                setCurrentUser((prev) => ({ ...prev, username }));
                 finishWaveGate();
               }}
-              onLater={leaveWaveGate}
+              onClose={leaveWaveGate}
             />
           )}
 
@@ -2045,7 +2118,7 @@ export const App: React.FC = () => {
 
           {shareData && <ShareSheet data={shareData} onClose={() => setShareData(null)} />}
 
-          {profileInviteOpen && ['main', 'feed', 'events', 'places'].includes(currentScreen) && !isHomeTipOpen && !isHostDonateOpen && !isDonateOpen && !isPollOpen && !shareData && !goTogetherWith && !duelWith && !sharedEvent && !matchPopupUser && !helloWith && !selectedUser && !serialPlaying && !launchNotice && !waveGate && (
+          {profileInviteOpen && ['main', 'feed', 'events', 'places'].includes(currentScreen) && !isHomeTipOpen && !isHostDonateOpen && !isDonateOpen && !isPollOpen && !shareData && !goTogetherWith && !duelWith && !sharedEvent && !matchPopupUser && !directChatWith && !selectedUser && !serialPlaying && !launchNotice && !waveGate && (
             <ProfileInviteBanner onSeen={markProfileInviteSeen} onClose={() => { setInviteDismissed(true); setProfileInviteOpen(false); }} onContinue={() => { setInviteDismissed(true); setProfileInviteOpen(false); setFocusQuestionnaire(true); setCurrentScreen('profile_edit'); }} />
           )}
 
@@ -2053,7 +2126,7 @@ export const App: React.FC = () => {
             <MatchModal
               user={matchPopupUser}
               myAvatarUrl={currentUser.avatarUrl}
-              onHello={matchPopupUser.username ? () => setHelloWith({ id: matchPopupUser.telegramId, name: matchPopupUser.firstName }) : undefined}
+              onHello={() => setDirectChatWith({ id: matchPopupUser.telegramId, name: matchPopupUser.firstName, avatarUrl: matchPopupUser.avatarUrl })}
               coin={matchCoin}
               onClose={() => {
                 setMatchPopupUser(null);
