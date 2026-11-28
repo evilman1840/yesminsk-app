@@ -43,7 +43,9 @@ document.addEventListener(
 
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 // Только при разработке: ?preview=connect — новые экраны «На связи» на выдуманных данных
-if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'notices') {
+if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'event-likes') {
+  import('./dev/EventLikesPreview').then(({ EventLikesPreview }) => root.render(<EventLikesPreview />));
+} else if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'notices') {
   import('./dev/NoticePreview').then(({ NoticePreview }) => root.render(<NoticePreview />));
 } else if (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'connect') {
   import('./dev/ConnectPreview').then(({ ConnectPreview }) => root.render(<ConnectPreview />));

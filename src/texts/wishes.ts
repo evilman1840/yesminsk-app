@@ -7,7 +7,7 @@ const people = (n: number) =>
   `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'человек' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'человека' : 'человек'}`;
 
 export const WISH_TEXTS = {
-  barTitle: 'Хочу сходить',
+  barTitle: 'Хочу',
   barPrompt: 'Нет подходящей сходки? Отметь, куда хочется',
   barCounter: (n: number, what: string, when: string) => `${people(n)} ${n === 1 ? 'хочет' : 'хотят'} ${what} ${when}`,
   // Моё желание: сколько ещё хотят того же, кроме меня

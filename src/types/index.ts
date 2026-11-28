@@ -271,6 +271,8 @@ export const GOES_WITH: Record<GoesWith, { label: string; emoji: string }> = {
 
 export interface AppEvent {
   id: string;
+  likesCount?: number;
+  isLiked?: boolean;
   distanceMeters?: number; // от моего места из анкеты (сервер считает)
   title: string;
   description: string;

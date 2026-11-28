@@ -21,6 +21,7 @@ import { BottomSheet } from '../ui/BottomSheet';
 import { BringBuddySheet } from './BuddySheets';
 import { BUDDY_TEXTS } from '../../texts/buddies';
 import { NEARBY_TEXTS } from '../../texts/nearby';
+import { EventLikeButton } from './EventLikeButton';
 
 /**
  * Подробности сходки: когда, где, сколько идёт, кнопки «Пойду!», «Позвать друзей» и «Организатору»
@@ -209,6 +210,10 @@ export const EventDetails: React.FC<{
 
   return (
     <div>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <p className="text-sm2 text-zine-inkMuted">Нравится идея? Сохрани сходку сердечком</p>
+        <EventLikeButton event={event} />
+      </div>
       {/* Фото сходки листаются пальцем */}
       {event.photos && event.photos.length > 0 && (
         <div className="-mx-5 mb-4 px-5 flex gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-5">

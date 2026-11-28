@@ -580,7 +580,7 @@ class ApiService {
   }
 
   // «Хочу сходить»
-  async getWishes(): Promise<{ mine: WishItem[]; summary: WishSummaryItem[]; kindCounts?: Record<string, number>; maxActive: number; proposeAt?: number; stats?: MeetupStats }> {
+  async getWishes(): Promise<{ mine: WishItem[]; summary: WishSummaryItem[]; totalActive?: number; kindCounts?: Record<string, number>; maxActive: number; proposeAt?: number; stats?: MeetupStats }> {
     return this.request('/wishes');
   }
   async createWish(data: { kind: string; sport?: string | null; timeWindow: WishWindow; placeId?: string | null }): Promise<{ wish: WishItem; sameCount: number }> {
@@ -614,6 +614,14 @@ class ApiService {
   // «Прошедшие» в «⭐ Мои»: последние свои сходки за три месяца, новые сверху
   async getPastMine(): Promise<AppEvent[]> {
     return this.request<AppEvent[]>('/events/past-mine', {}, true);
+  }
+
+  async getLikedEvents(): Promise<AppEvent[]> {
+    return this.request<AppEvent[]>('/events/liked', {}, true);
+  }
+
+  async setEventLike(eventId: string, liked: boolean): Promise<{ isLiked: boolean; likesCount: number }> {
+    return this.request(`/events/${eventId}/like`, { method: 'POST', body: JSON.stringify({ liked }) }, true);
   }
 
   // «Организаторы месяца»: кто за последние 30 дней провёл больше всего сходок
