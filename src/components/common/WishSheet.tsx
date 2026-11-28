@@ -52,15 +52,22 @@ export const WishSheet: React.FC<{
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ sameCount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hintField, setHintField] = useState<'what' | 'sub' | 'custom' | 'when' | null>(null);
   const [isSuggestOpen, setIsSuggestOpen] = useState(false);
   const [suggested, setSuggested] = useState<string | null>(null); // предложенное место (на проверке)
   const [customText, setCustomText] = useState(''); // «Своё»: чего хочется, своими словами
+
+  const whatRef = useRef<HTMLElement>(null);
+  const customRef = useRef<HTMLElement>(null);
+  const subRef = useRef<HTMLElement>(null);
+  const whenRef = useRef<HTMLElement>(null);
 
   const kinds = (templates || []).filter((t) => t.key !== CUSTOM_TEMPLATE && t.wishPhrase);
   const tpl = kinds.find((t) => t.key === kind) || null;
   const subField = subFieldOf(tpl);
   const isCustom = kind === CUSTOM_TEMPLATE;
-  const ready = Boolean(kind && timeWindow && (!subField || sport) && (!isCustom || customText.trim().replace(/[^a-zа-яё]/gi, '').length >= 2));
+  const customValid = !isCustom || customText.trim().replace(/[^a-zа-яё]/gi, '').length >= 2;
+  const ready = Boolean(kind && timeWindow && (!subField || sport) && customValid);
 
   const refresh = () =>
     api
@@ -137,11 +144,16 @@ export const WishSheet: React.FC<{
     if (atLimit) setQuick(false);
   }, [atLimit]);
   const mineRef = useRef<HTMLElement>(null);
+  const scrollToMine = () => {
+    telegramService.haptic('selection');
+    mineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const [isMineFocused, setIsMineFocused] = useState(!focusMine);
   useEffect(() => {
     if (isMineFocused || !mine.length) return;
     setIsMineFocused(true);
-    mineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const id = requestAnimationFrame(() => mineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    return () => cancelAnimationFrame(id);
   }, [mine.length, isMineFocused]);
   // Быстрый режим: всё выбрано — сразу сохраняем, без кнопки внизу (свой текст — по кнопке, его ещё печатают)
   const quickSubmit = (next: { sport?: string | null; timeWindow?: WishWindow | null }) => {
@@ -151,22 +163,65 @@ export const WishSheet: React.FC<{
     create({ kind, sport: sp, timeWindow: w, placeId: place?.id || null });
   };
 
+  // Нажатие на нижнюю кнопку: если чего-то не хватает, не молчим, а подсказываем и прокручиваем к нужному полю
+  const missingStep: 'what' | 'sub' | 'custom' | 'when' | null = !kind
+    ? 'what'
+    : isCustom && !customValid
+      ? 'custom'
+      : subField && !sport
+        ? 'sub'
+        : !timeWindow
+          ? 'when'
+          : null;
+
+  const submitLabel = atLimit
+    ? T.limitGoMine(maxActive)
+    : missingStep === 'when'
+      ? T.pickWhenFirst
+      : missingStep === 'sub'
+        ? T.pickSubFirst
+        : missingStep === 'custom'
+          ? T.pickCustomFirst
+          : T.submit;
+
+  const handleFooterClick = () => {
+    if (busy) return;
+    if (atLimit) {
+      scrollToMine();
+      return;
+    }
+    if (missingStep) {
+      telegramService.haptic('light');
+      setHintField(missingStep);
+      const refMap = { what: whatRef, custom: customRef, sub: subRef, when: whenRef };
+      refMap[missingStep].current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (kind && timeWindow) {
+      setHintField(null);
+      create({ kind, sport: isCustom ? customText.trim() : sport, timeWindow, placeId: place?.id || null });
+    }
+  };
+
   return (
     <BottomSheet
       title={T.sheetTitle}
       onClose={onClose}
       footer={
         !isPlacePicker && (!quick || isCustom) && (
-          <button
-            type="button"
-            disabled={!ready || busy || atLimit}
-            onClick={() => kind && timeWindow && create({ kind, sport: isCustom ? customText.trim() : sport, timeWindow, placeId: place?.id || null })}
-            className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
-              ready && !atLimit ? 'bg-zine-terracotta text-white' : 'bg-zine-card text-zine-inkMuted cursor-default'
-            }`}
-          >
-            {busy ? <Loader2 size={22} className="animate-spin" /> : atLimit ? T.limit(maxActive) : T.submit}
-          </button>
+          <div className="space-y-2">
+            {error && <p className="p-2.5 rounded-zine-sm bg-zine-danger/10 text-sm2 font-semibold text-zine-danger text-center">{error}</p>}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleFooterClick}
+              className={`w-full h-14 rounded-zine-sm text-lead font-bold flex items-center justify-center gap-2 transition-colors active:scale-[0.98] cursor-pointer ${
+                ready && !atLimit ? 'bg-zine-terracotta text-white' : 'bg-zine-card text-zine-ink border border-zine-border'
+              }`}
+            >
+              {busy ? <Loader2 size={22} className="animate-spin" /> : submitLabel}
+            </button>
+          </div>
         )
       }
     >
@@ -193,7 +248,19 @@ export const WishSheet: React.FC<{
         </div>
       ) : (
         <div className="space-y-5">
-          <p className="text-body text-zine-inkMuted">{quick && !isCustom ? T.quickHint : T.sheetHint}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-body text-zine-inkMuted">{quick && !isCustom ? T.quickHint : T.sheetHint}</p>
+            {!quick && mine.length > 0 && (
+              <button
+                type="button"
+                onClick={scrollToMine}
+                className="shrink-0 min-h-10 px-3 rounded-full bg-zine-card border border-zine-border text-sm2 font-bold text-zine-terracotta flex items-center gap-1.5 active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                <span>{T.myWishesChip}</span>
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-zine-terracotta text-white text-cap font-bold flex items-center justify-center">{mine.length}</span>
+              </button>
+            )}
+          </div>
           {quick && atLimit && <p className="p-3 rounded-zine-sm bg-zine-card text-sm2 font-semibold text-zine-ink">{T.limit(maxActive)}</p>}
 
           {done && (
@@ -202,9 +269,9 @@ export const WishSheet: React.FC<{
               {done.sameCount > 0 && <p className="mt-1">{T.sameCount(done.sameCount)}</p>}
             </div>
           )}
-          {error && <p className="p-3 rounded-zine-sm bg-zine-danger/10 text-sm2 font-semibold text-zine-danger">{error}</p>}
+          {quick && error && <p className="p-3 rounded-zine-sm bg-zine-danger/10 text-sm2 font-semibold text-zine-danger">{error}</p>}
 
-          <section>
+          <section ref={whatRef} className={hintField === 'what' ? 'p-2.5 -mx-2.5 rounded-zine-sm bg-zine-terracotta/10 transition-colors' : ''}>
             <h4 className="mb-2 text-sm2 font-bold text-zine-ink">{T.whatLabel}</h4>
             {!templates ? (
               <Loader2 size={20} className="animate-spin text-zine-inkMuted" />
@@ -219,6 +286,14 @@ export const WishSheet: React.FC<{
                       setKind(t.key);
                       setSport(null);
                       setDone(null);
+                      setError(null);
+                      setHintField(null);
+                      const nextHasSub = Boolean(subFieldOf(t));
+                      if (!nextHasSub && !timeWindow) {
+                        requestAnimationFrame(() => whenRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+                      } else if (nextHasSub) {
+                        requestAnimationFrame(() => subRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+                      }
                     }}
                     className={chip(kind === t.key)}
                   >
@@ -234,6 +309,8 @@ export const WishSheet: React.FC<{
                     setKind(CUSTOM_TEMPLATE);
                     setSport(null);
                     setDone(null);
+                    setError(null);
+                    setHintField(null);
                   }}
                   className={chip(isCustom)}
                 >
@@ -245,15 +322,15 @@ export const WishSheet: React.FC<{
           </section>
 
           {isCustom && (
-            <section>
+            <section ref={customRef} className={hintField === 'custom' ? 'p-2.5 -mx-2.5 rounded-zine-sm bg-zine-terracotta/10 transition-colors' : ''}>
               <h4 className="mb-2 text-sm2 font-bold text-zine-ink">{T.customLabel}</h4>
-              <input type="text" value={customText} onChange={(e) => setCustomText(e.target.value.slice(0, 40))} placeholder={T.customPlaceholder} className="field" autoFocus />
+              <input type="text" value={customText} onChange={(e) => { setCustomText(e.target.value.slice(0, 40)); setHintField(null); setError(null); }} placeholder={T.customPlaceholder} className="field" autoFocus />
               <p className="mt-1.5 text-cap text-zine-inkMuted">{T.customHint}</p>
             </section>
           )}
 
           {subField && (
-            <section>
+            <section ref={subRef} className={hintField === 'sub' ? 'p-2.5 -mx-2.5 rounded-zine-sm bg-zine-terracotta/10 transition-colors' : ''}>
               <h4 className="mb-2 text-sm2 font-bold text-zine-ink">{subField.label || T.sportLabel}</h4>
               <div className="flex flex-wrap gap-2">
                 {subField.options.map((o) => (
@@ -263,6 +340,11 @@ export const WishSheet: React.FC<{
                     onClick={() => {
                       telegramService.haptic('selection');
                       setSport(o.value);
+                      setHintField(null);
+                      setError(null);
+                      if (!quick && !timeWindow) {
+                        requestAnimationFrame(() => whenRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+                      }
                       quickSubmit({ sport: o.value });
                     }}
                     className={chip(sport === o.value)}
@@ -275,7 +357,7 @@ export const WishSheet: React.FC<{
             </section>
           )}
 
-          <section>
+          <section ref={whenRef} className={hintField === 'when' ? 'p-2.5 -mx-2.5 rounded-zine-sm bg-zine-terracotta/10 transition-colors' : ''}>
             <h4 className="mb-2 text-sm2 font-bold text-zine-ink">{T.whenLabel}</h4>
             <div className="flex flex-wrap gap-2">
               {WINDOWS.map((w) => (
@@ -286,6 +368,8 @@ export const WishSheet: React.FC<{
                     telegramService.haptic('selection');
                     setTimeWindow(w);
                     setDone(null);
+                    setError(null);
+                    setHintField(null);
                     quickSubmit({ timeWindow: w });
                   }}
                   className={chip(timeWindow === w)}

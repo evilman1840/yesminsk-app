@@ -73,6 +73,12 @@ export const WISH_TEXTS = {
   noPlaces: 'Ничего не нашлось',
   windows: { today: 'Сегодня', tomorrow: 'Завтра', weekend: 'На выходных', week: 'На неделе' },
   submit: '🙋 Хочу!',
+  pickWhatFirst: 'Сначала выбери, куда хочется',
+  pickSubFirst: 'Уточни вариант выше',
+  pickCustomFirst: 'Напиши, чего хочется',
+  pickWhenFirst: 'Выбери, когда удобно',
+  myWishesChip: 'Мои желания',
+  limitGoMine: (max: number) => `Уже ${max} из ${max} · Мои желания ↓`,
 
   created: 'Готово! Как только найдутся ещё люди с таким же желанием, бот вас познакомит с идеей сходки 🙌',
   toastTitle: '🙋 Желание отмечено!',

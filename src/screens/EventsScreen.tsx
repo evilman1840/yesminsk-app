@@ -337,6 +337,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   }, [initialWish]);
   const [wishSummary, setWishSummary] = useState<WishSummaryItem[]>([]);
   const [wishKindCounts, setWishKindCounts] = useState<Record<string, number>>({});
+  const [myWishCount, setMyWishCount] = useState(0);
   const [totalWishes, setTotalWishes] = useState<number | null>(null);
   const [proposeAt, setProposeAt] = useState(3);
   const [meetupStats, setMeetupStats] = useState<MeetupStats | null>(null);
@@ -371,6 +372,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
       .then((r) => {
         setWishSummary(r.summary || []);
         setWishKindCounts(r.kindCounts || {});
+        setMyWishCount((r.mine || []).length);
         setTotalWishes(typeof r.totalActive === 'number' ? r.totalActive : null);
         setProposeAt(r.proposeAt || 3);
         setMeetupStats(r.stats || null);
@@ -1139,7 +1141,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </button>
         </div>
         {/* Быстрые желания: вид в одно нажатие, дальше только «когда» */}
-        {(wishKinds.length > 0 || topWish || monthHosts.length > 0) && (
+        {(wishKinds.length > 0 || topWish || monthHosts.length > 0 || myWishCount > 0) && (
           <div className="mt-2 -mx-3 px-3 flex gap-1.5 overflow-x-auto no-scrollbar">
             {/* 🏆 «Организаторы месяца» — тот же список, что карточкой в ленте. Первым в ряду чипов: в ряду с «Хочу сходить» он обрезал надпись; организаторов нет — кнопки нет */}
             {monthHosts.length > 0 && (
@@ -1158,6 +1160,16 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 className={`w-9 h-9 shrink-0 rounded-full bg-zine-card border border-zine-border text-[17px] leading-none flex items-center justify-center active:scale-95 transition-transform cursor-pointer ${hostsSeen ? '' : 'mine-pulse border-zine-mustard'}`}
               >
                 🏆
+              </button>
+            )}
+            {/* Свои активные желания: сразу открывает шторку на списке «Мои желания» */}
+            {myWishCount > 0 && (
+              <button
+                onClick={() => openWish(undefined, true)}
+                className="h-9 pl-2.5 pr-2 shrink-0 rounded-full bg-zine-card border border-zine-terracotta/40 text-sm2 font-semibold text-zine-terracotta flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
+              >
+                <span className="whitespace-nowrap">{WISH_TEXTS.myWishesChip}</span>
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-zine-terracotta text-white text-cap font-bold tabular-nums flex items-center justify-center">{myWishCount}</span>
               </button>
             )}
             {/* «2 человека хотят на выставку на неделе» — список этих людей: 👋, позвать в компанию, «Я тоже хочу» */}
