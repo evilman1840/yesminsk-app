@@ -22,7 +22,7 @@ import { AddToHomeSheet } from './components/common/AddToHomeSheet';
 import { OpenUserContext } from './context/openUser';
 import { GoTogetherContext } from './context/connect';
 import { DuelSheet, markCoinSeen } from './components/common/ConnectSheets';
-import { DirectChatSheet } from './components/common/DirectChatSheet';
+import { DirectChatSheet, DirectChatToast, DirectChatToastData } from './components/common/DirectChatSheet';
 import { askBotAccess, setBotAccessKnown, botAccessOk, onBotAccessChange } from './services/botAccess';
 import { PeopleFilters, loadFilters, saveFilters, filterQuery } from './components/people/PeopleFilters';
 import { WantNowButton } from './components/common/WantNowButton';
@@ -262,6 +262,10 @@ export const App: React.FC = () => {
   // Личный чат 1 на 1 и «🎲 Сыграть» с человеком «На связи»
   const [directChatWith, setDirectChatWith] = useState<{ id: number; name: string; avatarUrl?: string } | null>(null);
   const [directChatsSummary, setDirectChatsSummary] = useState<import('./types').DirectChatsSummary>({ totalUnread: 0, threads: {} });
+  const [chatToast, setChatToast] = useState<DirectChatToastData | null>(null);
+  const directChatWithRef = useRef<{ id: number; name: string; avatarUrl?: string } | null>(null);
+  directChatWithRef.current = directChatWith;
+  const knownChatTimesRef = useRef<Record<string, string> | null>(null);
   const [duelWith, setDuelWith] = useState<{ id: number; name: string } | null>(null);
   // Перед первым 👋: только пол (можно «не указывать»)
   const [waveGate, setWaveGate] = useState<{ user: UserProfile; step: 'gender' } | null>(null);
@@ -581,7 +585,14 @@ export const App: React.FC = () => {
       ]);
       setLikedMe(data.likedMe || []);
       setMatches(data.matches || []);
-      if (summary) setDirectChatsSummary(summary);
+      if (summary) {
+        setDirectChatsSummary(summary);
+        if (!knownChatTimesRef.current) {
+          const initial: Record<string, string> = {};
+          for (const k of Object.keys(summary.threads || {})) initial[k] = summary.threads[k].lastMessageAt;
+          knownChatTimesRef.current = initial;
+        }
+      }
 
       if (showNewMatch && data.matches?.length) {
         let seen: number[] = [];
@@ -598,6 +609,65 @@ export const App: React.FC = () => {
       console.warn('Ошибка загрузки входящих приветов:', err);
     }
   }, []);
+
+  // Фоновый опрос личных чатов: живой бейдж и смахиваемое уведомление сверху, если человек уже в приложении
+  useEffect(() => {
+    if (!isMeLoaded) return;
+    let cancelled = false;
+    const poll = async () => {
+      if (document.hidden) return;
+      try {
+        const summary = await api.getDirectChatsSummary(true);
+        if (cancelled || !summary) return;
+        setDirectChatsSummary(summary);
+        const prev = knownChatTimesRef.current;
+        const next: Record<string, string> = {};
+        let fresh: DirectChatToastData | null = null;
+        let freshAt = 0;
+        for (const [key, thread] of Object.entries(summary.threads || {})) {
+          next[key] = thread.lastMessageAt;
+          const peerId = Number(key);
+          if (
+            prev &&
+            thread.unreadCount > 0 &&
+            !thread.lastMessageMine &&
+            prev[key] !== thread.lastMessageAt &&
+            directChatWithRef.current?.id !== peerId
+          ) {
+            const ts = new Date(thread.lastMessageAt).getTime() || 0;
+            if (ts >= freshAt) {
+              freshAt = ts;
+              const knownPeer = matchesRef.current.find((m) => m.telegramId === peerId);
+              fresh = {
+                peerId,
+                name: thread.peerName || knownPeer?.firstName || 'Собеседник',
+                avatarUrl: thread.peerAvatarUrl || knownPeer?.avatarUrl,
+                preview: thread.lastMessagePreview
+              };
+            }
+          }
+        }
+        knownChatTimesRef.current = next;
+        if (fresh) {
+          telegramService.haptic('light');
+          setChatToast(fresh);
+        }
+      } catch {
+        // тихо пропускаем временный сбой сети
+      }
+    };
+    const timer = window.setInterval(poll, 9000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [isMeLoaded]);
+
+  useEffect(() => {
+    if (!chatToast) return;
+    const t = window.setTimeout(() => setChatToast(null), 9000);
+    return () => window.clearTimeout(t);
+  }, [chatToast]);
 
   // Инициализация один раз при старте приложения
   useEffect(() => {
@@ -1756,22 +1826,6 @@ export const App: React.FC = () => {
             />
           )}
 
-          {selectedUser && (isTab || currentScreen === 'games') && (
-            <UserBottomSheet
-              user={selectedUser}
-              myGoals={currentUser.goals}
-              onClose={() => setSelectedUser(null)}
-              onReact={handleReact}
-              onReported={handleUserReported}
-              onGoTogether={(u) => setGoTogetherWith(u)}
-              onHello={(u) => {
-                setSelectedUser(null);
-                setDirectChatWith({ id: u.telegramId, name: u.firstName, avatarUrl: u.avatarUrl });
-              }}
-              onDuel={gamesOpen ? (u) => setDuelWith({ id: u.telegramId, name: u.firstName }) : undefined}
-            />
-          )}
-
           {sharedEvent && isTab && !matchPopupUser && (
             <BottomSheet
               title={sharedEvent.title}
@@ -1871,6 +1925,44 @@ export const App: React.FC = () => {
               }}
             />
           )}
+
+          {/* Анкета рендерится после DirectChatSheet, чтобы открываться ПОВЕРХ чата и возвращать в него при закрытии */}
+          {selectedUser && (isTab || currentScreen === 'games') && (
+            <UserBottomSheet
+              user={selectedUser}
+              myGoals={currentUser.goals}
+              onClose={() => setSelectedUser(null)}
+              onReact={handleReact}
+              onReported={handleUserReported}
+              onGoTogether={(u) => {
+                setSelectedUser(null);
+                setDirectChatWith(null);
+                setGoTogetherWith(u);
+              }}
+              onHello={(u) => {
+                setSelectedUser(null);
+                setDirectChatWith({ id: u.telegramId, name: u.firstName, avatarUrl: u.avatarUrl });
+              }}
+              onDuel={
+                gamesOpen
+                  ? (u) => {
+                      setSelectedUser(null);
+                      setDirectChatWith(null);
+                      setDuelWith({ id: u.telegramId, name: u.firstName });
+                    }
+                  : undefined
+              }
+            />
+          )}
+
+          <DirectChatToast
+            toast={chatToast}
+            onDismiss={() => setChatToast(null)}
+            onOpen={(t) => {
+              setChatToast(null);
+              setDirectChatWith({ id: t.peerId, name: t.name, avatarUrl: t.avatarUrl });
+            }}
+          />
           {duelWith && (
             <DuelSheet
               friendId={duelWith.id}

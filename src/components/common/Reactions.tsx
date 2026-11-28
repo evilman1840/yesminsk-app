@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { HELLO_TEXTS } from '../../texts/hello';
 import { CoinFlip } from './CoinFlip';
 import { thumb } from '../../utils/thumb';
-import { Send, Lock, Loader2 } from 'lucide-react';
+import { Lock, Loader2 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { telegramService } from '../../services/telegram';
 import { useBackButton } from '../../hooks/useTelegram';
@@ -161,7 +161,6 @@ export const ChatButton: React.FC<{
         }}
         className={`h-12 px-4 rounded-zine-sm bg-zine-terracotta active:bg-zine-terracottaHover text-white text-body font-bold flex items-center justify-center gap-2 shadow-zine-sm active:scale-[0.98] transition-all cursor-pointer ${className}`}
       >
-        <Send size={19} />
         <span className="truncate">💬 Написать</span>
         {unreadCount > 0 && (
           <span className="min-w-5 rounded-full bg-white px-1.5 py-0.5 text-center text-cap font-bold leading-none text-zine-terracotta tabular-nums">

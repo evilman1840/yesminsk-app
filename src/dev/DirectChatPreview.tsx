@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
 import type { DirectChatData, DirectChatMessage } from '../types';
-import { DirectChatSheet } from '../components/common/DirectChatSheet';
+import { DirectChatSheet, DirectChatRulesSheet, DirectChatToast, DirectChatToastData } from '../components/common/DirectChatSheet';
+import { BottomSheet } from '../components/ui/BottomSheet';
 import { OpenUserContext } from '../context/openUser';
 
 /**
@@ -163,6 +164,9 @@ export const DirectChatPreview: React.FC = () => {
   const [mode, setMode] = useState<Mode>('empty');
   const [dark, setDark] = useState(false);
   const [open, setOpen] = useState(true);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [profileOpenId, setProfileOpenId] = useState<number | null>(null);
+  const [toast, setToast] = useState<DirectChatToastData | null>(null);
   const [notice, setNotice] = useState('');
 
   const toggleTheme = () => {
@@ -174,9 +178,21 @@ export const DirectChatPreview: React.FC = () => {
   const current = MODES.find((m) => m.id === mode) || MODES[0];
   const peer = peerAvatars[current.peerId];
 
+  const profilePeer = profileOpenId ? peerAvatars[profileOpenId] : null;
+
   return (
-    <OpenUserContext.Provider value={(id) => setNotice(`Открыта анкета пользователя #${id}`)}>
+    <OpenUserContext.Provider value={(id) => setProfileOpenId(id)}>
       <div className="min-h-[100dvh] bg-zine-paper text-zine-ink">
+        <DirectChatToast
+          toast={toast}
+          onDismiss={() => setToast(null)}
+          onOpen={(t) => {
+            setToast(null);
+            setMode('active');
+            setOpen(true);
+            setNotice(`Открыт чат из уведомления: ${t.name}`);
+          }}
+        />
         <div className="sticky top-0 z-20 border-b border-zine-border bg-zine-cardElevated px-4 py-2.5">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="font-serif text-sm2 font-bold text-zine-ink">Превью личного чата</span>
@@ -222,8 +238,33 @@ export const DirectChatPreview: React.FC = () => {
             >
               💬 Открыть чат ({peer.name})
             </button>
+            <div className="mt-2.5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setRulesOpen(true)}
+                className="min-h-[44px] flex-1 rounded-full border border-zine-border bg-zine-cardElevated px-3 text-sm2 font-bold text-zine-ink cursor-pointer"
+              >
+                ❓ Вопросик чата
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setToast({
+                    peerId: PEER_ACTIVE,
+                    name: 'Дима',
+                    avatarUrl: peerAvatars[PEER_ACTIVE].avatarUrl,
+                    preview: 'Супер! Давай выберем какую-нибудь сходку на выходных?'
+                  })
+                }
+                className="min-h-[44px] flex-1 rounded-full border border-zine-border bg-zine-cardElevated px-3 text-sm2 font-bold text-zine-ink cursor-pointer"
+              >
+                🔔 Показать тост
+              </button>
+            </div>
           </div>
         </div>
+
+        {rulesOpen && <DirectChatRulesSheet onClose={() => setRulesOpen(false)} />}
 
         {open && (
           <DirectChatSheet
@@ -240,6 +281,25 @@ export const DirectChatPreview: React.FC = () => {
               setOpen(false);
             }}
           />
+        )}
+
+        {profilePeer && (
+          <BottomSheet title={`${profilePeer.name}, ${profilePeer.age}`} onClose={() => setProfileOpenId(null)}>
+            <div className="flex items-center gap-3 rounded-zine bg-zine-card p-4">
+              <img src={profilePeer.avatarUrl} alt={profilePeer.name} className="h-16 w-16 rounded-full object-cover" />
+              <div>
+                <p className="font-serif text-title font-bold text-zine-ink">{profilePeer.name}, {profilePeer.age}</p>
+                <p className="text-sm2 text-zine-inkMuted">Анкета открыта поверх чата. Закрой её, чтобы вернуться в переписку.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setProfileOpenId(null)}
+              className="mt-4 min-h-[48px] w-full rounded-full bg-zine-terracotta text-body font-bold text-white cursor-pointer"
+            >
+              Вернуться в чат
+            </button>
+          </BottomSheet>
         )}
       </div>
     </OpenUserContext.Provider>

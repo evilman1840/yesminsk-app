@@ -699,6 +699,8 @@ export interface DirectChatThreadSummary {
   lastMessageAt: string;
   lastMessagePreview: string;
   lastMessageMine: boolean;
+  peerName?: string;
+  peerAvatarUrl?: string;
 }
 
 export interface DirectChatsSummary {

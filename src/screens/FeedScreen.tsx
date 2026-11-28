@@ -3,10 +3,11 @@ import { MeetupExperience } from '../components/common/MeetupExperience';
 import { SerialTvSlot } from '../serial/SerialBits';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { MapPin, SlidersHorizontal, ChevronLeft, ChevronRight, Send, Loader2, X } from 'lucide-react';
+import { MapPin, SlidersHorizontal, ChevronLeft, ChevronRight, Loader2, X, HelpCircle } from 'lucide-react';
 import { AppEvent, DirectChatsSummary, DirectChatThreadSummary, JoinOptions, MeetupStats, WishSummaryItem, UserProfile, ActivityGoal, goalsOf, commonGoalIds, GOES_WITH, isVentingNow, GoalFilter, matchesGoalFilter, isAvailableNow, formatTime } from '../types';
 import { telegramService } from '../services/telegram';
 import { ReactionType, useWaveState, WavesLeftNote, WavesOutCard } from '../components/common/Reactions';
+import { DirectChatRulesSheet } from '../components/common/DirectChatSheet';
 import { goalFilterItems } from '../components/ui/GoalChips';
 import { SwipeReel } from '../components/ui/SwipeReel';
 import { photoSrc } from '../components/common/PhotoPicker';
@@ -521,6 +522,7 @@ export const PersonReel: React.FC<{
   const [busy, setBusy] = useState<ReactionType | 'unmatch' | null>(null);
   const [isConfirmingHide, setIsConfirmingHide] = useState(false);
   const [isConfirmingUnmatch, setIsConfirmingUnmatch] = useState(false);
+  const [chatRulesOpen, setChatRulesOpen] = useState(false);
   const common = new Set(commonGoalIds(user, myGoals));
   const goals = goalsOf(user);
   // Карточка на экране полсекунды — посмотрели (лицо замечаешь и при быстром листании): в следующий раз человек будет ниже
@@ -810,23 +812,36 @@ export const PersonReel: React.FC<{
                 )}
               </div>
             )}
-            <button
-              data-analytics="chat_open"
-              onClick={() => {
-                telegramService.haptic('medium');
-                if (onHello) onHello();
-                else if (user.username) telegramService.openChat(user.username);
-              }}
-              className="w-full min-h-[48px] rounded-full bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
-            >
-              <Send size={19} />
-              <span>💬 Написать</span>
-              {Boolean(chatThread?.unreadCount) && (
-                <span className="min-w-5 rounded-full bg-white px-1.5 py-0.5 text-center text-cap font-bold leading-none text-zine-terracotta tabular-nums">
-                  {chatThread!.unreadCount > 99 ? '99+' : chatThread!.unreadCount}
-                </span>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                data-analytics="chat_open"
+                onClick={() => {
+                  telegramService.haptic('medium');
+                  if (onHello) onHello();
+                  else if (user.username) telegramService.openChat(user.username);
+                }}
+                className="flex-1 min-h-[48px] rounded-full bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-transform"
+              >
+                <span>💬 Написать</span>
+                {Boolean(chatThread?.unreadCount) && (
+                  <span className="min-w-5 rounded-full bg-white px-1.5 py-0.5 text-center text-cap font-bold leading-none text-zine-terracotta tabular-nums">
+                    {chatThread!.unreadCount > 99 ? '99+' : chatThread!.unreadCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                aria-label="Как устроен чат и правила общения"
+                onClick={() => {
+                  telegramService.haptic('light');
+                  setChatRulesOpen(true);
+                }}
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-zine-border bg-zine-cardElevated text-zine-inkMuted active:scale-[0.95] transition-transform cursor-pointer"
+              >
+                <HelpCircle size={20} />
+              </button>
+            </div>
+            {chatRulesOpen && <DirectChatRulesSheet onClose={() => setChatRulesOpen(false)} />}
           </div>
         ) : (
           waves === 'out' ? (

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Clock, Flag, Loader2, Reply, Send, Shield, UserX, X } from 'lucide-react';
 import type { DirectChatData, DirectChatMessage, MeetupChatReaction } from '../../types';
 import { CASUAL_PACE_INFO } from '../../types';
@@ -832,3 +833,126 @@ export const DirectChatSheet: React.FC<DirectChatSheetProps> = ({
     </>
   );
 };
+
+/**
+ * Шторка-пояснение по кнопке «?» рядом с «💬 Написать» в «На связи».
+ */
+export const DirectChatRulesSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+  <BottomSheet title="Как устроен личный чат" onClose={onClose}>
+    <div className="space-y-3.5">
+      {[
+        {
+          emoji: '🤝',
+          title: 'Чат дружбы и уважения',
+          text: 'ГУЛЯЙ! создан для тёплого общения, прогулок и компаний. Уважай чужие границы и спокойное «нет», не дави и не навязывайся. Если собеседник не отвечает, это нормально.'
+        },
+        {
+          emoji: '🔒',
+          title: 'Личный Telegram скрыт',
+          text: 'Вы переписываетесь прямо здесь, внутри приложения. Свой ник в Telegram каждый даёт сам, только если захочет. Переписка хранится 7 дней после последнего сообщения.'
+        },
+        {
+          emoji: '❤️',
+          title: 'Если ищешь отношения или близость',
+          text: 'Такие форматы возможны только по взаимному согласию. Отметь их в своей анкете в разделе «Комфортно»: серьёзные отношения увидят только те, кто выбрал то же самое, а близость раскроется только здесь в чате после взаимного 👋, если совпало у обоих.'
+        },
+        {
+          emoji: '🛡',
+          title: 'Всегда можно закрыть диалог',
+          text: 'В шапке чата есть кнопка щита: можно в один шаг скрыть человека или пожаловаться. При жалобе модератор увидит последние 10 сообщений этого диалога, чтобы справедливо разобраться.'
+        }
+      ].map((item) => (
+        <div key={item.title} className="flex gap-3 rounded-zine-sm bg-zine-card p-3.5">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zine-cardElevated text-[20px]">
+            {item.emoji}
+          </span>
+          <div className="min-w-0">
+            <p className="text-body font-bold text-zine-ink leading-snug">{item.title}</p>
+            <p className="mt-1 text-sm2 text-zine-inkMuted leading-snug">{item.text}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+    <button
+      type="button"
+      onClick={() => {
+        telegramService.haptic('light');
+        onClose();
+      }}
+      className="mt-5 w-full min-h-[48px] rounded-full bg-zine-terracotta text-white text-body font-bold active:scale-[0.98] transition-transform cursor-pointer"
+    >
+      Понятно
+    </button>
+  </BottomSheet>
+);
+
+/**
+ * Смахиваемое уведомление сверху экрана внутри приложения при новом сообщении в личном чате.
+ */
+export interface DirectChatToastData {
+  peerId: number;
+  name: string;
+  avatarUrl?: string;
+  preview: string;
+}
+
+export const DirectChatToast: React.FC<{
+  toast: DirectChatToastData | null;
+  onOpen: (toast: DirectChatToastData) => void;
+  onDismiss: () => void;
+}> = ({ toast, onOpen, onDismiss }) => (
+  <AnimatePresence>
+    {toast && (
+      <motion.div
+        key={`${toast.peerId}:${toast.preview}`}
+        initial={{ y: -96, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: -96, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+        drag="y"
+        dragConstraints={{ top: -120, bottom: 0 }}
+        dragElastic={0.15}
+        onDragEnd={(_, info) => {
+          if (info.offset.y < -36 || info.velocity.y < -250) {
+            telegramService.haptic('light');
+            onDismiss();
+          }
+        }}
+        className="fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+12px)] z-[85] mx-auto max-w-[400px]"
+      >
+        <div className="flex items-center gap-2.5 rounded-zine border-2 border-zine-terracotta/50 bg-zine-cardElevated p-2.5 shadow-zine-float">
+          <button
+            type="button"
+            onClick={() => {
+              telegramService.haptic('medium');
+              onOpen(toast);
+            }}
+            className="flex min-w-0 flex-1 items-center gap-2.5 text-left active:opacity-80 cursor-pointer"
+          >
+            <ChatAvatar src={toast.avatarUrl} name={toast.name} userId={toast.peerId} size="w-11 h-11 text-body" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm2 font-bold text-zine-ink">
+                💬 {toast.name} пишет тебе
+              </span>
+              <span className="block truncate text-cap text-zine-inkMuted">
+                {toast.preview || 'Нажми, чтобы открыть чат'}
+              </span>
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-label="Закрыть уведомление"
+            onClick={() => {
+              telegramService.haptic('light');
+              onDismiss();
+            }}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-zine-inkMuted active:bg-zine-card cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
