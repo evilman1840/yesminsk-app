@@ -956,3 +956,70 @@ export const DirectChatToast: React.FC<{
   </AnimatePresence>
 );
 
+/**
+ * Одноразовая шторка анонса нового личного чата и раздела «Комфортно» для тех,
+ * кто ещё не настраивал «Комфортно» и зашёл в приложение (максимальный охват).
+ */
+export const CHAT_COMFORT_INTRO_KEY = 'yesminsk_chat_comfort_intro_v1';
+
+export const ChatComfortAnnouncementSheet: React.FC<{
+  onOpenProfile: () => void;
+  onClose: () => void;
+}> = ({ onOpenProfile, onClose }) => (
+  <BottomSheet title="Личный чат и новые настройки 💬" onClose={onClose}>
+    <div className="space-y-3">
+      <div className="flex gap-3 rounded-zine-sm bg-zine-card p-3.5">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zine-terracotta/15 text-[20px]">
+          💬
+        </span>
+        <div className="min-w-0">
+          <p className="text-body font-bold text-zine-ink leading-snug">Личный чат прямо внутри приложения</p>
+          <p className="mt-1 text-sm2 text-zine-inkMuted leading-snug">
+            Теперь после взаимного 👋 можно спокойно переписываться здесь, не светя свой Telegram. Если человек не подходит, его можно скрыть одним нажатием.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-3 rounded-zine-sm border border-[#C77D86]/35 bg-[#C77D86]/10 p-3.5">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zine-cardElevated text-[20px]">
+          🔒
+        </span>
+        <div className="min-w-0">
+          <p className="text-body font-bold text-zine-ink leading-snug">Тайные галочки в «Комфортно»</p>
+          <p className="mt-1 text-sm2 text-zine-ink leading-snug">
+            В анкете (вкладка «Я» → «Комфортно») появились галочки для тех, кто ищет <b>серьёзные отношения</b> или <b>близость</b>. Их видят <b>только те, кто выбрал то же самое</b> - для всех остальных всё остаётся чисто по-дружески.
+          </p>
+        </div>
+      </div>
+
+      <p className="pt-0.5 text-center text-sm2 text-zine-inkMuted">
+        Загляни проверить свою анкету!
+      </p>
+    </div>
+
+    <div className="mt-4 space-y-2">
+      <button
+        type="button"
+        onClick={() => {
+          telegramService.haptic('medium');
+          onOpenProfile();
+        }}
+        className="w-full min-h-[48px] rounded-full bg-zine-terracotta text-white text-body font-bold active:scale-[0.98] transition-transform cursor-pointer"
+      >
+        ⚙️ Проверить анкету
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          telegramService.haptic('light');
+          onClose();
+        }}
+        className="w-full min-h-[44px] rounded-full text-sm2 font-semibold text-zine-inkMuted cursor-pointer"
+      >
+        Понятно
+      </button>
+    </div>
+  </BottomSheet>
+);
+
+

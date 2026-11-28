@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
 import type { DirectChatData, DirectChatMessage } from '../types';
-import { DirectChatSheet, DirectChatRulesSheet, DirectChatToast, DirectChatToastData } from '../components/common/DirectChatSheet';
+import { DirectChatSheet, DirectChatRulesSheet, DirectChatToast, DirectChatToastData, ChatComfortAnnouncementSheet } from '../components/common/DirectChatSheet';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { OpenUserContext } from '../context/openUser';
 
@@ -163,7 +163,9 @@ const MODES: { id: Mode; label: string; peerId: number }[] = [
 export const DirectChatPreview: React.FC = () => {
   const [mode, setMode] = useState<Mode>('empty');
   const [dark, setDark] = useState(false);
-  const [open, setOpen] = useState(true);
+  const startSheet = new URLSearchParams(location.search).get('sheet');
+  const [open, setOpen] = useState(startSheet !== 'announcement');
+  const [announcementOpen, setAnnouncementOpen] = useState(startSheet === 'announcement');
   const [rulesOpen, setRulesOpen] = useState(false);
   const [profileOpenId, setProfileOpenId] = useState<number | null>(null);
   const [toast, setToast] = useState<DirectChatToastData | null>(null);
@@ -265,6 +267,15 @@ export const DirectChatPreview: React.FC = () => {
         </div>
 
         {rulesOpen && <DirectChatRulesSheet onClose={() => setRulesOpen(false)} />}
+        {announcementOpen && (
+          <ChatComfortAnnouncementSheet
+            onClose={() => setAnnouncementOpen(false)}
+            onOpenProfile={() => {
+              setAnnouncementOpen(false);
+              setNotice('Переход в редактирование анкеты («Комфортно»)');
+            }}
+          />
+        )}
 
         {open && (
           <DirectChatSheet

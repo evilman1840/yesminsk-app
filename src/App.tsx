@@ -22,7 +22,7 @@ import { AddToHomeSheet } from './components/common/AddToHomeSheet';
 import { OpenUserContext } from './context/openUser';
 import { GoTogetherContext } from './context/connect';
 import { DuelSheet, markCoinSeen } from './components/common/ConnectSheets';
-import { DirectChatSheet, DirectChatToast, DirectChatToastData } from './components/common/DirectChatSheet';
+import { DirectChatSheet, DirectChatToast, DirectChatToastData, ChatComfortAnnouncementSheet, CHAT_COMFORT_INTRO_KEY } from './components/common/DirectChatSheet';
 import { askBotAccess, setBotAccessKnown, botAccessOk, onBotAccessChange } from './services/botAccess';
 import { PeopleFilters, loadFilters, saveFilters, filterQuery } from './components/people/PeopleFilters';
 import { WantNowButton } from './components/common/WantNowButton';
@@ -263,6 +263,29 @@ export const App: React.FC = () => {
   const [directChatWith, setDirectChatWith] = useState<{ id: number; name: string; avatarUrl?: string } | null>(null);
   const [directChatsSummary, setDirectChatsSummary] = useState<import('./types').DirectChatsSummary>({ totalUnread: 0, threads: {} });
   const [chatToast, setChatToast] = useState<DirectChatToastData | null>(null);
+  const [chatIntroDismissed, setChatIntroDismissed] = useState<boolean>(() => {
+    try {
+      const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param || '';
+      const fromPush =
+        location.search.includes('fromPush=1') ||
+        startParam.includes('fromPush') ||
+        location.search.includes('tab=profile') ||
+        startParam.includes('tab_profile');
+      if (fromPush) {
+        localStorage.setItem(CHAT_COMFORT_INTRO_KEY, '1');
+        return true;
+      }
+      return localStorage.getItem(CHAT_COMFORT_INTRO_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const dismissChatIntro = useCallback(() => {
+    setChatIntroDismissed(true);
+    try {
+      localStorage.setItem(CHAT_COMFORT_INTRO_KEY, '1');
+    } catch {}
+  }, []);
   const directChatWithRef = useRef<{ id: number; name: string; avatarUrl?: string } | null>(null);
   directChatWithRef.current = directChatWith;
   const knownChatTimesRef = useRef<Record<string, string> | null>(null);
