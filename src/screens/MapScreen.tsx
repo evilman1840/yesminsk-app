@@ -122,9 +122,14 @@ export const MapScreen: React.FC<MapScreenProps> = ({
 }) => {
   // Сходки на карте: только предстоящие (как в ленте «Сходки» — начавшиеся больше получаса назад не показываем) и фильтр по времени
   const [eventWhen, setEventWhen] = useState<EventWhen>('all');
+  const [onlyThreadsOnMap, setOnlyThreadsOnMap] = useState(false);
   // Списки — через useMemo: карта перерисовывает метки, только когда массив новый
   const upcomingEvents = useMemo(() => events.filter((e) => new Date(e.dateTime).getTime() > Date.now() - 30 * 60 * 1000), [events]);
-  const filteredEvents = useMemo(() => upcomingEvents.filter((e) => matchesWhen(e.dateTime, eventWhen)), [upcomingEvents, eventWhen]);
+  const hasThreadsOnMap = useMemo(() => upcomingEvents.some((e) => Boolean(e.external)), [upcomingEvents]);
+  const filteredEvents = useMemo(
+    () => upcomingEvents.filter((e) => matchesWhen(e.dateTime, eventWhen) && (!onlyThreadsOnMap || Boolean(e.external))),
+    [upcomingEvents, eventWhen, onlyThreadsOnMap]
+  );
   // Сходки кружками на карте или списком — что человек выбрал в прошлый раз
   const [eventsView, setEventsView] = useState<'map' | 'list'>(() => {
     try {
@@ -449,6 +454,23 @@ export const MapScreen: React.FC<MapScreenProps> = ({
                   </button>
                 ))}
               </div>
+              {(hasThreadsOnMap || onlyThreadsOnMap) && (
+                <button
+                  onClick={() => {
+                    telegramService.haptic('light');
+                    setOnlyThreadsOnMap((v) => !v);
+                  }}
+                  aria-pressed={onlyThreadsOnMap}
+                  className={`h-11 px-3.5 shrink-0 rounded-full text-sm2 font-bold whitespace-nowrap border flex items-center gap-1.5 transition-transform active:scale-[0.97] cursor-pointer ${
+                    onlyThreadsOnMap
+                      ? 'bg-zine-mustard text-[#2B2623] border-zine-mustard shadow-zine'
+                      : 'bg-zine-cardElevated text-zine-ink border-dashed border-zine-mustard/80 shadow-zine'
+                  }`}
+                >
+                  <span className="w-5 h-5 rounded-full bg-zine-ink text-zine-paper text-[12px] font-extrabold leading-none flex items-center justify-center" aria-hidden>@</span>
+                  <span>Из Threads</span>
+                </button>
+              )}
               {EVENT_WHEN.map(([id, label]) => (
                 <button
                   key={id}

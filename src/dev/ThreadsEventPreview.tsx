@@ -68,6 +68,26 @@ const initialEvents: AppEvent[] = [
     isJoined: false,
     likesCount: 7,
     isLiked: true
+  },
+  {
+    id: 'regular-preview-3',
+    title: 'Кофе и прогулка по Осмоловке',
+    description: 'Берём фильтр-кофе на Киселёва и неспешно гуляем по тихим дворикам Осмоловки.',
+    category: 'cafe',
+    badges: [],
+    locationName: 'Осмоловка / Киселёва',
+    coordinates: [53.9115, 27.5612],
+    dateTime: new Date(Date.now() + 2 * 86400000).toISOString(),
+    creator: { telegramId: 501, name: 'Назар', avatarUrl: '' },
+    participants: [
+      { telegramId: 501, name: 'Назар', avatarUrl: '' },
+      { telegramId: 502, name: 'Маша', avatarUrl: '' }
+    ],
+    participantsCount: 2,
+    maxParticipants: 6,
+    isJoined: false,
+    likesCount: 3,
+    isLiked: false
   }
 ];
 

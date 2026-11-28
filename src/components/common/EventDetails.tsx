@@ -297,18 +297,23 @@ export const EventDetails: React.FC<{
       )}
 
       {unclaimedExt && event.external?.url && (
-        <div className="mt-4 p-4 rounded-zine border border-zine-mustard/35 bg-zine-mustard/15">
-          <p className="text-body font-bold text-zine-ink">{MEETUP_TEXTS.externalBannerTitle(event.external.authorHandle, event.external.authorName)}</p>
-          <p className="mt-1 text-sm2 text-zine-inkMuted">{MEETUP_TEXTS.externalBannerText}</p>
+        <div className="mt-4 p-4 rounded-zine border-2 border-dashed border-zine-mustard/70 bg-zine-mustard/15">
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 w-5 h-5 shrink-0 rounded-full bg-zine-ink text-zine-paper text-[12px] font-extrabold leading-none flex items-center justify-center" aria-hidden>@</span>
+            <p className="min-w-0 flex-1 text-body font-bold text-zine-ink leading-snug">
+              {MEETUP_TEXTS.externalBannerTitle(event.external.authorHandle, event.external.authorName)}
+            </p>
+          </div>
+          <p className="mt-1.5 text-sm2 text-zine-inkMuted">{MEETUP_TEXTS.externalBannerText}</p>
           <button
             type="button"
             onClick={() => {
               telegramService.haptic('medium');
               telegramService.openLink(event.external!.url);
             }}
-            className="mt-3 w-full min-h-[48px] px-4 rounded-zine-sm bg-zine-cardElevated border border-zine-border text-zine-ink text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+            className="mt-3 w-full min-h-[48px] px-4 rounded-zine-sm bg-zine-ink text-zine-paper text-body font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
           >
-            <ExternalLink size={18} className="shrink-0 text-zine-terracotta" />
+            <ExternalLink size={18} className="shrink-0" />
             <span>{MEETUP_TEXTS.externalOpenPost}</span>
           </button>
         </div>
@@ -759,17 +764,17 @@ export const EventDetails: React.FC<{
                 setIsJoinOpen(true);
               }}
               disabled={Boolean(notForMe)}
-              className={`h-14 px-3.5 shrink-0 rounded-zine-sm text-body font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer ${
+              className={`flex-1 min-w-0 h-14 px-3 rounded-zine-sm text-body font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer ${
                 event.isJoined ? 'bg-zine-sage/15 text-zine-sage' : notForMe ? 'bg-zine-card text-zine-inkMuted cursor-default' : 'border-2 border-zine-terracotta text-zine-terracotta'
               }`}
             >
               {event.isJoined ? (
                 <>
-                  <Check size={19} strokeWidth={3} className="shrink-0" />
-                  <span>Я иду{myNote ? ` (${myNote})` : ''}</span>
+                  <Check size={18} strokeWidth={3} className="shrink-0" />
+                  <span className="truncate">Я иду{myNote ? ` (${myNote})` : ''}</span>
                 </>
               ) : (
-                <span>{MEETUP_TEXTS.externalGoBtn}</span>
+                <span className="truncate">{MEETUP_TEXTS.externalGoBtn}</span>
               )}
             </button>
             <button
@@ -779,8 +784,8 @@ export const EventDetails: React.FC<{
               }}
               className="flex-1 min-w-0 h-14 px-3 rounded-zine-sm bg-zine-terracotta text-white text-body font-bold flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer"
             >
-              <ExternalLink size={18} className="shrink-0" />
-              <span className="truncate">{MEETUP_TEXTS.externalOpenShort}</span>
+              <ExternalLink size={17} className="shrink-0" />
+              <span>{MEETUP_TEXTS.externalOpenBtn}</span>
             </button>
           </div>
         ) : (

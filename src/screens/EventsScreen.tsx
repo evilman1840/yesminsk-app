@@ -228,6 +228,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const [eventWhen, setEventWhen] = useState<EventWhen>('all'); // сегодня / завтра / выходные
   const [onlyMine, setOnlyMine] = useState(false); // «⭐ Мои»: собираю или иду
   const [onlyLiked, setOnlyLiked] = useState(false);
+  const [onlyThreads, setOnlyThreads] = useState(false); // «@ Из Threads»: городские находки из Threads
   const [likedEvents, setLikedEvents] = useState<AppEvent[]>([]);
   const [likesLoading, setLikesLoading] = useState(false);
   const [likesError, setLikesError] = useState(false);
@@ -463,6 +464,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   // Нашёл звезду сам или по подсказке — больше не надоедаем
   const openMine = () => {
     setOnlyLiked(false);
+    setOnlyThreads(false);
     telegramService.haptic('selection');
     setOnlyMine(true);
     setEventWhen('all');
@@ -472,13 +474,17 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     } catch {}
   };
 
+  const threadsTotalCount = events.filter(
+    (e) => Boolean(e.external) && !notInterestedEvents.has(String(e.id)) && Number(e.creator?.telegramId) !== Number(currentUserId) && new Date(e.dateTime).getTime() > Date.now() - 30 * 60 * 1000
+  ).length;
+
   const filteredEvents = (onlyLiked ? likedEvents : selectedCategory === 'all'
     ? events
     : selectedCategory === 'kids'
     ? events.filter((e) => e.tags?.includes('kids'))
     : events.filter((e) => e.category === selectedCategory)
   )
-    .filter((e) => !notInterestedEvents.has(String(e.id)) && (onlyLiked || matchesWhen(e.dateTime, eventWhen)))
+    .filter((e) => !notInterestedEvents.has(String(e.id)) && (!onlyThreads || Boolean(e.external)) && (onlyLiked || matchesWhen(e.dateTime, eventWhen)))
     // «⭐ Мои»: что я собираю и куда иду. Во «Все» своих не показываем — они в «Мои»
     .filter((e) => {
       const mine = Number(e.creator?.telegramId) === Number(currentUserId);
@@ -489,15 +495,15 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
     .map((e, i) => ({ e, i, rank: onlyMine ? 0 : e.isJoined ? 2 : seenAtOpen.has(String(e.id)) ? 1 : 0 }))
     .sort((a, b) => a.rank - b.rank || a.i - b.i)
     .map(({ e }) => e);
-  // Лента: сходки и между ними карточки «Хочу сходить» (после 4-й и 10-й; сходок меньше — одна в конце). В «⭐ Мои» — без них
+  // Лента: сходки и между ними карточки «Хочу сходить» (после 4-й и 10-й; сходок меньше — одна в конце). В «⭐ Мои» и «Из Threads» — без них
   // «Организаторы месяца» — после второй сходки (сходка одна — после неё)
   type FeedItem = { type: 'event'; ev: AppEvent } | { type: 'wish'; slot: number } | { type: 'hosts' } | { type: 'past' };
   const feedItems: FeedItem[] = [];
-  const hostsAfter = !onlyMine && !onlyLiked && monthHosts.length ? Math.min(1, filteredEvents.length - 1) : -1;
+  const hostsAfter = !onlyMine && !onlyLiked && !onlyThreads && monthHosts.length ? Math.min(1, filteredEvents.length - 1) : -1;
   filteredEvents.forEach((ev, i) => {
     feedItems.push({ type: 'event', ev });
     if (i === hostsAfter) feedItems.push({ type: 'hosts' });
-    const slot = onlyMine || onlyLiked ? null : reelSlotAfter(i, filteredEvents.length);
+    const slot = onlyMine || onlyLiked || onlyThreads ? null : reelSlotAfter(i, filteredEvents.length);
     if (slot !== null) feedItems.push({ type: 'wish', slot });
   });
   // «Прошедшие» — последней карточкой в «⭐ Мои» (и единственной, если впереди своих сходок нет)
@@ -999,7 +1005,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
   const categoryItems = [['all', 'Все', ''], ...categoryIds.map((c) => [c, EVENT_CATEGORIES_CONFIG[c].label, EVENT_CATEGORIES_CONFIG[c].emoji]), ['kids', 'С детьми', '👶']] as [EventCategory | 'all' | 'kids', string, string][];
   const activeCategory = selectedCategory !== 'all' ? categoryItems.find(([id]) => id === selectedCategory) : undefined;
-  const activeFilters = Number(selectedCategory !== 'all');
+  const activeFilters = Number(selectedCategory !== 'all') + Number(onlyThreads);
   // «Хочу сходить» в одно нажатие: виды желаний чипами, у каждого — сколько людей уже хотят (кроме меня; «поныть» без счётчика)
   const wishKinds = (templates || []).filter((t) => t.key !== CUSTOM_TEMPLATE && t.wishPhrase);
   // Разные люди, а не сумма по «когда» и местам: того, кто хочет на кофе и на неделе, и в выходные, считаем один раз
@@ -1009,6 +1015,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
   const emptyWishWindow: WishWindow | null = eventWhen === 'all' ? null : eventWhen;
   // Выбранное в шторке — чипами под шапкой, крестик сбрасывает
   const activeChips = [
+    onlyThreads && { key: 'threads', label: `@ ${M.externalFilterChip}`, onClear: () => setOnlyThreads(false) },
     activeCategory && { key: 'cat', label: `${activeCategory[2]} ${activeCategory[1]}`.trim(), onClear: () => setSelectedCategory('all') }
   ].filter(Boolean) as { key: string; label: string; onClear: () => void }[];
 
@@ -1056,11 +1063,48 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
                 )}
               </button>
               <button aria-label="Понравившиеся сходки" aria-pressed={onlyLiked}
-                onClick={() => { telegramService.haptic('selection'); setOnlyLiked(true); setOnlyMine(false); setMineHint(false); setEventWhen('all'); setSelectedCategory('all'); }}
+                onClick={() => { telegramService.haptic('selection'); setOnlyLiked(true); setOnlyMine(false); setOnlyThreads(false); setMineHint(false); setEventWhen('all'); setSelectedCategory('all'); }}
                 className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center active:scale-[0.98] transition-transform ${onlyLiked ? 'bg-zine-terracotta text-white' : 'text-zine-terracotta'}`}>
                 <Heart size={21} fill={onlyLiked ? 'currentColor' : 'none'} />
               </button>
-              {EVENT_WHEN.map(([id, label]) => (
+              {EVENT_WHEN.slice(0, 1).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    telegramService.haptic('selection');
+                    setOnlyMine(false);
+                    setOnlyLiked(false);
+                    setOnlyThreads(false);
+                    setEventWhen(id);
+                  }}
+                  className={`shrink-0 min-w-11 h-11 px-2 rounded-full text-[14px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                    !onlyMine && !onlyLiked && !onlyThreads && eventWhen === id ? 'bg-zine-ink text-zine-paper' : 'text-zine-inkMuted'
+                  }`}
+                >
+                  <span className="truncate">{label}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-label={M.externalFilterChip}
+                aria-pressed={onlyThreads}
+                onClick={() => {
+                  telegramService.haptic('selection');
+                  setOnlyMine(false);
+                  setOnlyLiked(false);
+                  setMineHint(false);
+                  setOnlyThreads((v) => !v);
+                }}
+                className={`shrink-0 h-11 px-2 rounded-full text-[13px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                  onlyThreads
+                    ? 'bg-zine-mustard text-[#2B2623]'
+                    : 'bg-zine-mustard/15 text-zine-mustardInk'
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-zine-ink text-zine-paper text-[10px] font-extrabold leading-none flex items-center justify-center" aria-hidden>@</span>
+                <span className="whitespace-nowrap">Threads{threadsTotalCount > 0 ? ` · ${threadsTotalCount}` : ''}</span>
+              </button>
+              {EVENT_WHEN.slice(1).map(([id, label]) => (
                 <button
                   key={id}
                   onClick={() => {
@@ -1232,21 +1276,22 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
         </div>
       ) : feedItems.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-center px-8 text-zine-ink">
-          <div className="text-[48px] mb-3">{onlyLiked ? '❤️' : '🗓'}</div>
-          <p className="font-serif font-bold text-title">{onlyLiked ? 'Здесь будет то, что нравится' : onlyMine ? M.mineEmptyTitle : M.emptyTitle}</p>
-          <p className="mt-2 text-body text-zine-inkMuted">{onlyLiked ? 'Нажми на сердечко у сходки, чтобы легко найти её потом' : onlyMine ? M.mineEmptyText : M.emptyText}</p>
+          <div className="text-[48px] mb-3">{onlyLiked ? '❤️' : onlyThreads ? '🧵' : '🗓'}</div>
+          <p className="font-serif font-bold text-title">{onlyLiked ? 'Здесь будет то, что нравится' : onlyThreads ? M.externalEmptyTitle : onlyMine ? M.mineEmptyTitle : M.emptyTitle}</p>
+          <p className="mt-2 text-body text-zine-inkMuted">{onlyLiked ? 'Нажми на сердечко у сходки, чтобы легко найти её потом' : onlyThreads ? M.externalEmptyText : onlyMine ? M.mineEmptyText : M.emptyText}</p>
           <button
             onClick={() => {
               if (onlyLiked) { setOnlyLiked(false); return; }
+              if (onlyThreads) { setOnlyThreads(false); setEventWhen('all'); setSelectedCategory('all'); return; }
               handleOpenCreateModal(selectedCategory === 'all' || selectedCategory === 'kids' ? undefined : selectedCategory, undefined, 'empty');
               if (selectedCategory === 'kids') setTags(['kids']);
             }}
             className="mt-5 h-12 px-6 rounded-full bg-zine-terracotta text-white text-body font-bold cursor-pointer"
           >
-            {onlyLiked ? 'Посмотреть сходки' : M.createButton}
+            {onlyLiked ? 'Посмотреть сходки' : onlyThreads ? M.externalEmptyReset : M.createButton}
           </button>
           {/* Фильтр пустой — желание с тем же видом и временем: осталось подтвердить */}
-          {!onlyMine && !onlyLiked && (
+          {!onlyMine && !onlyLiked && !onlyThreads && (
             <button
               onClick={() => openWish(emptyWishKind || emptyWishWindow ? { kind: emptyWishKind?.key || null, window: emptyWishWindow } : undefined)}
               className="mt-3 h-12 px-6 rounded-full bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
@@ -1258,7 +1303,7 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           )}
         </div>
       ) : (
-        <div key={`${onlyLiked}-${onlyMine}-${selectedCategory}-${eventWhen}`} ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
+        <div key={`${onlyLiked}-${onlyMine}-${onlyThreads}-${selectedCategory}-${eventWhen}`} ref={listRef} className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar">
           {feedItems.map((item, index) => {
             if (item.type === 'wish') {
               const w = reelWishes[item.slot] || null;
@@ -1339,6 +1384,23 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
 
       {isFiltersOpen && (
         <BottomSheet title="Фильтры" onClose={() => setIsFiltersOpen(false)}>
+          <p className="mb-2.5 text-body font-bold text-zine-ink">{M.externalFilterTitle}</p>
+          <div className="mb-5 flex flex-wrap gap-2">
+            <FilterChip active={!onlyThreads} onClick={() => setOnlyThreads(false)}>
+              <span>{M.externalFilterAll}</span>
+            </FilterChip>
+            <FilterChip
+              active={onlyThreads}
+              onClick={() => {
+                setOnlyMine(false);
+                setOnlyLiked(false);
+                setOnlyThreads((v) => !v);
+              }}
+            >
+              <span className="w-5 h-5 rounded-full bg-current/15 text-[12px] font-extrabold leading-none flex items-center justify-center" aria-hidden>@</span>
+              <span>{M.externalFilterChip}{threadsTotalCount > 0 ? ` (${threadsTotalCount})` : ''}</span>
+            </FilterChip>
+          </div>
           <p className="mb-2.5 text-body font-bold text-zine-ink">Что за сходка</p>
           <div className="flex flex-wrap gap-2">
             {categoryItems.map(([id, label, emoji]) => (
@@ -1350,7 +1412,10 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({
           </div>
           <div className="mt-6 grid grid-cols-[auto_1fr] gap-2">
             <button
-              onClick={() => setSelectedCategory('all')}
+              onClick={() => {
+                setSelectedCategory('all');
+                setOnlyThreads(false);
+              }}
               className="h-12 px-5 rounded-zine-sm bg-zine-card text-zine-ink text-body font-semibold cursor-pointer"
             >
               Сбросить
@@ -2124,7 +2189,13 @@ export const EventReel: React.FC<{
 
   return (
     <SwipeReel
-      className={spotlight ? 'flex flex-col reel-night top-2 bottom-2 left-2 right-2 rounded-zine bg-zine-paper text-zine-ink shadow-zine-float' : 'flex flex-col'}
+      className={
+        spotlight
+          ? 'flex flex-col reel-night top-2 bottom-2 left-2 right-2 rounded-zine bg-zine-paper text-zine-ink shadow-zine-float'
+          : unclaimedExt
+            ? 'flex flex-col top-1 bottom-2 left-2.5 right-2.5 rounded-zine border-2 border-dashed border-zine-mustard/80 bg-zine-cardElevated text-zine-ink shadow-zine overflow-hidden'
+            : 'flex flex-col'
+      }
       rightLabel="Подробнее"
       rightBehavior="stay"
       leftLabel={isCreator || ev.isJoined ? undefined : 'Неинтересно'}
@@ -2132,20 +2203,52 @@ export const EventReel: React.FC<{
       onSwipe={(dir) => (dir === 'right' ? onOpenDetails() : onNotInterested())}
     >
       {spotlight && <p className="shrink-0 px-4 pt-3 pb-2 text-sm2 font-bold text-zine-terracotta">✨ {spotlight.label}</p>}
-      {/* Обложка: первое фото сходки, без фото — цвет категории и крупный значок.
+      {!spotlight && unclaimedExt && (
+        <div
+          onClick={onOpenDetails}
+          className="shrink-0 px-3.5 py-2 bg-zine-mustard/15 border-b border-dashed border-zine-mustard/50 flex items-center justify-between gap-2 cursor-pointer"
+        >
+          <span className="inline-flex items-center gap-1.5 min-w-0">
+            <span className="w-5 h-5 shrink-0 rounded-full bg-zine-ink text-zine-paper text-[12px] font-extrabold leading-none flex items-center justify-center" aria-hidden>
+              @
+            </span>
+            <span className="text-cap font-extrabold tracking-tight text-zine-ink truncate">{M.externalRibbon}</span>
+          </span>
+          <span className="shrink-0 font-hand text-[20px] font-bold leading-none text-zine-mustardInk">{M.externalHandNote}</span>
+        </div>
+      )}
+      {/* Обложка: первое фото сходки, без фото — цвет категории и крупный значок (а у находок из Threads — журнальная обложка со знаком @).
           Поверх — главное, что читается за секунду: категория и кто идёт — сверху, когда — снизу */}
       <div
         ref={reelRef}
         onClick={onOpenDetails}
-        className={`relative mx-3 flex-1 min-h-[30%] rounded-zine overflow-hidden bg-gradient-to-br cursor-pointer ${REEL_BG[ev.category] || REEL_BG.walk}`}
+        className={`relative ${unclaimedExt ? 'mx-2.5 mt-2.5 rounded-zine-sm' : 'mx-3 rounded-zine'} flex-1 min-h-[26%] overflow-hidden bg-gradient-to-br cursor-pointer ${
+          unclaimedExt ? 'from-[#3D2E1E] via-[#2A221B] to-[#171412]' : REEL_BG[ev.category] || REEL_BG.walk
+        }`}
       >
         {ev.photos?.length ? (
           <img src={photoSrc(ev.photos[0])} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" loading="lazy" />
+        ) : unclaimedExt ? (
+          <>
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: 'radial-gradient(circle at 50% 45%, rgba(226, 160, 63, 0.30), transparent 68%)' }}
+            />
+            <span aria-hidden className="absolute -right-3 -bottom-8 text-[144px] font-sans font-black leading-none text-white/[0.07] select-none pointer-events-none">
+              @
+            </span>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-24 h-24 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[56px] leading-none select-none shadow-zine">
+                {emoji || cat.emoji}
+              </div>
+            </div>
+          </>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-[88px] leading-none select-none pointer-events-none">{emoji || cat.emoji}</div>
         )}
         <div className="absolute right-3 top-16 z-10"><EventLikeButton event={ev} /></div>
-        <span className="absolute left-3 top-3 max-w-[calc(100%-140px)] h-9 px-3 rounded-full bg-black/55 backdrop-blur-sm text-white text-sm2 font-semibold flex items-center gap-1.5 pointer-events-none truncate">
+        <span className="absolute left-3 top-3 max-w-[calc(100%-148px)] h-9 px-3 rounded-full bg-black/55 backdrop-blur-sm text-white text-sm2 font-semibold flex items-center gap-1.5 pointer-events-none truncate">
           {ev.isOfficial && <span className="text-zine-mustard">⭐</span>}
           <span aria-hidden>{cat.emoji}</span>
           <span className="truncate">{cat.label}</span>
@@ -2156,7 +2259,11 @@ export const EventReel: React.FC<{
         </span>
         {!spotlight && (
           people.length > 0 ? (
-            <span className="absolute right-3 top-3 h-9 pl-1 pr-3 rounded-full bg-black/65 backdrop-blur-sm text-white text-sm2 font-bold flex items-center gap-2 whitespace-nowrap pointer-events-none">
+            <span
+              className={`absolute right-3 top-3 h-9 pl-1 pr-3 rounded-full backdrop-blur-sm text-white text-sm2 font-bold flex items-center gap-2 whitespace-nowrap pointer-events-none ${
+                unclaimedExt ? 'bg-black/75 border border-zine-mustard/60' : 'bg-black/65'
+              }`}
+            >
               <span className="flex -space-x-2">
                 {people.slice(0, 3).map((p, i) => (
                   <img
@@ -2171,8 +2278,8 @@ export const EventReel: React.FC<{
               {ev.maxParticipants ? `${ev.participantsCount || 1} из ${ev.maxParticipants}` : `${ev.participantsCount || people.length}`}
             </span>
           ) : (
-            <span className="absolute right-3 top-3 h-9 px-3 rounded-full bg-black/65 backdrop-blur-sm text-white text-sm2 font-bold flex items-center whitespace-nowrap pointer-events-none">
-              {M.externalShortBadge}
+            <span className="absolute right-3 top-3 max-w-[132px] h-9 px-3 rounded-full bg-zine-mustard text-[#2B2623] text-cap font-extrabold flex items-center gap-1 whitespace-nowrap pointer-events-none shadow-zine-sm">
+              <span className="truncate">{ev.external?.authorHandle ? `@${ev.external.authorHandle}` : M.externalShortBadge}</span>
             </span>
           )
         )}
@@ -2286,8 +2393,9 @@ export const EventReel: React.FC<{
                   telegramService.haptic('medium');
                   telegramService.openLink(ev.external!.url);
                 }}
-                className="flex-1 min-w-0 h-12 px-4 rounded-full bg-zine-terracotta text-white text-body font-bold flex items-center justify-center whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer"
+                className="flex-1 min-w-0 h-12 px-4 rounded-full bg-zine-ink text-zine-paper text-body font-bold flex items-center justify-center gap-2 whitespace-nowrap active:scale-[0.98] transition-transform cursor-pointer"
               >
+                <span className="w-5 h-5 shrink-0 rounded-full bg-zine-paper/15 text-[12px] font-extrabold leading-none flex items-center justify-center" aria-hidden>@</span>
                 <span className="truncate">{M.externalOpenShort}</span>
               </button>
             </>
@@ -2334,15 +2442,15 @@ export const EventReel: React.FC<{
             </>
           )}
         </div>
-        {/* Внешняя встреча из Threads: спокойная кнопка «Пойти туда за компанию» под главной кнопкой */}
+        {/* Внешняя встреча из Threads: заметная тёплая пилюля «Пойти туда за компанию» под главной кнопкой */}
         {unclaimedExt && !ev.isJoined && !isCreator && !notForMe && (
-          <div className="mt-1.5 flex items-center justify-center">
+          <div className="mt-2">
             <button
               type="button"
               data-analytics="meetup_join"
               onClick={onJoin}
               disabled={isJoining}
-              className="min-h-[40px] px-3 text-sm2 font-bold text-zine-terracotta flex items-center gap-1.5 active:scale-[0.98] transition-transform cursor-pointer"
+              className="w-full min-h-[44px] px-4 rounded-full bg-zine-terracotta/12 border border-zine-terracotta/35 text-sm2 font-bold text-zine-terracotta flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform cursor-pointer"
             >
               {isJoining ? <Loader2 size={16} className="animate-spin" /> : M.externalGoShort}
             </button>

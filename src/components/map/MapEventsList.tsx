@@ -33,13 +33,34 @@ export const MapEventsList: React.FC<{
                   telegramService.haptic('selection');
                   onOpen(ev);
                 }}
-                className="w-full p-3.5 rounded-zine bg-zine-cardElevated border border-zine-border text-left flex gap-3 active:scale-[0.99] transition-transform cursor-pointer"
+                className={`w-full p-3.5 rounded-zine text-left flex gap-3 active:scale-[0.99] transition-transform cursor-pointer ${
+                  unclaimedExt
+                    ? 'bg-zine-mustard/10 border-2 border-dashed border-zine-mustard/75 shadow-zine-sm'
+                    : 'bg-zine-cardElevated border border-zine-border'
+                }`}
               >
-                <span className="w-12 h-12 shrink-0 rounded-zine-sm bg-zine-card flex items-center justify-center text-[26px] leading-none" aria-hidden>
+                <span
+                  className={`relative w-12 h-12 shrink-0 rounded-zine-sm flex items-center justify-center text-[26px] leading-none ${
+                    unclaimedExt ? 'bg-zine-mustard/25 border border-zine-mustard/50' : 'bg-zine-card'
+                  }`}
+                  aria-hidden
+                >
                   {cat.emoji}
+                  {unclaimedExt && (
+                    <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-zine-ink text-zine-paper text-[11px] font-extrabold flex items-center justify-center">
+                      @
+                    </span>
+                  )}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-cap font-semibold text-zine-terracotta first-letter:uppercase">{whenText(ev.dateTime)}</span>
+                  <span className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-cap font-semibold text-zine-terracotta first-letter:uppercase">{whenText(ev.dateTime)}</span>
+                    {unclaimedExt && (
+                      <span className="px-2 py-0.5 rounded-full bg-zine-mustard/25 text-zine-mustardInk text-[11px] font-bold leading-tight">
+                        {M.externalFilterChip}
+                      </span>
+                    )}
+                  </span>
                   <span className="block font-serif font-bold text-body text-zine-ink leading-snug line-clamp-2">{ev.title}</span>
                   <span className="mt-0.5 flex items-center gap-1 text-sm2 text-zine-inkMuted">
                     <MapPin size={14} className="shrink-0" />
